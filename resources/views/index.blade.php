@@ -20,10 +20,15 @@
          alt="DepEd Zamboanga Header">
     </header>
     <main>
-        <section class="pt-32 pb-20 px-6">
-            <div class="max-w-7xl mx-auto text-center">
-                <h1 class="text-5xl md:text-7xl font-extrabold text-gray-900 mb-6 tracking-tight">
-                    Learning Management </br> System 
+        <section 
+            style="background-image: url('{{ asset('storage/images/deped_zamdiv.jpg') }}');" 
+            class="relative bg-cover bg-center bg-no-repeat pt-32 pb-20 px-6"
+        >
+            <div class="absolute inset-0 bg-red-900 bg-opacity-10"></div>
+
+            <div class="relative z-10 max-w-7xl mx-auto text-center">
+                <h1 class="text-5xl md:text-7xl font-extrabold text-white mb-6 tracking-tight drop-shadow-2xl">
+                    Learning Management <br> System 
                 </h1>
             </div>
         </section>
