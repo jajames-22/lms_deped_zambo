@@ -5,7 +5,7 @@ use Illuminate\Support\Facades\Route;
 // Added Middleware to ensure users logged in can access
 Route::get('/', function () {
     return view('index');
-})->middleware('auth')->name('dashboard');
+})->middleware('guest')->name('index');
 
 Route::get('/dashboard', function () {
     return view('dashboard.dashboard');
