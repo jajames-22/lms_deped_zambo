@@ -97,6 +97,7 @@
                         </div>
                     </div>
                 </div>
+                <div class="bg-red-700 w-full h-screen"></div>
             </div>
         </main>
 </body>

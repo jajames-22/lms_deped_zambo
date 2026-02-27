@@ -44,7 +44,6 @@
         <aside id="sidebar"
             class="fixed inset-y-0 left-0 w-64 bg-white border-r border-gray-200 z-50 transform -translate-x-full md:translate-x-0 md:relative sidebar-transition flex flex-col">
             <div class="px-6 py-8 flex items-center justify-between lg:justify-center">
-                <!-- Logo Container -->
                 <div class="flex-shrink-0">
                     <a href="{{ url('/dashboard') }}">
                         <img src="{{ asset('storage/images/lms-logo-red.png') }}"
@@ -52,7 +51,6 @@
                     </a>
                 </div>
 
-                <!-- Close Button (Mobile Only) -->
                 <button onclick="toggleSidebar()" class="md:hidden text-gray-500 hover:text-[#a52a2a] p-2">
                     <i class="fas fa-times text-xl"></i>
                 </button>
@@ -135,15 +133,11 @@
                 </div>
             </header>
 
-            <!-- Dashboard Body -->
-            <!-- 'overflow-y-auto' ensures this area scrolls while the header above stays still -->
-            <div id="content-area" class="flex-1 overflow-hidden">
-                <!-- Content gets loaded here -->
-            </div>
+            <div id="content-area" class="flex-1 overflow-y-auto">
+                </div>
         </main>
     </div>
 
-    <!-- LOGOUT MODAL -->
     <div id="logoutModal" class="fixed inset-0 z-[60] hidden">
         <div class="absolute inset-0 bg-gray-900/60 backdrop-blur-sm"></div>
         <div class="relative flex items-center justify-center min-h-screen p-4">
@@ -179,37 +173,32 @@
         const logoutModal = document.getElementById('logoutModal');
         const contentArea = document.getElementById('content-area');
 
-        // Toggle Sidebar
         function toggleSidebar() {
             const isOpen = !sidebar.classList.contains('-translate-x-full');
             if (isOpen) {
                 sidebar.classList.add('-translate-x-full');
                 backdrop.classList.add('hidden');
-                document.body.classList.remove('overflow-hidden');
             } else {
                 sidebar.classList.remove('-translate-x-full');
                 backdrop.classList.remove('hidden');
-                document.body.classList.add('overflow-hidden');
             }
         }
 
-        // Toggle Logout Modal
         function toggleLogoutModal() {
             logoutModal.classList.toggle('hidden');
         }
 
-        // FUNCTION TO LOAD PARTIALS
         function loadPartial(url, element) {
-            // 1. Show simple loading state
-            contentArea.innerHTML = '<div class="flex justify-center items-center h-64"><i class="fas fa-circle-notch fa-spin text-3xl text-[#a52a2a]"></i></div>';
+            contentArea.innerHTML = '<div class="flex justify-center items-center h-full"><i class="fas fa-circle-notch fa-spin text-3xl text-[#a52a2a]"></i></div>';
 
-            // 2. Fetch the content
             fetch(url)
                 .then(response => response.text())
                 .then(html => {
                     contentArea.innerHTML = html;
+                    
+                    // Reset scroll position to top when new content loads
+                    contentArea.scrollTop = 0;
 
-                    // 3. Update active button styling
                     document.querySelectorAll('.nav-btn').forEach(btn => {
                         btn.classList.remove('bg-[#a52a2a]/10', 'text-[#a52a2a]', 'font-medium', 'border-r-4', 'border-[#a52a2a]');
                         btn.classList.add('text-gray-600', 'hover:bg-gray-100');
@@ -218,7 +207,6 @@
                     element.classList.add('bg-[#a52a2a]/10', 'text-[#a52a2a]', 'font-medium', 'border-r-4', 'border-[#a52a2a]');
                     element.classList.remove('text-gray-600', 'hover:bg-gray-100');
 
-                    // 4. Close mobile sidebar after selection
                     if (window.innerWidth < 768) toggleSidebar();
                 })
                 .catch(err => {
@@ -226,10 +214,8 @@
                 });
         }
 
-        // LOAD DEFAULT PAGE ON START
         window.onload = () => {
             const dashboardBtn = document.querySelector('.nav-btn');
-            // This must match the Route::get('/dashboard/home'...) defined in web.php
             loadPartial('{{ url("/dashboard/home") }}', dashboardBtn);
         };
 
