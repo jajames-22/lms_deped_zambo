@@ -10,33 +10,30 @@
         .sidebar-transition {
             transition: transform 0.3s ease-in-out;
         }
-        /* Custom scrollbar */
-        ::-webkit-scrollbar {
+        /* Custom scrollbar for the scrollable area */
+        #content-area::-webkit-scrollbar {
             width: 6px;
         }
-        ::-webkit-scrollbar-track {
+        #content-area::-webkit-scrollbar-track {
             background: #f1f1f1;
         }
-        ::-webkit-scrollbar-thumb {
+        #content-area::-webkit-scrollbar-thumb {
             background: #d1d5db;
             border-radius: 10px;
         }
-        ::-webkit-scrollbar-thumb:hover {
+        #content-area::-webkit-scrollbar-thumb:hover {
             background: #a52a2a;
         }
     </style>
 </head>
-<body class="bg-gray-50 font-sans text-gray-900 overflow-x-hidden">
+<body class="bg-gray-50 font-sans text-gray-900 h-screen overflow-hidden">
 
-    <div class="flex min-h-screen">
+    <div class="flex h-full">
         
-        <!-- Backdrop Overlay (Mobile only) -->
         <div id="sidebarBackdrop" class="fixed inset-0 bg-black/50 z-40 hidden md:hidden transition-opacity" onclick="toggleSidebar()"></div>
 
-        <!-- Sidebar -->
-        <aside id="sidebar" class="fixed inset-y-0 left-0 w-64 bg-white border-r border-gray-200 z-50 transform -translate-x-full md:translate-x-0 md:relative sidebar-transition flex flex-col">
+        <aside id="sidebar" class="fixed inset-y-0 left-0 w-64 bg-white border-r border-gray-200 z-50 transform -translate-x-full md:translate-x-0 md:relative sidebar-transition flex flex-col h-screen">
             <div class="px-6 py-8 flex items-center justify-between lg:justify-center">
-                <!-- Logo Container -->
                 <div class="flex-shrink-0">
                     <a href="{{ url('/dashboard') }}">
                         <img src="{{ asset('storage/images/lms-logo-red.png') }}" 
@@ -45,33 +42,30 @@
                     </a>
                 </div>
 
-                <!-- Close Button (Mobile Only) -->
                 <button onclick="toggleSidebar()" class="md:hidden text-gray-500 hover:text-[#a52a2a] p-2">
                     <i class="fas fa-times text-xl"></i>
                 </button>
             </div>
             
             <nav class="flex-1">
-                <!-- Navigation Links -->
                 <button onclick="loadPartial('{{ url('/dashboard/home') }}', this)" class="nav-btn w-full flex items-center px-4 py-3 bg-[#a52a2a]/10 text-[#a52a2a] font-medium border-r-4 border-[#a52a2a] group transition-all">
                     <i class="fas fa-th-large w-5 mr-3"></i> Dashboard
                 </button>
                 
-                <button onclick="loadPartial('{{ url('/dashboard/courses') }}', t
-                his)" class="nav-btn w-full flex items-center px-4 py-3 text-gray-600 hover:bg-gray-100 transition group">
-                    <i class="fas fa-book-open w-5 mr-3 group-hover:text-[#a52a2a]"></i> My Courses
+                <button onclick="loadPartial('{{ url('/dashboard/courses') }}', this)" class="nav-btn w-full flex items-center px-4 py-3 text-gray-600 hover:bg-gray-100 group transition-all">
+                    <i class="fas fa-book-open w-5 mr-3 group-hover:text-[#a52a2a]"></i><span class="group-hover:text-[#a52a2a] ">My Courses</span>
                 </button>
                 
                 <button onclick="loadPartial('{{ url('/dashboard/assignments') }}', this)" class="nav-btn w-full flex items-center px-4 py-3 text-gray-600 hover:bg-gray-100 transition group">
-                    <i class="fas fa-tasks w-5 mr-3 group-hover:text-[#a52a2a]"></i> Assignments
+                    <i class="fas fa-tasks w-5 mr-3 group-hover:text-[#a52a2a]"></i> <span class="group-hover:text-[#a52a2a] ">Assignments</span>
                 </button>
                 
                 <button onclick="loadPartial('{{ url('/dashboard/statistics') }}', this)" class="nav-btn w-full flex items-center px-4 py-3 text-gray-600 hover:bg-gray-100 transition group">
-                    <i class="fas fa-chart-line w-5 mr-3 group-hover:text-[#a52a2a]"></i> Statistics
+                    <i class="fas fa-chart-line w-5 mr-3 group-hover:text-[#a52a2a]"></i> <span class="group-hover:text-[#a52a2a] ">Statistics</span>
                 </button>
                 
                 <button onclick="loadPartial('{{ url('/dashboard/settings') }}', this)" class="nav-btn w-full flex items-center px-4 py-3 text-gray-600 hover:bg-gray-100 transition group">
-                    <i class="fas fa-cog w-5 mr-3 group-hover:text-[#a52a2a]"></i> Settings
+                    <i class="fas fa-cog w-5 mr-3 group-hover:text-[#a52a2a]"></i> <span class="group-hover:text-[#a52a2a] ">Settings</span>
                 </button>
             </nav>
 
@@ -82,14 +76,9 @@
             </div>
         </aside>
 
-        <!-- Main Content -->
-        <!-- Main Content -->
-        <main class="flex-1 flex flex-col min-w-0">
-            <!-- Header -->
-            <!-- Added 'sticky top-0' and 'z-20' to keep it at the top and above the body content -->
-            <header class="bg-white border-b border-gray-200 h-16 flex items-center justify-between px-4 md:px-8 shrink-0 sticky top-0 z-20">
+        <main class="flex-1 flex flex-col min-w-0 h-screen overflow-hidden">
+            <header class="bg-white border-b border-gray-200 h-16 flex items-center justify-between px-4 md:px-8 shrink-0 z-20">
                 <div class="flex items-center gap-4 flex-1">
-                    <!-- Hamburger Menu Button -->
                     <button onclick="toggleSidebar()" class="md:hidden p-2 rounded-lg text-gray-600 hover:bg-gray-100 focus:outline-none">
                         <i class="fas fa-bars text-xl"></i>
                     </button>
@@ -115,15 +104,11 @@
                 </div>
             </header>
 
-            <!-- Dashboard Body -->
-            <!-- 'overflow-y-auto' ensures this area scrolls while the header above stays still -->
-            <div id="content-area" class="flex-1 overflow-hidden">
-                <!-- Content gets loaded here -->
-            </div>
+            <div id="content-area" class="flex-1 overflow-y-auto">
+                </div>
         </main>
     </div>
 
-    <!-- LOGOUT MODAL -->
     <div id="logoutModal" class="fixed inset-0 z-[60] hidden">
         <div class="absolute inset-0 bg-gray-900/60 backdrop-blur-sm"></div>
         <div class="relative flex items-center justify-center min-h-screen p-4">
@@ -151,37 +136,32 @@
         const logoutModal = document.getElementById('logoutModal');
         const contentArea = document.getElementById('content-area');
 
-        // Toggle Sidebar
         function toggleSidebar() {
             const isOpen = !sidebar.classList.contains('-translate-x-full');
             if (isOpen) {
                 sidebar.classList.add('-translate-x-full');
                 backdrop.classList.add('hidden');
-                document.body.classList.remove('overflow-hidden');
             } else {
                 sidebar.classList.remove('-translate-x-full');
                 backdrop.classList.remove('hidden');
-                document.body.classList.add('overflow-hidden');
             }
         }
 
-        // Toggle Logout Modal
         function toggleLogoutModal() {
             logoutModal.classList.toggle('hidden');
         }
 
-        // FUNCTION TO LOAD PARTIALS
         function loadPartial(url, element) {
-            // 1. Show simple loading state
-            contentArea.innerHTML = '<div class="flex justify-center items-center h-64"><i class="fas fa-circle-notch fa-spin text-3xl text-[#a52a2a]"></i></div>';
+            contentArea.innerHTML = '<div class="flex justify-center items-center h-full"><i class="fas fa-circle-notch fa-spin text-3xl text-[#a52a2a]"></i></div>';
 
-            // 2. Fetch the content
             fetch(url)
                 .then(response => response.text())
                 .then(html => {
                     contentArea.innerHTML = html;
+                    
+                    // Reset scroll position to top when new content loads
+                    contentArea.scrollTop = 0;
 
-                    // 3. Update active button styling
                     document.querySelectorAll('.nav-btn').forEach(btn => {
                         btn.classList.remove('bg-[#a52a2a]/10', 'text-[#a52a2a]', 'font-medium', 'border-r-4', 'border-[#a52a2a]');
                         btn.classList.add('text-gray-600', 'hover:bg-gray-100');
@@ -190,7 +170,6 @@
                     element.classList.add('bg-[#a52a2a]/10', 'text-[#a52a2a]', 'font-medium', 'border-r-4', 'border-[#a52a2a]');
                     element.classList.remove('text-gray-600', 'hover:bg-gray-100');
 
-                    // 4. Close mobile sidebar after selection
                     if (window.innerWidth < 768) toggleSidebar();
                 })
                 .catch(err => {
@@ -198,16 +177,10 @@
                 });
         }
 
-        // LOAD DEFAULT PAGE ON START
         window.onload = () => {
             const dashboardBtn = document.querySelector('.nav-btn');
-            // This must match the Route::get('/dashboard/home'...) defined in web.php
             loadPartial('{{ url("/dashboard/home") }}', dashboardBtn);
         };
-
-        window.onclick = function(event) {
-            if (event.target == logoutModal.firstElementChild) toggleLogoutModal();
-        }
     </script>
 </body>
 </html>
