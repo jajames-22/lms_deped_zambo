@@ -17,15 +17,25 @@
         </div>
     @endif
 
-    <form method="POST" action="/login">
+    <form method="POST" action="{{ route('login') }}">
         @csrf
 
-        <input type="email" name="email" placeholder="Email">
-        <br><br>
+        <input type="email" name="email" value="{{ old('email') }}">
+        <br></br>
+        @error('email')
+            <div>{{ $message }}</div>
+        @enderror
 
-        <input type="password" name="password" placeholder="Password">
-        <br><br>
+        <br>
+        <input type="password" name="password">
+        <br>
+        @error('password')
+            <div>{{ $message }}</div>
+        @enderror
 
+        <br>
+        <input type="checkbox" name="remember"> Remember me
+        <br>
         <button type="submit">Login</button>
     </form>
 
