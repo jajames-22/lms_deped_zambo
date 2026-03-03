@@ -20,9 +20,6 @@ Route::middleware('guest')->group(function () {
 
     Route::post('/register', [AuthController::class, 'register']);
 
-
-
-
     // PASSWORD RESET
     // Show forgot password form
     Route::get('/forgot-password', [PasswordResetController::class, 'showLinkRequestForm'])
