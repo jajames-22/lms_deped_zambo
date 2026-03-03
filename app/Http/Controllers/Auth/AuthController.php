@@ -5,6 +5,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use App\Models\User;
+use Illuminate\Auth\Events\Registered;
 
 use App\Http\Controllers\Controller;
 
@@ -23,31 +24,29 @@ class AuthController extends Controller
     }
 
     // 🔹 Handle Registration
+
     public function register(Request $request)
     {
-        // Validate input
         $validated = $request->validate([
             'first_name' => 'required|string|max:255',
-            'middle_name' => 'nullable|string|max:255',
             'last_name' => 'required|string|max:255',
-            'suffix' => 'nullable|string|max:50',
-            'email' => 'required|string|email|max:255|unique:users',
-            'password' => 'required|string|min:6|confirmed',
+            'email' => 'required|email|unique:users',
+            'password' => 'required|confirmed|min:8',
         ]);
 
-        // Hash password
-        $validated['password'] = Hash::make($validated['password']);
+        $user = User::create([
+            'first_name' => $validated['first_name'],
+            'last_name' => $validated['last_name'],
+            'email' => $validated['email'],
+            'password' => bcrypt($validated['password']),
+        ]);
 
-        // Create user
-        $user = User::create($validated);
+        event(new Registered($user));
 
-        // For Autologin (to be discussed)
-        // Auth::login($user);
+        session(['verify_email' => $user->email]);
 
-        // Redirect
-        return redirect('/login');
+        return redirect()->route('verification.notice');
     }
-
     // 🔹 Handle Login
     public function login(Request $request)
     {
@@ -59,7 +58,19 @@ class AuthController extends Controller
         $remember = $request->boolean('remember');
 
         if (Auth::attempt($credentials, $remember)) {
+
             $request->session()->regenerate();
+
+            // Check if email is verified
+            if (!Auth::user()->hasVerifiedEmail()) {
+
+                Auth::logout(); // prevent access
+
+                return back()->withErrors([
+                    'email' => 'You must verify your email first.'
+                ])->onlyInput('email');
+            }
+
             return redirect()->intended('/dashboard');
         }
 
