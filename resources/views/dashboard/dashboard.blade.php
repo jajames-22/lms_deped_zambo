@@ -32,18 +32,14 @@
     </style>
 </head>
 
-<body class="bg-gray-50 font-sans text-gray-900 overflow-x-hidden">
+<body class="bg-gray-50 font-sans text-gray-900 h-screen overflow-hidden">
 
-    <div class="flex min-h-screen">
-
-        <!-- Backdrop Overlay (Mobile only) -->
-        <div id="sidebarBackdrop" class="fixed inset-0 bg-black/50 z-40 hidden md:hidden transition-opacity"
+    <div class="flex h-full"> <div id="sidebarBackdrop" class="fixed inset-0 bg-black/50 z-40 hidden md:hidden transition-opacity"
             onclick="toggleSidebar()"></div>
 
-        <!-- Sidebar -->
         <aside id="sidebar"
-            class="fixed inset-y-0 left-0 w-64 bg-white border-r border-gray-200 z-50 transform -translate-x-full md:translate-x-0 md:relative sidebar-transition flex flex-col">
-            <div class="px-6 py-8 flex items-center justify-between lg:justify-center">
+            class="fixed inset-y-0 left-0 w-64 bg-white border-r border-gray-200 z-50 transform -translate-x-full md:translate-x-0 md:relative sidebar-transition flex flex-col h-full">
+            <div class="px-6 py-8 flex items-center justify-between lg:justify-center shrink-0">
                 <div class="flex-shrink-0">
                     <a href="{{ url('/dashboard') }}">
                         <img src="{{ asset('storage/images/lms-logo-red.png') }}"
@@ -56,36 +52,39 @@
                 </button>
             </div>
 
-            <nav class="flex-1">
-                <!-- Navigation Links -->
+            <nav class="flex-1 overflow-y-auto">
                 <button onclick="loadPartial('{{ url('/dashboard/home') }}', this)"
                     class="nav-btn w-full flex items-center px-4 py-3 bg-[#a52a2a]/10 text-[#a52a2a] font-medium border-r-4 border-[#a52a2a] group transition-all">
-                    <i class="fas fa-th-large w-5 mr-3"></i> Dashboard
+                    <i class="fas fa-th-large w-5 mr-3"></i>
+                    <span>Dashboard</span> 
                 </button>
 
-                <button onclick="loadPartial('{{ url('/dashboard/courses') }}', t
-                his)"
+                <button onclick="loadPartial('{{ url('/dashboard/courses') }}', this)"
                     class="nav-btn w-full flex items-center px-4 py-3 text-gray-600 hover:bg-gray-100 transition group">
-                    <i class="fas fa-book-open w-5 mr-3 group-hover:text-[#a52a2a]"></i> My Courses
+                    <i class="fas fa-book-open w-5 mr-3 group-hover:text-[#a52a2a] transition-colors"></i>
+                    <span class="group-hover:text-[#a52a2a] transition-colors">My Courses</span> 
                 </button>
 
                 <button onclick="loadPartial('{{ url('/dashboard/assignments') }}', this)"
                     class="nav-btn w-full flex items-center px-4 py-3 text-gray-600 hover:bg-gray-100 transition group">
-                    <i class="fas fa-tasks w-5 mr-3 group-hover:text-[#a52a2a]"></i> Assignments
+                    <i class="fas fa-tasks w-5 mr-3 group-hover:text-[#a52a2a] transition-colors"></i>
+                    <span class="group-hover:text-[#a52a2a] transition-colors">Assignments</span>
                 </button>
 
                 <button onclick="loadPartial('{{ url('/dashboard/statistics') }}', this)"
                     class="nav-btn w-full flex items-center px-4 py-3 text-gray-600 hover:bg-gray-100 transition group">
-                    <i class="fas fa-chart-line w-5 mr-3 group-hover:text-[#a52a2a]"></i> Statistics
+                    <i class="fas fa-chart-line w-5 mr-3 group-hover:text-[#a52a2a] transition-colors"></i>
+                    <span class="group-hover:text-[#a52a2a] transition-colors">Statistics</span>
                 </button>
 
                 <button onclick="loadPartial('{{ url('/dashboard/settings') }}', this)"
                     class="nav-btn w-full flex items-center px-4 py-3 text-gray-600 hover:bg-gray-100 transition group">
-                    <i class="fas fa-cog w-5 mr-3 group-hover:text-[#a52a2a]"></i> Settings
+                    <i class="fas fa-cog w-5 mr-3 group-hover:text-[#a52a2a] transition-colors"></i>
+                    <span class="group-hover:text-[#a52a2a] transition-colors">Settings</span>
                 </button>
             </nav>
 
-            <div class="border-t border-gray-100">
+            <div class="border-t border-gray-100 shrink-0">
                 <button onclick="toggleLogoutModal()"
                     class="w-full flex items-center px-4 py-3 text-gray-600 hover:bg-red-50 hover:text-red-600 transition font-medium">
                     <i class="fas fa-sign-out-alt w-5 mr-3"></i> Logout
@@ -93,47 +92,34 @@
             </div>
         </aside>
 
-        <!-- Main Content -->
-        <!-- Main Content -->
-        <main class="flex-1 flex flex-col min-w-0">
-            <!-- Header -->
-            <!-- Added 'sticky top-0' and 'z-20' to keep it at the top and above the body content -->
-            <header
-                class="bg-white border-b border-gray-200 h-16 flex items-center justify-between px-4 md:px-8 shrink-0 sticky top-0 z-20">
+        <main class="flex-1 flex flex-col min-w-0 h-full overflow-hidden">
+            <header class="bg-white border-b border-gray-200 h-16 flex items-center justify-between px-4 md:px-8 shrink-0 z-20">
                 <div class="flex items-center gap-4 flex-1">
-                    <!-- Hamburger Menu Button -->
-                    <button onclick="toggleSidebar()"
-                        class="md:hidden p-2 rounded-lg text-gray-600 hover:bg-gray-100 focus:outline-none">
+                    <button onclick="toggleSidebar()" class="md:hidden p-2 rounded-lg text-gray-600 hover:bg-gray-100">
                         <i class="fas fa-bars text-xl"></i>
                     </button>
-
-                    <div
-                        class="flex items-center bg-gray-100 px-3 py-2 rounded-lg w-full max-w-md hidden sm:flex border border-transparent focus-within:border-[#a52a2a]/30 transition">
+                    <div class="flex items-center bg-gray-100 px-3 py-2 rounded-lg w-full max-w-md hidden sm:flex border border-transparent focus-within:border-[#a52a2a]/30 transition">
                         <i class="fas fa-search text-gray-400 mr-2"></i>
-                        <input type="text" placeholder="Search courses, lessons..."
-                            class="bg-transparent border-none outline-none text-sm w-full focus:ring-0">
+                        <input type="text" placeholder="Search..." class="bg-transparent border-none outline-none text-sm w-full focus:ring-0">
                     </div>
                 </div>
 
                 <div class="flex items-center space-x-4">
-                    <button class="relative text-gray-500 hover:text-[#a52a2a] transition">
+                    <button class="relative text-gray-500 hover:text-[#a52a2a]">
                         <i class="fas fa-bell text-xl"></i>
-                        <span
-                            class="absolute top-0 right-0 h-2 w-2 bg-[#a52a2a] rounded-full border-2 border-white"></span>
+                        <span class="absolute top-0 right-0 h-2 w-2 bg-[#a52a2a] rounded-full border-2 border-white"></span>
                     </button>
                     <div class="flex items-center space-x-3 border-l pl-4 border-gray-200">
                         <div class="text-right hidden sm:block">
                             <p class="text-sm font-semibold">Alex Johnson</p>
-                            <p class="text-[10px] text-gray-500 uppercase tracking-wider">Student ID: 2024001</p>
+                            <p class="text-[10px] text-gray-500 uppercase">Student ID: 2024001</p>
                         </div>
-                        <img class="h-9 w-9 rounded-full border-2 border-[#a52a2a]/20"
-                            src="https://ui-avatars.com/api/?name=Alex+Johnson&background=a52a2a&color=fff"
-                            alt="Profile">
+                        <img class="h-9 w-9 rounded-full border-2 border-[#a52a2a]/20" src="https://ui-avatars.com/api/?name=Alex+Johnson&background=a52a2a&color=fff" alt="Profile">
                     </div>
                 </div>
             </header>
 
-            <div id="content-area" class="flex-1 overflow-y-auto">
+            <div id="content-area" class="flex-1 overflow-y-auto bg-gray-50">
                 </div>
         </main>
     </div>
