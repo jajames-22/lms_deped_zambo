@@ -177,27 +177,40 @@
         function loadPartial(url, element) {
             contentArea.innerHTML = '<div class="flex justify-center items-center h-full"><i class="fas fa-circle-notch fa-spin text-3xl text-[#a52a2a]"></i></div>';
 
-            fetch(url)
-                .then(response => response.text())
-                .then(html => {
-                    contentArea.innerHTML = html;
+            fetch(url, {
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest' // Tells Laravel this is an AJAX request
+                }
+            })
+            .then(async response => {
+                // If the server returns an error (404, 500, etc.)
+                if (!response.ok) {
+                    const errorHtml = await response.text();
+                    console.error("HTTP Error:", response.status);
                     
-                    // Reset scroll position to top when new content loads
-                    contentArea.scrollTop = 0;
+                    // This will actually print Laravel's error directly into the dashboard area
+                    contentArea.innerHTML = `<div class="p-6 bg-red-50 text-red-700"><b>Error ${response.status}:</b> Check your browser console or Laravel logs.</div>`;
+                    throw new Error('Server returned an error');
+                }
+                return response.text();
+            })
+            .then(html => {
+                contentArea.innerHTML = html;
+                contentArea.scrollTop = 0;
 
-                    document.querySelectorAll('.nav-btn').forEach(btn => {
-                        btn.classList.remove('bg-[#a52a2a]/10', 'text-[#a52a2a]', 'font-medium', 'border-r-4', 'border-[#a52a2a]');
-                        btn.classList.add('text-gray-600', 'hover:bg-gray-100');
-                    });
-
-                    element.classList.add('bg-[#a52a2a]/10', 'text-[#a52a2a]', 'font-medium', 'border-r-4', 'border-[#a52a2a]');
-                    element.classList.remove('text-gray-600', 'hover:bg-gray-100');
-
-                    if (window.innerWidth < 768) toggleSidebar();
-                })
-                .catch(err => {
-                    contentArea.innerHTML = '<p class="text-center text-red-500 p-10">Error loading page content.</p>';
+                document.querySelectorAll('.nav-btn').forEach(btn => {
+                    btn.classList.remove('bg-[#a52a2a]/10', 'text-[#a52a2a]', 'font-medium', 'border-r-4', 'border-[#a52a2a]');
+                    btn.classList.add('text-gray-600', 'hover:bg-gray-100');
                 });
+
+                element.classList.add('bg-[#a52a2a]/10', 'text-[#a52a2a]', 'font-medium', 'border-r-4', 'border-[#a52a2a]');
+                element.classList.remove('text-gray-600', 'hover:bg-gray-100');
+
+                if (window.innerWidth < 768) toggleSidebar();
+            })
+            .catch(err => {
+                console.error("Fetch failed entirely:", err);
+            });
         }
 
         window.onload = () => {
@@ -208,7 +221,7 @@
         window.onclick = function (event) {
             if (event.target == logoutModal.firstElementChild) toggleLogoutModal();
         }
-    </>
+    </script>
 </body>
 
 </html>
