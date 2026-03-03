@@ -2,7 +2,8 @@
 
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Auth\AuthController;
-use App\Http\Controllers\Auth\PasswordResetController;
+use App\Http\Controllers\Auth\ForgotPasswordController;
+use App\Http\Controllers\Auth\ResetPasswordController;
 
 Route::middleware('guest')->group(function () {
 
@@ -25,19 +26,19 @@ Route::middleware('guest')->group(function () {
 
     // PASSWORD RESET
     // Show forgot password form
-    Route::get('/forgot-password', [PasswordResetController::class, 'showLinkRequestForm'])
+    Route::get('/forgot-password', [ForgotPasswordController::class, 'showLinkRequestForm'])
         ->name('password.request');
 
     // Send reset link email
-    Route::post('/forgot-password', [PasswordResetController::class, 'sendResetLinkEmail'])
+    Route::post('/forgot-password', [ForgotPasswordController::class, 'sendResetLinkEmail'])
         ->name('password.email');
 
     // Show reset password form
-    Route::get('/reset-password/{token}', [PasswordResetController::class, 'showResetForm'])
+    Route::get('/reset-password/{token}', [ResetPasswordController::class, 'showResetForm'])
         ->name('password.reset');
 
     // Handle password reset
-    Route::post('/reset-password', [PasswordResetController::class, 'reset'])
+    Route::post('/reset-password', [ResetPasswordController::class, 'reset'])
         ->name('password.update');
 });
 
