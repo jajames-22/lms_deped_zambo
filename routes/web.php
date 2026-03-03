@@ -8,24 +8,25 @@ Route::get('/', function () {
 })->middleware('guest')->name('index');
 
 // The Main Dashboard Layout
-Route::get('/dashboard', function () {
-    return view('dashboard.dashboard');
-})->middleware('auth')->name('dashboard');
-
+Route::middleware(['auth', 'verified'])->group(function () {
+    Route::get('/dashboard', function () {
+        return view('dashboard.dashboard');
+    });
+});
 // The Partials (Grouped to share middleware and name prefixes)
 Route::prefix('dashboard')
     ->middleware('auth') // Applies 'auth' to all routes in this group
     ->name('dashboard.') // Prefixes names, e.g., 'dashboard.home'
     ->group(function () {
-        
+
         Route::get('/home', function () {
             return view('dashboard.partials.home');
-        })->name('home'); 
+        })->name('home');
 
         Route::get('/courses', function () {
             return view('dashboard.partials.courses');
         })->name('courses'); // FIXED: Was previously named 'dashboard'
-
+    
         Route::get('/assignments', function () {
             return view('dashboard.partials.assignments');
         })->name('assignments');
@@ -37,7 +38,7 @@ Route::prefix('dashboard')
         Route::get('/settings', function () {
             return view('dashboard.partials.settings');
         })->name('settings');
-        
+
     });
 
 require __DIR__ . '/auth.php';

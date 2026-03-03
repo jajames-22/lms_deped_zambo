@@ -4,41 +4,108 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Auth\AuthController;
 use App\Http\Controllers\Auth\ForgotPasswordController;
 use App\Http\Controllers\Auth\ResetPasswordController;
+use App\Models\User;
+use Illuminate\Auth\Events\Registered;
+use Illuminate\Auth\Events\Verified;
+
+/*
+|--------------------------------------------------------------------------
+| Guest Routes
+|--------------------------------------------------------------------------
+*/
 
 Route::middleware('guest')->group(function () {
 
-    // LOGIN
-    Route::get('/login', [AuthController::class, 'showLogin']) // function connects to the auth controller
-        ->middleware('guest') //for logged out users only
-        ->name('login'); //basis for the route
-
+    Route::get('/login', [AuthController::class, 'showLogin'])->name('login');
     Route::post('/login', [AuthController::class, 'login']);
 
-    //REGSITER
-    Route::get('/register', [AuthController::class, 'showRegister'])
-        ->middleware('guest')
-        ->name('register');
-
+    Route::get('/register', [AuthController::class, 'showRegister'])->name('register');
     Route::post('/register', [AuthController::class, 'register']);
 
-    // PASSWORD RESET
-    // Show forgot password form
     Route::get('/forgot-password', [ForgotPasswordController::class, 'showLinkRequestForm'])
         ->name('password.request');
 
-    // Send reset link email
     Route::post('/forgot-password', [ForgotPasswordController::class, 'sendResetLinkEmail'])
         ->name('password.email');
 
-    // Show reset password form
     Route::get('/reset-password/{token}', [ResetPasswordController::class, 'showResetForm'])
         ->name('password.reset');
 
-    // Handle password reset
     Route::post('/reset-password', [ResetPasswordController::class, 'reset'])
         ->name('password.update');
 });
 
-Route::post('/logout', [AuthController::class, 'logout'])
-    ->middleware('auth') //for logged in users only
-    ->name('logout');
+
+/*
+|--------------------------------------------------------------------------
+| Verification Notice Page
+|--------------------------------------------------------------------------
+*/
+
+Route::get('/email/verify', function () {
+    return view('auth.verify-email');
+})->name('verification.notice');
+
+
+/*
+|--------------------------------------------------------------------------
+| Verification Link Route (PUT IT HERE)
+|--------------------------------------------------------------------------
+*/
+
+
+
+Route::post('/email/resend', function () {
+
+    $email = session('verify_email');
+
+    if (!$email) {
+        return redirect()->route('login');
+    }
+
+    $user = User::where('email', $email)->first();
+
+    if (!$user) {
+        return redirect()->route('login');
+    }
+
+    if ($user->hasVerifiedEmail()) {
+        return redirect()->route('login');
+    }
+
+    event(new Registered($user));
+
+    return back()->with('message', 'Verification link resent successfully.');
+
+})->name('verification.send');
+
+Route::get('/email/verify/{id}/{hash}', function ($id, $hash) {
+
+    $user = User::findOrFail($id);
+
+    if (!hash_equals((string) $hash, sha1($user->getEmailForVerification()))) {
+        abort(403);
+    }
+
+    if (!$user->hasVerifiedEmail()) {
+        $user->markEmailAsVerified();
+        event(new Verified($user));
+    }
+
+    return redirect()->route('login')
+        ->with('status', 'Email verified successfully. You can now login.');
+
+})->middleware('signed')->name('verification.verify');
+
+
+/*
+|--------------------------------------------------------------------------
+| Authenticated Routes
+|--------------------------------------------------------------------------
+*/
+
+Route::middleware('auth')->group(function () {
+
+    Route::post('/logout', [AuthController::class, 'logout'])
+        ->name('logout');
+});
