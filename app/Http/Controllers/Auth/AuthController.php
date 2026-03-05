@@ -1,4 +1,5 @@
 <?php
+
 namespace App\Http\Controllers\Auth;
 
 use Illuminate\Http\Request;
@@ -6,7 +7,6 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use App\Models\User;
 use Illuminate\Auth\Events\Registered;
-
 use App\Http\Controllers\Controller;
 
 class AuthController extends Controller
@@ -24,13 +24,12 @@ class AuthController extends Controller
     }
 
     // 🔹 Handle Registration
-
-    public function register(Request $request)
+   public function register(Request $request)
     {
         $validated = $request->validate([
             'first_name' => 'required|string|max:255',
             'last_name' => 'required|string|max:255',
-            'email' => 'required|email|unique:users',
+            'email' => 'required|email|unique:users,email',
             'password' => 'required|confirmed|min:8',
         ]);
 
@@ -43,10 +42,15 @@ class AuthController extends Controller
 
         event(new Registered($user));
 
-        session(['verify_email' => $user->email]);
-
-        return redirect()->route('verification.notice');
+        // DO NOT log them in here, otherwise the `guest` middleware kicks them out!
+        
+        // Redirect back with the flags needed to open the modal
+        return back()->with([
+            'show_verification_modal' => true,
+            'verify_email' => $user->email // matching your route's session variable
+        ]);
     }
+
     // 🔹 Handle Login
     public function login(Request $request)
     {
@@ -63,7 +67,6 @@ class AuthController extends Controller
 
             // Check if email is verified
             if (!Auth::user()->hasVerifiedEmail()) {
-
                 Auth::logout(); // prevent access
 
                 return back()->withErrors([
@@ -82,7 +85,7 @@ class AuthController extends Controller
     // 🔹 Handle Logout
     public function logout(Request $request)
     {
-        Auth::logout(); //Remove user from session
+        Auth::logout(); // Remove user from session
 
         $request->session()->invalidate(); // destroy session
         $request->session()->regenerateToken(); // prevent csrf reuse

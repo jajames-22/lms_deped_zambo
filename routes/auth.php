@@ -7,6 +7,7 @@ use App\Http\Controllers\Auth\ResetPasswordController;
 use App\Models\User;
 use Illuminate\Auth\Events\Registered;
 use Illuminate\Auth\Events\Verified;
+use Illuminate\Http\Request;
 
 /*
 |--------------------------------------------------------------------------
@@ -42,22 +43,20 @@ Route::middleware('guest')->group(function () {
 |--------------------------------------------------------------------------
 */
 
-Route::get('/email/verify', function () {
-    return view('auth.verify-email');
-})->name('verification.notice');
+//Route::get('/email/verify', function () {
+//    return view('auth.verify-email');
+//})->name('verification.notice');
 
 
 /*
 |--------------------------------------------------------------------------
-| Verification Link Route (PUT IT HERE)
+| Verification Routes
 |--------------------------------------------------------------------------
 */
 
-
-
-Route::post('/email/resend', function () {
-
-    $email = session('verify_email');
+Route::post('/email/resend', function (Request $request) {
+    // Grab the email from the hidden input field
+    $email = $request->input('email');
 
     if (!$email) {
         return redirect()->route('login');
@@ -65,19 +64,22 @@ Route::post('/email/resend', function () {
 
     $user = User::where('email', $email)->first();
 
-    if (!$user) {
+    if (!$user || $user->hasVerifiedEmail()) {
         return redirect()->route('login');
     }
 
-    if ($user->hasVerifiedEmail()) {
-        return redirect()->route('login');
-    }
+    // Safely resend just the verification notification
+    $user->sendEmailVerificationNotification();
 
-    event(new Registered($user));
-
-    return back()->with('message', 'Verification link resent successfully.');
+    // Return back and flash the session data again so the modal STAYS OPEN
+    return back()->with([
+        'message' => 'Verification link resent successfully.',
+        'show_verification_modal' => true,
+        'registered_email' => $email // Flashing it again so the text in the modal stays populated
+    ]);
 
 })->name('verification.send');
+
 
 Route::get('/email/verify/{id}/{hash}', function ($id, $hash) {
 
@@ -96,8 +98,6 @@ Route::get('/email/verify/{id}/{hash}', function ($id, $hash) {
         ->with('status', 'Email verified successfully. You can now login.');
 
 })->middleware('signed')->name('verification.verify');
-
-
 /*
 |--------------------------------------------------------------------------
 | Authenticated Routes

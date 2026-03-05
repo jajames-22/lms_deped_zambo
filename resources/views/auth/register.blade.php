@@ -35,7 +35,7 @@
                 </div>
 
                 <div class="w-full bg-white rounded-2xl shadow-2xl p-6 md:p-10 border border-gray-100">
-                    <form method="POST" action="/register" class="space-y-4">
+                    <form method="POST" action="/register" class="space-y-4" onsubmit="disableButton()">
                         @csrf
 
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -100,7 +100,7 @@
                         </div>
 
                         <div class="pt-4">
-                            <button type="submit" 
+                            <button type="submit" id="registerBtn"
                                 class="w-full py-3.5 px-4 bg-[#a52a2a] hover:bg-red-800 text-white font-bold rounded-lg shadow-lg hover:shadow-xl transition-all duration-200">
                                 Register Account
                             </button>
@@ -118,6 +118,56 @@
         </section>
     </main>
 
-</body>
+    @if(session('show_verification_modal'))
+        <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm px-4" id="verificationModal">
+            
+            <div class="bg-white rounded-2xl shadow-2xl p-8 max-w-md w-full relative text-center animate-fade-in-up">
+                
+                <div class="w-20 h-20 bg-red-50 text-[#a52a2a] rounded-full flex items-center justify-center mx-auto mb-5 shadow-sm">
+                    <svg class="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path>
+                    </svg>
+                </div>
 
+                <h2 class="text-2xl font-extrabold text-gray-900 mb-3">Verify Your Email Address</h2>
+                
+                <p class="text-gray-600 mb-6 text-sm leading-relaxed">
+                    Thanks for registering! We've sent an email to <br>
+                    <strong class="text-gray-900">{{ session('registered_email') }}</strong>.<br> 
+                    Please check your inbox and click the verification link.
+                </p>
+
+                @if (session('message'))
+                    <div class="p-3 mb-5 text-sm font-medium text-green-800 rounded-lg bg-green-50 border border-green-200">
+                        {{ session('message') }}
+                    </div>
+                @endif
+
+                <div class="flex flex-col space-y-3">
+                    <form method="POST" action="{{ route('verification.send') }}">
+                        @csrf
+                        <input type="hidden" name="email" value="{{ session('registered_email') ?? session('verify_email') }}">
+                        
+                        <button type="submit" class="w-full py-3 px-4 bg-[#a52a2a] hover:bg-red-800 text-white font-bold rounded-lg shadow-md transition-all duration-200">
+                            Resend Verification Email
+                        </button>
+                    </form>
+
+                    <a href="{{ route('login') }}" class="w-full py-3 px-4 bg-gray-100 hover:bg-gray-200 text-gray-800 font-bold rounded-lg transition-all duration-200 block text-center">
+                        Go to Login
+                    </a>
+                </div>
+            </div>
+        </div>
+    @endif
+
+<script>
+    function disableButton() {
+        let btn = document.getElementById('registerBtn');
+        btn.disabled = true;
+        btn.innerText = 'Registering...';
+    }
+</script>
+
+</body>
 </html>
