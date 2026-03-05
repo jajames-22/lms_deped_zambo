@@ -18,6 +18,14 @@ class User extends Authenticatable implements MustVerifyEmail
      *
      * @var list<string>
      */
+    public function enrollments()
+    {
+        return $this->hasMany(Enrollment::class);
+    }
+    public function courses()
+    {
+        return $this->hasMany(Course::class, 'instructor_id');
+    }
     protected $fillable = [
         'first_name',
         'middle_name',

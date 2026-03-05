@@ -2,6 +2,10 @@
 
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\CourseController;
+use App\Http\Controllers\LessonController;
+use App\Http\Controllers\EnrollmentController;
+use App\Http\Controllers\QuizController;
 
 // Added Middleware to ensure only guests (non-logged-in users) see this
 Route::get('/', function () {
@@ -21,7 +25,7 @@ Route::prefix('dashboard')
     ->group(function () {
 
         Route::get('/home', [DashboardController::class, 'loadHomePartial'])->name('home');
-        
+
         Route::get('/enrolled', [DashboardController::class, 'loadEnrolledPartial'])->name('enrolled');
 
         Route::get('/certificates', [DashboardController::class, 'loadCertificatesPartial'])->name('certificates');
@@ -32,4 +36,22 @@ Route::prefix('dashboard')
 
     });
 
+
+Route::middleware(['auth'])->group(function () {
+
+    Route::resource('courses', CourseController::class);
+
+    Route::resource('lessons', LessonController::class);
+
+    Route::resource('quizzes', QuizController::class);
+
+
+    Route::get('/courses/{course}', [CourseController::class, 'show'])
+        ->name('courses.show');
+
+    Route::post('/courses/{course}/enroll', [EnrollmentController::class, 'store'])
+        ->middleware('auth')
+        ->name('courses.enroll');
+
+});
 require __DIR__ . '/auth.php';
