@@ -22,7 +22,7 @@
     </header>
     <main>
         <section style="background-image: url('{{ asset('storage/images/deped_zamdiv.jpg') }}');"
-            class="relative bg-cover bg-center bg-no-repeat pt-50 pb-20 px-6 h-screen">
+            class="relative bg-cover bg-center bg-no-repeat pt-30 md:pt-50 pb-20 px-6 h-screen">
             <div class="absolute inset-0 bg-red-900/50"></div>
 
             <div class="relative z-10 max-w-7xl mx-auto text-center flex items-center justify-center flex-col">
