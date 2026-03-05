@@ -11,7 +11,7 @@
             <div class="flex-1 overflow-y-auto p-4 md:p-8">
                 <!-- Welcome Section -->
                 <section class="mb-8">
-                    <h2 class="text-2xl font-bold text-gray-800">Welcome back, Alex! 👋</h2>
+                    <h2 class="text-2xl font-bold text-gray-800">Welcome back, {{ auth()->user()->first_name }} 👋</h2>
                     <p class="text-gray-500 mt-1">You've completed <span class="text-[#a52a2a] font-semibold">80%</span> of your weekly goal. Keep it up!</p>
                 </section>
 

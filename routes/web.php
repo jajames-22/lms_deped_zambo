@@ -1,6 +1,7 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\DashboardController;
 
 // Added Middleware to ensure only guests (non-logged-in users) see this
 Route::get('/', function () {
@@ -9,35 +10,25 @@ Route::get('/', function () {
 
 // The Main Dashboard Layout
 Route::middleware(['auth', 'verified'])->group(function () {
-    Route::get('/dashboard', function () {
-        return view('dashboard.dashboard');
-    });
+    // 🔹 This now points to the controller which will decide which layout to load
+    Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard.main');
 });
+
 // The Partials (Grouped to share middleware and name prefixes)
 Route::prefix('dashboard')
-    ->middleware('auth') // Applies 'auth' to all routes in this group
+    ->middleware(['auth', 'verified']) // Added 'verified' here so unverified users can't fetch partials
     ->name('dashboard.') // Prefixes names, e.g., 'dashboard.home'
     ->group(function () {
 
-        Route::get('/home', function () {
-            return view('dashboard.partials.home');
-        })->name('home');
+        Route::get('/home', [DashboardController::class, 'loadHomePartial'])->name('home');
+        
+        Route::get('/enrolled', [DashboardController::class, 'loadEnrolledPartial'])->name('enrolled');
 
-        Route::get('/courses', function () {
-            return view('dashboard.partials.courses');
-        })->name('courses'); // FIXED: Was previously named 'dashboard'
-    
-        Route::get('/assignments', function () {
-            return view('dashboard.partials.assignments');
-        })->name('assignments');
+        Route::get('/certificates', [DashboardController::class, 'loadCertificatesPartial'])->name('certificates');
 
-        Route::get('/statistics', function () {
-            return view('dashboard.partials.statistics');
-        })->name('statistics');
+        Route::get('/profile', [DashboardController::class, 'loadProfilePartial'])->name('profile');
 
-        Route::get('/settings', function () {
-            return view('dashboard.partials.settings');
-        })->name('settings');
+        Route::get('/settings', [DashboardController::class, 'loadSettingsPartial'])->name('settings');
 
     });
 

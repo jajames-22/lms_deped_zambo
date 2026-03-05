@@ -1,0 +1,79 @@
+<?php
+
+namespace App\Http\Controllers;
+
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
+
+class DashboardController extends Controller
+{
+    /**
+     * Loads the main dashboard shell (sidebar + topbar) based on role
+     */
+    public function index()
+    {
+        $role = Auth::user()->role;
+
+        if ($role === 'admin' || $role === 'superadmin') {
+            return view('dashboard.admin');
+        } elseif ($role === 'teacher') {
+            return view('dashboard.teacher');
+        }
+
+        // Default to student
+        return view('dashboard.student');
+    }
+
+    /**
+     * Loads the 'Home' partial for the content area
+     */
+    public function loadHomePartial()
+    {
+        $role = Auth::user()->role;
+
+        if ($role === 'admin' || $role === 'superadmin') {
+            return view('dashboard.partials.admin.home');
+        } elseif ($role === 'teacher') {
+            return view('dashboard.partials.teacher.home');
+        }
+
+        return view('dashboard.partials.student.home');
+    }
+
+    /*Student Loader*/
+    public function loadEnrolledPartial()
+    {
+        return view('dashboard.partials.student.enrolled');
+    }
+
+    public function loadProfilePartial()
+    {
+        return view('dashboard.partials.shared.profile');
+    }
+
+    public function loadAssignmentsPartial()
+    {
+        return view('dashboard.partials.shared.assignments');
+    }
+
+    /**
+     * Loads the 'Statistics' partial
+     */
+    public function loadCertificatesPartial()
+    {
+        // if (Auth::user()->role === 'student') {
+        //     abort(403, 'Unauthorized access.');
+        // }
+
+        return view('dashboard.partials.student.certificates');
+    }
+
+    /**
+     * Loads the 'Settings' partial
+     */
+    public function loadSettingsPartial()
+    {
+        // Everyone shares the same settings layout
+        return view('dashboard.partials.shared.settings');
+    }
+}
