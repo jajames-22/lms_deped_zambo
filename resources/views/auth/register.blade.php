@@ -235,7 +235,7 @@
 
                 <p class="text-gray-600 mb-6 text-sm leading-relaxed">
                     Thanks for registering! We've sent an email to <br>
-                    <strong class="text-gray-900">{{ session('registered_email') }}</strong>.<br>
+                    <strong class="text-gray-900">{{ session('registered_email') ?? session('verify_email') }}</strong>.<br>
                     Please check your inbox and click the verification link.
                 </p>
 

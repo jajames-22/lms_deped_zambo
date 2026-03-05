@@ -92,13 +92,13 @@ class AuthController extends Controller
 
             // Check if email is verified
             if (!Auth::user()->hasVerifiedEmail()) {
+                $unverifiedEmail = Auth::user()->email; // Capture the email
                 Auth::logout(); // prevent access
 
                 return back()->withErrors([
                     'email' => 'You must verify your email first.'
-                ])->onlyInput('email');
+                ])->with('unverified_email', $unverifiedEmail)->onlyInput('email');
             }
-
             return redirect()->intended('/dashboard');
         }
 

@@ -10,7 +10,7 @@
 
 <body class="font-sans antialiased text-gray-900 bg-gray-50">
     
-    <header style="background-color: #a52a2a;" class="fixed p-1 flex justify-center z-40 w-full items-center">
+    <header style="background-color: #a52a2a;" class="fixed p-1 flex justify-center z-40 w-full items-center shadow-md">
         <img src="{{ asset('storage/images/deped_zambo_header.png') }}" class="w-full max-w-4xl h-auto block"
             alt="DepEd Zamboanga Header">
     </header>
@@ -43,6 +43,7 @@
                         <p class="text-gray-500 text-sm mt-1">Please enter your credentials to continue</p>
                     </div>
 
+                    {{-- MAIN LOGIN FORM --}}
                     <form method="POST" action="{{ route('login') }}" class="space-y-3">
                         @csrf
 
@@ -51,8 +52,16 @@
                             <input type="email" name="email" id="email" value="{{ old('email') }}" 
                                 class="w-full px-4 py-2.5 rounded-lg border border-gray-300 focus:ring-2 focus:ring-[#a52a2a]/50 focus:border-[#a52a2a] outline-none transition-all @error('email') border-red-500 @enderror" 
                                 placeholder="Enter your email" autofocus>
+                            
                             @error('email')
                                 <p class="text-red-500 text-xs mt-1.5 font-medium">{{ $message }}</p>
+                                
+                                {{-- Button linked to the external resend form using form="id" --}}
+                                @if(session('unverified_email'))
+                                    <button type="submit" form="resend-verification-form" class="mt-2 text-[#a52a2a] text-xs font-bold hover:underline bg-transparent border-none cursor-pointer p-0 text-left">
+                                        Resend verification link
+                                    </button>
+                                @endif
                             @enderror
                         </div>
 
@@ -83,6 +92,15 @@
                             Log In
                         </button>
                     </form>
+                    {{-- END MAIN LOGIN FORM --}}
+
+                    {{-- HIDDEN RESEND VERIFICATION FORM --}}
+                    @if(session('unverified_email'))
+                        <form id="resend-verification-form" method="POST" action="{{ route('verification.send') }}" class="hidden">
+                            @csrf
+                            <input type="hidden" name="email" value="{{ session('unverified_email') }}">
+                        </form>
+                    @endif
 
                     <div class="mt-5 text-center border-t border-gray-100 pt-5">
                         <p class="text-gray-600 text-sm">
@@ -95,6 +113,58 @@
             </div>
         </section>
     </main>
+
+    {{-- VERIFICATION MODAL OVERLAY --}}
+    @if(session('show_verification_modal'))
+        <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm px-4"
+            id="verificationModal">
+
+            <div class="bg-white rounded-2xl shadow-2xl p-8 max-w-md w-full relative text-center animate-fade-in-up">
+
+                <div
+                    class="w-20 h-20 bg-red-50 text-[#a52a2a] rounded-full flex items-center justify-center mx-auto mb-5 shadow-sm">
+                    <svg class="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24"
+                        xmlns="http://www.w3.org/2000/svg">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z">
+                        </path>
+                    </svg>
+                </div>
+
+                <h2 class="text-2xl font-extrabold text-gray-900 mb-3">Verify Your Email Address</h2>
+
+                <p class="text-gray-600 mb-6 text-sm leading-relaxed">
+                    We've sent an email to <br>
+                    <strong class="text-gray-900">{{ session('registered_email') ?? session('verify_email') }}</strong>.<br>
+                    Please check your inbox and click the verification link.
+                </p>
+
+                @if (session('message'))
+                    <div class="p-3 mb-5 text-sm font-medium text-green-800 rounded-lg bg-green-50 border border-green-200">
+                        {{ session('message') }}
+                    </div>
+                @endif
+
+                <div class="flex flex-col space-y-3">
+                    <form method="POST" action="{{ route('verification.send') }}">
+                        @csrf
+                        <input type="hidden" name="email"
+                            value="{{ session('registered_email') ?? session('verify_email') }}">
+
+                        <button type="submit"
+                            class="w-full py-3 px-4 bg-[#a52a2a] hover:bg-red-800 text-white font-bold rounded-lg shadow-md transition-all duration-200">
+                            Resend Verification Email
+                        </button>
+                    </form>
+
+                    <button type="button" onclick="document.getElementById('verificationModal').remove()"
+                        class="w-full py-3 px-4 bg-gray-100 hover:bg-gray-200 text-gray-800 font-bold rounded-lg transition-all duration-200 block text-center">
+                        Close
+                    </button>
+                </div>
+            </div>
+        </div>
+    @endif
 
 </body>
 </html>
