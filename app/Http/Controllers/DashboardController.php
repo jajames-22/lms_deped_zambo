@@ -54,10 +54,17 @@ class DashboardController extends Controller
             'logo' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
         ]);
 
-        if ($request->hasFile('logo')) {
-            // Store logo in storage/app/public/schools
-            $path = $request->file('logo')->store('schools', 'public');
-            $validated['logo'] = $path;
+       if ($request->hasFile('logo')) {
+            $file = $request->file('logo');
+            
+            // 1. Generate a unique file name (prevents overwriting if two schools upload 'logo.png')
+            $filename = time() . '_' . $file->getClientOriginalName();
+            
+            // 2. Force the file to move directly into public/storage/schools/
+            $file->move(public_path('storage/schools'), $filename);
+            
+            // 3. Save the path to the database exactly how your Blade file expects it
+            $validated['logo'] = 'schools/' . $filename;
         }
 
         \App\Models\School::create($validated);

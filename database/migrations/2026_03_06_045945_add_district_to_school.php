@@ -28,7 +28,7 @@ return new class extends Migration {
             $table->enum('level', [
                 'elementary', 
                 'highschool', 
-                'seniorHighschool', 
+                'seniorhighschool', 
                 'integrated'
             ])->default('elementary')->after('address');
         });
