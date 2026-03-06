@@ -102,11 +102,6 @@ class DashboardController extends Controller
         }
         return abort(403, 'Unauthorized access.');
     }
-
-    public function loadSchoolsPartial()
-    {
-        return view('dashboard.partials.admin.schools');
-    }
     /**
      * Loads the 'Statistics' partial
      */
