@@ -13,7 +13,7 @@ return new class extends Migration {
         Schema::table('users', function (Blueprint $table) {
             $table->foreignId('school_id')->constrained()->cascadeOnDelete();
             $table->string('grade_level')->nullable();
-            $table->enum('role', ['student', 'teacher']);
+            $table->enum('role', ['admin', 'teacher', 'student'])->default('student');
         });
     }
 
