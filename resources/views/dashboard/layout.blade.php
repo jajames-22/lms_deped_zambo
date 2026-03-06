@@ -139,6 +139,48 @@
     </div>
 
     <script>
+        function previewSchoolLogo(event) {
+            const input = event.target;
+            const file = input.files[0];
+            const previewContainer = document.getElementById('logo-preview-container');
+            const placeholderContent = document.getElementById('logo-placeholder-content');
+            const removeBtn = document.getElementById('remove-logo-btn');
+
+            if (file) {
+                if (!file.type.match('image.*')) {
+                    alert('Please select a valid image file (PNG or JPG).');
+                    input.value = '';
+                    return;
+                }
+
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    previewContainer.style.backgroundImage = `url('${e.target.result}')`;
+                    placeholderContent.classList.add('hidden');
+                    previewContainer.classList.remove('border-dashed');
+                    previewContainer.classList.add('border-solid', 'border-[#a52a2a]', 'shadow-md');
+                    removeBtn.classList.remove('hidden');
+                }
+                reader.readAsDataURL(file);
+            }
+        }
+
+        function removeSchoolLogo() {
+            const input = document.querySelector('input[name="school_logo"]');
+            const previewContainer = document.getElementById('logo-preview-container');
+            const placeholderContent = document.getElementById('logo-placeholder-content');
+            const removeBtn = document.getElementById('remove-logo-btn');
+
+            input.value = '';
+            previewContainer.style.backgroundImage = 'none';
+            placeholderContent.classList.remove('hidden');
+            previewContainer.classList.add('border-dashed');
+            previewContainer.classList.remove('border-solid', 'border-[#a52a2a]', 'shadow-md');
+            removeBtn.classList.add('hidden');
+        }
+    </script>
+
+    <script>
         const sidebar = document.getElementById('sidebar');
         const backdrop = document.getElementById('sidebarBackdrop');
         const logoutModal = document.getElementById('logoutModal');

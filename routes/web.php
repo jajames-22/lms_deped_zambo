@@ -44,6 +44,8 @@ Route::prefix('dashboard')
 
         Route::get('/assessment', [DashboardController::class, 'loadAssessmentPartial'])->name('assessment');
 
+        Route::get('/schools/create', [DashboardController::class, 'loadSchoolCreatePartial'])->name('schools.create');
+
     });
 
 
