@@ -42,7 +42,7 @@ Route::prefix('dashboard')
 
         Route::get('/settings', [DashboardController::class, 'loadSettingsPartial'])->name('settings');
 
-         Route::get('/assessment', [DashboardController::class, 'loadAssessmentPartial'])->name('assessment');
+        Route::get('/assessment', [DashboardController::class, 'loadAssessmentPartial'])->name('assessment');
 
     });
 
