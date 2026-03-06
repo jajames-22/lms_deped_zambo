@@ -63,3 +63,5 @@ Route::middleware(['auth'])->group(function () {
 
 });
 require __DIR__ . '/auth.php';
+
+require __DIR__ . '/assessment.php';
