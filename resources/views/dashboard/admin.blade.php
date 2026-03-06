@@ -7,15 +7,33 @@
         <span>Dashboard</span> 
     </button>
 
-    <button onclick="loadPartial('{{ url('/dashboard/courses') }}', this)"
+    <button onclick="loadPartial('{{ url('/dashboard/materials') }}', this)"
         class="nav-btn w-full flex items-center px-4 py-3 text-gray-600 hover:bg-gray-100 transition group">
         <i class="fas fa-book-open w-5 mr-3 group-hover:text-[#a52a2a] transition-colors"></i>
-        <span class="group-hover:text-[#a52a2a] transition-colors">My Courses</span> 
+        <span class="group-hover:text-[#a52a2a] transition-colors">Materials</span> 
     </button>
 
-    <button onclick="loadPartial('{{ url('/dashboard/assignments') }}', this)"
+    <button onclick="loadPartial('{{ url('/dashboard/schools') }}', this)"
         class="nav-btn w-full flex items-center px-4 py-3 text-gray-600 hover:bg-gray-100 transition group">
-        <i class="fas fa-tasks w-5 mr-3 group-hover:text-[#a52a2a] transition-colors"></i>
-        <span class="group-hover:text-[#a52a2a] transition-colors">Assignments</span>
+        <i class="fas fa-school w-5 mr-3 group-hover:text-[#a52a2a] transition-colors"></i>
+        <span class="group-hover:text-[#a52a2a] transition-colors">Schools</span>
+    </button>
+    
+    <button onclick="loadPartial('{{ url('/dashboard/teachers') }}', this)"
+        class="nav-btn w-full flex items-center px-4 py-3 text-gray-600 hover:bg-gray-100 transition group">
+        <i class="fas fa-chalkboard-user w-5 mr-3 group-hover:text-[#a52a2a] transition-colors"></i>
+        <span class="group-hover:text-[#a52a2a] transition-colors">Teachers</span>
+    </button>
+    
+    <button onclick="loadPartial('{{ url('/dashboard/students') }}', this)"
+        class="nav-btn w-full flex items-center px-4 py-3 text-gray-600 hover:bg-gray-100 transition group">
+        <i class="fas fa-user-graduate w-5 mr-3 group-hover:text-[#a52a2a] transition-colors"></i>
+        <span class="group-hover:text-[#a52a2a] transition-colors">Students</span>
+    </button>
+    
+    <button onclick="loadPartial('{{ url('/dashboard/profile') }}', this)"
+        class="nav-btn w-full flex items-center px-4 py-3 text-gray-600 hover:bg-gray-100 transition group">
+        <i class="fas fa-user w-5 mr-3 group-hover:text-[#a52a2a] transition-colors"></i>
+        <span class="group-hover:text-[#a52a2a] transition-colors">Profile</span>
     </button>
 @endsection

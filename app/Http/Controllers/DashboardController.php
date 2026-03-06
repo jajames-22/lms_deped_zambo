@@ -56,6 +56,40 @@ class DashboardController extends Controller
         return view('dashboard.partials.shared.assignments');
     }
 
+    public function loadMaterialsPartial()
+    {
+        if (Auth::user()->role === 'admin') {
+            return view('dashboard.partials.admin.materials');
+        } else if (Auth::user()->role === 'teacher') {
+            return view('dashboard.partials.teacher.materials');
+        }
+    }
+
+    public function loadSchoolsPartial()
+    {
+        if (Auth::user()->role === 'student') {
+            return abort(403, 'Unauthorized access.');
+        } 
+        return view('dashboard.partials.admin.schools');
+    }
+    
+    public function loadTeachersPartial()
+    {
+        if (Auth::user()->role === 'admin'){
+            return view('dashboard.partials.admin.teachers');
+        }
+        return abort(403, 'Unauthorized access.');
+    }
+
+    public function loadStudentsPartial()
+    {
+        if (Auth::user()->role === 'admin'){
+            return view('dashboard.partials.admin.students');
+        }
+        return abort(403, 'Unauthorized access.');
+    }
+
+
     /**
      * Loads the 'Statistics' partial
      */

@@ -64,17 +64,25 @@
                         <i class="fas fa-bell text-xl"></i>
                         <span class="absolute top-0 right-0 h-2 w-2 bg-[#a52a2a] rounded-full border-2 border-white"></span>
                     </button>
-                    <div class="flex items-center space-x-3 border-l pl-4 border-gray-200">
-                        <div class="text-right hidden sm:block">
-                            <p class="text-sm font-semibold">{{ auth()->user()->first_name }} {{ auth()->user()->last_name }}</p>
-                            <p class="text-[10px] text-gray-500 uppercase">{{ ucfirst(auth()->user()->role ?? 'Student') }}</p>
-                        </div>
-                        <img class="h-9 w-9 rounded-full border-2 border-[#a52a2a]/20" src="https://ui-avatars.com/api/?name={{ urlencode(auth()->user()->first_name . '+' . auth()->user()->last_name) }}&background=a52a2a&color=fff" alt="Profile">
+                    
+                    <div class="flex items-center space-x-3 border-l pl-4 border-gray-200 cursor-pointer 
+                            hover:bg-gray-100 p-1.5 
+                            rounded-none hover:rounded-xl 
+                            transition-all duration-300 ease-in-out" 
+                    onclick="loadPartial('{{ url('/dashboard/profile') }}', document.getElementById('nav-profile-btn'))">
+                    
+                    <div class="text-right hidden sm:block">
+                        <p class="text-sm font-semibold">{{ auth()->user()->first_name }} {{ auth()->user()->last_name }}</p>
+                        <p class="text-[10px] text-gray-500 uppercase">{{ ucfirst(auth()->user()->role ?? 'Student') }}</p>
                     </div>
+                    <img class="h-9 w-9 rounded-full border-2 border-[#a52a2a]/20" 
+                        src="https://ui-avatars.com/api/?name={{ urlencode(auth()->user()->first_name . '+' . auth()->user()->last_name) }}&background=a52a2a&color=fff" 
+                        alt="Profile">
+                </div>
                 </div>
             </header>
 
-            <div id="content-area" class="flex-1 overflow-y-auto bg-gray-50"></div>
+            <div id="content-area" class="flex-1 overflow-y-auto bg-gray-50 p-8"></div>
         </main>
     </div>
 

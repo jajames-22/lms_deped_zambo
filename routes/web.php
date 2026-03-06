@@ -26,6 +26,14 @@ Route::prefix('dashboard')
 
         Route::get('/certificates', [DashboardController::class, 'loadCertificatesPartial'])->name('certificates');
 
+        Route::get('/materials', [DashboardController::class, 'loadMaterialsPartial'])->name('materials');
+
+        Route::get('/schools', [DashboardController::class, 'loadSchoolsPartial'])->name('schools');
+
+        Route::get('/teachers', [DashboardController::class, 'loadTeachersPartial'])->name('teachers');
+
+        Route::get('/students', [DashboardController::class, 'loadStudentsPartial'])->name('students');
+
         Route::get('/profile', [DashboardController::class, 'loadProfilePartial'])->name('profile');
 
         Route::get('/settings', [DashboardController::class, 'loadSettingsPartial'])->name('settings');

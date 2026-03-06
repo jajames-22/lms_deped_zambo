@@ -8,7 +8,7 @@
 <body>
         <main>
             <!-- Dashboard Body -->
-            <div class="flex-1 overflow-y-auto p-4 md:p-8">
+            <div class="flex-1 overflow-y-auto">
                 <!-- Welcome Section -->
                 <section class="mb-8">
                     <h2 class="text-2xl font-bold text-gray-800">Welcome back, {{ auth()->user()->first_name }} 👋</h2>
