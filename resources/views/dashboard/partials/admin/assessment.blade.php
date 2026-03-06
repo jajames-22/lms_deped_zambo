@@ -37,8 +37,8 @@
         
         @forelse($assessments as $assessment)
             @php
-                // If it has categories, it's considered fully built ("live"). Otherwise "draft".
-                $isLive = $assessment->categories->count() > 0;
+                // Now strictly uses the new database status column
+                $isLive = (isset($assessment->status) && $assessment->status === 'published');
             @endphp
 
             @if($isLive)
@@ -53,7 +53,7 @@
                         
                         <div class="space-y-2 mb-6 text-xs text-gray-600">
                             <div class="flex items-center"><i class="fas fa-key w-5 text-gray-400"></i> Key: <strong class="ml-1 tracking-widest text-gray-900">{{ $assessment->access_key }}</strong></div>
-                            <div class="flex items-center"><i class="fas fa-layer-group w-5 text-gray-400"></i> {{ $assessment->categories->count() }} Categories</div>
+                            <div class="flex items-center"><i class="fas fa-layer-group w-5 text-gray-400"></i> {{ $assessment->categories ? $assessment->categories->count() : 0 }} Categories</div>
                         </div>
                         
                         <div class="flex gap-2">
@@ -69,7 +69,7 @@
                         <span class="px-2 py-1 bg-amber-100 text-amber-700 text-[10px] font-bold rounded-md uppercase">Draft</span>
                     </div>
                     <h4 class="test-title text-lg font-bold text-gray-900 mb-1 italic">{{ $assessment->title }}</h4>
-                    <p class="text-xs text-gray-500 mb-6 line-clamp-2">Setup complete, but no questions added yet.</p>
+                    <p class="text-xs text-gray-500 mb-6 line-clamp-2">Currently hidden from students.</p>
                     <button onclick="loadPartial('{{ route('dashboard.assessments.builder', $assessment->id) }}', this)" class="w-full py-2.5 bg-gray-900 text-white text-xs font-bold rounded-lg hover:bg-black transition flex justify-center items-center gap-2">
                         <span>Continue Building</span> <i class="fas fa-arrow-right"></i>
                     </button>

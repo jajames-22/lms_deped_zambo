@@ -16,6 +16,7 @@ return new class extends Migration {
             $table->string('year_level');
             $table->text('description')->nullable();
             $table->string('access_key')->unique();
+            $table->string('status')->default('draft');
             $table->timestamps();
         });
     }

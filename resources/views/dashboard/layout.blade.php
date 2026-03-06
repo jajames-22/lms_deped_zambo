@@ -278,63 +278,7 @@ document.getElementById('quadrant_id').addEventListener('change', function() {
         window.onclick = function (event) {
             if (event.target == logoutModal.firstElementChild) toggleLogoutModal();
         }
-    </script>
-
-    <!-- assessment -->
-
-    <script>
-        window.submitAssessmentSetup = async function (btn) {
-            const title = document.getElementById('setup-title').value;
-            const year = document.getElementById('setup-year').value;
-            const desc = document.getElementById('setup-desc').value;
-
-            // 1. Manual Validation
-            if (!title || !year) {
-                alert('Please fill out the Assessment Title and Year/Grade Level.');
-                return;
-            }
-
-            const originalText = btn.innerHTML;
-
-            // 2. Lock button
-            btn.disabled = true;
-            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Proceeding...';
-
-            try {
-                // 3. Send to Laravel
-                const response = await fetch("{{ route('dashboard.assessments.store_setup') }}", {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-CSRF-TOKEN': '{{ csrf_token() }}',
-                        'Accept': 'application/json',
-                        'X-Requested-With': 'XMLHttpRequest'
-                    },
-                    body: JSON.stringify({
-                        title: title,
-                        year_level: year,
-                        description: desc
-                    })
-                });
-
-                const data = await response.json();
-
-                // 4. Smooth Transition (Keeps CSS Intact!)
-                if (response.ok && data.success) {
-                    loadPartial(data.redirect_url);
-                } else {
-                    alert('Error: ' + (data.message || 'Validation failed.'));
-                    btn.disabled = false;
-                    btn.innerHTML = originalText;
-                }
-            } catch (error) {
-                console.error('Network Error:', error);
-                alert('Server error. Check your console.');
-                btn.disabled = false;
-                btn.innerHTML = originalText;
-            }
-        };
-    </script>
+    </script>   
 </body>
 
 </html>
