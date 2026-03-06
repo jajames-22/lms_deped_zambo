@@ -139,6 +139,43 @@
     </div>
 
     <script>
+document.getElementById('quadrant_id').addEventListener('change', function() {
+    const quadrantId = this.value;
+    const districtSelect = document.getElementById('district_id');
+
+    // Reset and Disable District dropdown while loading
+    districtSelect.innerHTML = '<option value="" disabled selected>Loading districts...</option>';
+    districtSelect.disabled = true;
+    districtSelect.classList.replace('bg-gray-50', 'bg-gray-100');
+
+    // Fetch districts from the server
+    fetch(`/get-districts/${quadrantId}`)
+        .then(response => response.json())
+        .then(data => {
+            districtSelect.innerHTML = '<option value="" disabled selected>Select District...</option>';
+            
+            if(data.length > 0) {
+                data.forEach(district => {
+                    const option = document.createElement('option');
+                    option.value = district.id;
+                    option.textContent = district.name;
+                    districtSelect.appendChild(option);
+                });
+                districtSelect.disabled = false;
+                districtSelect.classList.replace('bg-gray-100', 'bg-gray-50');
+                districtSelect.classList.replace('text-gray-500', 'text-gray-700');
+            } else {
+                districtSelect.innerHTML = '<option value="" disabled selected>No districts found</option>';
+            }
+        })
+        .catch(error => {
+            console.error('Error fetching districts:', error);
+            districtSelect.innerHTML = '<option value="" disabled selected>Error loading data</option>';
+        });
+});
+</script>
+
+    <script>
         function previewSchoolLogo(event) {
             const input = event.target;
             const file = input.files[0];

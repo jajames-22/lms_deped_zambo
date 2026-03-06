@@ -46,6 +46,9 @@ Route::prefix('dashboard')
 
         Route::get('/schools/create', [DashboardController::class, 'loadSchoolCreatePartial'])->name('schools.create');
 
+        Route::get('/get-districts/{quadrantId}', [DashboardController::class, 'getDistricts'])->name('districts.get');
+        
+
     });
 
 
