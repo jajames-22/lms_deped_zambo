@@ -1,19 +1,13 @@
-<!DOCTYPE html>
-<html lang="en">
-
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>LMS Student Dashboard</title>
-    @vite(['resources/css/app.css', 'resources/js/app.js'])
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-</head>
-
-<body>
-
-<div class="p-6 max-w-4xl mx-auto pb-20">
+<div class="space-y-6 pb-20 w-full max-w-5xl mx-auto">
     
-    <div class="bg-[#a52a2a]/10 border-2 border-[#a52a2a]/30 rounded-2xl p-6 text-center mb-8 relative overflow-hidden">
+    <div class="flex items-center justify-between mb-2">
+        <button onclick="loadPartial('{{ route('dashboard.assessment') }}', this)" class="text-gray-500 hover:text-[#a52a2a] transition flex items-center gap-2 font-semibold">
+            <i class="fas fa-arrow-left"></i> Back to Assessments
+        </button>
+        <h2 class="text-xl font-bold text-gray-800">Assessment Builder</h2>
+    </div>
+
+    <div class="bg-[#a52a2a]/10 border-2 border-[#a52a2a]/30 rounded-2xl p-6 text-center relative overflow-hidden shadow-sm">
         <i class="fas fa-key absolute -right-4 -bottom-4 text-8xl text-[#a52a2a]/10"></i>
         <h3 class="text-[#a52a2a] font-bold uppercase tracking-wider text-sm mb-1">Student Access Key</h3>
         <h1 class="text-5xl font-mono font-black text-gray-900 tracking-[0.2em]">{{ $assessment->access_key }}</h1>
@@ -23,117 +17,186 @@
     <div id="builder-container" class="space-y-6">
         </div>
 
-    <button onclick="addCategory()" class="w-full mt-6 px-4 py-4 border-2 border-dashed border-gray-300 text-gray-500 font-semibold rounded-xl hover:bg-gray-50 hover:border-[#a52a2a] hover:text-[#a52a2a] transition flex items-center justify-center gap-2">
-        <i class="fas fa-plus-circle"></i> Add Exam Category (e.g., English, Math)
+    <button onclick="window.addCategory()" class="w-full mt-6 px-4 py-4 border-2 border-dashed border-gray-300 text-gray-500 font-semibold rounded-xl hover:bg-[#a52a2a]/5 hover:border-[#a52a2a] hover:text-[#a52a2a] transition flex items-center justify-center gap-2 group">
+        <i class="fas fa-plus-circle text-lg group-hover:scale-110 transition-transform"></i> Add Exam Category (e.g., English, Math, Logic)
     </button>
 
     <div class="mt-10 pt-6 border-t border-gray-200 flex justify-end">
-        <button onclick="saveCompleteExam()" class="px-8 py-3 bg-green-600 text-white font-bold rounded-xl hover:bg-green-700 transition shadow-lg shadow-green-600/30">
-            Publish Complete Exam <i class="fas fa-check-double ml-2"></i>
+        <button onclick="window.saveCompleteExam(this)" class="px-8 py-3 bg-green-600 text-white font-bold rounded-xl hover:bg-green-700 transition shadow-lg shadow-green-600/30 flex items-center gap-2 active:scale-95">
+            <span>Publish Complete Exam</span>
+            <i class="fas fa-check-double"></i>
         </button>
     </div>
 </div>
 
 <script>
-    let catCount = 0;
+    window.catCount = 0;
 
-    // Load initial category on start
-    setTimeout(addCategory, 100);
+    // Load initial category on start automatically
+    setTimeout(() => {
+        if(document.querySelectorAll('.category-block').length === 0) {
+            window.addCategory();
+        }
+    }, 100);
 
-    function addCategory() {
-        catCount++;
+    window.addCategory = function() {
+        window.catCount++;
         const html = `
-            <div class="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 category-block" id="cat-${catCount}">
-                <div class="flex gap-4 mb-4">
+            <div class="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 category-block relative transition-all" id="cat-${window.catCount}">
+                <button onclick="window.removeElement('cat-${window.catCount}')" class="absolute top-4 right-4 text-gray-400 hover:text-red-500 transition" title="Delete Category">
+                    <i class="fas fa-trash"></i>
+                </button>
+
+                <div class="flex gap-4 mb-4 pr-8">
                     <div class="flex-1">
                         <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Category Title</label>
-                        <input type="text" class="c-title w-full px-3 py-2 border border-gray-300 rounded-lg outline-none focus:border-[#a52a2a]" placeholder="e.g., Part 1: English">
+                        <input type="text" class="c-title w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-lg outline-none focus:bg-white focus:border-[#a52a2a] focus:ring-2 focus:ring-[#a52a2a]/20 transition" placeholder="e.g., Part 1: Multiple Choice">
                     </div>
-                    <div class="w-1/3">
-                        <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Timer (Minutes)</label>
-                        <input type="number" class="c-time w-full px-3 py-2 border border-gray-300 rounded-lg outline-none focus:border-[#a52a2a]" placeholder="e.g., 5" min="1">
+                    <div class="w-1/3 max-w-[150px]">
+                        <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Timer (Mins)</label>
+                        <input type="number" class="c-time w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-lg outline-none focus:bg-white focus:border-[#a52a2a] focus:ring-2 focus:ring-[#a52a2a]/20 transition" placeholder="e.g., 15" min="1">
                     </div>
                 </div>
                 
-                <div id="q-container-${catCount}" class="space-y-4 mb-4 pl-4 border-l-2 border-gray-100"></div>
+                <div id="q-container-${window.catCount}" class="space-y-4 mb-4 pl-4 border-l-2 border-[#a52a2a]/20"></div>
                 
-                <button onclick="addQuestion(${catCount})" class="text-sm text-[#a52a2a] font-semibold hover:underline">
-                    + Add Question to this Category
+                <button onclick="window.addQuestion(${window.catCount})" class="text-sm text-[#a52a2a] font-bold hover:underline flex items-center gap-1 mt-2">
+                    <i class="fas fa-plus"></i> Add Question to Category
                 </button>
             </div>
         `;
         document.getElementById('builder-container').insertAdjacentHTML('beforeend', html);
-        addQuestion(catCount);
-    }
+        window.addQuestion(window.catCount);
+    };
 
-    function addQuestion(cId) {
+    window.addQuestion = function(cId) {
         const container = document.getElementById(`q-container-${cId}`);
+        const qId = `q-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+        
         const html = `
-            <div class="bg-gray-50 p-4 rounded-xl border border-gray-200 question-block">
-                <input type="text" class="q-text w-full px-3 py-2 mb-3 border border-gray-300 rounded-lg outline-none focus:border-[#a52a2a]" placeholder="Type your question here...">
+            <div class="bg-gray-50 p-5 rounded-xl border border-gray-200 question-block relative" id="${qId}">
+                <button onclick="window.removeElement('${qId}')" class="absolute top-3 right-3 text-gray-400 hover:text-red-500 transition text-sm">
+                    <i class="fas fa-times"></i>
+                </button>
+
+                <input type="text" class="q-text w-full px-3 py-2 mb-4 border border-gray-300 rounded-lg outline-none focus:border-[#a52a2a] focus:ring-1 focus:ring-[#a52a2a] font-medium" placeholder="Type your question here...">
                 
-                <div class="grid grid-cols-2 gap-3 mb-3 text-sm">
-                    <div class="flex items-center gap-2"><span class="font-bold text-gray-400">A</span><input type="text" class="q-opt-a w-full px-2 py-1 border rounded" placeholder="Option A"></div>
-                    <div class="flex items-center gap-2"><span class="font-bold text-gray-400">B</span><input type="text" class="q-opt-b w-full px-2 py-1 border rounded" placeholder="Option B"></div>
-                    <div class="flex items-center gap-2"><span class="font-bold text-gray-400">C</span><input type="text" class="q-opt-c w-full px-2 py-1 border rounded" placeholder="Option C"></div>
-                    <div class="flex items-center gap-2"><span class="font-bold text-gray-400">D</span><input type="text" class="q-opt-d w-full px-2 py-1 border rounded" placeholder="Option D"></div>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-3 mb-4 text-sm">
+                    <div class="flex items-center gap-2 bg-white p-1 rounded-lg border border-gray-200 focus-within:border-[#a52a2a]">
+                        <span class="font-bold text-gray-400 pl-2">A</span>
+                        <input type="text" class="q-opt-a w-full px-2 py-1 outline-none bg-transparent" placeholder="Option A">
+                    </div>
+                    <div class="flex items-center gap-2 bg-white p-1 rounded-lg border border-gray-200 focus-within:border-[#a52a2a]">
+                        <span class="font-bold text-gray-400 pl-2">B</span>
+                        <input type="text" class="q-opt-b w-full px-2 py-1 outline-none bg-transparent" placeholder="Option B">
+                    </div>
+                    <div class="flex items-center gap-2 bg-white p-1 rounded-lg border border-gray-200 focus-within:border-[#a52a2a]">
+                        <span class="font-bold text-gray-400 pl-2">C</span>
+                        <input type="text" class="q-opt-c w-full px-2 py-1 outline-none bg-transparent" placeholder="Option C">
+                    </div>
+                    <div class="flex items-center gap-2 bg-white p-1 rounded-lg border border-gray-200 focus-within:border-[#a52a2a]">
+                        <span class="font-bold text-gray-400 pl-2">D</span>
+                        <input type="text" class="q-opt-d w-full px-2 py-1 outline-none bg-transparent" placeholder="Option D">
+                    </div>
                 </div>
                 
-                <div class="flex items-center gap-3">
-                    <label class="text-xs font-bold text-gray-500 uppercase">Correct Answer:</label>
-                    <select class="q-correct px-3 py-1 border border-gray-300 rounded outline-none text-sm">
-                        <option value="A">A</option><option value="B">B</option>
-                        <option value="C">C</option><option value="D">D</option>
+                <div class="flex items-center gap-3 bg-white p-2 rounded-lg border border-gray-200 w-fit">
+                    <label class="text-xs font-bold text-gray-600 uppercase ml-2">Correct Answer:</label>
+                    <select class="q-correct px-3 py-1 border-none bg-gray-50 rounded outline-none text-sm font-bold text-[#a52a2a] cursor-pointer">
+                        <option value="option_a">Option A</option>
+                        <option value="option_b">Option B</option>
+                        <option value="option_c">Option C</option>
+                        <option value="option_d">Option D</option>
                     </select>
                 </div>
             </div>
         `;
         container.insertAdjacentHTML('beforeend', html);
-    }
+    };
 
-    async function saveCompleteExam() {
+    window.removeElement = function(id) {
+        const el = document.getElementById(id);
+        if(el) {
+            el.style.opacity = '0';
+            setTimeout(() => el.remove(), 200);
+        }
+    };
+
+    window.saveCompleteExam = async function(btn) {
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Publishing...';
+
         const payload = { categories: [] };
+        let isValid = true;
+        
+        const categoryBlocks = document.querySelectorAll('.category-block');
+        if(categoryBlocks.length === 0) {
+            alert("Please add at least one category.");
+            window.resetBtn(btn);
+            return;
+        }
 
-        document.querySelectorAll('.category-block').forEach(cat => {
+        categoryBlocks.forEach(cat => {
             const category = {
                 title: cat.querySelector('.c-title').value,
                 time_limit: cat.querySelector('.c-time').value,
                 questions: []
             };
+
+            if(!category.title || !category.time_limit) isValid = false;
+
             cat.querySelectorAll('.question-block').forEach(q => {
-                category.questions.push({
+                const questionData = {
                     text: q.querySelector('.q-text').value,
                     optA: q.querySelector('.q-opt-a').value,
                     optB: q.querySelector('.q-opt-b').value,
                     optC: q.querySelector('.q-opt-c').value,
                     optD: q.querySelector('.q-opt-d').value,
                     correct: q.querySelector('.q-correct').value
-                });
+                };
+
+                if(!questionData.text || !questionData.optA || !questionData.optB) isValid = false;
+                category.questions.push(questionData);
             });
+            
+            if(category.questions.length === 0) isValid = false;
             payload.categories.push(category);
         });
+
+        if (!isValid) {
+            alert("Validation Failed: Please ensure all categories have titles and timers, and all questions have text and options filled out.");
+            window.resetBtn(btn);
+            return;
+        }
 
         try {
             const response = await fetch("{{ route('dashboard.assessments.store_questions', $assessment->id) }}", {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+                    'X-CSRF-TOKEN': '{{ csrf_token() }}',
                     'Accept': 'application/json'
                 },
                 body: JSON.stringify(payload)
             });
             
-            if (response.ok) {
-                alert('Exam successfully published!');
-                loadPartial("{{ route('dashboard.home') }}", document.querySelector('.nav-btn')); // Send back to home
+            const result = await response.json();
+
+            if (response.ok && result.success) {
+                alert('Exam successfully published to database!');
+                loadPartial("{{ route('dashboard.assessment') }}"); 
+            } else {
+                throw new Error(result.message || 'Failed to save');
             }
         } catch (error) {
             console.error(error);
-            alert('Server error.');
+            alert('Server error: Could not publish exam. ' + error.message);
+            window.resetBtn(btn);
         }
-    }
+    };
+    
+    window.resetBtn = function(btn) {
+        btn.disabled = false;
+        btn.innerHTML = '<span>Publish Complete Exam</span> <i class="fas fa-check-double"></i>';
+    };
 </script>
-
-</body>
-</html>

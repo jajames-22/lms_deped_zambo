@@ -12,7 +12,8 @@ class AssessmentController extends Controller
     // --- STEP 1: LOAD SETUP PAGE ---
     public function create()
     {
-        return view('admin.assessments.create'); // Make sure this path matches where you save the blade file
+        // Path: resources/views/dashboard/partials/admin/assessments/create.blade.php
+        return view('dashboard.partials.admin.assessments.create');
     }
 
     // --- STEP 1: SAVE SETUP & REDIRECT ---
@@ -38,7 +39,7 @@ class AssessmentController extends Controller
 
         // Return JSON with redirect URL so your AJAX can handle the transition
         return response()->json([
-            'success' => true, 
+            'success' => true,
             'redirect_url' => route('dashboard.assessments.builder', ['id' => $assessmentId])
         ]);
     }
@@ -47,12 +48,13 @@ class AssessmentController extends Controller
     public function builder($id)
     {
         $assessment = DB::table('assessments')->where('id', $id)->first();
-        
+
         if (!$assessment) {
             abort(404, 'Assessment not found');
         }
 
-        return view('admin.assessments.builder', compact('assessment'));
+        // Path: resources/views/dashboard/partials/admin/assessments/builder.blade.php
+        return view('dashboard.partials.admin.assessments.builder', compact('assessment'));
     }
 
     // --- STEP 2: SAVE CATEGORIES & QUESTIONS ---
@@ -80,6 +82,8 @@ class AssessmentController extends Controller
                         'option_b' => $q['optB'],
                         'option_c' => $q['optC'],
                         'option_d' => $q['optD'],
+                        'option_e' => $q['optE'] ?? '',
+                        'option_f' => $q['optF'] ?? '',
                         'correct_answer' => $q['correct'],
                         'created_at' => now(),
                         'updated_at' => now(),

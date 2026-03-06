@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use App\Models\Quadrant; 
+use App\Models\Assessment;
 
 class DashboardController extends Controller
 {
@@ -68,26 +69,35 @@ class DashboardController extends Controller
         }
     }
 
-    
-    
+    public function loadSchoolsPartial()
+    {
+        if (Auth::user()->role === 'student') {
+            return abort(403, 'Unauthorized access.');
+        }
+        return view('dashboard.partials.admin.schools');
+    }
+
     public function loadTeachersPartial()
     {
-        if (Auth::user()->role === 'admin'){
+        if (Auth::user()->role === 'admin') {
             return view('dashboard.partials.admin.teachers');
         }
         return abort(403, 'Unauthorized access.');
     }
 
-    public function loadAssessmentPartial(){
-        if (Auth::user()->role === 'admin'){
-            return view('dashboard.partials.admin.assessment');
-        }
-        return abort(403, 'Unauthorized access.');
+    public function loadAssessmentPartial()
+    {
+        // 2. FETCH THE ASSESSMENTS FROM THE DATABASE
+        // We use 'with("categories")' so we know if it's a "Draft" or "Live" test
+        $assessments = Assessment::with('categories')->orderBy('created_at', 'desc')->get();
+
+        // 3. PASS THE DATA TO THE VIEW USING compact()
+        return view('dashboard.partials.admin.assessment', compact('assessments'));
     }
 
     public function loadStudentsPartial()
     {
-        if (Auth::user()->role === 'admin'){
+        if (Auth::user()->role === 'admin') {
             return view('dashboard.partials.admin.students');
         }
         return abort(403, 'Unauthorized access.');

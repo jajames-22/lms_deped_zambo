@@ -2,12 +2,12 @@
 
 use App\Http\Controllers\AssessmentController;
 
-Route::middleware(['auth', 'verified'])->prefix('dashboard')->name('dashboard.')->group(function () {
-    // Step 1: Create Assessment Setup
-    Route::get('/assessments/create', [AssessmentController::class, 'create'])->name('assessments.create');
-    Route::post('/assessments/store-setup', [AssessmentController::class, 'storeSetup'])->name('assessments.store_setup');
+Route::middleware(['auth', 'verified'])->prefix('dashboard/assessment')->name('dashboard.assessments.')->group(function () {
+    // Matches: /dashboard/assessment/create
+    Route::get('/create', [AssessmentController::class, 'create'])->name('create');
+    Route::post('/store-setup', [AssessmentController::class, 'storeSetup'])->name('store_setup');
 
-    // Step 2: Assessment Builder
-    Route::get('/assessments/{id}/build', [AssessmentController::class, 'builder'])->name('assessments.builder');
-    Route::post('/assessments/{id}/store-questions', [AssessmentController::class, 'storeQuestions'])->name('assessments.store_questions');
+    // Matches: /dashboard/assessment/{id}/build
+    Route::get('/{id}/build', [AssessmentController::class, 'builder'])->name('builder');
+    Route::post('/{id}/store-questions', [AssessmentController::class, 'storeQuestions'])->name('store_questions');
 });
