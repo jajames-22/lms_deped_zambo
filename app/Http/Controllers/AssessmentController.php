@@ -9,14 +9,11 @@ use Exception;
 
 class AssessmentController extends Controller
 {
-    // --- STEP 1: LOAD SETUP PAGE ---
     public function create()
     {
-        // Path: resources/views/dashboard/partials/admin/assessments/create.blade.php
         return view('dashboard.partials.admin.assessments.create');
     }
 
-    // --- STEP 1: SAVE SETUP & REDIRECT ---
     public function storeSetup(Request $request)
     {
         $request->validate([
@@ -25,26 +22,24 @@ class AssessmentController extends Controller
             'description' => 'nullable|string',
         ]);
 
-        $accessKey = strtoupper(Str::random(6)); // Generate 6-digit key
+        $accessKey = strtoupper(Str::random(6)); 
 
-        // Insert using DB Facade
         $assessmentId = DB::table('assessments')->insertGetId([
             'title' => $request->title,
             'year_level' => $request->year_level,
             'description' => $request->description,
             'access_key' => $accessKey,
+            'status' => 'draft', // Initializes as draft by default
             'created_at' => now(),
             'updated_at' => now(),
         ]);
 
-        // Return JSON with redirect URL so your AJAX can handle the transition
         return response()->json([
             'success' => true,
             'redirect_url' => route('dashboard.assessments.builder', ['id' => $assessmentId])
         ]);
     }
 
-    // --- STEP 2: LOAD BUILDER PAGE ---
     public function builder($id)
     {
         $assessment = DB::table('assessments')->where('id', $id)->first();
@@ -53,26 +48,36 @@ class AssessmentController extends Controller
             abort(404, 'Assessment not found');
         }
 
-        // Path: resources/views/dashboard/partials/admin/assessments/builder.blade.php
         return view('dashboard.partials.admin.assessments.builder', compact('assessment'));
     }
 
-    // --- STEP 2: SAVE CATEGORIES & QUESTIONS ---
     public function storeQuestions(Request $request, $id)
     {
         DB::beginTransaction();
         try {
+            // Update the overall assessment status (draft vs published)
+            DB::table('assessments')->where('id', $id)->update([
+                'status' => $request->status,
+                'updated_at' => now()
+            ]);
+
+            // CLEAR EXISTING categories and questions for this assessment
+            // This prevents duplication if a user clicks "Save Draft" multiple times.
+            $existingCategories = DB::table('assessment_categories')->where('assessment_id', $id)->pluck('id');
+            if ($existingCategories->isNotEmpty()) {
+                DB::table('assessment_questions')->whereIn('category_id', $existingCategories)->delete();
+                DB::table('assessment_categories')->where('assessment_id', $id)->delete();
+            }
+
             foreach ($request->categories as $cat) {
-                // Insert Category
-                $categoryId = DB::table('categories')->insertGetId([
+                $categoryId = DB::table('assessment_categories')->insertGetId([
                     'assessment_id' => $id,
                     'title' => $cat['title'],
-                    'time_limit' => $cat['time_limit'], // Timer in minutes
+                    'time_limit' => $cat['time_limit'],
                     'created_at' => now(),
                     'updated_at' => now(),
                 ]);
 
-                // Insert Questions for this Category
                 $questionsToInsert = [];
                 foreach ($cat['questions'] as $q) {
                     $questionsToInsert[] = [
@@ -89,7 +94,10 @@ class AssessmentController extends Controller
                         'updated_at' => now(),
                     ];
                 }
-                DB::table('questions')->insert($questionsToInsert);
+                
+                if (!empty($questionsToInsert)) {
+                    DB::table('assessment_questions')->insert($questionsToInsert);
+                }
             }
 
             DB::commit();
