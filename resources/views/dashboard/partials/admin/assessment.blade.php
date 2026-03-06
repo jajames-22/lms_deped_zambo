@@ -4,9 +4,9 @@
             <h1 class="text-2xl font-bold text-gray-900">Assessment Management</h1>
             <p class="text-gray-500 text-sm">Data-driven test to measure students learning progress.</p>
         </div>
-        
-        <button onclick="loadPartial('{{ route('dashboard.assessments.create') }}', this)" 
-            class="flex-shrink-0 flex items-center justify-center gap-2 px-6 py-3 bg-[#a52a2a] text-white font-bold rounded-xl shadow-lg shadow-red-900/20 hover:bg-red-800 transition-all active:scale-95">
+
+        <button onclick="loadPartial('{{ route('dashboard.assessments.create') }}', this)"
+            class="flex-shrink-0 flex items-center justify-center gap-2 px-6 py-3 bg-[#a52a2a] text-white font-bold rounded-xl shadow-lg shadow-[#a52a2a]/20 hover:bg-red-800 transition-all active:scale-95">
             <i class="fas fa-plus"></i>
             <span>Create New Test</span>
         </button>
@@ -14,108 +14,167 @@
 
     <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
         <div class="flex items-center space-x-1 bg-gray-200/50 p-1 rounded-xl w-fit shrink-0">
-            <button onclick="filterAssessments('all', this)" class="assessment-tab px-6 py-2 text-sm font-bold rounded-lg transition-all bg-white text-[#a52a2a] shadow-sm">
-                All
-            </button>
-            <button onclick="filterAssessments('live', this)" class="assessment-tab px-6 py-2 text-sm font-bold rounded-lg transition-all text-gray-500 hover:text-gray-700">
-                Live
-            </button>
-            <button onclick="filterAssessments('draft', this)" class="assessment-tab px-6 py-2 text-sm font-bold rounded-lg transition-all text-gray-500 hover:text-gray-700">
-                Drafts
-            </button>
+            <button onclick="filterAssessments('all', this)"
+                class="assessment-tab px-6 py-2 text-sm font-bold rounded-lg transition-all bg-white text-[#a52a2a] shadow-sm">All</button>
+            <button onclick="filterAssessments('live', this)"
+                class="assessment-tab px-6 py-2 text-sm font-bold rounded-lg transition-all text-gray-500 hover:text-gray-700">Live</button>
+            <button onclick="filterAssessments('draft', this)"
+                class="assessment-tab px-6 py-2 text-sm font-bold rounded-lg transition-all text-gray-500 hover:text-gray-700">Drafts</button>
         </div>
 
         <div class="relative w-full max-w-md">
             <i class="fas fa-search absolute left-4 top-1/2 -translate-y-1/2 text-gray-400"></i>
-            <input type="text" id="assessment-search" onkeyup="searchAssessments()" 
-                placeholder="Search test by title..." 
+            <input type="text" id="assessment-search" onkeyup="searchAssessments()"
+                placeholder="Search test by title..."
                 class="w-full pl-11 pr-4 py-2.5 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#a52a2a]/20 focus:border-[#a52a2a] outline-none transition-all shadow-sm">
         </div>
     </div>
 
-    <div id="assessment-grid" class="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
-        
+    <div id="assessment-grid" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 items-stretch">
         @forelse($assessments as $assessment)
-            @php
-                // Now strictly uses the new database status column
-                $isLive = (isset($assessment->status) && $assessment->status === 'published');
-            @endphp
+            @php $isLive = ($assessment->status === 'published'); @endphp
+            
+            <div id="assessment-card-{{ $assessment->id }}"
+                class="assessment-card {{ $isLive ? 'live' : 'draft' }} flex flex-col h-full bg-white rounded-2xl border border-gray-200 {{ $isLive ? 'border-t-green-500 border-t-4' : 'border-t-amber-400 border-t-4' }} shadow-sm hover:shadow-lg transition-all duration-300 group overflow-hidden relative">
+                
+                <button
+                    onclick="window.deleteAssessmentFromList('{{ $assessment->id }}', '{{ route('dashboard.assessments.destroy', $assessment->id) }}')"
+                    class="absolute top-4 right-4 h-8 w-8 rounded-full bg-gray-50 text-gray-400 opacity-0 group-hover:opacity-100 transition-all flex items-center justify-center hover:bg-red-100 hover:text-red-600 z-10" title="Delete Assessment">
+                    <i class="fas fa-trash-alt text-sm"></i>
+                </button>
 
-            @if($isLive)
-                <div class="assessment-card live bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-md transition-all group overflow-hidden border-t-4 border-t-green-500">
-                    <div class="p-6">
-                        <div class="flex justify-between items-start mb-4">
-                            <div class="bg-green-50 text-green-600 p-3 rounded-xl"><i class="fas fa-file-signature text-xl"></i></div>
-                            <span class="px-2 py-1 bg-green-100 text-green-700 text-[10px] font-bold rounded-md uppercase">Live</span>
-                        </div>
-                        <h4 class="test-title text-lg font-bold text-gray-900 mb-1 group-hover:text-green-600 transition-colors">{{ $assessment->title }}</h4>
-                        <p class="text-xs text-gray-500 mb-4 line-clamp-2">{{ $assessment->description ?? 'No description provided.' }}</p>
-                        
-                        <div class="space-y-2 mb-6 text-xs text-gray-600">
-                            <div class="flex items-center"><i class="fas fa-key w-5 text-gray-400"></i> Key: <strong class="ml-1 tracking-widest text-gray-900">{{ $assessment->access_key }}</strong></div>
-                            <div class="flex items-center"><i class="fas fa-layer-group w-5 text-gray-400"></i> {{ $assessment->categories ? $assessment->categories->count() : 0 }} Categories</div>
-                        </div>
-                        
-                        <div class="flex gap-2">
-                            <button class="flex-1 py-2 bg-gray-50 text-gray-700 text-xs font-bold rounded-lg hover:bg-gray-100 transition">Edit</button>
-                            <button class="flex-1 py-2 bg-[#a52a2a] text-white text-xs font-bold rounded-lg hover:bg-red-800 transition shadow-sm">Results</button>
+                <div class="p-6 flex-1 flex flex-col">
+                    <div class="flex justify-between items-start mb-4 pr-8">
+                        <div class="flex items-center gap-3">
+                            <div class="{{ $isLive ? 'bg-green-50 text-green-600' : 'bg-amber-50 text-amber-600' }} p-3 rounded-xl flex items-center justify-center">
+                                <i class="fas {{ $isLive ? 'fa-file-signature' : 'fa-tools' }} text-xl"></i>
+                            </div>
+                            <span class="px-2.5 py-1 {{ $isLive ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700' }} text-[10px] font-bold rounded-md uppercase tracking-wide">
+                                {{ $isLive ? 'Published' : 'Draft' }}
+                            </span>
                         </div>
                     </div>
-                </div>
-            @else
-                <div class="assessment-card draft bg-white rounded-2xl border-2 border-dashed border-amber-200 p-6">
-                    <div class="flex justify-between items-start mb-4">
-                        <div class="bg-amber-50 text-amber-600 p-3 rounded-xl"><i class="fas fa-tools text-xl"></i></div>
-                        <span class="px-2 py-1 bg-amber-100 text-amber-700 text-[10px] font-bold rounded-md uppercase">Draft</span>
+                    
+                    <h4 class="test-title text-lg font-bold text-gray-900 mb-2 line-clamp-1" title="{{ $assessment->title }}">{{ $assessment->title }}</h4>
+                    
+                    <p class="text-sm text-gray-500 mb-5 line-clamp-2 flex-1">
+                        {{ $assessment->description ?? 'No description provided for this assessment.' }}
+                    </p>
+
+                    @if($isLive)
+                        <div class="bg-gray-50 rounded-xl p-4 mb-2 space-y-2 text-xs text-gray-600 border border-gray-100">
+                            <div class="flex items-center justify-between">
+                                <span class="flex items-center gap-2 text-gray-500"><i class="fas fa-key"></i> Access Key:</span>
+                                <b class="tracking-widest text-[#a52a2a] font-mono">{{ $assessment->access_key }}</b>
+                            </div>
+                            <div class="flex items-center justify-between">
+                                <span class="flex items-center gap-2 text-gray-500"><i class="fas fa-layer-group"></i> Sections:</span>
+                                <b class="text-gray-900">{{ $assessment->categories_count ?? 0 }}</b>
+                            </div>
+                        </div>
+                    @else
+                        <div class="bg-amber-50/50 rounded-xl p-4 mb-2 text-xs text-amber-600/80 border border-amber-100/50 flex items-center justify-center border-dashed">
+                            <i class="fas fa-pencil-ruler mr-2"></i> Continue building this test
+                        </div>
+                    @endif
+
+                    <div class="flex gap-3 mt-4 pt-4 border-t border-gray-100">
+                        <button onclick="loadPartial('{{ route('dashboard.assessments.builder', $assessment->id) }}', this)"
+                            class="flex-1 py-2.5 bg-white border border-gray-200 text-gray-700 text-sm font-bold rounded-xl hover:bg-gray-50 hover:border-[#a52a2a]/30 hover:text-[#a52a2a] transition-all shadow-sm">
+                            <i class="fas {{ $isLive ? 'fa-edit' : 'fa-play' }} mr-1"></i> {{ $isLive ? 'Manage' : 'Resume' }}
+                        </button>
+                        @if($isLive)
+                            <button
+                                class="flex-1 py-2.5 bg-[#a52a2a] text-white text-sm font-bold rounded-xl hover:bg-red-800 transition-all shadow-md shadow-[#a52a2a]/20">
+                                <i class="fas fa-chart-pie mr-1"></i> Analytics
+                            </button>
+                        @endif
                     </div>
-                    <h4 class="test-title text-lg font-bold text-gray-900 mb-1 italic">{{ $assessment->title }}</h4>
-                    <p class="text-xs text-gray-500 mb-6 line-clamp-2">Currently hidden from students.</p>
-                    <button onclick="loadPartial('{{ route('dashboard.assessments.builder', $assessment->id) }}', this)" class="w-full py-2.5 bg-gray-900 text-white text-xs font-bold rounded-lg hover:bg-black transition flex justify-center items-center gap-2">
-                        <span>Continue Building</span> <i class="fas fa-arrow-right"></i>
-                    </button>
                 </div>
-            @endif
+            </div>
         @empty
-            <div class="col-span-full py-12 text-center text-gray-500">
-                <i class="fas fa-folder-open text-4xl mb-3 text-gray-300"></i>
-                <p>No assessments created yet.</p>
+            <div class="col-span-full py-16 flex flex-col items-center justify-center bg-white rounded-2xl border border-dashed border-gray-300">
+                <div class="h-16 w-16 rounded-full bg-gray-50 flex items-center justify-center text-gray-400 mb-4">
+                    <i class="fas fa-folder-open text-2xl"></i>
+                </div>
+                <h3 class="text-lg font-bold text-gray-900 mb-1">No Assessments Found</h3>
+                <p class="text-sm text-gray-500 max-w-sm text-center">You haven't created any assessments yet. Click the "Create New Test" button above to get started.</p>
             </div>
         @endforelse
-
     </div>
 </div>
 
 <script>
-    let currentStatus = 'all';
+    window.deleteAssessmentFromList = async function (id, url) {
+        if (!confirm("Are you sure you want to delete this assessment? This action cannot be undone.")) return;
+        
+        const card = document.getElementById('assessment-card-' + id);
+        if (!card) return;
 
+        // Visual feedback on the button
+        const btn = card.querySelector('button');
+        const originalHtml = btn.innerHTML;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin text-sm"></i>';
+        btn.disabled = true;
+
+        const csrf = document.querySelector('meta[name="csrf-token"]')?.content || "{{ csrf_token() }}";
+        
+        try {
+            const response = await fetch(url, {
+                method: 'DELETE',
+                headers: { 
+                    'X-CSRF-TOKEN': csrf, 
+                    'Accept': 'application/json' 
+                }
+            });
+            
+            if (response.ok) {
+                // Smooth removal animation
+                card.style.transform = 'scale(0.95)';
+                card.style.opacity = '0';
+                setTimeout(() => card.remove(), 300);
+            } else {
+                alert("Failed to delete. The server returned an error.");
+                btn.innerHTML = originalHtml;
+                btn.disabled = false;
+            }
+        } catch (e) { 
+            alert("Network error. Could not delete assessment."); 
+            btn.innerHTML = originalHtml;
+            btn.disabled = false;
+        }
+    }
+
+    let currentStatus = 'all';
+    
     function filterAssessments(status, btnElement) {
         currentStatus = status;
         
+        // Reset all tabs
         document.querySelectorAll('.assessment-tab').forEach(tab => {
             tab.classList.remove('bg-white', 'text-[#a52a2a]', 'shadow-sm');
-            tab.classList.add('text-gray-500');
+            tab.classList.add('text-gray-500', 'hover:text-gray-700');
         });
+        
+        // Activate clicked tab
+        btnElement.classList.remove('text-gray-500', 'hover:text-gray-700');
         btnElement.classList.add('bg-white', 'text-[#a52a2a]', 'shadow-sm');
-        btnElement.classList.remove('text-gray-500');
-
+        
         applyFilters();
     }
-
-    function searchAssessments() {
-        applyFilters();
-    }
-
+    
+    function searchAssessments() { applyFilters(); }
+    
     function applyFilters() {
         const query = document.getElementById('assessment-search').value.toLowerCase();
-        const cards = document.querySelectorAll('.assessment-card');
-
-        cards.forEach(card => {
+        
+        document.querySelectorAll('.assessment-card').forEach(card => {
             const title = card.querySelector('.test-title').innerText.toLowerCase();
             const matchesTab = (currentStatus === 'all' || card.classList.contains(currentStatus));
-            const matchesSearch = title.includes(query);
-
-            if (matchesTab && matchesSearch) {
-                card.style.display = 'block';
+            
+            // Because we changed the card to a flex container, we must restore 'flex' instead of 'block'
+            if (matchesTab && title.includes(query)) {
+                card.style.display = 'flex';
             } else {
                 card.style.display = 'none';
             }

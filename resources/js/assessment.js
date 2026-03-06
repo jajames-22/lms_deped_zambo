@@ -53,442 +53,369 @@ window.submitAssessmentSetup = async function (btn) {
     }
 };
 
-//builder
-
 window.catCount = 0;
+let autosaveTimer;
+const SYNC_DELAY = 1000;
 
-// Load initial category on start automatically
-setTimeout(() => {
-    if (document.querySelectorAll(".category-block").length === 0) {
-        window.addCategory();
+window.initBuilder = function () {
+    // FIX: Reset category count every time the builder initializes
+    window.catCount = 0; 
+
+    const container = document.getElementById("builder-container");
+    if (!container) return;
+
+    // Reload existing data from the hidden input
+    const existingDataEl = document.getElementById("existing-data");
+    const existingData =
+        existingDataEl && existingDataEl.value
+            ? JSON.parse(existingDataEl.value)
+            : [];
+
+    if (existingData.length > 0) {
+        container.innerHTML = "";
+        existingData.forEach((cat) => {
+            window.renderExistingCategory(cat);
+        });
+    } else {
+        if (document.querySelectorAll(".category-block").length === 0) {
+            window.addCategory();
+        }
     }
-}, 100);
 
-window.addCategory = function () {
-    window.catCount++;
-    const html = `
-        <div class="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 category-block relative transition-all" id="cat-${window.catCount}">
-            <button type="button" onclick="window.removeElement('cat-${window.catCount}')" class="absolute top-4 right-4 text-gray-400 hover:text-red-500 transition" title="Delete Category">
-                <i class="fas fa-trash"></i>
-            </button>
-
-            <div class="flex gap-4 mb-4 pr-8">
-                <div class="flex-1">
-                    <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Category Title</label>
-                    <input type="text" class="c-title w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-lg outline-none focus:bg-white focus:border-[#a52a2a] focus:ring-2 focus:ring-[#a52a2a]/20 transition" placeholder="e.g., Part 1: Multiple Choice">
-                </div>
-                <div class="w-1/3 max-w-[150px]">
-                    <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Timer (Mins)</label>
-                    <input type="number" class="c-time w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-lg outline-none focus:bg-white focus:border-[#a52a2a] focus:ring-2 focus:ring-[#a52a2a]/20 transition" placeholder="e.g., 15" min="1">
-                </div>
-            </div>
-            
-            <div id="q-container-${window.catCount}" class="space-y-4 mb-4 pl-4 border-l-2 border-[#a52a2a]/20"></div>
-            
-            <button type="button" onclick="window.addQuestion(${window.catCount})" class="text-sm text-[#a52a2a] font-bold hover:underline flex items-center gap-1 mt-2">
-                <i class="fas fa-plus"></i> Add Question to Category
-            </button>
-        </div>
-    `;
-    document
-        .getElementById("builder-container")
-        .insertAdjacentHTML("beforeend", html);
-    window.addQuestion(window.catCount);
-};
-
-window.addQuestion = function (cId) {
-    const container = document.getElementById(`q-container-${cId}`);
-    const qId = `q-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
-
-    const html = `
-        <div class="bg-gray-50 p-5 rounded-xl border border-gray-200 question-block relative" id="${qId}">
-            <button type="button" onclick="window.removeElement('${qId}')" class="absolute top-3 right-3 text-gray-400 hover:text-red-500 transition text-sm">
-                <i class="fas fa-times"></i>
-            </button>
-
-            <input type="text" class="q-text w-full px-3 py-2 mb-4 border border-gray-300 rounded-lg outline-none focus:border-[#a52a2a] focus:ring-1 focus:ring-[#a52a2a] font-medium" placeholder="Type your question here...">
-            
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-3 mb-4 text-sm">
-                <div class="flex items-center gap-2 bg-white p-1 rounded-lg border border-gray-200 focus-within:border-[#a52a2a]">
-                    <span class="font-bold text-gray-400 pl-2">A</span>
-                    <input type="text" class="q-opt-a w-full px-2 py-1 outline-none bg-transparent" placeholder="Option A">
-                </div>
-                <div class="flex items-center gap-2 bg-white p-1 rounded-lg border border-gray-200 focus-within:border-[#a52a2a]">
-                    <span class="font-bold text-gray-400 pl-2">B</span>
-                    <input type="text" class="q-opt-b w-full px-2 py-1 outline-none bg-transparent" placeholder="Option B">
-                </div>
-                <div class="flex items-center gap-2 bg-white p-1 rounded-lg border border-gray-200 focus-within:border-[#a52a2a]">
-                    <span class="font-bold text-gray-400 pl-2">C</span>
-                    <input type="text" class="q-opt-c w-full px-2 py-1 outline-none bg-transparent" placeholder="Option C">
-                </div>
-                <div class="flex items-center gap-2 bg-white p-1 rounded-lg border border-gray-200 focus-within:border-[#a52a2a]">
-                    <span class="font-bold text-gray-400 pl-2">D</span>
-                    <input type="text" class="q-opt-d w-full px-2 py-1 outline-none bg-transparent" placeholder="Option D">
-                </div>
-            </div>
-            
-            <div class="flex items-center gap-3 bg-white p-2 rounded-lg border border-gray-200 w-fit">
-                <label class="text-xs font-bold text-gray-600 uppercase ml-2">Correct Answer:</label>
-                <select class="q-correct px-3 py-1 border-none bg-gray-50 rounded outline-none text-sm font-bold text-[#a52a2a] cursor-pointer">
-                    <option value="option_a">Option A</option>
-                    <option value="option_b">Option B</option>
-                    <option value="option_c">Option C</option>
-                    <option value="option_d">Option D</option>
-                </select>
-            </div>
-        </div>
-    `;
-    container.insertAdjacentHTML("beforeend", html);
-};
-
-window.removeElement = function (id) {
-    const el = document.getElementById(id);
-    if (el) {
-        el.style.opacity = "0";
-        setTimeout(() => el.remove(), 200);
+    const wrapper = document.getElementById("assessment-wrapper");
+    if (wrapper) {
+        wrapper.addEventListener("input", (e) => {
+            if (
+                ["INPUT", "TEXTAREA", "SELECT", "RADIO"].includes(
+                    e.target.tagName,
+                )
+            ) {
+                window.handleAutosaveTrigger();
+            }
+        });
     }
 };
 
-window.submitAssessmentSetup = async function (btn) {
-    const title = document.getElementById("setup-title")?.value;
-    const year = document.getElementById("setup-year")?.value;
-    const desc = document.getElementById("setup-desc")?.value;
+window.handleAutosaveTrigger = function () {
+    window.updateAutosaveIndicator(
+        '<i class="fas fa-pencil-alt fa-spin"></i> Typing...',
+    );
+    clearTimeout(autosaveTimer);
+    autosaveTimer = setTimeout(() => {
+        window.autosaveToServer();
+    }, SYNC_DELAY);
+};
 
-    if (!title || !year) {
-        alert("Please fill out the Assessment Title and Year/Grade Level.");
-        return;
-    }
+window.autosaveToServer = async function () {
+    const wrapper = document.getElementById("assessment-wrapper");
+    if (!wrapper) return;
 
-    const wrapper = document.getElementById("setup-wrapper");
-    if (!wrapper) {
-        alert("System Error: Route setup missing. Please refresh.");
-        return;
-    }
+    window.updateAutosaveIndicator(
+        '<i class="fas fa-cloud-upload-alt fa-spin"></i> Syncing...',
+    );
 
-    const setupUrl = wrapper.dataset.setupUrl;
-    const csrfToken = wrapper.dataset.csrf;
-    const originalText = btn.innerHTML;
-
-    btn.disabled = true;
-    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Proceeding...';
+    const payload = {
+        status: "draft",
+        title: document.getElementById("setup-title").value,
+        year_level: document.getElementById("setup-year").value,
+        description: document.getElementById("setup-desc").value,
+        categories: window.collectCategoriesData(),
+    };
 
     try {
-        const response = await fetch(setupUrl, {
+        const response = await fetch(wrapper.dataset.saveUrl, {
             method: "POST",
             headers: {
                 "Content-Type": "application/json",
-                "X-CSRF-TOKEN": csrfToken,
-                "Accept": "application/json",
-                "X-Requested-With": "XMLHttpRequest",
+                "X-CSRF-TOKEN": wrapper.dataset.csrf,
+                Accept: "application/json",
             },
-            body: JSON.stringify({
-                title: title,
-                year_level: year,
-                description: desc,
-            }),
+            body: JSON.stringify(payload),
         });
-
-        const data = await response.json();
-
-        if (response.ok && data.success) {
-            if(typeof loadPartial === 'function') {
-                loadPartial(data.redirect_url, document.querySelector('.nav-btn.active'));
-            } else {
-                window.location.href = data.redirect_url;
-            }
-        } else {
-            alert("Error: " + (data.message || "Validation failed."));
-            window.resetBtn(btn, originalText);
-        }
-    } catch (error) {
-        console.error("Network Error:", error);
-        alert("Server error. Check your console.");
-        window.resetBtn(btn, originalText);
+        if (response.ok)
+            window.updateAutosaveIndicator(
+                '<i class="fas fa-check-circle text-green-500"></i> Synced',
+            );
+    } catch (e) {
+        window.updateAutosaveIndicator(
+            '<i class="fas fa-wifi-slash text-amber-500"></i> Offline',
+        );
     }
 };
 
-// Builder Phase 
-window.catCount = 0;
-
-window.initBuilder = function() {
-    const container = document.getElementById("builder-container");
-    if (container && document.querySelectorAll(".category-block").length === 0) {
-        window.addCategory();
-    }
+window.updateAutosaveIndicator = (html) => {
+    const el = document.getElementById("autosave-indicator");
+    if (el) el.innerHTML = html;
 };
+
+// --- BUILDER UI LOGIC ---
 
 window.addCategory = function () {
     const container = document.getElementById("builder-container");
     if (!container) return;
 
     window.catCount++;
+    const catId = `cat-${window.catCount}`;
     const html = `
-        <div class="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 category-block relative transition-all" id="cat-${window.catCount}">
-            <button type="button" onclick="window.removeElement('cat-${window.catCount}')" class="absolute top-4 right-4 text-gray-400 hover:text-red-500 transition" title="Delete Category">
-                <i class="fas fa-trash"></i>
-            </button>
-
-            <div class="flex gap-4 mb-4 pr-8">
-                <div class="flex-1">
-                    <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Category Title</label>
-                    <input type="text" class="c-title w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-lg outline-none focus:bg-white focus:border-[#a52a2a] focus:ring-2 focus:ring-[#a52a2a]/20 transition" placeholder="e.g., Part 1: Multiple Choice">
+        <div class="bg-white rounded-2xl shadow-sm border border-gray-200 category-block overflow-hidden transition-all mb-4" id="${catId}">
+            <div class="p-4 bg-gray-50/50 flex items-center justify-between cursor-pointer group" onclick="window.toggleCategory('${catId}', event)">
+                <div class="flex items-center gap-4 flex-1">
+                    <div class="h-8 w-8 rounded-lg bg-[#a52a2a]/10 text-[#a52a2a] flex items-center justify-center font-bold text-sm">
+                        ${window.catCount}
+                    </div>
+                    <span class="font-bold text-gray-700 category-display-title">New Section</span>
                 </div>
-                <div class="w-1/3 max-w-[150px]">
-                    <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Timer (Mins)</label>
-                    <input type="number" class="c-time w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-lg outline-none focus:bg-white focus:border-[#a52a2a] focus:ring-2 focus:ring-[#a52a2a]/20 transition" placeholder="e.g., 15" min="1">
+                <div class="flex items-center gap-2">
+                    <button type="button" onclick="window.removeElement('${catId}')" class="h-8 w-8 text-gray-400 hover:text-red-500 transition">
+                        <i class="fas fa-trash-alt"></i>
+                    </button>
+                    <div class="h-8 w-8 flex items-center justify-center text-gray-400 group-hover:text-gray-600 transition chevron-icon">
+                        <i class="fas fa-chevron-up"></i>
+                    </div>
                 </div>
             </div>
-            
-            <div id="q-container-${window.catCount}" class="space-y-4 mb-4 pl-4 border-l-2 border-[#a52a2a]/20"></div>
-            
-            <button type="button" onclick="window.addQuestion(${window.catCount})" class="text-sm text-[#a52a2a] font-bold hover:underline flex items-center gap-1 mt-2">
-                <i class="fas fa-plus"></i> Add Question to Category
-            </button>
-        </div>
-    `;
+
+            <div class="p-6 border-t border-gray-100 category-body">
+                <div class="flex gap-4 mb-6">
+                    <div class="flex-1">
+                        <label class="block text-[10px] font-bold text-gray-400 uppercase mb-1">Section Title</label>
+                        <input type="text" class="c-title w-full px-4 py-2 border border-gray-200 rounded-xl outline-none" placeholder="e.g., Mathematics" onkeyup="window.updateCatDisplay(this)">
+                    </div>
+                    <div class="w-32">
+                        <label class="block text-[10px] font-bold text-gray-400 uppercase mb-1">Mins</label>
+                        <input type="number" class="c-time w-full px-4 py-2 border border-gray-200 rounded-xl outline-none" placeholder="0">
+                    </div>
+                </div>
+                <div id="q-container-${window.catCount}" class="space-y-4 mb-4"></div>
+                <button type="button" onclick="window.addQuestion(${window.catCount})" class="w-full py-3 rounded-xl border border-dashed border-gray-200 text-gray-500 text-sm font-bold hover:bg-gray-50 transition">
+                    <i class="fas fa-plus-circle mr-2"></i> Add Question
+                </button>
+            </div>
+        </div>`;
+
     container.insertAdjacentHTML("beforeend", html);
     window.addQuestion(window.catCount);
 };
 
 window.addQuestion = function (cId) {
     const container = document.getElementById(`q-container-${cId}`);
-    if(!container) return;
+    if (!container) return;
 
     const qId = `q-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
-
     const html = `
-        <div class="bg-gray-50 p-5 rounded-xl border border-gray-200 question-block relative" id="${qId}">
-            <button type="button" onclick="window.removeElement('${qId}')" class="absolute top-3 right-3 text-gray-400 hover:text-red-500 transition text-sm">
+        <div class="bg-gray-50 p-4 rounded-xl border border-gray-100 question-block relative group" id="${qId}">
+            <button type="button" onclick="window.removeElement('${qId}')" class="absolute top-2 right-2 h-7 w-7 flex items-center justify-center text-gray-300 hover:text-red-500 transition">
                 <i class="fas fa-times"></i>
             </button>
+            <input type="text" class="q-text w-full px-3 py-2 bg-white border border-gray-200 rounded-lg outline-none mb-3 font-medium text-sm focus:border-[#a52a2a]" placeholder="Enter Question...">
+            
+            <div class="options-list space-y-2 mb-3"></div>
+            
+            <button type="button" onclick="window.addOptionToQuestion('${qId}')" class="text-[10px] font-bold text-[#a52a2a] hover:underline uppercase flex items-center">
+                <i class="fas fa-plus mr-1"></i> Add Choice
+            </button>
+        </div>`;
 
-            <input type="text" class="q-text w-full px-3 py-2 mb-4 border border-gray-300 rounded-lg outline-none focus:border-[#a52a2a] focus:ring-1 focus:ring-[#a52a2a] font-medium" placeholder="Type your question here...">
-            
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-3 mb-4 text-sm">
-                <div class="flex items-center gap-2 bg-white p-1 rounded-lg border border-gray-200 focus-within:border-[#a52a2a]">
-                    <span class="font-bold text-gray-400 pl-2">A</span>
-                    <input type="text" class="q-opt-a w-full px-2 py-1 outline-none bg-transparent" placeholder="Option A">
-                </div>
-                <div class="flex items-center gap-2 bg-white p-1 rounded-lg border border-gray-200 focus-within:border-[#a52a2a]">
-                    <span class="font-bold text-gray-400 pl-2">B</span>
-                    <input type="text" class="q-opt-b w-full px-2 py-1 outline-none bg-transparent" placeholder="Option B">
-                </div>
-                <div class="flex items-center gap-2 bg-white p-1 rounded-lg border border-gray-200 focus-within:border-[#a52a2a]">
-                    <span class="font-bold text-gray-400 pl-2">C</span>
-                    <input type="text" class="q-opt-c w-full px-2 py-1 outline-none bg-transparent" placeholder="Option C">
-                </div>
-                <div class="flex items-center gap-2 bg-white p-1 rounded-lg border border-gray-200 focus-within:border-[#a52a2a]">
-                    <span class="font-bold text-gray-400 pl-2">D</span>
-                    <input type="text" class="q-opt-d w-full px-2 py-1 outline-none bg-transparent" placeholder="Option D">
-                </div>
-            </div>
-            
-            <div class="flex items-center gap-3 bg-white p-2 rounded-lg border border-gray-200 w-fit">
-                <label class="text-xs font-bold text-gray-600 uppercase ml-2">Correct Answer:</label>
-                <select class="q-correct px-3 py-1 border-none bg-gray-50 rounded outline-none text-sm font-bold text-[#a52a2a] cursor-pointer">
-                    <option value="option_a">Option A</option>
-                    <option value="option_b">Option B</option>
-                    <option value="option_c">Option C</option>
-                    <option value="option_d">Option D</option>
-                </select>
-            </div>
-        </div>
-    `;
     container.insertAdjacentHTML("beforeend", html);
+
+    // GUARANTEE TWO DEFAULT OPTIONS ARE ADDED IMMEDIATELY
+    window.addOptionToQuestion(qId, true, ""); // First option (marked as correct by default)
+    window.addOptionToQuestion(qId, false, ""); // Second option
 };
 
-window.removeElement = function (id) {
-    const el = document.getElementById(id);
-    if (el) {
-        el.style.opacity = "0";
-        setTimeout(() => el.remove(), 200);
-    }
+window.addOptionToQuestion = function (qId, isCorrect = false, text = "") {
+    const list = document.querySelector(`#${qId} .options-list`);
+
+    // Generate a placeholder based on current option count (e.g., "Choice 1", "Choice 2")
+    const optCount = list.querySelectorAll(".option-row").length + 1;
+
+    // FIX: Moved the radio button and delete button completely to the right side
+    const optHtml = `
+        <div class="flex items-center justify-between gap-3 bg-white px-3 py-2 rounded-lg border border-gray-200 focus-within:border-[#a52a2a] option-row transition">
+            <input type="text" class="option-input w-full bg-transparent outline-none text-sm" placeholder="Choice ${optCount}..." value="${text}">
+            
+            <div class="flex items-center gap-3 border-l border-gray-100 pl-3 shrink-0">
+                <label class="flex items-center gap-1.5 cursor-pointer text-gray-500 hover:text-green-600 transition">
+                    <input type="radio" name="correct-${qId}" title="Mark as Correct Answer" class="is-correct-radio cursor-pointer text-green-600 focus:ring-green-600" ${isCorrect ? "checked" : ""}>
+                    <span class="text-[10px] font-bold uppercase">Correct</span>
+                </label>
+                <button type="button" onclick="window.removeOption(this, '${qId}')" title="Remove Choice" class="text-gray-300 hover:text-red-500 transition h-6 w-6 flex items-center justify-center">
+                    <i class="fas fa-times-circle text-base"></i>
+                </button>
+            </div>
+        </div>`;
+
+    list.insertAdjacentHTML("beforeend", optHtml);
+    window.handleAutosaveTrigger();
 };
 
-window.saveCompleteExam = async function (btn, examStatus) {
-    const originalText = btn.innerHTML;
-    btn.disabled = true;
-    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
+window.removeOption = function (btnElement, qId) {
+    const list = document.querySelector(`#${qId} .options-list`);
 
-    const wrapper = document.getElementById("assessment-wrapper");
-    if (!wrapper) return;
-
-    const saveUrl = wrapper.dataset.saveUrl;
-    const csrfToken = wrapper.dataset.csrf;
-    const redirectUrl = wrapper.dataset.redirectUrl;
-
-    const payload = {
-        status: examStatus, 
-        categories: [],
-    };
-    
-    let isValid = true;
-    const categoryBlocks = document.querySelectorAll(".category-block");
-    if (categoryBlocks.length === 0) {
-        alert("Please add at least one category.");
-        window.resetBtn(btn, originalText);
+    // Prevent the user from deleting an option if there are only 2 left
+    if (list.querySelectorAll(".option-row").length <= 2) {
+        alert("A question must have at least two choices.");
         return;
     }
 
-    categoryBlocks.forEach((cat) => {
-        const category = {
+    btnElement.closest(".option-row").remove();
+    window.handleAutosaveTrigger();
+};
+
+// --- DATA COLLECTION & SYNC ---
+
+window.getPayload = function (status) {
+    const categories = [];
+    document.querySelectorAll(".category-block").forEach((cat) => {
+        const questions = [];
+        cat.querySelectorAll(".question-block").forEach((q) => {
+            const options = [];
+            q.querySelectorAll(".option-row").forEach((opt) => {
+                options.push({
+                    text: opt.querySelector(".option-input").value,
+                    is_correct: opt.querySelector(".is-correct-radio").checked
+                        ? 1
+                        : 0,
+                });
+            });
+            questions.push({
+                text: q.querySelector(".q-text").value,
+                options: options,
+            });
+        });
+        categories.push({
             title: cat.querySelector(".c-title").value,
             time_limit: cat.querySelector(".c-time").value,
-            questions: [],
-        };
-
-        if (!category.title || !category.time_limit) isValid = false;
-
-        cat.querySelectorAll(".question-block").forEach((q) => {
-            const questionData = {
-                text: q.querySelector(".q-text").value,
-                optA: q.querySelector(".q-opt-a").value,
-                optB: q.querySelector(".q-opt-b").value,
-                optC: q.querySelector(".q-opt-c").value,
-                optD: q.querySelector(".q-opt-d").value,
-                correct: q.querySelector(".q-correct").value,
-            };
-
-            if (!questionData.text || !questionData.optA || !questionData.optB) isValid = false;
-            category.questions.push(questionData);
+            questions: questions,
         });
-
-        if (category.questions.length === 0) isValid = false;
-        payload.categories.push(category);
     });
+    return {
+        status,
+        title: document.getElementById("setup-title").value,
+        year_level: document.getElementById("setup-year").value,
+        description: document.getElementById("setup-desc").value,
+        categories,
+    };
+};
 
-    if (!isValid) {
-        alert("Validation Failed: Please ensure all categories have titles/timers, and all questions have text/options filled out.");
-        window.resetBtn(btn, originalText);
-        return;
+// FIX: Also expose collectCategoriesData so autosave works properly
+window.collectCategoriesData = function () {
+    return window.getPayload('draft').categories;
+}
+
+window.saveCompleteExam = async function (btn, status) {
+    const wrapper = document.getElementById("assessment-wrapper");
+    const payload = window.getPayload(status);
+
+    if (!payload.title || !payload.year_level) {
+        return alert("Please fill out the Assessment Title and Year Level.");
     }
 
+    btn.disabled = true;
+    const originalText = btn.innerHTML;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Saving...';
+
     try {
-        const response = await fetch(saveUrl, {
+        const response = await fetch(wrapper.dataset.saveUrl, {
             method: "POST",
             headers: {
                 "Content-Type": "application/json",
-                "X-CSRF-TOKEN": csrfToken,
-                "Accept": "application/json",
-            },
-            body: JSON.stringify(payload),
-        });
-
-        const result = await response.json();
-
-        if (response.ok && result.success) {
-            alert(examStatus === "published" ? "Exam published and opened!" : "Exam saved as draft!");
-            if(typeof loadPartial === 'function') {
-                loadPartial(redirectUrl, document.querySelector('.nav-btn.active'));
-            } else {
-                window.location.href = redirectUrl;
-            }
-        } else {
-            throw new Error(result.message || "Failed to save");
-        }
-    } catch (error) {
-        console.error(error);
-        alert("Server error: Could not save exam. " + error.message);
-        window.resetBtn(btn, originalText);
-    }
-};
-
-window.resetBtn = function (btn, originalText) {
-    btn.disabled = false;
-    btn.innerHTML = originalText;
-};
-
-window.saveCompleteExam = async function (btn, examStatus) {
-    const originalText = btn.innerHTML;
-    btn.disabled = true;
-    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
-
-    // Retrieve Laravel variables from the DOM wrapper
-    const wrapper = document.getElementById("assessment-wrapper");
-    const saveUrl = wrapper.dataset.saveUrl;
-    const csrfToken = wrapper.dataset.csrf;
-    const redirectUrl = wrapper.dataset.redirectUrl;
-
-    const payload = {
-        status: examStatus, // Will be 'draft' or 'published'
-        categories: [],
-    };
-    let isValid = true;
-
-    const categoryBlocks = document.querySelectorAll(".category-block");
-    if (categoryBlocks.length === 0) {
-        alert("Please add at least one category.");
-        window.resetBtn(btn, originalText);
-        return;
-    }
-
-    categoryBlocks.forEach((cat) => {
-        const category = {
-            title: cat.querySelector(".c-title").value,
-            time_limit: cat.querySelector(".c-time").value,
-            questions: [],
-        };
-
-        if (!category.title || !category.time_limit) isValid = false;
-
-        cat.querySelectorAll(".question-block").forEach((q) => {
-            const questionData = {
-                text: q.querySelector(".q-text").value,
-                optA: q.querySelector(".q-opt-a").value,
-                optB: q.querySelector(".q-opt-b").value,
-                optC: q.querySelector(".q-opt-c").value,
-                optD: q.querySelector(".q-opt-d").value,
-                correct: q.querySelector(".q-correct").value,
-            };
-
-            if (!questionData.text || !questionData.optA || !questionData.optB)
-                isValid = false;
-            category.questions.push(questionData);
-        });
-
-        if (category.questions.length === 0) isValid = false;
-        payload.categories.push(category);
-    });
-
-    if (!isValid) {
-        alert(
-            "Validation Failed: Please ensure all categories have titles and timers, and all questions have text and options filled out.",
-        );
-        window.resetBtn(btn, originalText);
-        return;
-    }
-
-    try {
-        const response = await fetch(saveUrl, {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json",
-                "X-CSRF-TOKEN": csrfToken,
+                "X-CSRF-TOKEN": wrapper.dataset.csrf,
                 Accept: "application/json",
             },
             body: JSON.stringify(payload),
         });
-
         const result = await response.json();
-
         if (response.ok && result.success) {
-            const successMsg =
-                examStatus === "published"
-                    ? "Exam published and opened!"
-                    : "Exam saved as draft!";
-            alert(successMsg);
-            loadPartial(redirectUrl);
+            alert(status === "published" ? "Test Published!" : "Draft Saved!");
+            loadPartial(wrapper.dataset.redirectUrl);
         } else {
             throw new Error(result.message || "Failed to save");
         }
-    } catch (error) {
-        console.error(error);
-        alert("Server error: Could not save exam. " + error.message);
+    } catch (e) {
+        alert("Save failed: " + e.message);
         window.resetBtn(btn, originalText);
     }
 };
 
-window.resetBtn = function (btn, originalText) {
+window.renderExistingCategory = function (catData) {
+    window.addCategory();
+    const latestCat = document.querySelector(".category-block:last-child");
+    latestCat.querySelector(".c-title").value = catData.title || "";
+    latestCat.querySelector(".c-time").value = catData.time_limit || "";
+    latestCat.querySelector(".category-display-title").innerText =
+        catData.title || "New Section";
+
+    const qContainer = latestCat.querySelector('[id^="q-container-"]');
+    qContainer.innerHTML = ""; // Clear the default blank question
+
+    // FIX: Using defensive checks for both keys just in case Laravel transforms 'text' back to 'question_text'
+    if (catData.questions && catData.questions.length > 0) {
+        catData.questions.forEach((q) => {
+            window.addQuestion(qContainer.id.split("-").pop());
+            const latestQ = qContainer.querySelector(".question-block:last-child");
+            
+            // Fixed key binding here
+            latestQ.querySelector(".q-text").value = q.text || q.question_text || ""; 
+            latestQ.querySelector(".options-list").innerHTML = ""; // Clear default options
+
+            if (q.options && q.options.length > 0) {
+                // Render unlimited saved options
+                q.options.forEach((opt) => {
+                    // Fixed key binding here
+                    window.addOptionToQuestion(
+                        latestQ.id,
+                        opt.is_correct == 1 || opt.is_correct === true,
+                        opt.text || opt.option_text || "" 
+                    );
+                });
+            }
+        });
+    }
+};
+
+// --- UTILITIES ---
+
+window.toggleCategory = (id, e) => {
+    if (e.target.closest("button") || e.target.closest("input")) return;
+    const body = document.querySelector(`#${id} .category-body`);
+    const icon = document.querySelector(`#${id} .chevron-icon i`);
+    body.classList.toggle("hidden");
+    icon.classList.toggle("fa-chevron-down");
+    icon.classList.toggle("fa-chevron-up");
+};
+
+window.removeElement = (id) => {
+    document.getElementById(id).remove();
+    window.handleAutosaveTrigger();
+};
+
+window.updateCatDisplay = (input) => {
+    input
+        .closest(".category-block")
+        .querySelector(".category-display-title").innerText =
+        input.value || "New Section";
+};
+
+window.resetBtn = (btn, txt) => {
     btn.disabled = false;
-    btn.innerHTML = originalText;
+    btn.innerHTML = txt;
+};
+
+window.deleteAssessmentFromBuilder = async function () {
+    if (!confirm("Are you sure you want to discard this entire assessment?"))
+        return;
+    const wrapper = document.getElementById("assessment-wrapper");
+    try {
+        const response = await fetch(wrapper.dataset.deleteUrl, {
+            method: "DELETE",
+            headers: {
+                "X-CSRF-TOKEN": wrapper.dataset.csrf,
+                Accept: "application/json",
+            },
+        });
+        if (response.ok) loadPartial(wrapper.dataset.redirectUrl);
+    } catch (e) {
+        alert("Delete failed");
+    }
 };
