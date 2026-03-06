@@ -82,7 +82,7 @@
                 </div>
             </header>
 
-            <div id="content-area" class="flex-1 overflow-y-auto bg-gray-50 p-8"></div>
+            <div id="content-area" class="flex-1 overflow-y-auto bg-gray-50 p-5 md:p-8"></div>
         </main>
     </div>
 
