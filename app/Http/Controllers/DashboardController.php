@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use App\Models\Quadrant; 
 
 class DashboardController extends Controller
 {
@@ -23,6 +24,8 @@ class DashboardController extends Controller
         // Default to student
         return view('dashboard.student');
     }
+
+    
 
     /**
      * Loads the 'Home' partial for the content area
@@ -65,13 +68,7 @@ class DashboardController extends Controller
         }
     }
 
-    public function loadSchoolsPartial()
-    {
-        if (Auth::user()->role === 'student') {
-            return abort(403, 'Unauthorized access.');
-        } 
-        return view('dashboard.partials.admin.schools');
-    }
+    
     
     public function loadTeachersPartial()
     {
@@ -96,7 +93,10 @@ class DashboardController extends Controller
         return abort(403, 'Unauthorized access.');
     }
 
-
+    public function loadSchoolsPartial()
+    {
+        return view('dashboard.partials.admin.schools');
+    }
     /**
      * Loads the 'Statistics' partial
      */

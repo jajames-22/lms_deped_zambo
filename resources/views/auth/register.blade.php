@@ -8,6 +8,15 @@
     @vite(['resources/css/app.css', 'resources/js/app.js'])
     <link href="https://cdn.jsdelivr.net/npm/tom-select/dist/css/tom-select.css" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/tom-select/dist/js/tom-select.complete.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" integrity="sha512-DTOQO9RWCH3ppGqcWaEA1BIZOC6xxalwEsw9c2QQeAIftl+Vegovlnee1c9QX4TctnWMn13TZye+giMm8e2LwA==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+    <style>
+    /* Ensures the icon background and color change properly when the hidden radio is checked */
+    input:checked + div .w-12 {
+        background-color: #a52a2a !important;
+        color: white !important;
+    }
+</style>
+
 </head>
 
 <body class="font-sans antialiased text-gray-900 bg-gray-50">
@@ -116,28 +125,65 @@
                             @enderror
                         </div>
 
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-2">
+                       <div class="space-y-3">
+                            <label class="block text-sm font-semibold text-gray-700">
                                 Register As
                             </label>
 
-                            <div class="flex gap-6">
-                                <label class="flex items-center gap-2">
-                                    <input type="radio" name="role" value="student" {{ old('role') == 'student' ? 'checked' : '' }}>
-                                    Student
+                            <div class="grid grid-cols-2 gap-4">
+                                <label class="relative cursor-pointer group">
+                                    <input type="radio" name="role" value="student" class="peer sr-only" {{ old('role') == 'student' ? 'checked' : '' }}>
+                                    
+                                    <div class="p-4 border-2 border-gray-100 rounded-xl bg-white transition-all duration-300 
+                                                peer-checked:border-[#a52a2a] peer-checked:bg-red-50/30 peer-checked:ring-4 peer-checked:ring-[#a52a2a]/10
+                                                group-hover:border-gray-200 group-hover:shadow-sm">
+                                        
+                                        <div class="flex flex-col items-center text-center gap-2">
+                                            <div class="w-12 h-12 bg-gray-400 rounded-lg flex items-center justify-center text-gray-400 
+                                                        transition-colors duration-300 peer-checked:group-[]:bg-[#a52a2a] peer-checked:group-[]:text-white">
+                                                <i class="fas fa-user-graduate text-white text-xl"></i>
+                                            </div>
+                                            
+                                            <div>
+                                                <p class="font-bold text-sm text-gray-900 transition-colors duration-300 peer-checked:group-[]:text-[#a52a2a]">Student</p>
+                                            </div>
+
+                                            <div class="absolute top-3 right-3 opacity-0 transition-opacity duration-300 peer-checked:group-[]:opacity-100">
+                                                <i class="fas fa-check-circle text-[#a52a2a] text-sm"></i>
+                                            </div>
+                                        </div>
+                                    </div>
                                 </label>
 
-                                <label class="flex items-center gap-2">
-                                    <input type="radio" name="role" value="teacher" {{ old('role') == 'teacher' ? 'checked' : '' }}>
-                                    Teacher
+                                <label class="relative cursor-pointer group">
+                                    <input type="radio" name="role" value="teacher" class="peer sr-only" {{ old('role') == 'teacher' ? 'checked' : '' }}>
+                                    
+                                    <div class="p-4 border-2 border-gray-100 rounded-xl bg-white transition-all duration-300 
+                                                peer-checked:border-[#a52a2a] peer-checked:bg-red-50/30 peer-checked:ring-4 peer-checked:ring-[#a52a2a]/10
+                                                group-hover:border-gray-200 group-hover:shadow-sm">
+                                        
+                                        <div class="flex flex-col items-center text-center gap-2">
+                                            <div class="w-12 h-12 bg-gray-400 rounded-lg flex items-center justify-center text-gray-400 
+                                                        transition-colors duration-300 peer-checked:group-[]:bg-[#a52a2a] peer-checked:group-[]:text-white">
+                                                <i class="fas fa-chalkboard-teacher text-white text-xl"></i>
+                                            </div>
+                                            
+                                            <div>
+                                                <p class="font-bold text-sm text-gray-900 transition-colors duration-300 peer-checked:group-[]:text-[#a52a2a]">Teacher</p>
+                                            </div>
+
+                                            <div class="absolute top-3 right-3 opacity-0 transition-opacity duration-300 peer-checked:group-[]:opacity-100">
+                                                <i class="fas fa-check-circle text-[#a52a2a] text-sm"></i>
+                                            </div>
+                                        </div>
+                                    </div>
                                 </label>
                             </div>
 
                             @error('role')
                                 <p class="text-red-500 text-xs mt-1 font-medium">{{ $message }}</p>
                             @enderror
-                        </div>
-
+                            </div>
 
                         <!-- LRN / Teacher ID -->
                         <div id="userIdWrapper" style="display:none;">
