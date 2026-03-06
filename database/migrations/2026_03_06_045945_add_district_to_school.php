@@ -11,9 +11,26 @@ return new class extends Migration {
     public function up(): void
     {
         Schema::table('schools', function (Blueprint $table) {
-            // 1. Make it nullable so existing schools don't break the migration
-            // 2. Ensure it references the 'districts' table
-            $table->foreignId('district_id')->nullable()->constrained('districts')->cascadeOnDelete();
+            // 1. Linking the District
+            $table->foreignId('district_id')
+                  ->nullable() 
+                  ->after('id') // Optional: keeps the column order neat
+                  ->constrained('districts')
+                  ->cascadeOnDelete(); 
+
+            // 2. School Logo (Stores the file path)
+            $table->string('logo')->nullable()->after('name');
+
+            // 3. Complete Address
+            $table->text('address')->nullable()->after('logo');
+
+            // 4. Academic Level (Restricted to your specific list)
+            $table->enum('level', [
+                'elementary', 
+                'highschool', 
+                'seniorHighschool', 
+                'integrated'
+            ])->default('elementary')->after('address');
         });
     }
 
@@ -21,7 +38,7 @@ return new class extends Migration {
     {
         Schema::table('schools', function (Blueprint $table) {
             $table->dropForeign(['district_id']);
-            $table->dropColumn('district_id');
+            $table->dropColumn(['district_id', 'logo', 'address', 'level']);
         });
     }
 };

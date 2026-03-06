@@ -6,12 +6,65 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use App\Models\Quadrant; 
 use App\Models\Assessment;
+use App\Models\School;
 
 class DashboardController extends Controller
 {
-    /**
-     * Loads the main dashboard shell (sidebar + topbar) based on role
-     */
+   
+    public function loadSchoolsPartial()
+    {
+        // Eager load district and quadrant to prevent errors
+        $schools = School::with('district.quadrant')->get();
+
+        return view('dashboard.partials.admin.schools', compact('schools'));
+    }
+
+    public function loadSchoolCreatePartial()
+    {
+        // Security check: Prevent unauthorized roles from loading this form
+        if (Auth::user()->role === 'student' || Auth::user()->role === 'teacher') {
+            abort(403, 'Unauthorized access.');
+        }
+
+        // Fetch all quadrants, sorted alphabetically, to populate the dropdown
+        $quadrants = Quadrant::orderBy('name', 'asc')->get();
+
+        // Return the view and pass the $quadrants variable to it
+        return view('dashboard.partials.admin.school-create', compact('quadrants'));
+    }
+
+    public function storeSchool(Request $request)
+    {
+        $validated = $request->validate([
+            'name' => 'required|string|max:255',
+            'level' => 'required|in:elementary,highschool,seniorHighschool,integrated',
+            'district_id' => 'required|exists:districts,id',
+            'address' => 'nullable|string',
+            'logo' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
+        ]);
+
+        if ($request->hasFile('logo')) {
+            // Store logo in storage/app/public/schools
+            $path = $request->file('logo')->store('schools', 'public');
+            $validated['logo'] = $path;
+        }
+
+        \App\Models\School::create($validated);
+
+        // After saving, we return a success response
+        return response()->json(['success' => 'School registered successfully!']);
+    }
+
+    public function getDistricts($quadrantId)
+    {
+        // Fetch districts belonging to the selected quadrant
+        $districts = \App\Models\District::where('quadrant_id', $quadrantId)
+            ->orderBy('name', 'asc')
+            ->get();
+
+        return response()->json($districts);
+    }
+
     public function index()
     {
         $role = Auth::user()->role;
@@ -26,11 +79,6 @@ class DashboardController extends Controller
         return view('dashboard.student');
     }
 
-    
-
-    /**
-     * Loads the 'Home' partial for the content area
-     */
     public function loadHomePartial()
     {
         $role = Auth::user()->role;
@@ -44,7 +92,8 @@ class DashboardController extends Controller
         return view('dashboard.partials.student.home');
     }
 
-    /*Student Loader*/
+    
+
     public function loadEnrolledPartial()
     {
         return view('dashboard.partials.student.enrolled');
@@ -67,14 +116,6 @@ class DashboardController extends Controller
         } else if (Auth::user()->role === 'teacher') {
             return view('dashboard.partials.teacher.materials');
         }
-    }
-
-    public function loadSchoolsPartial()
-    {
-        if (Auth::user()->role === 'student') {
-            return abort(403, 'Unauthorized access.');
-        }
-        return view('dashboard.partials.admin.schools');
     }
 
     public function loadTeachersPartial()
