@@ -81,6 +81,13 @@ class DashboardController extends Controller
         return abort(403, 'Unauthorized access.');
     }
 
+    public function loadAssessmentPartial(){
+        if (Auth::user()->role === 'admin'){
+            return view('dashboard.partials.admin.assessment');
+        }
+        return abort(403, 'Unauthorized access.');
+    }
+
     public function loadStudentsPartial()
     {
         if (Auth::user()->role === 'admin'){
