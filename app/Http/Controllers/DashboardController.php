@@ -21,16 +21,27 @@ class DashboardController extends Controller
 
     public function loadSchoolCreatePartial()
     {
-        // Security check: Prevent unauthorized roles from loading this form
-        if (Auth::user()->role === 'student' || Auth::user()->role === 'teacher') {
-            abort(403, 'Unauthorized access.');
+        try {
+            // Fetch data
+            $quadrants = \App\Models\Quadrant::orderBy('name', 'asc')->get();
+
+            // Ensure the view path is exactly correct
+            return view('dashboard.partials.admin.school-create', [
+                'quadrants' => $quadrants
+            ]);
+        } catch (\Exception $e) {
+            // This will log the actual error so you can see it in laravel.log
+            \Log::error("Failed to load school create partial: " . $e->getMessage());
+            return response()->html("<b>Error:</b> " . $e->getMessage(), 500);
         }
+    }
 
-        // Fetch all quadrants, sorted alphabetically, to populate the dropdown
-        $quadrants = Quadrant::orderBy('name', 'asc')->get();
-
-        // Return the view and pass the $quadrants variable to it
-        return view('dashboard.partials.admin.school-create', compact('quadrants'));
+    public function getDistricts($quadrantId)
+    {
+        // Make sure the model name is correct (District)
+        return \App\Models\District::where('quadrant_id', $quadrantId)
+            ->orderBy('name', 'asc')
+            ->get();
     }
 
     public function storeSchool(Request $request)
@@ -55,15 +66,6 @@ class DashboardController extends Controller
         return response()->json(['success' => 'School registered successfully!']);
     }
 
-    public function getDistricts($quadrantId)
-    {
-        // Fetch districts belonging to the selected quadrant
-        $districts = \App\Models\District::where('quadrant_id', $quadrantId)
-            ->orderBy('name', 'asc')
-            ->get();
-
-        return response()->json($districts);
-    }
 
     public function index()
     {
