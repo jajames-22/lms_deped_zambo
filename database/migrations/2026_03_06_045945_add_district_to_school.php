@@ -13,10 +13,10 @@ return new class extends Migration {
         Schema::table('schools', function (Blueprint $table) {
             // 1. Linking the District
             $table->foreignId('district_id')
-                  ->nullable() 
-                  ->after('id') // Optional: keeps the column order neat
-                  ->constrained('districts')
-                  ->cascadeOnDelete(); 
+                ->nullable()
+                ->after('id') // Optional: keeps the column order neat
+                ->constrained('districts')
+                ->cascadeOnDelete();
 
             // 2. School Logo (Stores the file path)
             $table->string('logo')->nullable()->after('name');
@@ -26,9 +26,9 @@ return new class extends Migration {
 
             // 4. Academic Level (Restricted to your specific list)
             $table->enum('level', [
-                'elementary', 
-                'highschool', 
-                'seniorHighschool', 
+                'elementary',
+                'highschool',
+                'seniorHighschool',
                 'integrated'
             ])->default('elementary')->after('address');
         });

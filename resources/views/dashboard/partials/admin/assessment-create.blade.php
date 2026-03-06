@@ -36,7 +36,7 @@
                         </div>
                         <div>
                             <label class="block text-xs font-bold text-gray-500 uppercase mb-1 ml-1">Year / Grade Level</label>
-                            <input type="text" id="setup-year" value="{{ $assessment->year_level }}"
+                            <input type="text" id="setup-year" value="{{ $assessment->year_level }}" placeholder="ex. Grade 7"
                                 class="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#a52a2a]/20 focus:border-[#a52a2a] outline-none transition font-medium">
                         </div>
                     </div>

@@ -33,30 +33,34 @@
     <div id="assessment-grid" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 items-stretch">
         @forelse($assessments as $assessment)
             @php $isLive = ($assessment->status === 'published'); @endphp
-            
+
             <div id="assessment-card-{{ $assessment->id }}"
                 class="assessment-card {{ $isLive ? 'live' : 'draft' }} flex flex-col h-full bg-white rounded-2xl border border-gray-200 {{ $isLive ? 'border-t-green-500 border-t-4' : 'border-t-amber-400 border-t-4' }} shadow-sm hover:shadow-lg transition-all duration-300 group overflow-hidden relative">
-                
+
                 <button
                     onclick="window.deleteAssessmentFromList('{{ $assessment->id }}', '{{ route('dashboard.assessments.destroy', $assessment->id) }}')"
-                    class="absolute top-4 right-4 h-8 w-8 rounded-full bg-gray-50 text-gray-400 opacity-0 group-hover:opacity-100 transition-all flex items-center justify-center hover:bg-red-100 hover:text-red-600 z-10" title="Delete Assessment">
+                    class="absolute top-4 right-4 h-8 w-8 rounded-full bg-gray-50 text-gray-400 opacity-0 group-hover:opacity-100 transition-all flex items-center justify-center hover:bg-red-100 hover:text-red-600 z-10"
+                    title="Delete Assessment">
                     <i class="fas fa-trash-alt text-sm"></i>
                 </button>
 
                 <div class="p-6 flex-1 flex flex-col">
                     <div class="flex justify-between items-start mb-4 pr-8">
                         <div class="flex items-center gap-3">
-                            <div class="{{ $isLive ? 'bg-green-50 text-green-600' : 'bg-amber-50 text-amber-600' }} p-3 rounded-xl flex items-center justify-center">
+                            <div
+                                class="{{ $isLive ? 'bg-green-50 text-green-600' : 'bg-amber-50 text-amber-600' }} p-3 rounded-xl flex items-center justify-center">
                                 <i class="fas {{ $isLive ? 'fa-file-signature' : 'fa-tools' }} text-xl"></i>
                             </div>
-                            <span class="px-2.5 py-1 {{ $isLive ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700' }} text-[10px] font-bold rounded-md uppercase tracking-wide">
+                            <span
+                                class="px-2.5 py-1 {{ $isLive ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700' }} text-[10px] font-bold rounded-md uppercase tracking-wide">
                                 {{ $isLive ? 'Published' : 'Draft' }}
                             </span>
                         </div>
                     </div>
-                    
-                    <h4 class="test-title text-lg font-bold text-gray-900 mb-2 line-clamp-1" title="{{ $assessment->title }}">{{ $assessment->title }}</h4>
-                    
+
+                    <h4 class="test-title text-lg font-bold text-gray-900 mb-2 line-clamp-1"
+                        title="{{ $assessment->title }}">{{ $assessment->title }}</h4>
+
                     <p class="text-sm text-gray-500 mb-5 line-clamp-2 flex-1">
                         {{ $assessment->description ?? 'No description provided for this assessment.' }}
                     </p>
@@ -64,16 +68,19 @@
                     @if($isLive)
                         <div class="bg-gray-50 rounded-xl p-4 mb-2 space-y-2 text-xs text-gray-600 border border-gray-100">
                             <div class="flex items-center justify-between">
-                                <span class="flex items-center gap-2 text-gray-500"><i class="fas fa-key"></i> Access Key:</span>
+                                <span class="flex items-center gap-2 text-gray-500"><i class="fas fa-key"></i> Access
+                                    Key:</span>
                                 <b class="tracking-widest text-[#a52a2a] font-mono">{{ $assessment->access_key }}</b>
                             </div>
                             <div class="flex items-center justify-between">
-                                <span class="flex items-center gap-2 text-gray-500"><i class="fas fa-layer-group"></i> Sections:</span>
+                                <span class="flex items-center gap-2 text-gray-500"><i class="fas fa-layer-group"></i>
+                                    Sections:</span>
                                 <b class="text-gray-900">{{ $assessment->categories_count ?? 0 }}</b>
                             </div>
                         </div>
                     @else
-                        <div class="bg-amber-50/50 rounded-xl p-4 mb-2 text-xs text-amber-600/80 border border-amber-100/50 flex items-center justify-center border-dashed">
+                        <div
+                            class="bg-amber-50/50 rounded-xl p-4 mb-2 text-xs text-amber-600/80 border border-amber-100/50 flex items-center justify-center border-dashed">
                             <i class="fas fa-pencil-ruler mr-2"></i> Continue building this test
                         </div>
                     @endif
@@ -81,7 +88,8 @@
                     <div class="flex gap-3 mt-4 pt-4 border-t border-gray-100">
                         <button onclick="loadPartial('{{ route('dashboard.assessments.builder', $assessment->id) }}', this)"
                             class="flex-1 py-2.5 bg-white border border-gray-200 text-gray-700 text-sm font-bold rounded-xl hover:bg-gray-50 hover:border-[#a52a2a]/30 hover:text-[#a52a2a] transition-all shadow-sm">
-                            <i class="fas {{ $isLive ? 'fa-edit' : 'fa-play' }} mr-1"></i> {{ $isLive ? 'Manage' : 'Resume' }}
+                            <i class="fas {{ $isLive ? 'fa-edit' : 'fa-play' }} mr-1"></i>
+                            {{ $isLive ? 'Manage' : 'Resume' }}
                         </button>
                         @if($isLive)
                             <button
@@ -93,12 +101,14 @@
                 </div>
             </div>
         @empty
-            <div class="col-span-full py-16 flex flex-col items-center justify-center bg-white rounded-2xl border border-dashed border-gray-300">
+            <div
+                class="col-span-full py-16 flex flex-col items-center justify-center bg-white rounded-2xl border border-dashed border-gray-300">
                 <div class="h-16 w-16 rounded-full bg-gray-50 flex items-center justify-center text-gray-400 mb-4">
                     <i class="fas fa-folder-open text-2xl"></i>
                 </div>
                 <h3 class="text-lg font-bold text-gray-900 mb-1">No Assessments Found</h3>
-                <p class="text-sm text-gray-500 max-w-sm text-center">You haven't created any assessments yet. Click the "Create New Test" button above to get started.</p>
+                <p class="text-sm text-gray-500 max-w-sm text-center">You haven't created any assessments yet. Click the
+                    "Create New Test" button above to get started.</p>
             </div>
         @endforelse
     </div>
@@ -107,7 +117,7 @@
 <script>
     window.deleteAssessmentFromList = async function (id, url) {
         if (!confirm("Are you sure you want to delete this assessment? This action cannot be undone.")) return;
-        
+
         const card = document.getElementById('assessment-card-' + id);
         if (!card) return;
 
@@ -118,16 +128,16 @@
         btn.disabled = true;
 
         const csrf = document.querySelector('meta[name="csrf-token"]')?.content || "{{ csrf_token() }}";
-        
+
         try {
             const response = await fetch(url, {
                 method: 'DELETE',
-                headers: { 
-                    'X-CSRF-TOKEN': csrf, 
-                    'Accept': 'application/json' 
+                headers: {
+                    'X-CSRF-TOKEN': csrf,
+                    'Accept': 'application/json'
                 }
             });
-            
+
             if (response.ok) {
                 // Smooth removal animation
                 card.style.transform = 'scale(0.95)';
@@ -138,40 +148,40 @@
                 btn.innerHTML = originalHtml;
                 btn.disabled = false;
             }
-        } catch (e) { 
-            alert("Network error. Could not delete assessment."); 
+        } catch (e) {
+            alert("Network error. Could not delete assessment.");
             btn.innerHTML = originalHtml;
             btn.disabled = false;
         }
     }
 
     let currentStatus = 'all';
-    
+
     function filterAssessments(status, btnElement) {
         currentStatus = status;
-        
+
         // Reset all tabs
         document.querySelectorAll('.assessment-tab').forEach(tab => {
             tab.classList.remove('bg-white', 'text-[#a52a2a]', 'shadow-sm');
             tab.classList.add('text-gray-500', 'hover:text-gray-700');
         });
-        
+
         // Activate clicked tab
         btnElement.classList.remove('text-gray-500', 'hover:text-gray-700');
         btnElement.classList.add('bg-white', 'text-[#a52a2a]', 'shadow-sm');
-        
+
         applyFilters();
     }
-    
+
     function searchAssessments() { applyFilters(); }
-    
+
     function applyFilters() {
         const query = document.getElementById('assessment-search').value.toLowerCase();
-        
+
         document.querySelectorAll('.assessment-card').forEach(card => {
             const title = card.querySelector('.test-title').innerText.toLowerCase();
             const matchesTab = (currentStatus === 'all' || card.classList.contains(currentStatus));
-            
+
             // Because we changed the card to a flex container, we must restore 'flex' instead of 'block'
             if (matchesTab && title.includes(query)) {
                 card.style.display = 'flex';
