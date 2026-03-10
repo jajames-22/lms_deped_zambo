@@ -1,0 +1,119 @@
+<?php
+
+namespace App\Http\Controllers;
+
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Hash;
+use App\Models\User;
+use App\Models\School;
+
+class StudentController extends Controller
+{
+    /**
+     * Load the main student directory table
+     */
+    public function loadStudentsPartial()
+    {
+        // Fetch only students and eager-load their school and district to prevent N+1 performance issues
+        $students = User::where('role', 'student')
+            ->with('school.district')
+            ->orderBy('last_name', 'asc')
+            ->get();
+
+        return view('dashboard.partials.admin.students', compact('students'));
+    }
+
+    /**
+     * Load the "Add New Student" form
+     */
+    public function createStudentPartial()
+    {
+        // Fetch all schools for the assignment dropdown
+        $schools = School::orderBy('name', 'asc')->get();
+        return view('dashboard.partials.admin.student-create', compact('schools'));
+    }
+
+    /**
+     * Securely save a new student to the database
+     */
+    public function storeStudent(Request $request)
+    {
+        $validated = $request->validate([
+            'first_name' => 'required|string|max:255',
+            'middle_name' => 'nullable|string|max:255',
+            'last_name' => 'required|string|max:255',
+            'suffix' => 'nullable|string|max:50',
+            'user_id' => 'required|string|max:255|unique:users,user_id', // This acts as their LRN
+            'email' => 'required|email|max:255|unique:users,email',
+            'password' => 'required|string|min:6',
+            'school_id' => 'required|exists:schools,id',
+            'grade_level' => 'required|string|max:50', // Grade level is required for students!
+            'status' => 'required|in:pending,verified,suspended',
+        ]);
+
+        // Force strict database conditions for security
+        $validated['role'] = 'student';
+        $validated['password'] = Hash::make($validated['password']); 
+
+        User::create($validated);
+
+        return response()->json(['success' => 'Student account created successfully!']);
+    }
+
+    /**
+     * Load the "Edit Student" form
+     */
+    public function editStudentPartial($id)
+    {
+        // Ensure we are only pulling a student account
+        $student = User::where('role', 'student')->findOrFail($id);
+        $schools = School::orderBy('name', 'asc')->get();
+
+        return view('dashboard.partials.admin.student-edit', compact('student', 'schools'));
+    }
+
+    /**
+     * Securely update an existing student's details
+     */
+    public function updateStudent(Request $request, $id)
+    {
+        $student = User::where('role', 'student')->findOrFail($id);
+
+        $validated = $request->validate([
+            'first_name' => 'required|string|max:255',
+            'middle_name' => 'nullable|string|max:255',
+            'last_name' => 'required|string|max:255',
+            'suffix' => 'nullable|string|max:50',
+            // Ignore this specific user's ID so it doesn't trigger a "LRN already taken" error
+            'user_id' => 'required|string|max:255|unique:users,user_id,' . $student->id,
+            'email' => 'required|email|max:255|unique:users,email,' . $student->id,
+            'password' => 'nullable|string|min:6', // Optional: only update if they type a new one
+            'school_id' => 'required|exists:schools,id',
+            'grade_level' => 'required|string|max:50',
+            'status' => 'required|in:pending,verified,suspended',
+        ]);
+
+        // Check if the admin wants to reset the password
+        if (!empty($validated['password'])) {
+            $validated['password'] = Hash::make($validated['password']);
+        } else {
+            // If left blank, remove it from the array so it doesn't overwrite the current password
+            unset($validated['password']);
+        }
+
+        $student->update($validated);
+
+        return response()->json(['success' => 'Student details updated successfully!']);
+    }
+
+    /**
+     * Permanently remove a student account
+     */
+    public function destroyStudent($id)
+    {
+        $student = User::where('role', 'student')->findOrFail($id);
+        $student->delete();
+
+        return response()->json(['success' => 'Student account deleted successfully!']);
+    }
+}
