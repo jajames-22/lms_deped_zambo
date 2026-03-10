@@ -11,12 +11,13 @@ return new class extends Migration {
             $table->string('type')->default('mcq')->after('question_text');
             // Stores the image URL
             $table->string('image_url')->nullable()->after('type');
+            $table->boolean('is_case_sensitive')->default(false)->after('image_url');
         });
     }
 
     public function down()
     {
-        Schema::table('questions', function (Blueprint $table) {
+        Schema::table('assessment_questions', function (Blueprint $table) {
             $table->dropColumn(['type', 'image_url']);
         });
     }
