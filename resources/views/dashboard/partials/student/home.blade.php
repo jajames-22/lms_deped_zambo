@@ -86,7 +86,7 @@
     <div class="absolute inset-0 bg-gray-900/60" onclick="toggleAssessmentModal(false)"></div>
     
     <div id="assessmentModalBox" class="relative bg-white rounded-2xl shadow-2xl max-w-md w-full p-8 transform scale-95 transition-all duration-300 border border-gray-100">
-        <div class="w-16 h-16 bg-[#a52a2a]/10 text-[#a52a2a] rounded-2xl flex items-center justify-center mb-6 mx-auto">
+        <div class="w-16 h-16 bg-[#a52a2a]/10 text-[#a52a2a] rounded-2xl flex items-center justify-center mb-1 mx-auto">
             <i class="fas fa-key text-2xl"></i>
         </div>
         
@@ -95,8 +95,13 @@
             <p class="text-gray-500 text-sm">Enter the code provided by your teacher.</p>
         </div>
 
-        <form onsubmit="handleCode(event)" class="space-y-6">
-            <input type="text" id="assessment_code" required placeholder="CODE-123"
+        <form id="verifyCodeForm" action="{{ route('student.assessment.verify') }}" class="space-y-3">
+            @csrf
+            
+            <div id="codeErrorBox" class="hidden bg-red-50 text-red-600 text-sm p-3 rounded-xl border border-red-100 text-center font-bold">
+            </div>
+
+            <input type="text" id="assessment_code" name="assessment_code" required placeholder="CODE-123"
                 class="w-full px-5 py-4 bg-gray-50 border border-transparent focus:border-[#a52a2a] focus:bg-white rounded-2xl transition-all outline-none text-center font-bold uppercase text-gray-800 text-lg">
 
             <div class="flex gap-3">
@@ -104,9 +109,9 @@
                     class="flex-1 px-4 py-3 bg-gray-100 text-gray-700 font-bold rounded-xl hover:bg-gray-200 transition">
                     Cancel
                 </button>
-                <button type="submit" 
-                    class="flex-1 px-4 py-3 bg-[#a52a2a] text-white font-bold rounded-xl shadow-lg shadow-red-900/20 hover:bg-red-800 transition">
-                    Start
+                <button type="submit" id="verifySubmitBtn"
+                    class="flex-1 flex items-center justify-center px-4 py-3 bg-[#a52a2a] text-white font-bold rounded-xl shadow-lg shadow-red-900/20 hover:bg-red-800 transition">
+                    <span>Start</span>
                 </button>
             </div>
         </form>
@@ -114,10 +119,11 @@
 </div>
 
 <script>
-    // CHANGED: Updated toggle to handle opacity and scale instead of 'hidden'
     function toggleAssessmentModal(show) {
         const modal = document.getElementById('assessmentModal');
         const modalBox = document.getElementById('assessmentModalBox');
+        const errorBox = document.getElementById('codeErrorBox');
+        const form = document.getElementById('verifyCodeForm');
         
         if (show) {
             modal.classList.remove('opacity-0', 'pointer-events-none');
@@ -127,13 +133,70 @@
             modal.classList.add('opacity-0', 'pointer-events-none');
             modalBox.classList.remove('scale-100');
             modalBox.classList.add('scale-95');
+            // Reset form and error box when closing
+            form.reset();
+            errorBox.classList.add('hidden');
         }
     }
 
-    function handleCode(e) {
-        e.preventDefault();
-        const code = document.getElementById('assessment_code').value;
-        alert('You entered: ' + code);
-        toggleAssessmentModal(false);
+    // CHANGED: AJAX Submission Logic
+    var verifyForm = document.getElementById('verifyCodeForm');
+    
+    if (verifyForm) {
+        // Strip duplicate event listeners if the partial was reloaded
+        var newVerifyForm = verifyForm.cloneNode(true);
+        verifyForm.parentNode.replaceChild(newVerifyForm, verifyForm);
+
+        newVerifyForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            var submitBtn = document.getElementById('verifySubmitBtn');
+            var errorBox = document.getElementById('codeErrorBox');
+            var originalText = submitBtn.innerHTML;
+
+            // Loading state
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+            errorBox.classList.add('hidden');
+
+            var formData = new FormData(this);
+
+            fetch(this.action, {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'Accept': 'application/json'
+                }
+            })
+            .then(response => {
+                if (!response.ok) {
+                    return response.json().then(err => { throw err; });
+                }
+                return response.json();
+            })
+            .then(data => {
+                // SUCCESS: Redirect the entire window to the lobby!
+                if(data.redirect_url) {
+                    submitBtn.innerHTML = '<i class="fas fa-check"></i>';
+                    window.location.href = data.redirect_url; 
+                }
+            })
+            .catch(error => {
+                // FAILED: Show error message inside the modal
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = originalText;
+                
+                var errorMessage = "An error occurred. Please try again.";
+                if (error.message) {
+                    errorMessage = error.message; // From our controller
+                } else if (error.errors && error.errors.assessment_code) {
+                    errorMessage = error.errors.assessment_code[0]; // From Laravel validation
+                }
+                
+                errorBox.textContent = errorMessage;
+                errorBox.classList.remove('hidden');
+            });
+        });
     }
 </script>
