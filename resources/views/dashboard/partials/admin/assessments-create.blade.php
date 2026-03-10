@@ -68,6 +68,21 @@
         </div>
     </div>
 
+    <div class="mt-4 flex gap-4">
+        <a href="{{ route('dashboard.assessments.download_template') }}"
+            class="flex-1 py-4 border-2 border-dashed border-green-200 text-green-600 font-bold rounded-2xl hover:bg-green-50 hover:border-green-300 transition flex items-center justify-center gap-3">
+            <i class="fas fa-file-excel text-xl"></i>
+            Download Excel Template
+        </a>
+
+        <button type="button" onclick="openImportModal()"
+            class="flex-1 py-4 border-2 border-dashed border-blue-200 text-blue-600 font-bold rounded-2xl hover:bg-blue-50 hover:border-blue-300 transition flex items-center justify-center gap-3">
+            <i class="fas fa-upload text-xl"></i>
+            Import Excel/CSV File
+        </button>
+    </div>
+
+
     <div id="builder-container" class="space-y-4"></div>
 
     <button type="button" onclick="window.addCategory()"
@@ -103,7 +118,8 @@
                     <i class="fas fa-save"></i>
                 </div>
                 <h3 class="text-xl font-bold text-gray-900 mb-2">Unsaved Changes</h3>
-                <p class="text-gray-500 text-sm mb-6">How would you like to exit? Your progress is currently stored as a
+                <p class="text-gray-500 text-sm mb-6">How would you like to exit? Your progress is currently
+                    stored as a
                     temporary draft.</p>
 
                 <div class="space-y-3">
@@ -161,3 +177,186 @@
         </div>
     </div>
 </div>
+
+<div id="excel-import-modal" class="fixed inset-0 z-[120] hidden">
+    <div class="absolute inset-0 bg-gray-900/60 backdrop-blur-sm" onclick="closeImportModal()"></div>
+
+    <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-md p-6">
+        <div class="bg-white rounded-2xl shadow-2xl overflow-hidden border border-gray-100 p-6">
+
+            <div class="text-center mb-6">
+                <div
+                    class="h-16 w-16 bg-blue-50 text-blue-500 rounded-full flex items-center justify-center mx-auto mb-4 text-3xl">
+                    <i class="fas fa-file-excel"></i>
+                </div>
+                <h3 class="text-xl font-bold text-gray-900">Import Questions</h3>
+                <p class="text-gray-500 text-sm mt-1">Upload your filled Excel or CSV template.</p>
+            </div>
+
+            <div class="mb-6">
+                <input type="file" id="excel-file-input" accept=".xlsx, .xls, .csv" class="hidden"
+                    onchange="handleFileSelect(this)">
+
+                <label for="excel-file-input" id="file-dropzone"
+                    class="cursor-pointer flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-gray-300 rounded-xl bg-gray-50 hover:bg-gray-100 hover:border-blue-400 transition">
+                    <div class="flex flex-col items-center justify-center pt-5 pb-6">
+                        <i class="fas fa-cloud-upload-alt text-2xl text-gray-400 mb-2"></i>
+                        <p class="text-sm text-gray-500 font-medium">Click to choose a file</p>
+                        <p class="text-xs text-gray-400 mt-1">.xlsx, .xls, or .csv</p>
+                    </div>
+                </label>
+
+                <div id="selected-file-display"
+                    class="hidden mt-4 p-3 bg-blue-50 border border-blue-100 rounded-lg items-center justify-between">
+                    <div class="flex items-center gap-3 overflow-hidden">
+                        <i class="fas fa-file-excel text-blue-500 text-lg"></i>
+                        <span id="selected-file-name"
+                            class="font-mono text-sm text-blue-700 truncate font-medium">filename.xlsx</span>
+                    </div>
+                    <button type="button" onclick="clearSelectedFile()"
+                        class="text-blue-400 hover:text-red-500 transition px-2">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+            </div>
+
+            <div class="flex gap-3">
+                <button type="button" onclick="closeImportModal()"
+                    class="w-full py-3.5 bg-gray-100 text-gray-700 font-bold rounded-xl hover:bg-gray-200 transition active:scale-95">
+                    Cancel
+                </button>
+                <button type="button" id="start-upload-btn" onclick="executeExcelUpload()" disabled
+                    class="w-full py-3.5 bg-blue-600 text-white font-bold rounded-xl hover:bg-blue-700 transition disabled:opacity-50 disabled:cursor-not-allowed shadow-md flex justify-center items-center gap-2">
+                    <i class="fas fa-upload"></i>
+                    <span>Upload</span>
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    let selectedFile = null;
+
+    function openImportModal() {
+        clearSelectedFile(); // Always start with a fresh, empty modal
+        document.getElementById('excel-import-modal').classList.remove('hidden');
+    }
+
+    function closeImportModal() {
+        document.getElementById('excel-import-modal').classList.add('hidden');
+    }
+
+    // Runs when the user actually picks a file from their computer
+    function handleFileSelect(input) {
+        if (!input.files || input.files.length === 0) return;
+
+        selectedFile = input.files[0];
+
+        // Show the file name
+        document.getElementById('selected-file-name').innerText = selectedFile.name;
+
+        // Hide the big dropzone, show the little file display
+        document.getElementById('file-dropzone').classList.add('hidden');
+        document.getElementById('selected-file-display').classList.remove('hidden');
+        document.getElementById('selected-file-display').classList.add('flex'); // Add flexbox to align items
+
+        // Turn on the Upload button!
+        document.getElementById('start-upload-btn').disabled = false;
+    }
+
+    // Runs if they click the "X" to remove the file they just picked
+    function clearSelectedFile() {
+        selectedFile = null;
+        document.getElementById('excel-file-input').value = '';
+
+        // Bring back the big dropzone, hide the file display
+        document.getElementById('file-dropzone').classList.remove('hidden');
+        document.getElementById('selected-file-display').classList.add('hidden');
+        document.getElementById('selected-file-display').classList.remove('flex');
+
+        // Turn off the Upload button again
+        document.getElementById('start-upload-btn').disabled = true;
+    }
+
+    function executeExcelUpload() {
+        if (!selectedFile) return;
+
+        let btn = document.getElementById('start-upload-btn');
+        let originalHtml = btn.innerHTML;
+
+        // 1. Show Loading State on Button
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> <span>Processing...</span>';
+        btn.disabled = true;
+
+        let formData = new FormData();
+        formData.append('exam_file', selectedFile);
+        formData.append('_token', document.querySelector('[data-csrf]').dataset.csrf);
+
+        let assessmentId = document.getElementById('assessment-wrapper').dataset.assessmentId;
+
+        fetch(`/dashboard/assessments/${assessmentId}/import`, {
+            method: 'POST',
+            headers: { 'Accept': 'application/json' },
+            body: formData
+        })
+            .then(async response => {
+                if (!response.ok) {
+                    let errorData = await response.json().catch(() => ({}));
+                    throw new Error(errorData.message || `Server error (${response.status})`);
+                }
+                return response.json();
+            })
+            .then(data => {
+                if (data.success) {
+                    closeImportModal(); // Hide the upload modal
+                    showStatusModal('Success!', 'Your exam has been updated with the imported questions.', 'success');
+
+                    // Reload after a short delay so they can see the success message
+                    setTimeout(() => { window.location.reload(); }, 2000);
+                } else {
+                    throw new Error(data.message || 'Import failed.');
+                }
+            })
+            .catch(error => {
+                console.error('Upload Error:', error);
+                btn.innerHTML = originalHtml;
+                btn.disabled = false;
+                showStatusModal('Import Failed', error.message, 'error');
+            });
+    }
+
+    /**
+     * Helper function to trigger your existing Blade status modal
+     */
+    function showStatusModal(title, message, type) {
+        const modal = document.getElementById('status-modal');
+        const iconContainer = document.getElementById('status-modal-icon');
+        const titleEl = document.getElementById('status-modal-title');
+        const msgEl = document.getElementById('status-modal-message');
+        const actionBtn = document.getElementById('status-modal-btn');
+
+        // Reset classes
+        iconContainer.className = 'h-16 w-16 rounded-full flex items-center justify-center mx-auto mb-4 text-3xl';
+        actionBtn.className = 'w-full py-3.5 text-white font-bold rounded-xl transition active:scale-95 shadow-md';
+
+        if (type === 'success') {
+            iconContainer.classList.add('bg-green-50', 'text-green-500');
+            iconContainer.innerHTML = '<i class="fas fa-check-circle"></i>';
+            actionBtn.classList.add('bg-green-600', 'hover:bg-green-700');
+        } else {
+            iconContainer.classList.add('bg-red-50', 'text-red-500');
+            iconContainer.innerHTML = '<i class="fas fa-exclamation-triangle"></i>';
+            actionBtn.classList.add('bg-red-600', 'hover:bg-red-700');
+        }
+
+        titleEl.innerText = title;
+        msgEl.innerText = message;
+
+        // Make modal visible
+        modal.classList.remove('hidden');
+
+        // Close button logic
+        actionBtn.onclick = () => modal.classList.add('hidden');
+    }
+</script>

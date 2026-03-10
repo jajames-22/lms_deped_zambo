@@ -16,4 +16,12 @@ Route::middleware(['auth', 'verified'])->prefix('dashboard/assessments')->name('
     // 2. FIXED: Removed the redundant 'assessments/' prefix and 'dashboard.assessments.' name
     Route::post('/upload-image', [AssessmentController::class, 'uploadImage'])
         ->name('upload_image');
+
+    Route::post('/quiz/{quizId}/import', [AssessmentController::class, 'importQuestions'])->name('quiz.import');
+
+    \Route::get('template/download', [AssessmentController::class, 'downloadTemplate'])
+        ->name('download_template');
+
+    Route::post('/{id}/import', [AssessmentController::class, 'importQuestions'])
+        ->name('import');
 });

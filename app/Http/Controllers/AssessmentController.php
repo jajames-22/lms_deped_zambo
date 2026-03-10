@@ -3,12 +3,15 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
+use App\Imports\ExamImport;
+use Maatwebsite\Excel\Facades\Excel;
+use App\Models\Quiz;
 use App\Models\Assessment;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Exception;
-
+use App\Exports\AssessmentTemplateExport;
 use Illuminate\Support\Facades\Log;
 
 class AssessmentController extends Controller
@@ -219,6 +222,32 @@ class AssessmentController extends Controller
         } catch (Exception $e) {
             Log::error('Autosave Error: ' . $e->getMessage());
             return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
+        }
+    }
+    public function downloadTemplate()
+    {
+        return Excel::download(new AssessmentTemplateExport, 'assessment_template.xlsx');
+    }
+
+    public function importQuestions(Request $request, $id)
+    {
+        $request->validate([
+            'exam_file' => 'required|mimes:xlsx,csv,xls|max:5120', // 5MB limit
+        ]);
+
+        try {
+            // Run the import using the correct Assessment ID
+            Excel::import(new ExamImport($id), $request->file('exam_file'));
+
+            return response()->json([
+                'success' => true, 
+                'message' => 'Questions imported successfully!'
+            ]);
+        } catch (Exception $e) {
+            return response()->json([
+                'success' => false, 
+                'message' => 'Import failed: ' . $e->getMessage()
+            ], 500);
         }
     }
 }
