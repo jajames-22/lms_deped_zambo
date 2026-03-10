@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use App\Models\Assessment;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Exception;
 
@@ -42,6 +43,8 @@ class AssessmentController extends Controller
         return view('dashboard.partials.admin.assessments-create', compact('assessment'));
     }
 
+    // Inside AssessmentController.php
+
     public function builder($id)
     {
         $assessment = DB::table('assessments')->where('id', $id)->first();
@@ -54,19 +57,16 @@ class AssessmentController extends Controller
             ->where('assessment_id', $id)
             ->get()
             ->map(function ($category) {
-
+                // Ensure type and image_url are fetched here
                 $category->questions = DB::table('assessment_questions')
                     ->where('category_id', $category->id)
                     ->get()
                     ->map(function ($question) {
-
-                        $question->options = DB::table('assessment_options')
-                            ->where('question_id', $question->id)
-                            ->get();
-
-                        return $question;
-                    });
-
+                    $question->options = DB::table('assessment_options')
+                        ->where('question_id', $question->id)
+                        ->get();
+                    return $question;
+                });
                 return $category;
             });
 
@@ -82,21 +82,19 @@ class AssessmentController extends Controller
                 'year_level' => $request->year_level ?? '',
                 'description' => $request->description ?? '',
                 'status' => $request->status ?? 'draft',
-                'draft_json' => null, // <--- ADD THIS LINE TO CLEAR THE DRAFT
+                'draft_json' => null,
                 'updated_at' => now()
             ]);
 
             $existingCategories = DB::table('assessment_categories')->where('assessment_id', $id)->pluck('id');
 
             if ($existingCategories->isNotEmpty()) {
-                // ADD THIS: Find existing questions to delete their options first
                 $existingQuestions = DB::table('assessment_questions')->whereIn('category_id', $existingCategories)->pluck('id');
 
                 if ($existingQuestions->isNotEmpty()) {
                     DB::table('assessment_options')->whereIn('question_id', $existingQuestions)->delete();
                 }
 
-                // Now safely delete questions and categories
                 DB::table('assessment_questions')->whereIn('category_id', $existingCategories)->delete();
                 DB::table('assessment_categories')->where('assessment_id', $id)->delete();
             }
@@ -111,14 +109,19 @@ class AssessmentController extends Controller
                 ]);
 
                 foreach ($cat['questions'] as $q) {
+                    // NEW: Save the type and image_url
                     $questionId = DB::table('assessment_questions')->insertGetId([
                         'category_id' => $categoryId,
+                        'type' => $q['type'] ?? 'mcq',
                         'question_text' => $q['text'] ?? '',
+                        'image_url' => $q['image_url'] ?? null,
                         'created_at' => now(),
                         'updated_at' => now(),
                     ]);
 
-                    foreach ($q['options'] as $opt) {
+                    // NEW: Fallback to empty array if options don't exist (like for Instructions)
+                    $options = $q['options'] ?? [];
+                    foreach ($options as $opt) {
                         DB::table('assessment_options')->insert([
                             'question_id' => $questionId,
                             'option_text' => $opt['text'] ?? '',
@@ -136,6 +139,26 @@ class AssessmentController extends Controller
             return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
         }
     }
+    public function uploadImage(Request $request)
+    {
+        $request->validate([
+            'image' => 'required|image|mimes:jpeg,png,jpg,gif|max:2048', // 2MB Max
+        ]);
+
+        if ($request->hasFile('image')) {
+            // Store in storage/app/public/assessment_images
+            $path = $request->file('image')->store('assessment_images', 'public');
+
+            return response()->json([
+                'success' => true,
+                'image_url' => Storage::url($path)
+            ]);
+        }
+
+        return response()->json(['success' => false, 'message' => 'No image uploaded.'], 400);
+    }
+
+
 
     public function destroy($id)
     {

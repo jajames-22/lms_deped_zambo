@@ -7,8 +7,16 @@ use Illuminate\Database\Eloquent\Model;
 class AssessmentQuestion extends Model
 {
     protected $fillable = [
-        'category_id', 'question_text', 'option_a', 'option_b', 'option_c', 'option_d', 'option_e', 'option_f', 'correct_answer'
+        'category_id',
+        'text',
+        'type',        // <-- ADD THIS
+        'image_url',  // <-- ADD THIS
     ];
+
+    public function options()
+    {
+        return $this->hasMany(AssessmentOption::class);
+    }
 
     public function category()
     {

@@ -3,6 +3,7 @@
     data-save-url="{{ route('dashboard.assessments.store_questions', $assessment->id) }}"
     data-delete-url="{{ route('dashboard.assessments.destroy', $assessment->id) }}"
     data-redirect-url="{{ route('dashboard.assessments.index') }}" data-csrf="{{ csrf_token() }}"
+    data-upload-url="{{ route('dashboard.assessments.upload_image') }}"
     class="space-y-6 pb-20 w-full max-w-5xl mx-auto">
 
     <input type="hidden" id="existing-data" value="{{ json_encode($categories ?? []) }}">
@@ -134,22 +135,26 @@
 </div>
 
 <div id="status-modal" class="fixed inset-0 z-[110] hidden">
-    <div class="absolute inset-0 bg-gray-900/60 backdrop-blur-sm" onclick="document.getElementById('status-modal').classList.add('hidden')"></div>
-    
+    <div class="absolute inset-0 bg-gray-900/60 backdrop-blur-sm"
+        onclick="document.getElementById('status-modal').classList.add('hidden')"></div>
+
     <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-sm p-6">
         <div class="bg-white rounded-2xl shadow-2xl overflow-hidden border border-gray-100 p-6 text-center">
-            
-            <div id="status-modal-icon" class="h-16 w-16 rounded-full flex items-center justify-center mx-auto mb-4 text-3xl">
+
+            <div id="status-modal-icon"
+                class="h-16 w-16 rounded-full flex items-center justify-center mx-auto mb-4 text-3xl">
             </div>
-            
+
             <h3 id="status-modal-title" class="text-xl font-bold text-gray-900 mb-2">Title</h3>
             <p id="status-modal-message" class="text-gray-500 text-sm mb-6">Message goes here.</p>
-            
+
             <div class="flex gap-3 mt-2">
-                <button id="status-modal-cancel-btn" type="button" class="w-full py-3.5 bg-gray-100 text-gray-700 font-bold rounded-xl hover:bg-gray-200 transition active:scale-95 hidden">
+                <button id="status-modal-cancel-btn" type="button"
+                    class="w-full py-3.5 bg-gray-100 text-gray-700 font-bold rounded-xl hover:bg-gray-200 transition active:scale-95 hidden">
                     Cancel
                 </button>
-                <button id="status-modal-btn" type="button" class="w-full py-3.5 text-white font-bold rounded-xl transition active:scale-95 shadow-md">
+                <button id="status-modal-btn" type="button"
+                    class="w-full py-3.5 text-white font-bold rounded-xl transition active:scale-95 shadow-md">
                     OK
                 </button>
             </div>
