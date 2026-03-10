@@ -7,12 +7,12 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class School extends Model
 {
-    // Keeps timestamps enabled since the default migration included $table->timestamps()
     public $timestamps = true;
 
     protected $table = 'schools';
 
     protected $fillable = [
+        'school_id',   // Added this: User-provided ID (e.g., 305412)
         'name',
         'district_id',
         'logo',

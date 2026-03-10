@@ -48,6 +48,7 @@ class DashboardController extends Controller
     {
         $validated = $request->validate([
             'name' => 'required|string|max:255',
+            'school_id' => 'required|unique:schools,school_id',
             'level' => 'required|in:elementary,highschool,seniorHighschool,integrated',
             'district_id' => 'required|exists:districts,id',
             'address' => 'nullable|string',
@@ -172,4 +173,63 @@ class DashboardController extends Controller
         // Everyone shares the same settings layout
         return view('dashboard.partials.shared.settings');
     }
+
+    public function editSchoolPartial($id)
+    {
+        $school = \App\Models\School::with('district')->findOrFail($id);
+        $quadrants = \App\Models\Quadrant::orderBy('name', 'asc')->get();
+        
+        // We need to fetch the districts for the quadrant this school is already in
+        // so the dropdown isn't empty when the form first loads
+        $districts = \App\Models\District::where('quadrant_id', $school->district->quadrant_id ?? null)
+                        ->orderBy('name', 'asc')->get();
+
+        return view('dashboard.partials.admin.school-edit', compact('school', 'quadrants', 'districts'));
+    }
+
+    public function updateSchool(Request $request, $id)
+    {
+        $school = \App\Models\School::findOrFail($id);
+
+        $validated = $request->validate([
+            // The unique rule ignores THIS school's ID so you don't get a "School ID already taken" error when saving
+            'school_id' => 'required|string|max:255|unique:schools,school_id,' . $school->id, 
+            'name' => 'required|string|max:255',
+            'level' => 'required|in:elementary,highschool,seniorhighschool,integrated',
+            'district_id' => 'required|exists:districts,id',
+            'address' => 'nullable|string',
+            'logo' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
+        ]);
+
+        if ($request->hasFile('logo')) {
+            $file = $request->file('logo');
+            $filename = time() . '_' . $file->getClientOriginalName();
+            $file->move(public_path('storage/schools'), $filename);
+            $validated['logo'] = 'schools/' . $filename;
+            
+            // Optional: You could delete the old image file here if you want to save server space
+        }
+
+        $school->update($validated);
+
+        return response()->json(['success' => 'School updated successfully!']);
+    }
+
+    public function destroySchool($id)
+{
+    $school = \App\Models\School::findOrFail($id);
+
+    // Delete the logo file from the public/storage folder if it exists
+    if ($school->logo) {
+        $logoPath = public_path('storage/' . $school->logo);
+        if (file_exists($logoPath)) {
+            unlink($logoPath); // This deletes the physical file
+        }
+    }
+
+    // Delete the database record
+    $school->delete();
+
+    return response()->json(['success' => 'School deleted successfully!']);
+}
 }
