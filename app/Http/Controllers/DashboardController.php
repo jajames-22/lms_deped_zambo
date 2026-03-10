@@ -4,13 +4,13 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use App\Models\Quadrant; 
+use App\Models\Quadrant;
 use App\Models\Assessment;
 use App\Models\School;
 
 class DashboardController extends Controller
 {
-   
+
     public function loadSchoolsPartial()
     {
         // Eager load district and quadrant to prevent errors
@@ -54,15 +54,15 @@ class DashboardController extends Controller
             'logo' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
         ]);
 
-       if ($request->hasFile('logo')) {
+        if ($request->hasFile('logo')) {
             $file = $request->file('logo');
-            
+
             // 1. Generate a unique file name (prevents overwriting if two schools upload 'logo.png')
             $filename = time() . '_' . $file->getClientOriginalName();
-            
+
             // 2. Force the file to move directly into public/storage/schools/
             $file->move(public_path('storage/schools'), $filename);
-            
+
             // 3. Save the path to the database exactly how your Blade file expects it
             $validated['logo'] = 'schools/' . $filename;
         }
@@ -101,7 +101,7 @@ class DashboardController extends Controller
         return view('dashboard.partials.student.home');
     }
 
-    
+
 
     public function loadEnrolledPartial()
     {
@@ -142,7 +142,7 @@ class DashboardController extends Controller
         $assessments = Assessment::with('categories')->orderBy('created_at', 'desc')->get();
 
         // 3. PASS THE DATA TO THE VIEW USING compact()
-        return view('dashboard.partials.admin.assessment', compact('assessments'));
+        return view('dashboard.partials.admin.assessments', compact('assessments'));
     }
 
     public function loadStudentsPartial()

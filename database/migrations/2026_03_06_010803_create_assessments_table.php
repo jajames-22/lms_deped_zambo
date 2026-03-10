@@ -17,6 +17,7 @@ return new class extends Migration {
             $table->text('description')->nullable();
             $table->string('access_key')->unique();
             $table->string('status')->default('draft');
+            $table->longText('draft_json')->nullable();
             $table->timestamps();
         });
     }
@@ -26,6 +27,10 @@ return new class extends Migration {
      */
     public function down(): void
     {
-        Schema::dropIfExists('assessments');
+        Schema::disableForeignKeyConstraints();
+
+    Schema::dropIfExists('assessments');
+
+    Schema::enableForeignKeyConstraints();
     }
 };
