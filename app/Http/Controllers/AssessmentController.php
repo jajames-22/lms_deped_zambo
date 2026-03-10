@@ -3,9 +3,11 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
+use App\Models\Assessment;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Exception;
+
 use Illuminate\Support\Facades\Log;
 
 class AssessmentController extends Controller
@@ -19,9 +21,9 @@ class AssessmentController extends Controller
                     ->whereColumn('assessment_id', 'assessments.id')
                     ->selectRaw('count(*)')
             ])
+            ->orderBy('updated_at', 'desc') // newest updated first
             ->get();
-
-        return view('dashboard.partials.admin.assessment', compact('assessments'));
+        return view('dashboard.partials.admin.assessments', compact('assessments'));
     }
 
     public function create()
@@ -37,8 +39,7 @@ class AssessmentController extends Controller
         ]);
 
         $assessment = DB::table('assessments')->where('id', $assessmentId)->first();
-        // Path corrected: removed .assessments.
-        return view('dashboard.partials.admin.assessment-create', compact('assessment'));
+        return view('dashboard.partials.admin.assessments-create', compact('assessment'));
     }
 
     public function builder($id)
@@ -54,25 +55,22 @@ class AssessmentController extends Controller
             ->get()
             ->map(function ($category) {
 
-                // Fetch questions for this category
                 $category->questions = DB::table('assessment_questions')
                     ->where('category_id', $category->id)
                     ->get()
                     ->map(function ($question) {
 
-                    // NEW: Fetch options for each question so the JS can render them
-                    $question->options = DB::table('assessment_options')
-                        ->where('question_id', $question->id)
-                        ->get();
+                        $question->options = DB::table('assessment_options')
+                            ->where('question_id', $question->id)
+                            ->get();
 
-                    return $question;
-                });
+                        return $question;
+                    });
 
                 return $category;
             });
 
-        // Path corrected: removed .assessments.
-        return view('dashboard.partials.admin.assessment-create', compact('assessment', 'categories'));
+        return view('dashboard.partials.admin.assessments-create', compact('assessment', 'categories'));
     }
 
     public function storeQuestions(Request $request, $id)
@@ -88,7 +86,16 @@ class AssessmentController extends Controller
             ]);
 
             $existingCategories = DB::table('assessment_categories')->where('assessment_id', $id)->pluck('id');
+
             if ($existingCategories->isNotEmpty()) {
+                // ADD THIS: Find existing questions to delete their options first
+                $existingQuestions = DB::table('assessment_questions')->whereIn('category_id', $existingCategories)->pluck('id');
+
+                if ($existingQuestions->isNotEmpty()) {
+                    DB::table('assessment_options')->whereIn('question_id', $existingQuestions)->delete();
+                }
+
+                // Now safely delete questions and categories
                 DB::table('assessment_questions')->whereIn('category_id', $existingCategories)->delete();
                 DB::table('assessment_categories')->where('assessment_id', $id)->delete();
             }
@@ -110,7 +117,6 @@ class AssessmentController extends Controller
                         'updated_at' => now(),
                     ]);
 
-                    // NEW: Loop through dynamic options
                     foreach ($q['options'] as $opt) {
                         DB::table('assessment_options')->insert([
                             'question_id' => $questionId,
@@ -129,13 +135,60 @@ class AssessmentController extends Controller
             return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
         }
     }
+
     public function destroy($id)
     {
         try {
+            // ADD THIS: Manual cascade delete for all child records
+            $categoryIds = DB::table('assessment_categories')->where('assessment_id', $id)->pluck('id');
+
+            if ($categoryIds->isNotEmpty()) {
+                $questionIds = DB::table('assessment_questions')->whereIn('category_id', $categoryIds)->pluck('id');
+
+                if ($questionIds->isNotEmpty()) {
+                    DB::table('assessment_options')->whereIn('question_id', $questionIds)->delete();
+                }
+
+                DB::table('assessment_questions')->whereIn('category_id', $categoryIds)->delete();
+                DB::table('assessment_categories')->where('assessment_id', $id)->delete();
+            }
+
+            // Finally, delete the assessment
             DB::table('assessments')->where('id', $id)->delete();
+
             return response()->json(['success' => true]);
         } catch (Exception $e) {
             return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
+        }
+    }
+
+    public function autosave(Request $request, $id)
+    {
+        try {
+            DB::table('assessments')
+                ->where('id', $id)
+                ->update([
+                    // If a field is null, fall back to an empty string to prevent DB constraint crashes
+                    'title' => $request->title ?? 'Untitled Assessment',
+                    'year_level' => $request->year_level ?? '',
+                    'description' => $request->description ?? '',
+                    // Guarantee valid JSON is always passed to the column
+                    'draft_json' => json_encode($request->categories ?? []),
+                    'updated_at' => now()
+                ]);
+
+            return response()->json([
+                'success' => true
+            ]);
+
+        } catch (Exception $e) {
+            // Log the exact error to storage/logs/laravel.log
+            Log::error('Autosave Error: ' . $e->getMessage());
+
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage() // Send error to the frontend
+            ], 500);
         }
     }
 }

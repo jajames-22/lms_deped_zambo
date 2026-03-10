@@ -1,3 +1,10 @@
+window.builderState = {
+    title: "",
+    year_level: "",
+    description: "",
+    categories: [],
+};
+
 window.submitAssessmentSetup = async function (btn) {
     const title = document.getElementById("setup-title").value;
     const year = document.getElementById("setup-year").value;
@@ -54,25 +61,67 @@ window.submitAssessmentSetup = async function (btn) {
 };
 
 window.catCount = 0;
+
 let autosaveTimer;
-const SYNC_DELAY = 1000;
+const SYNC_DELAY = 3000;
+let lastPayload = "";
+
+/* =========================================
+   BUILDER INITIALIZATION
+========================================= */
 
 window.initBuilder = function () {
-    // FIX: Reset category count every time the builder initializes
-    window.catCount = 0; 
+    window.catCount = 0;
+    lastPayload = "";
+    clearTimeout(autosaveTimer);
 
+    const wrapper = document.getElementById("assessment-wrapper");
     const container = document.getElementById("builder-container");
-    if (!container) return;
 
-    // Reload existing data from the hidden input
+    if (!wrapper || !container) return;
+
+    // 2. FORCE CLEAR OLD DOM ELEMENTS
+    container.innerHTML = "";
+    const id = wrapper.dataset.assessmentId; // (Assuming you applied the fix from earlier!)
+
     const existingDataEl = document.getElementById("existing-data");
-    const existingData =
-        existingDataEl && existingDataEl.value
-            ? JSON.parse(existingDataEl.value)
-            : [];
+    let existingData = [];
+
+    // 1. Load relational data (if they previously hit "Save" or "Publish")
+    if (existingDataEl && existingDataEl.value) {
+        existingData = JSON.parse(existingDataEl.value);
+    }
+
+    // 2. Load Server Autosave (if they closed the tab before saving)
+    const serverDraftEl = document.getElementById("server-draft-data");
+    if (serverDraftEl && serverDraftEl.value) {
+        try {
+            const serverDraft = JSON.parse(serverDraftEl.value);
+            // Only override if the autosave actually has content
+            if (serverDraft && serverDraft.length > 0) {
+                existingData = serverDraft;
+            }
+        } catch (e) {
+            console.warn("Invalid server draft JSON");
+        }
+    }
+
+    // 3. Load Local Storage (Protects against internet dropping out)
+    const localDraft = localStorage.getItem("assessment_draft_" + id);
+    if (localDraft) {
+        try {
+            const parsed = JSON.parse(localDraft);
+            if (parsed.categories && parsed.categories.length > 0) {
+                existingData = parsed.categories;
+            }
+        } catch (e) {
+            console.warn("Invalid local draft");
+        }
+    }
 
     if (existingData.length > 0) {
         container.innerHTML = "";
+
         existingData.forEach((cat) => {
             window.renderExistingCategory(cat);
         });
@@ -82,70 +131,106 @@ window.initBuilder = function () {
         }
     }
 
-    const wrapper = document.getElementById("assessment-wrapper");
-    if (wrapper) {
+    /* GLOBAL AUTOSAVE LISTENER */
+
         wrapper.addEventListener("input", (e) => {
-            if (
-                ["INPUT", "TEXTAREA", "SELECT", "RADIO"].includes(
-                    e.target.tagName,
-                )
-            ) {
+            if (["INPUT", "TEXTAREA", "SELECT"].includes(e.target.tagName)) {
                 window.handleAutosaveTrigger();
             }
         });
-    }
 };
+
+/* =========================================
+   AUTOSAVE TRIGGER
+========================================= */
 
 window.handleAutosaveTrigger = function () {
     window.updateAutosaveIndicator(
         '<i class="fas fa-pencil-alt fa-spin"></i> Typing...',
     );
+
     clearTimeout(autosaveTimer);
+
     autosaveTimer = setTimeout(() => {
         window.autosaveToServer();
     }, SYNC_DELAY);
 };
 
+/* =========================================
+   SAVE TO LOCAL STORAGE
+========================================= */
+
+function saveToLocal(payload) {
+    const wrapper = document.getElementById("assessment-wrapper");
+
+    const id = wrapper.dataset.assessmentId;
+
+    localStorage.setItem("assessment_draft_" + id, JSON.stringify(payload));
+}
+/* =========================================
+   AUTOSAVE TO SERVER
+========================================= */
+
 window.autosaveToServer = async function () {
     const wrapper = document.getElementById("assessment-wrapper");
     if (!wrapper) return;
+
+    const payload = window.getPayload("draft");
+    const payloadString = JSON.stringify(payload);
+
+    /* Prevent duplicate saves */
+    if (payloadString === lastPayload) return;
+    lastPayload = payloadString;
+
+    saveToLocal(payload);
+
+    if (!payload.categories || payload.categories.length === 0) return;
 
     window.updateAutosaveIndicator(
         '<i class="fas fa-cloud-upload-alt fa-spin"></i> Syncing...',
     );
 
-    const payload = {
-        status: "draft",
-        title: document.getElementById("setup-title").value,
-        year_level: document.getElementById("setup-year").value,
-        description: document.getElementById("setup-desc").value,
-        categories: window.collectCategoriesData(),
-    };
-
     try {
-        const response = await fetch(wrapper.dataset.saveUrl, {
+        const response = await fetch(wrapper.dataset.autosaveUrl, {
             method: "POST",
             headers: {
                 "Content-Type": "application/json",
                 "X-CSRF-TOKEN": wrapper.dataset.csrf,
                 Accept: "application/json",
             },
-            body: JSON.stringify(payload),
+            body: payloadString,
         });
-        if (response.ok)
+
+        // Parse the JSON response so we can read error messages
+        const responseData = await response.json();
+
+        if (response.ok && responseData.success) {
             window.updateAutosaveIndicator(
                 '<i class="fas fa-check-circle text-green-500"></i> Synced',
             );
+        } else {
+            // Throw the exact error message provided by Laravel
+            throw new Error(responseData.message || "Server rejected the save");
+        }
     } catch (e) {
         window.updateAutosaveIndicator(
             '<i class="fas fa-wifi-slash text-amber-500"></i> Offline',
         );
+
+        // This will print the exact SQL or PHP error to your browser's Developer Console (F12)
+        console.error("Autosave error details:", e.message);
     }
 };
+/* =========================================
+   AUTOSAVE STATUS INDICATOR
+========================================= */
 
-window.updateAutosaveIndicator = (html) => {
+window.updateAutosaveIndicator = function (html) {
     const el = document.getElementById("autosave-indicator");
-    if (el) el.innerHTML = html;
+
+    if (el) {
+        el.innerHTML = html;
+    }
 };
 
 // --- BUILDER UI LOGIC ---
@@ -300,8 +385,8 @@ window.getPayload = function (status) {
 
 // FIX: Also expose collectCategoriesData so autosave works properly
 window.collectCategoriesData = function () {
-    return window.getPayload('draft').categories;
-}
+    return window.getPayload("draft").categories;
+};
 
 window.saveCompleteExam = async function (btn, status) {
     const wrapper = document.getElementById("assessment-wrapper");
@@ -353,10 +438,13 @@ window.renderExistingCategory = function (catData) {
     if (catData.questions && catData.questions.length > 0) {
         catData.questions.forEach((q) => {
             window.addQuestion(qContainer.id.split("-").pop());
-            const latestQ = qContainer.querySelector(".question-block:last-child");
-            
+            const latestQ = qContainer.querySelector(
+                ".question-block:last-child",
+            );
+
             // Fixed key binding here
-            latestQ.querySelector(".q-text").value = q.text || q.question_text || ""; 
+            latestQ.querySelector(".q-text").value =
+                q.text || q.question_text || "";
             latestQ.querySelector(".options-list").innerHTML = ""; // Clear default options
 
             if (q.options && q.options.length > 0) {
@@ -366,7 +454,7 @@ window.renderExistingCategory = function (catData) {
                     window.addOptionToQuestion(
                         latestQ.id,
                         opt.is_correct == 1 || opt.is_correct === true,
-                        opt.text || opt.option_text || "" 
+                        opt.text || opt.option_text || "",
                     );
                 });
             }
