@@ -35,7 +35,7 @@
 <body class="bg-gray-50 font-sans text-gray-900 h-screen overflow-hidden">
 
     <div class="flex h-full">
-        <div id="sidebarBackdrop" class="fixed inset-0 bg-black/50 z-40 hidden md:hidden transition-opacity"
+        <div id="sidebarBackdrop" class="fixed inset-0 bg-black/50 z-40 opacity-0 pointer-events-none md:hidden transition-opacity duration-300"
             onclick="toggleSidebar()"></div>
 
         <aside id="sidebar"
@@ -109,11 +109,12 @@
         </main>
     </div>
 
-    <div id="logoutModal" class="fixed inset-0 z-[60] hidden">
-        <div class="absolute inset-0 bg-gray-900/60 backdrop-blur-sm"></div>
+    <div id="logoutModal" class="fixed inset-0 z-[60] opacity-0 pointer-events-none transition-opacity duration-300">
+        <div class="absolute inset-0 bg-gray-900/60" onclick="toggleLogoutModal()"></div>
         <div class="relative flex items-center justify-center min-h-screen p-4">
-            <div
-                class="bg-white rounded-2xl shadow-2xl max-w-sm w-full p-6 text-center transform transition-all border border-gray-100">
+            
+            <div id="logoutModalBox"
+                class="bg-white rounded-2xl shadow-2xl max-w-sm w-full p-6 text-center transform scale-95 transition-all duration-300 border border-gray-100">
                 <div
                     class="w-16 h-16 bg-[#a52a2a]/10 text-[#a52a2a] rounded-full flex items-center justify-center mx-auto mb-4">
                     <i class="fas fa-sign-out-alt text-2xl"></i>
@@ -186,21 +187,41 @@
         const sidebar = document.getElementById('sidebar');
         const backdrop = document.getElementById('sidebarBackdrop');
         const logoutModal = document.getElementById('logoutModal');
+        const logoutModalBox = document.getElementById('logoutModalBox'); // Target the inner box
         const contentArea = document.getElementById('content-area');
 
         function toggleSidebar() {
             const isOpen = !sidebar.classList.contains('-translate-x-full');
             if (isOpen) {
                 sidebar.classList.add('-translate-x-full');
-                backdrop.classList.add('hidden');
+                backdrop.classList.add('opacity-0', 'pointer-events-none');
+                backdrop.classList.remove('opacity-100');
             } else {
                 sidebar.classList.remove('-translate-x-full');
-                backdrop.classList.remove('hidden');
+                backdrop.classList.remove('opacity-0', 'pointer-events-none');
+                backdrop.classList.add('opacity-100');
             }
         }
 
         function toggleLogoutModal() {
-            logoutModal.classList.toggle('hidden');
+            const isClosed = logoutModal.classList.contains('opacity-0');
+            if (isClosed) {
+                // Fade in container
+                logoutModal.classList.remove('opacity-0', 'pointer-events-none');
+                logoutModal.classList.add('opacity-100');
+                
+                // Scale in the box
+                logoutModalBox.classList.remove('scale-95');
+                logoutModalBox.classList.add('scale-100');
+            } else {
+                // Fade out container
+                logoutModal.classList.add('opacity-0', 'pointer-events-none');
+                logoutModal.classList.remove('opacity-100');
+                
+                // Scale out the box
+                logoutModalBox.classList.remove('scale-100');
+                logoutModalBox.classList.add('scale-95');
+            }
         }
 
         function loadPartial(url, element) {

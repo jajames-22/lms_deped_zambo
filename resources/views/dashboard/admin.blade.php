@@ -27,13 +27,13 @@
         <span>Schools</span>
     </button>
     
-    <button onclick="loadPartial('{{ url('/dashboard/teachers') }}', this)"
+    <button id="nav-teachers-btn" onclick="loadPartial('{{ url('/dashboard/teachers') }}', this)"
         class="nav-btn w-full flex items-center px-4 py-3 text-gray-600 hover:bg-gray-100 transition group">
         <i class="fas fa-chalkboard-user w-5 mr-3 group-hover:text-[#a52a2a] transition-colors"></i>
         <span class="group-hover:text-[#a52a2a] transition-colors">Teachers</span>
     </button>
     
-    <button onclick="loadPartial('{{ url('/dashboard/students') }}', this)"
+    <button id="nav-students-btn" onclick="loadPartial('{{ url('/dashboard/students') }}', this)"
         class="nav-btn w-full flex items-center px-4 py-3 text-gray-600 hover:bg-gray-100 transition group">
         <i class="fas fa-user-graduate w-5 mr-3 group-hover:text-[#a52a2a] transition-colors"></i>
         <span class="group-hover:text-[#a52a2a] transition-colors">Students</span>

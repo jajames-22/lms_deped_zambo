@@ -130,10 +130,13 @@ class DashboardController extends Controller
 
     public function loadTeachersPartial()
     {
-        if (Auth::user()->role === 'admin') {
-            return view('dashboard.partials.admin.teachers');
-        }
-        return abort(403, 'Unauthorized access.');
+        // Make sure we only grab users with the role of 'teacher'
+        // Eager load the school and district relationships to prevent crashing
+        $teachers = \App\Models\User::where('role', 'teacher')
+            ->with('school.district')
+            ->get();
+
+        return view('dashboard.partials.admin.teachers', compact('teachers'));
     }
 
     public function loadAssessmentPartial()
@@ -232,4 +235,5 @@ class DashboardController extends Controller
 
     return response()->json(['success' => 'School deleted successfully!']);
 }
+
 }
