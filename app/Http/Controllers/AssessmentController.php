@@ -117,6 +117,7 @@ class AssessmentController extends Controller
                         'image_url' => $q['image_url'] ?? null,
                         'created_at' => now(),
                         'updated_at' => now(),
+                        'is_case_sensitive' => $q['is_case_sensitive'] ?? false,
                     ]);
 
                     // NEW: Fallback to empty array if options don't exist (like for Instructions)

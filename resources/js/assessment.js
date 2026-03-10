@@ -5,12 +5,13 @@ window.builderState = {
     categories: [],
 };
 
+window.hasChanged = false; // TRACKS IF USER TYPED ANYTHING
+
 window.submitAssessmentSetup = async function (btn) {
     const title = document.getElementById("setup-title").value;
     const year = document.getElementById("setup-year").value;
     const desc = document.getElementById("setup-desc").value;
 
-    // 1. Manual Validation
     if (!title || !year) {
         alert("Please fill out the Assessment Title and Year/Grade Level.");
         return;
@@ -18,12 +19,10 @@ window.submitAssessmentSetup = async function (btn) {
 
     const originalText = btn.innerHTML;
 
-    // 2. Lock button
     btn.disabled = true;
     btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Proceeding...';
 
     try {
-        // 3. Send to Laravel
         const response = await fetch(
             "{{ route('dashboard.assessments.store_setup') }}",
             {
@@ -44,7 +43,6 @@ window.submitAssessmentSetup = async function (btn) {
 
         const data = await response.json();
 
-        // 4. Smooth Transition (Keeps CSS Intact!)
         if (response.ok && data.success) {
             loadPartial(data.redirect_url);
         } else {
@@ -73,6 +71,7 @@ let lastPayload = "";
 window.initBuilder = function () {
     window.catCount = 0;
     lastPayload = "";
+    window.hasChanged = false; // Reset tracker on load
     clearTimeout(autosaveTimer);
 
     const wrapper = document.getElementById("assessment-wrapper");
@@ -80,25 +79,21 @@ window.initBuilder = function () {
 
     if (!wrapper || !container) return;
 
-    // 2. FORCE CLEAR OLD DOM ELEMENTS
     container.innerHTML = "";
-    const id = wrapper.dataset.assessmentId; // (Assuming you applied the fix from earlier!)
+    const id = wrapper.dataset.assessmentId;
 
     const existingDataEl = document.getElementById("existing-data");
     let existingData = [];
 
-    // 1. Load relational data (if they previously hit "Save" or "Publish")
     if (existingDataEl && existingDataEl.value) {
         existingData = JSON.parse(existingDataEl.value);
     }
 
-    // 2. Load Server Autosave
     const serverDraftEl = document.getElementById("server-draft-data");
     if (serverDraftEl && serverDraftEl.value) {
         try {
             const serverDraft = JSON.parse(serverDraftEl.value);
             if (serverDraft) {
-                // If it's our new format containing categories, title, etc.
                 if (serverDraft.categories) {
                     existingData = serverDraft.categories;
                     if (serverDraft.title)
@@ -111,7 +106,7 @@ window.initBuilder = function () {
                         document.getElementById("setup-desc").value =
                             serverDraft.description;
                 } else if (serverDraft.length > 0) {
-                    existingData = serverDraft; // Fallback for your old array format
+                    existingData = serverDraft; 
                 }
             }
         } catch (e) {
@@ -119,7 +114,6 @@ window.initBuilder = function () {
         }
     }
 
-    // 3. Load Local Storage
     const localDraft = localStorage.getItem("assessment_draft_" + id);
     if (localDraft) {
         try {
@@ -128,7 +122,6 @@ window.initBuilder = function () {
                 if (parsed.categories && parsed.categories.length > 0) {
                     existingData = parsed.categories;
                 }
-                // Restore text fields from local storage too
                 if (parsed.title)
                     document.getElementById("setup-title").value = parsed.title;
                 if (parsed.year_level)
@@ -155,20 +148,57 @@ window.initBuilder = function () {
         }
     }
 
-    /* GLOBAL AUTOSAVE LISTENER */
-
     wrapper.addEventListener("input", (e) => {
         if (["INPUT", "TEXTAREA", "SELECT"].includes(e.target.tagName)) {
             window.handleAutosaveTrigger();
         }
     });
+
+    window.hasChanged = false;
+    clearTimeout(autosaveTimer);
+    window.updateAutosaveIndicator('Ready');
 };
 
+/* =========================================
+   INTELLIGENT BACK BUTTON LOGIC
+========================================= */
+
+window.handleBackButton = async function() {
+    const title = document.getElementById("setup-title").value;
+    const year = document.getElementById("setup-year").value;
+    const wrapper = document.getElementById("assessment-wrapper");
+    
+    // Scenario 1: They made NO changes during this session
+    if (!window.hasChanged) {
+        
+        // If it's also a completely untouched default exam, clean it up from the DB
+        if (title === "Untitled Assessment" && year === "") {
+            try {
+                await fetch(wrapper.dataset.deleteUrl, {
+                    method: 'DELETE',
+                    headers: { 'X-CSRF-TOKEN': wrapper.dataset.csrf, 'Accept': 'application/json' }
+                });
+            } catch(e) {}
+        }
+        
+        // Leave the page silently without showing the warning modal
+        if (typeof loadPartial === 'function') {
+            loadPartial(wrapper.dataset.redirectUrl);
+        } else {
+            window.location.href = wrapper.dataset.redirectUrl;
+        }
+        return; // Stop the function here
+    }
+
+    // Scenario 2: Changes WERE made this session, so show the warning modal
+    document.getElementById('back-modal').classList.remove('hidden');
+};
 /* =========================================
    AUTOSAVE TRIGGER
 ========================================= */
 
 window.handleAutosaveTrigger = function () {
+    window.hasChanged = true; // Mark that they started typing
     window.updateAutosaveIndicator(
         '<i class="fas fa-pencil-alt fa-spin"></i> Typing...',
     );
@@ -186,11 +216,10 @@ window.handleAutosaveTrigger = function () {
 
 function saveToLocal(payload) {
     const wrapper = document.getElementById("assessment-wrapper");
-
     const id = wrapper.dataset.assessmentId;
-
     localStorage.setItem("assessment_draft_" + id, JSON.stringify(payload));
 }
+
 /* =========================================
    AUTOSAVE TO SERVER
 ========================================= */
@@ -202,7 +231,6 @@ window.autosaveToServer = async function () {
     const payload = window.getPayload("draft");
     const payloadString = JSON.stringify(payload);
 
-    /* Prevent duplicate saves */
     if (payloadString === lastPayload) return;
     lastPayload = payloadString;
 
@@ -225,7 +253,6 @@ window.autosaveToServer = async function () {
             body: payloadString,
         });
 
-        // Parse the JSON response so we can read error messages
         const responseData = await response.json();
 
         if (response.ok && responseData.success) {
@@ -233,31 +260,27 @@ window.autosaveToServer = async function () {
                 '<i class="fas fa-check-circle text-green-500"></i> Synced',
             );
         } else {
-            // Throw the exact error message provided by Laravel
             throw new Error(responseData.message || "Server rejected the save");
         }
     } catch (e) {
         window.updateAutosaveIndicator(
             '<i class="fas fa-wifi-slash text-amber-500"></i> Offline',
         );
-
-        // This will print the exact SQL or PHP error to your browser's Developer Console (F12)
         console.error("Autosave error details:", e.message);
     }
 };
+
 /* =========================================
    AUTOSAVE STATUS INDICATOR
 ========================================= */
 
 window.updateAutosaveIndicator = function (html) {
     const el = document.getElementById("autosave-indicator");
-
     if (el) {
         el.innerHTML = html;
     }
 };
 
-// --- BUILDER UI LOGIC ---
 // --- BUILDER UI LOGIC ---
 
 window.addCategory = function () {
@@ -267,7 +290,6 @@ window.addCategory = function () {
     window.catCount++;
     const catId = `cat-${window.catCount}`;
 
-    // THE NEW SPLIT BUTTON UI IS AT THE BOTTOM OF THIS HTML
     const html = `
         <div class="bg-white rounded-2xl shadow-sm border border-gray-200 category-block overflow-hidden transition-all mb-4" id="${catId}">
             <div class="p-4 bg-gray-50/50 flex items-center justify-between cursor-pointer group" onclick="window.toggleCategory('${catId}', event)">
@@ -328,10 +350,8 @@ window.addCategory = function () {
     window.addQuestion(window.catCount, "mcq");
 };
 
-// Dropdown Toggle Utility
 window.toggleDropdown = function (btn) {
     const menu = btn.nextElementSibling;
-    // Close all other open dropdowns first
     document.querySelectorAll(".dropdown-menu").forEach((el) => {
         if (el !== menu) el.classList.add("hidden");
     });
@@ -344,7 +364,6 @@ window.addQuestion = function (cId, type = "mcq") {
 
     const qId = `q-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
 
-    // Adjust placeholder and icon based on type
     let placeholder = "Enter Question...";
     let icon = "fa-question-circle";
     let bgClass = "bg-gray-50";
@@ -400,12 +419,10 @@ window.addQuestion = function (cId, type = "mcq") {
 
     container.insertAdjacentHTML("beforeend", html);
 
-    // Add default options based on type
     if (type === "mcq" || type === "checkbox") {
         window.addOptionToQuestion(qId, type, true, "");
         window.addOptionToQuestion(qId, type, false, "");
     } else if (type === "text") {
-        // Just one text input for the correct answer
         window.addOptionToQuestion(qId, "text", true, "");
     }
 };
@@ -415,6 +432,7 @@ window.addOptionToQuestion = function (
     type,
     isCorrect = false,
     text = "",
+    isCaseSensitive = false
 ) {
     const list = document.querySelector(`#${qId} .options-list`);
     if (!list) return;
@@ -447,12 +465,16 @@ window.addOptionToQuestion = function (
                 </div>
             </div>`;
     } else if (type === "text") {
-        // Only one option needed for Exact Match Text
         optHtml = `
             <div class="flex items-center gap-3 bg-green-50/50 px-3 py-2 rounded-lg border border-green-200 focus-within:border-green-400 option-row transition">
                 <span class="text-[10px] font-bold text-green-600 uppercase shrink-0"><i class="fas fa-check mr-1"></i> Exact Match:</span>
                 <input type="text" class="option-input w-full bg-transparent outline-none text-sm font-medium" placeholder="Type the exact correct answer..." value="${text}">
                 <input type="hidden" class="is-correct-input" value="true" checked>
+                
+                <label class="flex items-center gap-1.5 cursor-pointer text-gray-500 hover:text-green-600 transition border-l border-green-200 pl-3 shrink-0" title="Check this if uppercase/lowercase letters must match exactly.">
+                    <input type="checkbox" class="case-sensitive-input cursor-pointer text-green-600 rounded focus:ring-green-600 h-4 w-4" ${isCaseSensitive ? "checked" : ""}>
+                    <span class="text-[10px] font-bold uppercase tracking-wider">Case Sensitive</span>
+                </label>
             </div>`;
     }
 
@@ -488,7 +510,7 @@ window.handleImageUpload = async function (input, qId) {
     const file = input.files[0];
     const wrapper = document.getElementById("assessment-wrapper");
     const csrf = wrapper.dataset.csrf;
-    const uploadUrl = "{{ route('dashboard.assessments.upload_image') }}"; // Make sure this blade directive parses correctly, or pass it via data-attribute
+    const uploadUrl = wrapper.dataset.uploadUrl;
 
     const formData = new FormData();
     formData.append("image", file);
@@ -516,7 +538,7 @@ window.handleImageUpload = async function (input, qId) {
         alert("Upload failed. Check console.");
     } finally {
         btnIcon.innerHTML = originalHtml;
-        input.value = ""; // Reset input
+        input.value = ""; 
     }
 };
 
@@ -551,7 +573,6 @@ window.getPayload = function (status) {
         cat.querySelectorAll(".question-block").forEach((q) => {
             const options = [];
 
-            // Gather options depending on type
             q.querySelectorAll(".option-row").forEach((opt) => {
                 const isCorrectInput = opt.querySelector(".is-correct-input");
                 let isCorrect = false;
@@ -562,7 +583,7 @@ window.getPayload = function (status) {
                 ) {
                     isCorrect = isCorrectInput.checked;
                 } else if (isCorrectInput.type === "hidden") {
-                    isCorrect = true; // Text match is always the correct answer
+                    isCorrect = true; 
                 }
 
                 options.push({
@@ -575,6 +596,7 @@ window.getPayload = function (status) {
                 type: q.dataset.type,
                 text: q.querySelector(".q-text").value,
                 image_url: q.querySelector(".q-image-url").value,
+                is_case_sensitive: q.querySelector(".case-sensitive-input") ? q.querySelector(".case-sensitive-input").checked : false,
                 options: options,
             });
         });
@@ -595,66 +617,74 @@ window.getPayload = function (status) {
 };
 
 // --- RENDER EXISTING DATA UPDATE ---
-// --- RENDER EXISTING DATA UPDATE ---
 
 window.renderExistingCategory = function (catData) {
     window.addCategory();
     const latestCat = document.querySelector(".category-block:last-child");
+    
+    // Set Category/Section Details
     latestCat.querySelector(".c-title").value = catData.title || "";
     latestCat.querySelector(".c-time").value = catData.time_limit || "";
-    latestCat.querySelector(".category-display-title").innerText =
-        catData.title || "New Section";
+    latestCat.querySelector(".category-display-title").innerText = catData.title || "New Section";
 
     const qContainer = latestCat.querySelector('[id^="q-container-"]');
-    qContainer.innerHTML = ""; // Clear the default blank question
+    
+    // Clear the default question added by window.addCategory() 
+    // to prevent having an extra empty MCQ at the top
+    qContainer.innerHTML = "";
 
     if (catData.questions && catData.questions.length > 0) {
         catData.questions.forEach((q) => {
-            // 1. Grab the type (default to mcq if missing)
             const type = q.type || "mcq";
-            
-            // 2. Pass the type when adding the question block
+
+            // 1. Add the question block shell with the CORRECT type
             window.addQuestion(qContainer.id.split("-").pop(), type);
             const latestQ = qContainer.querySelector(".question-block:last-child");
 
+            // 2. Set the question text (handle both possible naming conventions)
             latestQ.querySelector(".q-text").value = q.text || q.question_text || "";
 
-            // 3. Render Image if it exists
+            // 3. Handle Image Preview
             const imgUrl = q.image_url;
             if (imgUrl) {
                 window.setImagePreview(latestQ.id, imgUrl);
             }
 
-            latestQ.querySelector(".options-list").innerHTML = ""; // Clear default options
+            // 4. Clear the default options created by window.addQuestion
+            latestQ.querySelector(".options-list").innerHTML = "";
 
+            // 5. Render Options with specific type logic
             if (q.options && q.options.length > 0) {
+                const isCaseSensitive = q.is_case_sensitive == 1 || q.is_case_sensitive === true;
+
                 q.options.forEach((opt) => {
-                    // 4. Pass the exact type to the options builder!
+                    // CRITICAL: We pass 'type' here so the UI knows to render 
+                    // radio buttons (mcq), checkboxes, or the green text input.
                     window.addOptionToQuestion(
                         latestQ.id,
-                        type, // <--- This was missing in the duplicate function!
+                        type, 
                         opt.is_correct == 1 || opt.is_correct === true,
-                        opt.text || opt.option_text || ""
+                        opt.text || opt.option_text || "",
+                        isCaseSensitive
                     );
                 });
             }
         });
     }
 };
-// FIX: Also expose collectCategoriesData so autosave works properly
+
 window.collectCategoriesData = function () {
     return window.getPayload("draft").categories;
 };
 
 window.saveCompleteExam = async function (btn, status) {
     clearTimeout(autosaveTimer);
-    lastPayload = ""; // Bypass beforeunload warning
+    lastPayload = ""; 
 
     const wrapper = document.getElementById("assessment-wrapper");
     const payload = window.getPayload(status);
 
     if (!payload.title || !payload.year_level) {
-        // REPLACED ALERT WITH MODAL
         return window.showModal(
             "warning",
             "Missing Information",
@@ -683,7 +713,6 @@ window.saveCompleteExam = async function (btn, status) {
                 "assessment_draft_" + wrapper.dataset.assessmentId,
             );
 
-            // REPLACED ALERT WITH SUCCESS MODAL + CALLBACK
             const title =
                 status === "published" ? "Test Published!" : "Draft Saved!";
             const msg =
@@ -692,7 +721,6 @@ window.saveCompleteExam = async function (btn, status) {
                     : "Your progress has been safely stored.";
 
             window.showModal("success", title, msg, () => {
-                // This redirect logic runs ONLY AFTER they click "OK" on the modal
                 if (typeof loadPartial === "function") {
                     loadPartial(wrapper.dataset.redirectUrl);
                 } else {
@@ -703,7 +731,6 @@ window.saveCompleteExam = async function (btn, status) {
             throw new Error(result.message || "Failed to save");
         }
     } catch (e) {
-        // REPLACED ALERT WITH ERROR MODAL
         window.showModal("error", "Save Failed", e.message);
         window.resetBtn(btn, originalText);
     }
@@ -739,64 +766,66 @@ window.resetBtn = (btn, txt) => {
 };
 
 window.deleteAssessmentFromBuilder = async function () {
-    if (!confirm("Are you sure you want to discard this entire assessment?"))
-        return;
-    const wrapper = document.getElementById("assessment-wrapper");
-    try {
-        const response = await fetch(wrapper.dataset.deleteUrl, {
-            method: "DELETE",
-            headers: {
-                "X-CSRF-TOKEN": wrapper.dataset.csrf,
-                Accept: "application/json",
-            },
-        });
-        if (response.ok) loadPartial(wrapper.dataset.redirectUrl);
-    } catch (e) {
-        alert("Delete failed");
-    }
+    window.showModal(
+        "confirm",
+        "Discard Assessment?",
+        "Are you sure you want to discard this entire assessment? This cannot be undone.",
+        async () => {
+            const wrapper = document.getElementById("assessment-wrapper");
+            try {
+                const response = await fetch(wrapper.dataset.deleteUrl, {
+                    method: "DELETE",
+                    headers: {
+                        "X-CSRF-TOKEN": wrapper.dataset.csrf,
+                        Accept: "application/json",
+                    },
+                });
+                if (response.ok) {
+                    if (typeof loadPartial === "function") {
+                        loadPartial(wrapper.dataset.redirectUrl);
+                    } else {
+                        window.location.href = wrapper.dataset.redirectUrl;
+                    }
+                }
+            } catch (e) {
+                window.showModal("error", "Error", "Failed to discard assessment.");
+            }
+        }
+    );
 };
 
-// for back button
 window.addEventListener("beforeunload", (event) => {
-    // Only trigger if there is unsaved work (lastPayload isn't empty)
     if (lastPayload !== "") {
         event.preventDefault();
-        event.returnValue = ""; // Modern browsers require this to show a generic alert
+        event.returnValue = ""; 
     }
 });
 
 window.discardChangesAndExit = function (btn) {
-    // 1. Trigger the confirmation modal FIRST
     window.showModal(
         "confirm",
         "Discard Unsaved Changes?",
         "Are you sure you want to discard your unsaved work and exit? This cannot be undone.",
         async () => {
-            // --- EVERYTHING BELOW THIS LINE ONLY HAPPENS IF THEY CLICK "YES" ---
 
             const wrapper = document.getElementById("assessment-wrapper");
             if (!wrapper) return;
 
-            // Hide the initial back-button modal now that they've confirmed
             document.getElementById("back-modal").classList.add("hidden");
 
-            // Stop autosave and BYPASS the "Leave site?" warning
             clearTimeout(autosaveTimer);
             lastPayload = "";
 
-            // Show loading state on the button just in case the redirect takes a second
             const originalText = btn.innerHTML;
             btn.innerHTML =
                 '<i class="fas fa-spinner fa-spin mr-2"></i> Discarding...';
             btn.disabled = true;
 
-            // Wipe the browser's local memory
             localStorage.removeItem(
                 "assessment_draft_" + wrapper.dataset.assessmentId,
             );
 
             try {
-                // Tell the server to cleanly wipe the draft_json column
                 await fetch(wrapper.dataset.autosaveUrl, {
                     method: "POST",
                     headers: {
@@ -810,21 +839,18 @@ window.discardChangesAndExit = function (btn) {
                 console.warn("Failed to clear drafts:", e);
             }
 
-            // Safely redirect back to the index dashboard
             if (typeof loadPartial === "function") {
                 loadPartial(wrapper.dataset.redirectUrl);
             } else {
                 window.location.href = wrapper.dataset.redirectUrl;
             }
         },
-    ); // <-- End of the confirmation callback
+    ); 
 };
 
-// Add this anywhere inside window.initBuilder:
 const backModal = document.getElementById("back-modal");
 if (backModal) {
     backModal.addEventListener("click", function (e) {
-        // If they clicked the dark backdrop directly (and not the white modal card)
         if (e.target.classList.contains("backdrop-blur-sm")) {
             this.classList.add("hidden");
         }
@@ -847,19 +873,16 @@ window.showModal = function (type, title, message, callback = null) {
     const btn = document.getElementById("status-modal-btn");
     const cancelBtn = document.getElementById("status-modal-cancel-btn");
 
-    // Set Text
     titleEl.innerText = title;
     msgEl.innerText = message;
 
-    // Reset styles
     iconContainer.className =
         "h-16 w-16 rounded-full flex items-center justify-center mx-auto mb-4 text-3xl";
     btn.className =
         "w-full py-3.5 text-white font-bold rounded-xl transition active:scale-95 shadow-md";
-    cancelBtn.classList.add("hidden"); // Hidden by default
+    cancelBtn.classList.add("hidden"); 
     btn.innerText = "OK";
 
-    // Remove old listeners
     cancelBtn.onclick = null;
     btn.onclick = null;
 
@@ -888,7 +911,6 @@ window.showModal = function (type, title, message, callback = null) {
             "shadow-amber-500/20",
         );
     } else if (type === "confirm") {
-        // NEW CONFIRMATION STYLE
         iconContainer.classList.add("bg-red-50", "text-red-500");
         iconContainer.innerHTML = '<i class="fas fa-trash-alt"></i>';
         btn.classList.add(
@@ -898,20 +920,18 @@ window.showModal = function (type, title, message, callback = null) {
         );
         btn.innerText = "Yes, Discard";
 
-        cancelBtn.classList.remove("hidden"); // Show cancel button
+        cancelBtn.classList.remove("hidden"); 
         cancelBtn.onclick = function () {
-            modal.classList.add("hidden"); // Just close if they cancel
+            modal.classList.add("hidden"); 
         };
     }
 
-    // Show modal
     modal.classList.remove("hidden");
 
-    // Handle primary button click
     btn.onclick = function () {
         modal.classList.add("hidden");
         if (callback && typeof callback === "function") {
-            callback(); // Run the action if they click "OK" or "Yes"
+            callback(); 
         }
     };
 };
