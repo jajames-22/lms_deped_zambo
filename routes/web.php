@@ -37,6 +37,12 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('/schools', [DashboardController::class, 'loadSchoolsPartial'])->name('schools');
         Route::get('/schools/create', [DashboardController::class, 'loadSchoolCreatePartial'])->name('schools.create');
         Route::post('/schools/store', [DashboardController::class, 'storeSchool'])->name('schools.store');
+
+        Route::get('/schools/{school}/edit', [DashboardController::class, 'editSchoolPartial'])->name('schools.edit');
+
+        Route::put('/schools/{school}', [DashboardController::class, 'updateSchool'])->name('schools.update');
+
+        Route::delete('/schools/{school}', [DashboardController::class, 'destroySchool'])->name('schools.destroy');
         
         // AJAX Route for District Dropdown (Secured behind auth)
     });
