@@ -11,5 +11,9 @@ Route::middleware(['auth', 'verified'])->prefix('dashboard/assessments')->name('
     Route::post('/{id}/store-questions', [AssessmentController::class, 'storeQuestions'])->name('store_questions');
     Route::delete('/{id}', [AssessmentController::class, 'destroy'])->name('destroy');
     Route::post('/{id}/autosave', [AssessmentController::class, 'autosave'])
-            ->name('autosave');
+        ->name('autosave');
+
+    // 2. FIXED: Removed the redundant 'assessments/' prefix and 'dashboard.assessments.' name
+    Route::post('/upload-image', [AssessmentController::class, 'uploadImage'])
+        ->name('upload_image');
 });
