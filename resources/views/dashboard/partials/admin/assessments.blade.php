@@ -14,17 +14,17 @@
 
     <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
         <div class="flex items-center space-x-1 bg-gray-200/50 p-1 rounded-xl w-fit shrink-0">
-            <button onclick="filterAssessments('all', this)"
+            <button onclick="window.filterAssessments('all', this)"
                 class="assessment-tab px-6 py-2 text-sm font-bold rounded-lg transition-all bg-white text-[#a52a2a] shadow-sm">All</button>
-            <button onclick="filterAssessments('live', this)"
+            <button onclick="window.filterAssessments('live', this)"
                 class="assessment-tab px-6 py-2 text-sm font-bold rounded-lg transition-all text-gray-500 hover:text-gray-700">Live</button>
-            <button onclick="filterAssessments('draft', this)"
+            <button onclick="window.filterAssessments('draft', this)"
                 class="assessment-tab px-6 py-2 text-sm font-bold rounded-lg transition-all text-gray-500 hover:text-gray-700">Drafts</button>
         </div>
 
         <div class="relative w-full max-w-md">
             <i class="fas fa-search absolute left-4 top-1/2 -translate-y-1/2 text-gray-400"></i>
-            <input type="text" id="assessment-search" onkeyup="searchAssessments()"
+            <input type="text" id="assessment-search" onkeyup="window.searchAssessments()"
                 placeholder="Search test by title..."
                 class="w-full pl-11 pr-4 py-2.5 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#a52a2a]/20 focus:border-[#a52a2a] outline-none transition-all shadow-sm">
         </div>
@@ -114,80 +114,151 @@
     </div>
 </div>
 
+<div id="status-modal" class="fixed inset-0 z-[110] hidden">
+    <div class="absolute inset-0 bg-gray-900/60 backdrop-blur-sm"
+        onclick="document.getElementById('status-modal').classList.add('hidden')"></div>
+
+    <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-sm p-6">
+        <div class="bg-white rounded-2xl shadow-2xl overflow-hidden border border-gray-100 p-6 text-center">
+
+            <div id="status-modal-icon"
+                class="h-16 w-16 rounded-full flex items-center justify-center mx-auto mb-4 text-3xl"></div>
+
+            <h3 id="status-modal-title" class="text-xl font-bold text-gray-900 mb-2">Title</h3>
+            <p id="status-modal-message" class="text-gray-500 text-sm mb-6">Message goes here.</p>
+
+            <div class="flex gap-3 mt-2">
+                <button id="status-modal-cancel-btn" type="button"
+                    class="w-full py-3.5 bg-gray-100 text-gray-700 font-bold rounded-xl hover:bg-gray-200 transition active:scale-95 hidden">
+                    Cancel
+                </button>
+                <button id="status-modal-btn" type="button"
+                    class="w-full py-3.5 text-white font-bold rounded-xl transition active:scale-95 shadow-md">
+                    OK
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <script>
-    window.deleteAssessmentFromList = async function (id, url) {
-        if (!confirm("Are you sure you want to delete this assessment? This action cannot be undone.")) return;
+    // 1. Ensure the modal helper exists on this page
+    if (typeof window.showModal === 'undefined') {
+        window.showModal = function (type, title, message, callback = null) {
+            const modal = document.getElementById('status-modal');
+            if (!modal) return alert(message);
 
-        const card = document.getElementById('assessment-card-' + id);
-        if (!card) return;
+            const iconContainer = document.getElementById('status-modal-icon');
+            const titleEl = document.getElementById('status-modal-title');
+            const msgEl = document.getElementById('status-modal-message');
+            const btn = document.getElementById('status-modal-btn');
+            const cancelBtn = document.getElementById('status-modal-cancel-btn');
 
-        // Visual feedback on the button
-        const btn = card.querySelector('button');
-        const originalHtml = btn.innerHTML;
-        btn.innerHTML = '<i class="fas fa-spinner fa-spin text-sm"></i>';
-        btn.disabled = true;
+            titleEl.innerText = title;
+            msgEl.innerText = message;
+            iconContainer.className = 'h-16 w-16 rounded-full flex items-center justify-center mx-auto mb-4 text-3xl';
+            btn.className = 'w-full py-3.5 text-white font-bold rounded-xl transition active:scale-95 shadow-md';
+            cancelBtn.classList.add('hidden');
+            btn.innerText = 'OK';
+            cancelBtn.onclick = null;
+            btn.onclick = null;
 
-        const csrf = document.querySelector('meta[name="csrf-token"]')?.content || "{{ csrf_token() }}";
+            if (type === 'error') {
+                iconContainer.classList.add('bg-red-50', 'text-red-500');
+                iconContainer.innerHTML = '<i class="fas fa-times-circle"></i>';
+                btn.classList.add('bg-red-600', 'hover:bg-red-700', 'shadow-red-600/20');
+            } else if (type === 'confirm') {
+                iconContainer.classList.add('bg-red-50', 'text-red-500');
+                iconContainer.innerHTML = '<i class="fas fa-trash-alt"></i>';
+                btn.classList.add('bg-red-600', 'hover:bg-red-700', 'shadow-red-600/20');
+                btn.innerText = 'Yes, Delete';
+                cancelBtn.classList.remove('hidden');
+                cancelBtn.onclick = () => modal.classList.add('hidden');
+            }
 
-        try {
-            const response = await fetch(url, {
-                method: 'DELETE',
-                headers: {
-                    'X-CSRF-TOKEN': csrf,
-                    'Accept': 'application/json'
+            modal.classList.remove('hidden');
+            btn.onclick = () => {
+                modal.classList.add('hidden');
+                if (callback) callback();
+            };
+        };
+    }
+
+    // 2. The upgraded Delete Function
+    window.deleteAssessmentFromList = function (id, url) {
+        window.showModal('confirm', 'Delete Assessment?', 'Are you sure you want to delete this assessment? This action cannot be undone.', async () => {
+
+            const card = document.getElementById('assessment-card-' + id);
+            if (!card) return;
+
+            const btn = card.querySelector('button');
+            const originalHtml = btn.innerHTML;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin text-sm"></i>';
+            btn.disabled = true;
+
+            const csrf = document.querySelector('meta[name="csrf-token"]')?.content || "{{ csrf_token() }}";
+
+            try {
+                const response = await fetch(url, {
+                    method: 'DELETE',
+                    headers: {
+                        'X-CSRF-TOKEN': csrf,
+                        'Accept': 'application/json'
+                    }
+                });
+
+                if (response.ok) {
+                    card.style.transform = 'scale(0.95)';
+                    card.style.opacity = '0';
+                    setTimeout(() => card.remove(), 300);
+                } else {
+                    window.showModal('error', 'Delete Failed', 'The server returned an error while deleting.');
+                    btn.innerHTML = originalHtml;
+                    btn.disabled = false;
                 }
-            });
-
-            if (response.ok) {
-                // Smooth removal animation
-                card.style.transform = 'scale(0.95)';
-                card.style.opacity = '0';
-                setTimeout(() => card.remove(), 300);
-            } else {
-                alert("Failed to delete. The server returned an error.");
+            } catch (e) {
+                window.showModal('error', 'Network Error', 'Could not delete the assessment. Please check your connection.');
                 btn.innerHTML = originalHtml;
                 btn.disabled = false;
             }
-        } catch (e) {
-            alert("Network error. Could not delete assessment.");
-            btn.innerHTML = originalHtml;
-            btn.disabled = false;
-        }
-    }
 
-    let currentStatus = 'all';
+        }); // <-- THESE CLOSING BRACKETS WERE MISSING!
+    };     // <-- THESE CLOSING BRACKETS WERE MISSING!
 
-    function filterAssessments(status, btnElement) {
-        currentStatus = status;
 
-        // Reset all tabs
+    // 3. Search and Filter Functions
+    window.currentStatus = 'all';
+
+    window.filterAssessments = function(status, btnElement) {
+        window.currentStatus = status;
+
         document.querySelectorAll('.assessment-tab').forEach(tab => {
             tab.classList.remove('bg-white', 'text-[#a52a2a]', 'shadow-sm');
             tab.classList.add('text-gray-500', 'hover:text-gray-700');
         });
 
-        // Activate clicked tab
         btnElement.classList.remove('text-gray-500', 'hover:text-gray-700');
         btnElement.classList.add('bg-white', 'text-[#a52a2a]', 'shadow-sm');
 
-        applyFilters();
-    }
+        window.applyFilters();
+    };
 
-    function searchAssessments() { applyFilters(); }
+    window.searchAssessments = function() {
+        window.applyFilters();
+    };
 
-    function applyFilters() {
+    window.applyFilters = function() {
         const query = document.getElementById('assessment-search').value.toLowerCase();
 
         document.querySelectorAll('.assessment-card').forEach(card => {
             const title = card.querySelector('.test-title').innerText.toLowerCase();
-            const matchesTab = (currentStatus === 'all' || card.classList.contains(currentStatus));
+            const matchesTab = (window.currentStatus === 'all' || card.classList.contains(window.currentStatus));
 
-            // Because we changed the card to a flex container, we must restore 'flex' instead of 'block'
             if (matchesTab && title.includes(query)) {
                 card.style.display = 'flex';
             } else {
                 card.style.display = 'none';
             }
         });
-    }
+    };
 </script>

@@ -92,27 +92,51 @@ window.initBuilder = function () {
         existingData = JSON.parse(existingDataEl.value);
     }
 
-    // 2. Load Server Autosave (if they closed the tab before saving)
+    // 2. Load Server Autosave
     const serverDraftEl = document.getElementById("server-draft-data");
     if (serverDraftEl && serverDraftEl.value) {
         try {
             const serverDraft = JSON.parse(serverDraftEl.value);
-            // Only override if the autosave actually has content
-            if (serverDraft && serverDraft.length > 0) {
-                existingData = serverDraft;
+            if (serverDraft) {
+                // If it's our new format containing categories, title, etc.
+                if (serverDraft.categories) {
+                    existingData = serverDraft.categories;
+                    if (serverDraft.title)
+                        document.getElementById("setup-title").value =
+                            serverDraft.title;
+                    if (serverDraft.year_level)
+                        document.getElementById("setup-year").value =
+                            serverDraft.year_level;
+                    if (serverDraft.description)
+                        document.getElementById("setup-desc").value =
+                            serverDraft.description;
+                } else if (serverDraft.length > 0) {
+                    existingData = serverDraft; // Fallback for your old array format
+                }
             }
         } catch (e) {
             console.warn("Invalid server draft JSON");
         }
     }
 
-    // 3. Load Local Storage (Protects against internet dropping out)
+    // 3. Load Local Storage
     const localDraft = localStorage.getItem("assessment_draft_" + id);
     if (localDraft) {
         try {
             const parsed = JSON.parse(localDraft);
-            if (parsed.categories && parsed.categories.length > 0) {
-                existingData = parsed.categories;
+            if (parsed) {
+                if (parsed.categories && parsed.categories.length > 0) {
+                    existingData = parsed.categories;
+                }
+                // Restore text fields from local storage too
+                if (parsed.title)
+                    document.getElementById("setup-title").value = parsed.title;
+                if (parsed.year_level)
+                    document.getElementById("setup-year").value =
+                        parsed.year_level;
+                if (parsed.description)
+                    document.getElementById("setup-desc").value =
+                        parsed.description;
             }
         } catch (e) {
             console.warn("Invalid local draft");
@@ -133,11 +157,11 @@ window.initBuilder = function () {
 
     /* GLOBAL AUTOSAVE LISTENER */
 
-        wrapper.addEventListener("input", (e) => {
-            if (["INPUT", "TEXTAREA", "SELECT"].includes(e.target.tagName)) {
-                window.handleAutosaveTrigger();
-            }
-        });
+    wrapper.addEventListener("input", (e) => {
+        if (["INPUT", "TEXTAREA", "SELECT"].includes(e.target.tagName)) {
+            window.handleAutosaveTrigger();
+        }
+    });
 };
 
 /* =========================================
@@ -337,9 +361,9 @@ window.addOptionToQuestion = function (qId, isCorrect = false, text = "") {
 window.removeOption = function (btnElement, qId) {
     const list = document.querySelector(`#${qId} .options-list`);
 
-    // Prevent the user from deleting an option if there are only 2 left
     if (list.querySelectorAll(".option-row").length <= 2) {
-        alert("A question must have at least two choices.");
+        // REPLACED ALERT WITH WARNING MODAL
+        window.showModal('warning', 'Action Prevented', 'A question must have at least two choices.');
         return;
     }
 
@@ -389,11 +413,15 @@ window.collectCategoriesData = function () {
 };
 
 window.saveCompleteExam = async function (btn, status) {
+    clearTimeout(autosaveTimer);
+    lastPayload = ""; // Bypass beforeunload warning
+
     const wrapper = document.getElementById("assessment-wrapper");
     const payload = window.getPayload(status);
 
     if (!payload.title || !payload.year_level) {
-        return alert("Please fill out the Assessment Title and Year Level.");
+        // REPLACED ALERT WITH MODAL
+        return window.showModal('warning', 'Missing Information', 'Please fill out the Assessment Title and Year / Grade Level before saving.');
     }
 
     btn.disabled = true;
@@ -411,14 +439,29 @@ window.saveCompleteExam = async function (btn, status) {
             body: JSON.stringify(payload),
         });
         const result = await response.json();
+        
         if (response.ok && result.success) {
-            alert(status === "published" ? "Test Published!" : "Draft Saved!");
-            loadPartial(wrapper.dataset.redirectUrl);
+            localStorage.removeItem("assessment_draft_" + wrapper.dataset.assessmentId);
+            
+            // REPLACED ALERT WITH SUCCESS MODAL + CALLBACK
+            const title = status === "published" ? "Test Published!" : "Draft Saved!";
+            const msg = status === "published" ? "Your test is live and ready for students." : "Your progress has been safely stored.";
+            
+            window.showModal('success', title, msg, () => {
+                // This redirect logic runs ONLY AFTER they click "OK" on the modal
+                if (typeof loadPartial === 'function') {
+                    loadPartial(wrapper.dataset.redirectUrl);
+                } else {
+                    window.location.href = wrapper.dataset.redirectUrl;
+                }
+            });
+            
         } else {
             throw new Error(result.message || "Failed to save");
         }
     } catch (e) {
-        alert("Save failed: " + e.message);
+        // REPLACED ALERT WITH ERROR MODAL
+        window.showModal('error', 'Save Failed', e.message);
         window.resetBtn(btn, originalText);
     }
 };
@@ -506,4 +549,141 @@ window.deleteAssessmentFromBuilder = async function () {
     } catch (e) {
         alert("Delete failed");
     }
+};
+
+// for back button
+window.addEventListener("beforeunload", (event) => {
+    // Only trigger if there is unsaved work (lastPayload isn't empty)
+    if (lastPayload !== "") {
+        event.preventDefault();
+        event.returnValue = ""; // Modern browsers require this to show a generic alert
+    }
+});
+
+window.discardChangesAndExit = function(btn) {
+    // 1. Trigger the confirmation modal FIRST
+    window.showModal('confirm', 'Discard Unsaved Changes?', 'Are you sure you want to discard your unsaved work and exit? This cannot be undone.', async () => {
+        
+        // --- EVERYTHING BELOW THIS LINE ONLY HAPPENS IF THEY CLICK "YES" ---
+        
+        const wrapper = document.getElementById("assessment-wrapper");
+        if (!wrapper) return;
+
+        // Hide the initial back-button modal now that they've confirmed
+        document.getElementById('back-modal').classList.add('hidden');
+
+        // Stop autosave and BYPASS the "Leave site?" warning
+        clearTimeout(autosaveTimer);
+        lastPayload = ""; 
+
+        // Show loading state on the button just in case the redirect takes a second
+        const originalText = btn.innerHTML;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Discarding...';
+        btn.disabled = true;
+
+        // Wipe the browser's local memory
+        localStorage.removeItem("assessment_draft_" + wrapper.dataset.assessmentId);
+
+        try {
+            // Tell the server to cleanly wipe the draft_json column
+            await fetch(wrapper.dataset.autosaveUrl, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "X-CSRF-TOKEN": wrapper.dataset.csrf,
+                    Accept: "application/json",
+                },
+                body: JSON.stringify({ clear_draft: true }),
+            });
+        } catch (e) {
+            console.warn("Failed to clear drafts:", e);
+        }
+
+        // Safely redirect back to the index dashboard
+        if (typeof loadPartial === 'function') {
+            loadPartial(wrapper.dataset.redirectUrl);
+        } else {
+            window.location.href = wrapper.dataset.redirectUrl;
+        }
+        
+    }); // <-- End of the confirmation callback
+};
+
+// Add this anywhere inside window.initBuilder:
+const backModal = document.getElementById("back-modal");
+if (backModal) {
+    backModal.addEventListener("click", function (e) {
+        // If they clicked the dark backdrop directly (and not the white modal card)
+        if (e.target.classList.contains("backdrop-blur-sm")) {
+            this.classList.add("hidden");
+        }
+    });
+}
+
+
+// UTILITIES
+
+window.showModal = function(type, title, message, callback = null) {
+    const modal = document.getElementById('status-modal');
+    if (!modal) {
+        alert(`${title}\n${message}`);
+        if (callback && type !== 'confirm') callback();
+        return;
+    }
+
+    const iconContainer = document.getElementById('status-modal-icon');
+    const titleEl = document.getElementById('status-modal-title');
+    const msgEl = document.getElementById('status-modal-message');
+    const btn = document.getElementById('status-modal-btn');
+    const cancelBtn = document.getElementById('status-modal-cancel-btn');
+
+    // Set Text
+    titleEl.innerText = title;
+    msgEl.innerText = message;
+
+    // Reset styles
+    iconContainer.className = 'h-16 w-16 rounded-full flex items-center justify-center mx-auto mb-4 text-3xl';
+    btn.className = 'w-full py-3.5 text-white font-bold rounded-xl transition active:scale-95 shadow-md';
+    cancelBtn.classList.add('hidden'); // Hidden by default
+    btn.innerText = 'OK';
+
+    // Remove old listeners
+    cancelBtn.onclick = null;
+    btn.onclick = null;
+
+    if (type === 'success') {
+        iconContainer.classList.add('bg-green-50', 'text-green-500');
+        iconContainer.innerHTML = '<i class="fas fa-check-circle"></i>';
+        btn.classList.add('bg-green-600', 'hover:bg-green-700', 'shadow-green-600/20');
+    } else if (type === 'error') {
+        iconContainer.classList.add('bg-red-50', 'text-red-500');
+        iconContainer.innerHTML = '<i class="fas fa-times-circle"></i>';
+        btn.classList.add('bg-red-600', 'hover:bg-red-700', 'shadow-red-600/20');
+    } else if (type === 'warning') {
+        iconContainer.classList.add('bg-amber-50', 'text-amber-500');
+        iconContainer.innerHTML = '<i class="fas fa-exclamation-triangle"></i>';
+        btn.classList.add('bg-amber-500', 'hover:bg-amber-600', 'shadow-amber-500/20');
+    } else if (type === 'confirm') {
+        // NEW CONFIRMATION STYLE
+        iconContainer.classList.add('bg-red-50', 'text-red-500');
+        iconContainer.innerHTML = '<i class="fas fa-trash-alt"></i>';
+        btn.classList.add('bg-red-600', 'hover:bg-red-700', 'shadow-red-600/20');
+        btn.innerText = 'Yes, Discard';
+        
+        cancelBtn.classList.remove('hidden'); // Show cancel button
+        cancelBtn.onclick = function() {
+            modal.classList.add('hidden'); // Just close if they cancel
+        };
+    }
+
+    // Show modal
+    modal.classList.remove('hidden');
+
+    // Handle primary button click
+    btn.onclick = function() {
+        modal.classList.add('hidden');
+        if (callback && typeof callback === 'function') {
+            callback(); // Run the action if they click "OK" or "Yes"
+        }
+    };
 };

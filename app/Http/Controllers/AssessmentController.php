@@ -82,6 +82,7 @@ class AssessmentController extends Controller
                 'year_level' => $request->year_level ?? '',
                 'description' => $request->description ?? '',
                 'status' => $request->status ?? 'draft',
+                'draft_json' => null, // <--- ADD THIS LINE TO CLEAR THE DRAFT
                 'updated_at' => now()
             ]);
 
@@ -165,30 +166,35 @@ class AssessmentController extends Controller
     public function autosave(Request $request, $id)
     {
         try {
+            // 1. If the frontend specifically asks to discard, wipe the draft completely.
+            if ($request->has('clear_draft') && $request->clear_draft) {
+                DB::table('assessments')->where('id', $id)->update([
+                    'draft_json' => null
+                ]);
+                return response()->json(['success' => true]);
+            }
+
+            // 2. Otherwise, tuck ALL the unsaved typing safely inside draft_json.
+            // This prevents the official title/description from being permanently overwritten!
+            $draftData = [
+                'title' => $request->title,
+                'year_level' => $request->year_level,
+                'description' => $request->description,
+                'categories' => $request->categories ?? []
+            ];
+
             DB::table('assessments')
                 ->where('id', $id)
                 ->update([
-                    // If a field is null, fall back to an empty string to prevent DB constraint crashes
-                    'title' => $request->title ?? 'Untitled Assessment',
-                    'year_level' => $request->year_level ?? '',
-                    'description' => $request->description ?? '',
-                    // Guarantee valid JSON is always passed to the column
-                    'draft_json' => json_encode($request->categories ?? []),
+                    'draft_json' => json_encode($draftData),
                     'updated_at' => now()
                 ]);
 
-            return response()->json([
-                'success' => true
-            ]);
+            return response()->json(['success' => true]);
 
         } catch (Exception $e) {
-            // Log the exact error to storage/logs/laravel.log
             Log::error('Autosave Error: ' . $e->getMessage());
-
-            return response()->json([
-                'success' => false,
-                'message' => $e->getMessage() // Send error to the frontend
-            ], 500);
+            return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
         }
     }
 }

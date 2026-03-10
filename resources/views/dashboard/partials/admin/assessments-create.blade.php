@@ -13,7 +13,7 @@
     <div class="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
         <div class="border-b border-gray-100 p-6 flex items-center justify-between bg-gray-50/50">
             <div class="flex items-center gap-4">
-                <button type="button" onclick="loadPartial('{{ route('dashboard.assessments.index') }}', this)"
+                <button type="button" onclick="document.getElementById('back-modal').classList.remove('hidden')"
                     class="h-10 w-10 flex items-center justify-center rounded-xl bg-white border border-gray-200 text-gray-500 hover:text-[#a52a2a] transition shadow-sm">
                     <i class="fas fa-arrow-left"></i>
                 </button>
@@ -88,5 +88,71 @@
             <span>Publish & Open Exam</span>
             <i class="fas fa-paper-plane"></i>
         </button>
+    </div>
+</div>
+
+<div id="back-modal" class="fixed inset-0 z-[100] hidden">
+    <div class="absolute inset-0 bg-gray-900/60 backdrop-blur-sm"></div>
+
+    <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-md p-6">
+        <div class="bg-white rounded-xl shadow-2xl overflow-hidden border border-gray-100">
+            <div class="p-6 text-center">
+                <div
+                    class="h-16 w-16 bg-amber-50 text-amber-500 rounded-full flex items-center justify-center mx-auto mb-4 text-2xl">
+                    <i class="fas fa-save"></i>
+                </div>
+                <h3 class="text-xl font-bold text-gray-900 mb-2">Unsaved Changes</h3>
+                <p class="text-gray-500 text-sm mb-6">How would you like to exit? Your progress is currently stored as a
+                    temporary draft.</p>
+
+                <div class="space-y-3">
+                    <button onclick="window.saveCompleteExam(this, 'published')"
+                        class="w-full py-4 bg-green-600 text-white font-bold rounded-2xl hover:bg-green-700 transition flex items-center justify-center gap-2">
+                        <i class="fas fa-paper-plane text-sm"></i>
+                        <span>Publish & Exit</span>
+                    </button>
+
+                    <button onclick="window.saveCompleteExam(this, 'draft')"
+                        class="w-full py-4 bg-white border border-gray-200 text-gray-700 font-bold rounded-2xl hover:bg-gray-50 transition flex items-center justify-center gap-2">
+                        <i class="fas fa-file-alt text-sm text-gray-400"></i>
+                        <span>Save as Draft & Exit</span>
+                    </button>
+
+                    <button type="button" onclick="window.discardChangesAndExit(this)"
+                        class="w-full py-3 text-gray-400 hover:text-red-500 text-sm font-bold transition">
+                        Discard changes and Exit
+                    </button>
+                </div>
+            </div>
+
+            <button onclick="document.getElementById('back-modal').classList.add('hidden')"
+                class="absolute top-6 right-6 h-8 w-8 flex items-center justify-center text-gray-400 hover:bg-gray-50 rounded-full">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+    </div>
+</div>
+
+<div id="status-modal" class="fixed inset-0 z-[110] hidden">
+    <div class="absolute inset-0 bg-gray-900/60 backdrop-blur-sm" onclick="document.getElementById('status-modal').classList.add('hidden')"></div>
+    
+    <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-sm p-6">
+        <div class="bg-white rounded-2xl shadow-2xl overflow-hidden border border-gray-100 p-6 text-center">
+            
+            <div id="status-modal-icon" class="h-16 w-16 rounded-full flex items-center justify-center mx-auto mb-4 text-3xl">
+            </div>
+            
+            <h3 id="status-modal-title" class="text-xl font-bold text-gray-900 mb-2">Title</h3>
+            <p id="status-modal-message" class="text-gray-500 text-sm mb-6">Message goes here.</p>
+            
+            <div class="flex gap-3 mt-2">
+                <button id="status-modal-cancel-btn" type="button" class="w-full py-3.5 bg-gray-100 text-gray-700 font-bold rounded-xl hover:bg-gray-200 transition active:scale-95 hidden">
+                    Cancel
+                </button>
+                <button id="status-modal-btn" type="button" class="w-full py-3.5 text-white font-bold rounded-xl transition active:scale-95 shadow-md">
+                    OK
+                </button>
+            </div>
+        </div>
     </div>
 </div>
