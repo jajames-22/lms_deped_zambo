@@ -9,13 +9,13 @@
         <span class="group-hover:text-[#a52a2a] transition-colors">Dashboard</span> 
     </button>
 
-    <button onclick="loadPartial('{{ url('/dashboard/materials') }}', this)"
+    <button id="nav-materials-btn" onclick="loadPartial('{{ url('/dashboard/materials') }}', this)"
         class="nav-btn w-full flex items-center px-4 py-3 text-gray-600 hover:bg-gray-100 transition group">
         <i class="fas fa-book-open w-5 mr-3 group-hover:text-[#a52a2a] transition-colors"></i>
         <span class="group-hover:text-[#a52a2a] transition-colors">Materials</span> 
     </button>
 
-    <button onclick="loadPartial('{{ url('/dashboard/assessment') }}', this)"
+    <button id="nav-assessment-btn" onclick="loadPartial('{{ url('/dashboard/assessment') }}', this)"
         class="nav-btn w-full flex items-center px-4 py-3 text-gray-600 hover:bg-gray-100 transition group">
         <i class="fas fa-clipboard w-5 mr-3 group-hover:text-[#a52a2a] transition-colors"></i>
         <span class="group-hover:text-[#a52a2a] transition-colors">Assessment</span> 

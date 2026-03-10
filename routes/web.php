@@ -8,6 +8,7 @@ use App\Http\Controllers\EnrollmentController;
 use App\Http\Controllers\QuizController;
 use App\Http\Controllers\TeacherController;
 use App\Http\Controllers\StudentController;
+use App\Http\Controllers\StudentAssessmentController;
 
 // 1. GUEST ROUTE
         Route::get('/', function () {
@@ -60,6 +61,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('/students/{student}/edit', [StudentController::class, 'editStudentPartial'])->name('students.edit');
         Route::put('/students/{student}', [StudentController::class, 'updateStudent'])->name('students.update');
         Route::delete('/students/{student}', [StudentController::class, 'destroyStudent'])->name('students.destroy');
+        Route::post('/student/assessment/verify', [StudentAssessmentController::class, 'verifyCode'])->name('student.assessment.verify');
+        Route::get('/student/assessment/{access_key}/lobby', [StudentAssessmentController::class, 'lobby'])->name('student.assessment.lobby');
                 
     });
         Route::get('/get-districts/{quadrantId}', [DashboardController::class, 'getDistricts'])->name('districts.get');
