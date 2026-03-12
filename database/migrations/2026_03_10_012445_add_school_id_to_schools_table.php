@@ -8,21 +8,19 @@ return new class extends Migration {
     /**
      * Run the migrations.
      */
-    public function up(): void
+
+    public function up()
     {
-        Schema::table('schools', function (Blueprint $table) {
-            // Adds the column right after the primary 'id' column
-            $table->string('school_id')->unique()->after('id');
-        });
+        if (!Schema::hasColumn('schools', 'school_id')) {
+            Schema::table('schools', function (Blueprint $table) {
+                $table->string('school_id')->after('id');
+            });
+        }
     }
 
-    /**
-     * Reverse the migrations.
-     */
-    public function down(): void
+    public function down()
     {
         Schema::table('schools', function (Blueprint $table) {
-            // Removes the column if you ever need to rollback
             $table->dropColumn('school_id');
         });
     }

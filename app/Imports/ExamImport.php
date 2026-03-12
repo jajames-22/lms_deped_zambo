@@ -50,9 +50,11 @@ class ExamImport implements ToCollection, WithHeadingRow
                 }
 
                 // 2. Process Question (Maps to `assessment_questions`)
+                $questionType = strtolower(trim($row['type'] ?? 'mcq'));
+
                 $questionId = DB::table('assessment_questions')->insertGetId([
                     'category_id' => $categoryId,
-                    'type' => strtolower(trim($row['type'] ?? 'mcq')),
+                    'type' => $questionType,
                     'question_text' => $row['question'],
                     'media_url' => null, // Null by default for Excel uploads
                     'is_case_sensitive' => false,
@@ -61,24 +63,49 @@ class ExamImport implements ToCollection, WithHeadingRow
                 ]);
 
                 // 3. Process Options (Maps to `assessment_options`)
-                for ($i = 1; $i <= 4; $i++) {
-                    $optionColumnName = 'option_' . $i;
-
-                    // Skip if this specific option column is empty (e.g., for True/False)
-                    if (!isset($row[$optionColumnName]) || trim($row[$optionColumnName]) === '') {
-                        continue;
-                    }
-
-                    $correctAnswerTarget = strtolower(trim($row['correct_answer'] ?? ''));
-                    $isCorrect = ($correctAnswerTarget === 'option ' . $i);
-
+                if ($questionType === 'true_false') {
+                    // Shortcut for True/False: Automatically create the options!
+                    $correctAnswer = strtolower(trim($row['correct_answer'] ?? ''));
+                    
+                    // Insert "True"
                     DB::table('assessment_options')->insert([
                         'question_id' => $questionId,
-                        'option_text' => trim($row[$optionColumnName]),
-                        'is_correct' => $isCorrect,
+                        'option_text' => 'True',
+                        'is_correct' => ($correctAnswer === 'true' || $correctAnswer === 'option 1'),
                         'created_at' => now(),
                         'updated_at' => now(),
                     ]);
+
+                    // Insert "False"
+                    DB::table('assessment_options')->insert([
+                        'question_id' => $questionId,
+                        'option_text' => 'False',
+                        'is_correct' => ($correctAnswer === 'false' || $correctAnswer === 'option 2'),
+                        'created_at' => now(),
+                        'updated_at' => now(),
+                    ]);
+
+                } else {
+                    // Standard logic for MCQ, Checkboxes, etc.
+                    for ($i = 1; $i <= 4; $i++) {
+                        $optionColumnName = 'option_' . $i;
+
+                        // Skip if this specific option column is empty
+                        if (!isset($row[$optionColumnName]) || trim($row[$optionColumnName]) === '') {
+                            continue;
+                        }
+
+                        $correctAnswerTarget = strtolower(trim($row['correct_answer'] ?? ''));
+                        $isCorrect = ($correctAnswerTarget === 'option ' . $i);
+
+                        DB::table('assessment_options')->insert([
+                            'question_id' => $questionId,
+                            'option_text' => trim($row[$optionColumnName]),
+                            'is_correct' => $isCorrect,
+                            'created_at' => now(),
+                            'updated_at' => now(),
+                        ]);
+                    }
                 }
             }
 
