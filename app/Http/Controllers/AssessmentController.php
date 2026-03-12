@@ -61,7 +61,7 @@ class AssessmentController extends Controller
             ->where('assessment_id', $id)
             ->get()
             ->map(function ($category) {
-                // Ensure type and image_url are fetched here
+                // Ensure type and media_url are fetched here
                 $category->questions = DB::table('assessment_questions')
                     ->where('category_id', $category->id)
                     ->get()
@@ -113,12 +113,12 @@ class AssessmentController extends Controller
                 ]);
 
                 foreach ($cat['questions'] as $q) {
-                    // NEW: Save the type and image_url
+                    // NEW: Save the type and media_url
                     $questionId = DB::table('assessment_questions')->insertGetId([
                         'category_id' => $categoryId,
                         'type' => $q['type'] ?? 'mcq',
                         'question_text' => $q['text'] ?? '',
-                        'image_url' => $q['image_url'] ?? null,
+                        'media_url' => $q['media_url'] ?? null,
                         'created_at' => now(),
                         'updated_at' => now(),
                         'is_case_sensitive' => $q['is_case_sensitive'] ?? false,
@@ -144,26 +144,34 @@ class AssessmentController extends Controller
             return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
         }
     }
-    public function uploadImage(Request $request)
+
+    public function uploadMedia(Request $request)
     {
         $request->validate([
-            'image' => 'required|image|mimes:jpeg,png,jpg,gif|max:2048', // 2MB Max
+            'media_file' => 'required|file|mimes:jpeg,png,jpg,gif,mp3,wav,mp4,webm|max:51200',
         ]);
 
-        if ($request->hasFile('image')) {
-            // Store in storage/app/public/assessment_images
-            $path = $request->file('image')->store('assessment_images', 'public');
+        if ($request->hasFile('media_file')) {
+            $file = $request->file('media_file');
+            $path = $file->store('assessment_media', 'public');
+
+            // NEW: Explicitly detect the exact media type
+            $ext = strtolower($file->getClientOriginalExtension());
+            $type = 'image';
+            if (in_array($ext, ['mp4', 'webm']))
+                $type = 'video';
+            if (in_array($ext, ['mp3', 'wav', 'ogg']))
+                $type = 'audio';
 
             return response()->json([
                 'success' => true,
-                'image_url' => Storage::url($path)
+                'media_url' => asset('storage/' . $path),
+                'media_type' => $type // Send the exact type to Javascript!
             ]);
         }
 
-        return response()->json(['success' => false, 'message' => 'No image uploaded.'], 400);
+        return response()->json(['success' => false, 'message' => 'No media uploaded.'], 400);
     }
-
-
 
     public function destroy($id)
     {
@@ -236,17 +244,82 @@ class AssessmentController extends Controller
             'exam_file' => 'required|mimes:xlsx,csv,xls|max:5120', // 5MB limit
         ]);
 
+        DB::beginTransaction();
         try {
-            // Run the import using the correct Assessment ID
+            // 1. Update basic test info and clear the temporary draft
+            DB::table('assessments')->where('id', $id)->update([
+                'title' => $request->title ?? 'Untitled Assessment',
+                'year_level' => $request->year_level ?? '',
+                'description' => $request->description ?? '',
+                'status' => 'draft',
+                'draft_json' => null,
+                'updated_at' => now()
+            ]);
+
+            // 2. Process and save any manually created categories/questions from the UI
+            if ($request->has('categories')) {
+                $categories = json_decode($request->categories, true);
+
+                // Delete existing database rows to replace with the current UI state
+                $existingCategories = DB::table('assessment_categories')->where('assessment_id', $id)->pluck('id');
+                if ($existingCategories->isNotEmpty()) {
+                    $existingQuestions = DB::table('assessment_questions')->whereIn('category_id', $existingCategories)->pluck('id');
+                    if ($existingQuestions->isNotEmpty()) {
+                        DB::table('assessment_options')->whereIn('question_id', $existingQuestions)->delete();
+                    }
+                    DB::table('assessment_questions')->whereIn('category_id', $existingCategories)->delete();
+                    DB::table('assessment_categories')->where('assessment_id', $id)->delete();
+                }
+
+                // Insert the payload from the frontend
+                if (is_array($categories)) {
+                    foreach ($categories as $cat) {
+                        $categoryId = DB::table('assessment_categories')->insertGetId([
+                            'assessment_id' => $id,
+                            'title' => $cat['title'] ?? 'New Section',
+                            'time_limit' => (int) ($cat['time_limit'] ?? 0),
+                            'created_at' => now(),
+                            'updated_at' => now(),
+                        ]);
+
+                        foreach ($cat['questions'] ?? [] as $q) {
+                            $questionId = DB::table('assessment_questions')->insertGetId([
+                                'category_id' => $categoryId,
+                                'type' => $q['type'] ?? 'mcq',
+                                'question_text' => $q['text'] ?? '',
+                                'media_url' => $q['media_url'] ?? null,
+                                'created_at' => now(),
+                                'updated_at' => now(),
+                                'is_case_sensitive' => $q['is_case_sensitive'] ?? false,
+                            ]);
+
+                            foreach ($q['options'] ?? [] as $opt) {
+                                DB::table('assessment_options')->insert([
+                                    'question_id' => $questionId,
+                                    'option_text' => $opt['text'] ?? '',
+                                    'is_correct' => $opt['is_correct'] ?? false,
+                                    'created_at' => now(),
+                                    'updated_at' => now(),
+                                ]);
+                            }
+                        }
+                    }
+                }
+            }
+
+            // 3. Run the import using the correct Assessment ID (this appends to the DB)
             Excel::import(new ExamImport($id), $request->file('exam_file'));
 
+            DB::commit();
+
             return response()->json([
-                'success' => true, 
+                'success' => true,
                 'message' => 'Questions imported successfully!'
             ]);
         } catch (Exception $e) {
+            DB::rollBack();
             return response()->json([
-                'success' => false, 
+                'success' => false,
                 'message' => 'Import failed: ' . $e->getMessage()
             ], 500);
         }

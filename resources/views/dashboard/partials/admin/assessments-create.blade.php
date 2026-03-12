@@ -3,7 +3,7 @@
     data-save-url="{{ route('dashboard.assessments.store_questions', $assessment->id) }}"
     data-delete-url="{{ route('dashboard.assessments.destroy', $assessment->id) }}"
     data-redirect-url="{{ route('dashboard.assessments.index') }}" data-csrf="{{ csrf_token() }}"
-    data-upload-url="{{ route('dashboard.assessments.upload_image') }}"
+    data-upload-url="{{ route('dashboard.assessments.upload_media') }}"
     class="space-y-6 pb-20 w-full max-w-5xl mx-auto">
 
     <input type="hidden" id="existing-data" value="{{ json_encode($categories ?? []) }}">
@@ -68,31 +68,31 @@
         </div>
     </div>
 
-    <div class="mt-4 flex gap-4">
-        <a href="{{ route('dashboard.assessments.download_template') }}"
-            class="flex-1 py-4 border-2 border-dashed border-green-200 text-green-600 font-bold rounded-2xl hover:bg-green-50 hover:border-green-300 transition flex items-center justify-center gap-3">
-            <i class="fas fa-file-excel text-xl"></i>
-            Download Excel Template
-        </a>
-
-        <button type="button" onclick="openImportModal()"
-            class="flex-1 py-4 border-2 border-dashed border-blue-200 text-blue-600 font-bold rounded-2xl hover:bg-blue-50 hover:border-blue-300 transition flex items-center justify-center gap-3">
-            <i class="fas fa-upload text-xl"></i>
-            Import Excel/CSV File
-        </button>
-    </div>
-
 
     <div id="builder-container" class="space-y-4"></div>
 
-    <button type="button" onclick="window.addCategory()"
-        class="w-full mt-4 px-4 py-6 border-2 border-dashed border-gray-200 text-gray-400 font-bold rounded-2xl hover:bg-gray-50 hover:border-[#a52a2a]/30 hover:text-[#a52a2a] transition flex items-center justify-center gap-3 group">
-        <div
-            class="h-8 w-8 rounded-full bg-gray-100 group-hover:bg-[#a52a2a]/10 flex items-center justify-center transition">
-            <i class="fas fa-plus"></i>
+
+    <div class="mt-6 grid grid-cols-1 md:grid-cols-3 gap-4">
+        <button type="button" onclick="window.addCategory()"
+            class="md:col-span-2 px-4 py-5 border-2 border-dashed border-gray-200 text-gray-500 font-bold rounded-2xl hover:bg-gray-50 hover:border-[#a52a2a]/30 hover:text-[#a52a2a] transition flex items-center justify-center gap-3 group">
+            <div
+                class="h-8 w-8 rounded-full bg-gray-100 group-hover:bg-[#a52a2a]/10 flex items-center justify-center transition">
+                <i class="fas fa-plus"></i>
+            </div>
+            Add New Section / Category
+        </button>
+
+        <div class="flex flex-col gap-2">
+            <button type="button" onclick="openImportModal()"
+                class="flex-1 py-2 border-2 border-dashed border-blue-200 text-blue-600 font-bold rounded-xl hover:bg-blue-50 hover:border-blue-300 transition flex items-center justify-center gap-2 text-sm">
+                <i class="fas fa-upload"></i> Import Categories and Questions
+            </button>
+            <a href="{{ route('dashboard.assessments.download_template') }}"
+                class="flex-1 py-2 border border-gray-200 text-gray-500 font-bold rounded-xl hover:bg-gray-50 transition flex items-center justify-center gap-2 text-xs">
+                <i class="fas fa-download"></i> Get Template
+            </a>
         </div>
-        Add New Section / Category
-    </button>
+    </div>
 
     <div class="mt-10 pt-6 border-t border-gray-200 flex justify-end gap-4">
         <button type="button" onclick="window.saveCompleteExam(this, 'draft')"
@@ -235,6 +235,63 @@
     </div>
 </div>
 
+<div id="media-upload-modal" class="fixed inset-0 z-[120] hidden">
+    <div class="absolute inset-0 bg-gray-900/60 backdrop-blur-sm" onclick="window.closeMediaModal()"></div>
+
+    <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-md p-6">
+        <div class="bg-white rounded-2xl shadow-2xl overflow-hidden border border-gray-100 p-6">
+
+            <div class="text-center mb-6">
+                <div
+                    class="h-16 w-16 bg-[#a52a2a]/10 text-[#a52a2a] rounded-full flex items-center justify-center mx-auto mb-4 text-3xl">
+                    <i class="fas fa-photo-video"></i>
+                </div>
+                <h3 class="text-xl font-bold text-gray-900">Upload Media</h3>
+                <p class="text-gray-500 text-sm mt-1">Attach an image, audio, or video.</p>
+            </div>
+
+            <div class="mb-6">
+                <input type="file" id="media-file-input" accept="image/*, audio/*, video/*" class="hidden"
+                    onchange="window.handleMediaFileSelect(this)">
+
+                <label for="media-file-input" id="media-dropzone"
+                    class="cursor-pointer flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-gray-300 rounded-xl bg-gray-50 hover:bg-gray-100 hover:border-[#a52a2a]/50 transition">
+                    <div class="flex flex-col items-center justify-center pt-5 pb-6">
+                        <i class="fas fa-cloud-upload-alt text-2xl text-gray-400 mb-2"></i>
+                        <p class="text-sm text-gray-500 font-medium">Click to choose a file</p>
+                        <p class="text-xs text-gray-400 mt-1">Image, Audio (MP3), or Video (MP4)</p>
+                    </div>
+                </label>
+
+                <div id="selected-media-display"
+                    class="hidden mt-4 p-3 bg-gray-50 border border-gray-200 rounded-lg items-center justify-between">
+                    <div class="flex items-center gap-3 overflow-hidden">
+                        <i class="fas fa-file-video text-[#a52a2a] text-lg"></i>
+                        <span id="selected-media-name"
+                            class="font-mono text-sm text-gray-700 truncate font-medium">file.mp4</span>
+                    </div>
+                    <button type="button" onclick="window.clearSelectedMedia()"
+                        class="text-gray-400 hover:text-red-500 transition px-2">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+            </div>
+
+            <div class="flex gap-3">
+                <button type="button" onclick="window.closeMediaModal()"
+                    class="w-full py-3.5 bg-gray-100 text-gray-700 font-bold rounded-xl hover:bg-gray-200 transition active:scale-95">
+                    Cancel
+                </button>
+                <button type="button" id="start-media-upload-btn" onclick="window.executeMediaUpload()" disabled
+                    class="w-full py-3.5 bg-[#a52a2a] text-white font-bold rounded-xl hover:bg-[#801f1f] transition disabled:opacity-50 disabled:cursor-not-allowed shadow-md flex justify-center items-center gap-2">
+                    <i class="fas fa-upload"></i>
+                    <span>Upload Media</span>
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <script>
     let selectedFile = null;
 
@@ -279,6 +336,7 @@
         document.getElementById('start-upload-btn').disabled = true;
     }
 
+
     function executeExcelUpload() {
         if (!selectedFile) return;
 
@@ -289,11 +347,23 @@
         btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> <span>Processing...</span>';
         btn.disabled = true;
 
+        // 2. Grab the FULL current state of the builder
+        let payload = window.getPayload("draft");
+
         let formData = new FormData();
         formData.append('exam_file', selectedFile);
         formData.append('_token', document.querySelector('[data-csrf]').dataset.csrf);
 
-        let assessmentId = document.getElementById('assessment-wrapper').dataset.assessmentId;
+        // 3. Append the metadata
+        formData.append('title', payload.title);
+        formData.append('year_level', payload.year_level);
+        formData.append('description', payload.description);
+
+        // 4. Stringify and append the categories/questions the user manually built
+        formData.append('categories', JSON.stringify(payload.categories));
+
+        let wrapper = document.getElementById('assessment-wrapper');
+        let assessmentId = wrapper.dataset.assessmentId;
 
         fetch(`/dashboard/assessments/${assessmentId}/import`, {
             method: 'POST',
@@ -309,11 +379,25 @@
             })
             .then(data => {
                 if (data.success) {
-                    closeImportModal(); // Hide the upload modal
+                    closeImportModal();
                     showStatusModal('Success!', 'Your exam has been updated with the imported questions.', 'success');
 
-                    // Reload after a short delay so they can see the success message
-                    setTimeout(() => { window.location.reload(); }, 2000);
+                    // Clear the trackers so the browser's "Leave Site" alert does NOT pop up
+                    window.hasChanged = false;
+                    lastPayload = "";
+
+                    // Clear local storage draft so it doesn't overwrite your fresh import
+                    localStorage.removeItem("assessment_draft_" + assessmentId);
+
+                    // Use loadPartial to reload JUST the builder, not the whole dashboard
+                    setTimeout(() => {
+                        let buildUrl = `/dashboard/assessments/${assessmentId}/build`;
+                        if (typeof loadPartial === 'function') {
+                            loadPartial(buildUrl);
+                        } else {
+                            window.location.href = buildUrl;
+                        }
+                    }, 2000);
                 } else {
                     throw new Error(data.message || 'Import failed.');
                 }
@@ -359,4 +443,6 @@
         // Close button logic
         actionBtn.onclick = () => modal.classList.add('hidden');
     }
+
+
 </script>

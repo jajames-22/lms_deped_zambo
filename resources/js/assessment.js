@@ -106,7 +106,7 @@ window.initBuilder = function () {
                         document.getElementById("setup-desc").value =
                             serverDraft.description;
                 } else if (serverDraft.length > 0) {
-                    existingData = serverDraft; 
+                    existingData = serverDraft;
                 }
             }
         } catch (e) {
@@ -156,33 +156,35 @@ window.initBuilder = function () {
 
     window.hasChanged = false;
     clearTimeout(autosaveTimer);
-    window.updateAutosaveIndicator('Ready');
+    window.updateAutosaveIndicator("Ready");
 };
 
 /* =========================================
    INTELLIGENT BACK BUTTON LOGIC
 ========================================= */
 
-window.handleBackButton = async function() {
+window.handleBackButton = async function () {
     const title = document.getElementById("setup-title").value;
     const year = document.getElementById("setup-year").value;
     const wrapper = document.getElementById("assessment-wrapper");
-    
+
     // Scenario 1: They made NO changes during this session
     if (!window.hasChanged) {
-        
         // If it's also a completely untouched default exam, clean it up from the DB
         if (title === "Untitled Assessment" && year === "") {
             try {
                 await fetch(wrapper.dataset.deleteUrl, {
-                    method: 'DELETE',
-                    headers: { 'X-CSRF-TOKEN': wrapper.dataset.csrf, 'Accept': 'application/json' }
+                    method: "DELETE",
+                    headers: {
+                        "X-CSRF-TOKEN": wrapper.dataset.csrf,
+                        Accept: "application/json",
+                    },
                 });
-            } catch(e) {}
+            } catch (e) {}
         }
-        
+
         // Leave the page silently without showing the warning modal
-        if (typeof loadPartial === 'function') {
+        if (typeof loadPartial === "function") {
             loadPartial(wrapper.dataset.redirectUrl);
         } else {
             window.location.href = wrapper.dataset.redirectUrl;
@@ -191,7 +193,7 @@ window.handleBackButton = async function() {
     }
 
     // Scenario 2: Changes WERE made this session, so show the warning modal
-    document.getElementById('back-modal').classList.remove('hidden');
+    document.getElementById("back-modal").classList.remove("hidden");
 };
 /* =========================================
    AUTOSAVE TRIGGER
@@ -389,14 +391,17 @@ window.addQuestion = function (cId, type = "mcq") {
 
             <div class="relative mb-3">
                 <textarea class="q-text w-full pl-3 pr-10 py-2 bg-white border border-gray-200 rounded-lg outline-none font-medium text-sm focus:border-[#a52a2a] resize-y min-h-[44px]" placeholder="${placeholder}" oninput="this.style.height = ''; this.style.height = this.scrollHeight + 'px'"></textarea>
-                
-                <button type="button" onclick="document.getElementById('file-${qId}').click()" title="Upload Image" class="absolute right-2 top-2 h-7 w-7 flex items-center justify-center text-gray-400 hover:text-[#a52a2a] hover:bg-gray-100 rounded transition">
-                    <i class="fas fa-image"></i>
+               
+                <button type="button" onclick="window.openMediaModal('${qId}')" title="Upload Media" class="absolute right-2 top-2 h-7 w-7 flex items-center justify-center text-gray-400 hover:text-[#a52a2a] hover:bg-gray-100 rounded transition">
+                    <i class="fas fa-photo-video"></i>
                 </button>
-                <input type="file" id="file-${qId}" class="hidden" accept="image/*" onchange="window.handleImageUpload(this, '${qId}')">
-                <input type="hidden" class="q-image-url" value="">
+                <input type="hidden" class="q-media-url" value="">
+                
             </div>
 
+            <div id="preview-${qId}" class="hidden relative mb-4 rounded-lg overflow-hidden border border-gray-200 inline-block">
+                </div>
+        
             <div id="preview-${qId}" class="hidden relative mb-4 rounded-lg overflow-hidden border border-gray-200 inline-block">
                 <img src="" class="max-h-48 w-auto object-contain bg-white">
                 <button type="button" onclick="window.removeQuestionImage('${qId}')" class="absolute top-1 right-1 h-6 w-6 bg-red-500/80 hover:bg-red-600 text-white rounded flex items-center justify-center backdrop-blur-sm transition">
@@ -432,7 +437,7 @@ window.addOptionToQuestion = function (
     type,
     isCorrect = false,
     text = "",
-    isCaseSensitive = false
+    isCaseSensitive = false,
 ) {
     const list = document.querySelector(`#${qId} .options-list`);
     if (!list) return;
@@ -504,66 +509,144 @@ window.removeOption = function (btnElement, qId) {
 };
 
 // --- IMAGE UPLOAD LOGIC ---
-window.handleImageUpload = async function (input, qId) {
-    if (!input.files || !input.files[0]) return;
+// --- MEDIA UPLOAD LOGIC ---
+window.currentMediaUploadQId = null;
+window.selectedMediaFile = null;
 
-    const file = input.files[0];
+window.openMediaModal = function (qId) {
+    window.currentMediaUploadQId = qId;
+    window.clearSelectedMedia();
+    document.getElementById("media-upload-modal").classList.remove("hidden");
+};
+
+window.closeMediaModal = function () {
+    document.getElementById("media-upload-modal").classList.add("hidden");
+    window.currentMediaUploadQId = null;
+};
+
+window.handleMediaFileSelect = function (input) {
+    if (!input.files || input.files.length === 0) return;
+
+    window.selectedMediaFile = input.files[0];
+    document.getElementById("selected-media-name").innerText =
+        window.selectedMediaFile.name;
+
+    document.getElementById("media-dropzone").classList.add("hidden");
+    document
+        .getElementById("selected-media-display")
+        .classList.remove("hidden");
+    document.getElementById("selected-media-display").classList.add("flex");
+
+    document.getElementById("start-media-upload-btn").disabled = false;
+};
+
+window.clearSelectedMedia = function () {
+    window.selectedMediaFile = null;
+    document.getElementById("media-file-input").value = "";
+
+    document.getElementById("media-dropzone").classList.remove("hidden");
+    document.getElementById("selected-media-display").classList.add("hidden");
+    document.getElementById("selected-media-display").classList.remove("flex");
+
+    document.getElementById("start-media-upload-btn").disabled = true;
+};
+
+window.executeMediaUpload = async function () {
+    if (!window.selectedMediaFile || !window.currentMediaUploadQId) return;
+
+    const btn = document.getElementById("start-media-upload-btn");
+    const originalHtml = btn.innerHTML;
+    btn.innerHTML =
+        '<i class="fas fa-spinner fa-spin"></i> <span>Uploading...</span>';
+    btn.disabled = true;
+
     const wrapper = document.getElementById("assessment-wrapper");
-    const csrf = wrapper.dataset.csrf;
-    const uploadUrl = wrapper.dataset.uploadUrl;
-
     const formData = new FormData();
-    formData.append("image", file);
-
-    const btnIcon = input.previousElementSibling;
-    const originalHtml = btnIcon.innerHTML;
-    btnIcon.innerHTML = '<i class="fas fa-spinner fa-spin text-[#a52a2a]"></i>';
+    formData.append("media_file", window.selectedMediaFile);
 
     try {
-        const response = await fetch(uploadUrl, {
+        const response = await fetch(wrapper.dataset.uploadUrl, {
             method: "POST",
-            headers: { "X-CSRF-TOKEN": csrf, Accept: "application/json" },
+            headers: {
+                "X-CSRF-TOKEN": wrapper.dataset.csrf,
+                Accept: "application/json",
+            },
             body: formData,
         });
 
         const data = await response.json();
 
         if (data.success) {
-            window.setImagePreview(qId, data.image_url);
+            // NEW: Pass the exact media type (audio/video/image) directly from the server
+            window.setMediaPreview(
+                window.currentMediaUploadQId,
+                data.media_url,
+                data.media_type,
+            );
+            window.closeMediaModal();
+            window.handleAutosaveTrigger();
         } else {
-            alert(data.message || "Failed to upload image.");
+            alert(data.message || "Failed to upload media.");
         }
     } catch (e) {
         console.error(e);
         alert("Upload failed. Check console.");
     } finally {
-        btnIcon.innerHTML = originalHtml;
-        input.value = ""; 
+        btn.innerHTML = originalHtml;
     }
 };
 
-window.setImagePreview = function (qId, url) {
+window.setMediaPreview = function (qId, url, explicitType = null) {
     const block = document.getElementById(qId);
-    block.querySelector(".q-image-url").value = url;
+
+    // BULLETPROOF: Look for either the old or new class name so it never crashes!
+    const mediaInput =
+        block.querySelector(".q-media-url") ||
+        block.querySelector(".q-image-url");
+    if (mediaInput) mediaInput.value = url;
 
     const previewDiv = document.getElementById(`preview-${qId}`);
-    previewDiv.querySelector("img").src = url;
-    previewDiv.classList.remove("hidden");
 
-    window.handleAutosaveTrigger();
+    // If the type wasn't passed (like during page reload), safely guess it
+    let type = explicitType;
+    if (!type) {
+        const cleanUrl = url.split("?")[0];
+        const extension = cleanUrl.split(".").pop().toLowerCase();
+        if (["mp3", "wav", "ogg"].includes(extension)) type = "audio";
+        else if (["mp4", "webm"].includes(extension)) type = "video";
+        else type = "image";
+    }
+
+    let mediaHtml = "";
+    if (type === "audio") {
+        mediaHtml = `<audio controls src="${url}" class="w-full mt-2 outline-none"></audio>`;
+    } else if (type === "video") {
+        mediaHtml = `<video controls src="${url}" class="max-h-64 w-full object-contain bg-black rounded-lg"></video>`;
+    } else {
+        mediaHtml = `<img src="${url}" class="max-h-48 w-auto object-contain bg-white rounded-lg">`;
+    }
+
+    // FIX: Change previewDiv to 'block w-full' so videos have enough room to render
+    previewDiv.className =
+        "relative mb-4 rounded-lg overflow-hidden border border-gray-200 block w-full";
+
+    previewDiv.innerHTML = `
+        ${mediaHtml}
+        <button type="button" onclick="window.removeQuestionMedia('${qId}')" class="absolute top-1 right-1 h-6 w-6 bg-red-500/80 hover:bg-red-600 text-white rounded flex items-center justify-center backdrop-blur-sm transition z-10 shadow-sm">
+            <i class="fas fa-times text-xs"></i>
+        </button>
+    `;
 };
-
-window.removeQuestionImage = function (qId) {
+window.removeQuestionMedia = function (qId) {
     const block = document.getElementById(qId);
-    block.querySelector(".q-image-url").value = "";
+    block.querySelector(".q-media-url").value = "";
 
     const previewDiv = document.getElementById(`preview-${qId}`);
-    previewDiv.querySelector("img").src = "";
+    previewDiv.innerHTML = "";
     previewDiv.classList.add("hidden");
 
     window.handleAutosaveTrigger();
 };
-
 // --- DATA COLLECTION UPDATE ---
 
 window.getPayload = function (status) {
@@ -583,7 +666,7 @@ window.getPayload = function (status) {
                 ) {
                     isCorrect = isCorrectInput.checked;
                 } else if (isCorrectInput.type === "hidden") {
-                    isCorrect = true; 
+                    isCorrect = true;
                 }
 
                 options.push({
@@ -595,8 +678,10 @@ window.getPayload = function (status) {
             questions.push({
                 type: q.dataset.type,
                 text: q.querySelector(".q-text").value,
-                image_url: q.querySelector(".q-image-url").value,
-                is_case_sensitive: q.querySelector(".case-sensitive-input") ? q.querySelector(".case-sensitive-input").checked : false,
+                media_url: q.querySelector(".q-media-url").value,
+                is_case_sensitive: q.querySelector(".case-sensitive-input")
+                    ? q.querySelector(".case-sensitive-input").checked
+                    : false,
                 options: options,
             });
         });
@@ -621,15 +706,16 @@ window.getPayload = function (status) {
 window.renderExistingCategory = function (catData) {
     window.addCategory();
     const latestCat = document.querySelector(".category-block:last-child");
-    
+
     // Set Category/Section Details
     latestCat.querySelector(".c-title").value = catData.title || "";
     latestCat.querySelector(".c-time").value = catData.time_limit || "";
-    latestCat.querySelector(".category-display-title").innerText = catData.title || "New Section";
+    latestCat.querySelector(".category-display-title").innerText =
+        catData.title || "New Section";
 
     const qContainer = latestCat.querySelector('[id^="q-container-"]');
-    
-    // Clear the default question added by window.addCategory() 
+
+    // Clear the default question added by window.addCategory()
     // to prevent having an extra empty MCQ at the top
     qContainer.innerHTML = "";
 
@@ -639,33 +725,36 @@ window.renderExistingCategory = function (catData) {
 
             // 1. Add the question block shell with the CORRECT type
             window.addQuestion(qContainer.id.split("-").pop(), type);
-            const latestQ = qContainer.querySelector(".question-block:last-child");
+            const latestQ = qContainer.querySelector(
+                ".question-block:last-child",
+            );
 
             // 2. Set the question text (handle both possible naming conventions)
-            latestQ.querySelector(".q-text").value = q.text || q.question_text || "";
+            latestQ.querySelector(".q-text").value =
+                q.text || q.question_text || "";
 
             // 3. Handle Image Preview
-            const imgUrl = q.image_url;
-            if (imgUrl) {
-                window.setImagePreview(latestQ.id, imgUrl);
+            const mediaUrl = q.media_url || q.image_url; // Fallback for old database rows
+            if (mediaUrl) {
+                window.setMediaPreview(latestQ.id, mediaUrl);
             }
-
             // 4. Clear the default options created by window.addQuestion
             latestQ.querySelector(".options-list").innerHTML = "";
 
             // 5. Render Options with specific type logic
             if (q.options && q.options.length > 0) {
-                const isCaseSensitive = q.is_case_sensitive == 1 || q.is_case_sensitive === true;
+                const isCaseSensitive =
+                    q.is_case_sensitive == 1 || q.is_case_sensitive === true;
 
                 q.options.forEach((opt) => {
-                    // CRITICAL: We pass 'type' here so the UI knows to render 
+                    // CRITICAL: We pass 'type' here so the UI knows to render
                     // radio buttons (mcq), checkboxes, or the green text input.
                     window.addOptionToQuestion(
                         latestQ.id,
-                        type, 
+                        type,
                         opt.is_correct == 1 || opt.is_correct === true,
                         opt.text || opt.option_text || "",
-                        isCaseSensitive
+                        isCaseSensitive,
                     );
                 });
             }
@@ -679,7 +768,7 @@ window.collectCategoriesData = function () {
 
 window.saveCompleteExam = async function (btn, status) {
     clearTimeout(autosaveTimer);
-    lastPayload = ""; 
+    lastPayload = "";
 
     const wrapper = document.getElementById("assessment-wrapper");
     const payload = window.getPayload(status);
@@ -736,7 +825,6 @@ window.saveCompleteExam = async function (btn, status) {
     }
 };
 
-
 // --- UTILITIES ---
 
 window.toggleCategory = (id, e) => {
@@ -788,16 +876,20 @@ window.deleteAssessmentFromBuilder = async function () {
                     }
                 }
             } catch (e) {
-                window.showModal("error", "Error", "Failed to discard assessment.");
+                window.showModal(
+                    "error",
+                    "Error",
+                    "Failed to discard assessment.",
+                );
             }
-        }
+        },
     );
 };
 
 window.addEventListener("beforeunload", (event) => {
     if (lastPayload !== "") {
         event.preventDefault();
-        event.returnValue = ""; 
+        event.returnValue = "";
     }
 });
 
@@ -807,7 +899,6 @@ window.discardChangesAndExit = function (btn) {
         "Discard Unsaved Changes?",
         "Are you sure you want to discard your unsaved work and exit? This cannot be undone.",
         async () => {
-
             const wrapper = document.getElementById("assessment-wrapper");
             if (!wrapper) return;
 
@@ -845,7 +936,7 @@ window.discardChangesAndExit = function (btn) {
                 window.location.href = wrapper.dataset.redirectUrl;
             }
         },
-    ); 
+    );
 };
 
 const backModal = document.getElementById("back-modal");
@@ -880,7 +971,7 @@ window.showModal = function (type, title, message, callback = null) {
         "h-16 w-16 rounded-full flex items-center justify-center mx-auto mb-4 text-3xl";
     btn.className =
         "w-full py-3.5 text-white font-bold rounded-xl transition active:scale-95 shadow-md";
-    cancelBtn.classList.add("hidden"); 
+    cancelBtn.classList.add("hidden");
     btn.innerText = "OK";
 
     cancelBtn.onclick = null;
@@ -920,9 +1011,9 @@ window.showModal = function (type, title, message, callback = null) {
         );
         btn.innerText = "Yes, Discard";
 
-        cancelBtn.classList.remove("hidden"); 
+        cancelBtn.classList.remove("hidden");
         cancelBtn.onclick = function () {
-            modal.classList.add("hidden"); 
+            modal.classList.add("hidden");
         };
     }
 
@@ -931,7 +1022,7 @@ window.showModal = function (type, title, message, callback = null) {
     btn.onclick = function () {
         modal.classList.add("hidden");
         if (callback && typeof callback === "function") {
-            callback(); 
+            callback();
         }
     };
 };
