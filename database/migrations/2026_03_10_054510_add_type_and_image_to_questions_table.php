@@ -10,15 +10,15 @@ return new class extends Migration {
             // Adds 'mcq', 'checkbox', 'text', or 'instruction'
             $table->string('type')->default('mcq')->after('question_text');
             // Stores the image URL
-            $table->string('image_url')->nullable()->after('type');
-            $table->boolean('is_case_sensitive')->default(false)->after('image_url');
+            $table->string('media_url')->nullable()->after('type');
+            $table->boolean('is_case_sensitive')->default(false)->after('media_url');
         });
     }
 
     public function down()
     {
         Schema::table('assessment_questions', function (Blueprint $table) {
-            $table->dropColumn(['type', 'image_url']);
+            $table->dropColumn(['type', 'media_url']);
         });
     }
 };

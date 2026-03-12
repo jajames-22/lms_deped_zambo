@@ -13,9 +13,8 @@ Route::middleware(['auth', 'verified'])->prefix('dashboard/assessments')->name('
     Route::post('/{id}/autosave', [AssessmentController::class, 'autosave'])
         ->name('autosave');
 
-    // 2. FIXED: Removed the redundant 'assessments/' prefix and 'dashboard.assessments.' name
-    Route::post('/upload-image', [AssessmentController::class, 'uploadImage'])
-        ->name('upload_image');
+    Route::post('/upload-media', [AssessmentController::class, 'uploadMedia'])
+        ->name('upload_media');
 
     Route::post('/quiz/{quizId}/import', [AssessmentController::class, 'importQuestions'])->name('quiz.import');
 
