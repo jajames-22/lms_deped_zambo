@@ -14,9 +14,32 @@ use Exception;
 use App\Exports\AssessmentTemplateExport;
 use Illuminate\Support\Facades\Log;
 use App\Models\AssessmentAccess;
+use App\Imports\LrnAccessImport;
 
 class AssessmentController extends Controller
 {
+
+    public function importAccess(Request $request, Assessment $assessment)
+    {
+        $request->validate([
+            'file' => 'required|mimes:xlsx,xls,csv|max:2048'
+        ]);
+
+        try {
+            Excel::import(new LrnAccessImport($assessment->id), $request->file('file'));
+            
+            return response()->json([
+                'success' => true, 
+                'message' => 'LRN list imported successfully!'
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false, 
+                'message' => 'Import failed. Check if your file has an "lrn" header.'
+            ], 500);
+        }
+    }
+
     public function index()
     {
         $assessments = DB::table('assessments')
@@ -28,7 +51,7 @@ class AssessmentController extends Controller
             ])
             ->orderBy('updated_at', 'desc') // newest updated first
             ->get();
-        return view('dashboard.partials.admin.assessment', compact('assessments'));
+        return view('dashboard.partials.admin.assessments', compact('assessments'));
     }
 
     public function create()
@@ -366,4 +389,6 @@ class AssessmentController extends Controller
         $access->delete();
         return response()->json(['success' => true, 'message' => 'Student access revoked.']);
     }
+
+
 }

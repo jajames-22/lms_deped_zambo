@@ -81,6 +81,15 @@ Route::middleware(['auth'])->group(function () {
     Route::post('/courses/{course}/enroll', [EnrollmentController::class, 'store'])->name('courses.enroll');
 });
 
+Route::prefix('assessments')->name('dashboard.assessments.')->group(function () {
+    
+    // ... your other assessment routes (manage, builder, etc.)
+
+    // ADD THIS LINE EXACTLY:
+    Route::post('/{assessment}/import-access', [AssessmentController::class, 'importAccess'])->name('access.import');
+
+});
+
 // 4. REQUIRED AUTH FILES
 require __DIR__ . '/auth.php';
 require __DIR__ . '/assessment.php';
