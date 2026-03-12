@@ -20,7 +20,6 @@
                     Grade {{ $assessment->year_level }} Assessment
                 </span>
                 <h1 class="text-3xl font-black text-white mb-2">{{ $assessment->title }}</h1>
-                <p class="text-red-100 font-medium">Access Key: <span class="font-mono bg-black/20 px-2 py-0.5 rounded">{{ $assessment->access_key }}</span></p>
             </div>
         </div>
 

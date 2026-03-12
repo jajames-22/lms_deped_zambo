@@ -5,7 +5,7 @@
             <p class="text-gray-500 text-sm">Data-driven test to measure students learning progress.</p>
         </div>
 
-        <button onclick="loadPartial('{{ route('dashboard.assessments.create') }}', this)"
+        <button onclick="loadPartial('{{ route('dashboard.assessments.create') }}', document.getElementById('nav-assessment-btn'))"
             class="flex-shrink-0 flex items-center justify-center gap-2 px-6 py-3 bg-[#a52a2a] text-white font-bold rounded-xl shadow-lg shadow-[#a52a2a]/20 hover:bg-red-800 transition-all active:scale-95">
             <i class="fas fa-plus"></i>
             <span>Create New Test</span>
@@ -30,15 +30,16 @@
         </div>
     </div>
 
-    <div id="assessment-grid" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 items-stretch">
+    <div id="assessment-grid" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 items-stretch relative">
         @forelse($assessments as $assessment)
             @php $isLive = ($assessment->status === 'published'); @endphp
 
             <div id="assessment-card-{{ $assessment->id }}"
-                class="assessment-card {{ $isLive ? 'live' : 'draft' }} flex flex-col h-full bg-white rounded-2xl border border-gray-200 {{ $isLive ? 'border-t-green-500 border-t-4' : 'border-t-amber-400 border-t-4' }} shadow-sm hover:shadow-lg transition-all duration-300 group overflow-hidden relative">
+                onclick="loadPartial('{{ route('dashboard.assessments.manage', $assessment->id) }}', document.getElementById('nav-assessment-btn'))"
+                class="assessment-card {{ $isLive ? 'live' : 'draft' }} flex flex-col h-full bg-white rounded-2xl border border-gray-200 {{ $isLive ? 'border-t-green-500 border-t-4' : 'border-t-amber-400 border-t-4' }} shadow-sm hover:shadow-lg transition-all duration-300 group overflow-hidden relative cursor-pointer">
 
                 <button
-                    onclick="window.deleteAssessmentFromList('{{ $assessment->id }}', '{{ route('dashboard.assessments.destroy', $assessment->id) }}')"
+                    onclick="event.stopPropagation(); window.deleteAssessmentFromList('{{ $assessment->id }}', '{{ route('dashboard.assessments.destroy', $assessment->id) }}')"
                     class="absolute top-4 right-4 h-8 w-8 rounded-full bg-gray-50 text-gray-400 opacity-0 group-hover:opacity-100 transition-all flex items-center justify-center hover:bg-red-100 hover:text-red-600 z-10"
                     title="Delete Assessment">
                     <i class="fas fa-trash-alt text-sm"></i>
@@ -86,13 +87,14 @@
                     @endif
 
                     <div class="flex gap-3 mt-4 pt-4 border-t border-gray-100">
-                        <button onclick="loadPartial('{{ route('dashboard.assessments.builder', $assessment->id) }}', this)"
+                        <button onclick="event.stopPropagation(); loadPartial('{{ route('dashboard.assessments.builder', $assessment->id) }}',document.getElementById('nav-assessment-btn'))"
                             class="flex-1 py-2.5 bg-white border border-gray-200 text-gray-700 text-sm font-bold rounded-xl hover:bg-gray-50 hover:border-[#a52a2a]/30 hover:text-[#a52a2a] transition-all shadow-sm">
                             <i class="fas {{ $isLive ? 'fa-edit' : 'fa-play' }} mr-1"></i>
-                            {{ $isLive ? 'Manage' : 'Resume' }}
+                            {{ $isLive ? 'Edit' : 'Resume' }}
                         </button>
+
                         @if($isLive)
-                            <button
+                            <button onclick="event.stopPropagation();"
                                 class="flex-1 py-2.5 bg-[#a52a2a] text-white text-sm font-bold rounded-xl hover:bg-red-800 transition-all shadow-md shadow-[#a52a2a]/20">
                                 <i class="fas fa-chart-pie mr-1"></i> Analytics
                             </button>
@@ -101,16 +103,20 @@
                 </div>
             </div>
         @empty
-            <div
-                class="col-span-full py-16 flex flex-col items-center justify-center bg-white rounded-2xl border border-dashed border-gray-300">
+            <div class="col-span-full py-16 flex flex-col items-center justify-center bg-white rounded-2xl border border-dashed border-gray-300">
                 <div class="h-16 w-16 rounded-full bg-gray-50 flex items-center justify-center text-gray-400 mb-4">
-                    <i class="fas fa-folder-open text-2xl"></i>
+                    <i class="fas fa-clipboard-list text-2xl"></i>
                 </div>
-                <h3 class="text-lg font-bold text-gray-900 mb-1">No Assessments Found</h3>
-                <p class="text-sm text-gray-500 max-w-sm text-center">You haven't created any assessments yet. Click the
-                    "Create New Test" button above to get started.</p>
+                <h3 class="text-lg font-bold text-gray-900 mb-1">No assessment found, try adding one!</h3>
             </div>
         @endforelse
+
+        <div id="dynamic-empty-state" style="display: none;" class="col-span-full py-16 flex flex-col items-center justify-center bg-white rounded-2xl border border-dashed border-gray-300">
+            <div class="h-16 w-16 rounded-full bg-gray-50 flex items-center justify-center text-gray-400 mb-4">
+                <i class="fas fa-search-minus text-2xl"></i>
+            </div>
+            <h3 class="text-lg font-bold text-gray-900 mb-1">No assessment found, try adding one!</h3>
+        </div>
     </div>
 </div>
 
@@ -210,7 +216,10 @@
                 if (response.ok) {
                     card.style.transform = 'scale(0.95)';
                     card.style.opacity = '0';
-                    setTimeout(() => card.remove(), 300);
+                    setTimeout(() => {
+                        card.remove();
+                        window.applyFilters(); // Re-run filters to check if list is now empty
+                    }, 300);
                 } else {
                     window.showModal('error', 'Delete Failed', 'The server returned an error while deleting.');
                     btn.innerHTML = originalHtml;
@@ -222,8 +231,8 @@
                 btn.disabled = false;
             }
 
-        }); // <-- THESE CLOSING BRACKETS WERE MISSING!
-    };     // <-- THESE CLOSING BRACKETS WERE MISSING!
+        }); 
+    }; 
 
 
     // 3. Search and Filter Functions
@@ -249,6 +258,7 @@
 
     window.applyFilters = function() {
         const query = document.getElementById('assessment-search').value.toLowerCase();
+        let visibleCount = 0;
 
         document.querySelectorAll('.assessment-card').forEach(card => {
             const title = card.querySelector('.test-title').innerText.toLowerCase();
@@ -256,9 +266,22 @@
 
             if (matchesTab && title.includes(query)) {
                 card.style.display = 'flex';
+                visibleCount++;
             } else {
                 card.style.display = 'none';
             }
         });
+
+        // Show dynamic empty state if nothing matches search/filter
+        const dynamicEmptyState = document.getElementById('dynamic-empty-state');
+        if (dynamicEmptyState) {
+            // Only show JS empty state if there are actual cards in the DOM, but none are visible
+            const totalCards = document.querySelectorAll('.assessment-card').length;
+            if (totalCards > 0 && visibleCount === 0) {
+                dynamicEmptyState.style.display = 'flex';
+            } else {
+                dynamicEmptyState.style.display = 'none';
+            }
+        }
     };
 </script>

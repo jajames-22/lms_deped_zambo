@@ -22,7 +22,7 @@
     </button>
 
     <button id="nav-schools-btn" class="nav-btn w-full flex items-center px-4 py-3 text-gray-600 ..." 
-        onclick="loadPartial('{{ route('schools') }}', this)">
+        onclick="loadPartial('{{ url('/dashboard/schools') }}', this)">
         <i class="fas fa-school w-5 mr-3"></i>
         <span>Schools</span>
     </button>

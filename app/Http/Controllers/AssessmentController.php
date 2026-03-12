@@ -13,6 +13,7 @@ use Illuminate\Support\Str;
 use Exception;
 use App\Exports\AssessmentTemplateExport;
 use Illuminate\Support\Facades\Log;
+use App\Models\AssessmentAccess;
 
 class AssessmentController extends Controller
 {
@@ -27,7 +28,7 @@ class AssessmentController extends Controller
             ])
             ->orderBy('updated_at', 'desc') // newest updated first
             ->get();
-        return view('dashboard.partials.admin.assessments', compact('assessments'));
+        return view('dashboard.partials.admin.assessment', compact('assessments'));
     }
 
     public function create()
@@ -249,5 +250,47 @@ class AssessmentController extends Controller
                 'message' => 'Import failed: ' . $e->getMessage()
             ], 500);
         }
+    }
+
+
+    public function manage(\App\Models\Assessment $assessment)
+    {
+        $assessment->loadCount(['categories', 'questions']);
+
+        // Fetch the access list, and attempt to load the registered student data if it exists
+        $whitelistedStudents = AssessmentAccess::with('student')
+            ->where('assessment_id', $assessment->id)
+            ->latest()
+            ->get();
+
+        return view('dashboard.partials.admin.assessments-manage', compact('assessment', 'whitelistedStudents'));
+    }
+
+    // 2. ADD THIS NEW METHOD TO SAVE LRNs
+    public function addAccess(Request $request, \App\Models\Assessment $assessment)
+    {
+        $request->validate([
+            'lrn' => 'required|digits:12'
+        ]);
+
+        // Check if LRN is already added
+        if (AssessmentAccess::where('assessment_id', $assessment->id)->where('lrn', $request->lrn)->exists()) {
+            return response()->json(['success' => false, 'message' => 'This LRN is already on the access list.']);
+        }
+
+        AssessmentAccess::create([
+            'assessment_id' => $assessment->id,
+            'lrn' => $request->lrn,
+            'status' => 'offline' // Default status
+        ]);
+
+        return response()->json(['success' => true, 'message' => 'Student LRN added successfully!']);
+    }
+
+    // 3. ADD THIS NEW METHOD TO REMOVE LRNs
+    public function removeAccess(AssessmentAccess $access)
+    {
+        $access->delete();
+        return response()->json(['success' => true, 'message' => 'Student access revoked.']);
     }
 }

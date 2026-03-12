@@ -39,7 +39,7 @@
             onclick="toggleSidebar()"></div>
 
         <aside id="sidebar"
-            class="fixed inset-y-0 left-0 w-64 bg-white border-r border-gray-200 z-50 transform -translate-x-full md:translate-x-0 md:relative sidebar-transition flex flex-col h-full">
+            class="fixed inset-y-0 left-0 w-64 bg-white border-r border-gray-200 z-50 transform -translate-x-full md:translate-x-0 md:relative transition-all flex flex-col h-full">
             <div class="px-6 py-8 flex items-center justify-between lg:justify-center shrink-0">
                 <div class="flex-shrink-0">
                     <a href="{{ url('/dashboard') }}">
