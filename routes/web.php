@@ -2,23 +2,19 @@
 
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\DashboardController;
-use App\Http\Controllers\CourseController;
-use App\Http\Controllers\LessonController;
-use App\Http\Controllers\EnrollmentController;
-use App\Http\Controllers\QuizController;
 use App\Http\Controllers\TeacherController;
 use App\Http\Controllers\StudentController;
 use App\Http\Controllers\StudentAssessmentController;
 use App\Http\Controllers\AssessmentController;
 
 // 1. GUEST ROUTE
-        Route::get('/', function () {
+Route::get('/', function () {
     return view('index');
 })->middleware('guest')->name('index');
 
 // 2. AUTHENTICATED DASHBOARD ROUTES
 Route::middleware(['auth', 'verified'])->group(function () {
-    
+
     // Main Dashboard Entry Point
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard.main');
 
@@ -55,34 +51,26 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('/students/{student}/edit', [StudentController::class, 'editStudentPartial'])->name('students.edit');
         Route::put('/students/{student}', [StudentController::class, 'updateStudent'])->name('students.update');
         Route::delete('/students/{student}', [StudentController::class, 'destroyStudent'])->name('students.destroy');
-        
+
         Route::post('/student/assessment/verify', [StudentAssessmentController::class, 'verifyCode'])->name('student.assessment.verify');
         Route::get('/student/assessment/{access_key}/lobby', [StudentAssessmentController::class, 'lobby'])->name('student.assessment.lobby');
 
         Route::get('/dashboard/assessments/{assessment}/manage', [AssessmentController::class, 'manage'])->name('dashboard.assessments.manage');
 
         // Explicitly named Student Access Routes
-Route::post('/dashboard/assessments/{assessment}/access', [App\Http\Controllers\AssessmentController::class, 'addAccess'])->name('dashboard.assessments.access.add');
+        Route::post('/dashboard/assessments/{assessment}/access', [App\Http\Controllers\AssessmentController::class, 'addAccess'])->name('dashboard.assessments.access.add');
 
-Route::delete('/dashboard/assessments/access/{access}', [App\Http\Controllers\AssessmentController::class, 'removeAccess'])->name('dashboard.assessments.access.remove');
-                
+        Route::delete('/dashboard/assessments/access/{access}', [App\Http\Controllers\AssessmentController::class, 'removeAccess'])->name('dashboard.assessments.access.remove');
+
     });
-        Route::get('/get-districts/{quadrantId}', [DashboardController::class, 'getDistricts'])->name('districts.get');
+    Route::get('/get-districts/{quadrantId}', [DashboardController::class, 'getDistricts'])->name('districts.get');
 
 });
 
-// 3. COURSE MANAGEMENT ROUTES
-Route::middleware(['auth'])->group(function () {
-    Route::resource('courses', CourseController::class);
-    Route::resource('lessons', LessonController::class);
-    Route::resource('quizzes', QuizController::class);
 
-    Route::get('/courses/{course}', [CourseController::class, 'show'])->name('courses.show');
-    Route::post('/courses/{course}/enroll', [EnrollmentController::class, 'store'])->name('courses.enroll');
-});
 
 Route::prefix('assessments')->name('dashboard.assessments.')->group(function () {
-    
+
     // ... your other assessment routes (manage, builder, etc.)
 
     // ADD THIS LINE EXACTLY:
@@ -93,3 +81,4 @@ Route::prefix('assessments')->name('dashboard.assessments.')->group(function () 
 // 4. REQUIRED AUTH FILES
 require __DIR__ . '/auth.php';
 require __DIR__ . '/assessment.php';
+require __DIR__ . '/materials.php';

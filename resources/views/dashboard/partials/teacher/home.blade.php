@@ -1,6 +1,7 @@
 <div class="mb-8">
     <h1 class="text-2xl font-bold text-gray-900">Instructor Overview</h1>
-    <p class="text-gray-500 text-sm">Welcome back, Prof. {{ auth()->user()->last_name }}. Here is what's happening in your classes today.</p>
+    <p class="text-gray-500 text-sm">Welcome back, Prof. {{ auth()->user()->last_name }}. Here is what's happening in
+        your classes today.</p>
 </div>
 
 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
@@ -21,7 +22,7 @@
                 <i class="fas fa-book text-xl"></i>
             </div>
         </div>
-        <p class="text-gray-500 text-sm font-medium">Active Courses</p>
+        <p class="text-gray-500 text-sm font-medium">Active Materialss</p>
         <h3 class="text-2xl font-bold text-gray-900">5</h3>
     </div>
 
@@ -65,11 +66,12 @@
                             <p class="text-xs text-gray-500">12 new submissions today</p>
                         </div>
                     </div>
-                    <button class="px-4 py-2 bg-[#a52a2a] text-white text-xs font-bold rounded-lg hover:bg-red-800 transition">
+                    <button
+                        class="px-4 py-2 bg-[#a52a2a] text-white text-xs font-bold rounded-lg hover:bg-red-800 transition">
                         Grade Now
                     </button>
                 </div>
-                
+
                 <div class="p-4 flex items-center justify-between hover:bg-gray-50 transition">
                     <div class="flex items-center space-x-4">
                         <div class="bg-gray-100 p-2 rounded-lg">
@@ -80,7 +82,8 @@
                             <p class="text-xs text-gray-500">16 submissions pending</p>
                         </div>
                     </div>
-                    <button class="px-4 py-2 bg-[#a52a2a] text-white text-xs font-bold rounded-lg hover:bg-red-800 transition">
+                    <button
+                        class="px-4 py-2 bg-[#a52a2a] text-white text-xs font-bold rounded-lg hover:bg-red-800 transition">
                         Grade Now
                     </button>
                 </div>
@@ -93,7 +96,7 @@
             <h3 class="font-bold text-gray-900 mb-6 flex items-center">
                 <i class="fas fa-calendar-day mr-2 text-[#a52a2a]"></i> Today's Classes
             </h3>
-            
+
             <div class="space-y-6">
                 <div class="relative pl-6 border-l-2 border-[#a52a2a]">
                     <div class="absolute -left-[5px] top-0 w-2 h-2 rounded-full bg-[#a52a2a]"></div>
@@ -108,8 +111,9 @@
                     <p class="text-xs text-gray-500">Online • Section B</p>
                 </div>
             </div>
-            
-            <button class="w-full mt-8 py-3 bg-gray-50 text-gray-600 text-sm font-bold rounded-xl hover:bg-gray-100 transition">
+
+            <button
+                class="w-full mt-8 py-3 bg-gray-50 text-gray-600 text-sm font-bold rounded-xl hover:bg-gray-100 transition">
                 View Weekly Schedule
             </button>
         </div>

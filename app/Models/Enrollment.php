@@ -11,14 +11,14 @@ class Enrollment extends Model
         return $this->belongsTo(User::class);
     }
 
-    public function course()
+    public function materials()
     {
-        return $this->belongsTo(Course::class);
+        return $this->belongsTo(Materials::class);
     }
 
     protected $fillable = [
         'user_id',
-        'course_id'
+        'materials_id'
     ];
 }
 
