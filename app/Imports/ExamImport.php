@@ -19,7 +19,6 @@ class ExamImport implements ToCollection, WithHeadingRow
 
     public function collection(Collection $rows)
     {
-        // Use a transaction matching your controller's logic
         DB::beginTransaction();
 
         try {
@@ -29,7 +28,7 @@ class ExamImport implements ToCollection, WithHeadingRow
                     continue;
                 }
 
-                // 1. Process Category (Maps to `assessment_categories`)
+                // 1. Process Category
                 $categoryTitle = $row['category'] ?? 'Imported Section';
 
                 $category = DB::table('assessment_categories')
@@ -49,25 +48,31 @@ class ExamImport implements ToCollection, WithHeadingRow
                     $categoryId = $category->id;
                 }
 
-                // 2. Process Question (Maps to `assessment_questions`)
+                // 2. Process Question
                 $questionType = strtolower(trim($row['type'] ?? 'mcq'));
+                
+                // NEW: Check for an image_url or media_url column in the spreadsheet
+                $mediaUrl = null;
+                if (!empty($row['image_url']) && trim($row['image_url']) !== '') {
+                    $mediaUrl = trim($row['image_url']);
+                } elseif (!empty($row['media_url']) && trim($row['media_url']) !== '') {
+                    $mediaUrl = trim($row['media_url']);
+                }
 
                 $questionId = DB::table('assessment_questions')->insertGetId([
                     'category_id' => $categoryId,
                     'type' => $questionType,
                     'question_text' => $row['question'],
-                    'media_url' => null, // Null by default for Excel uploads
+                    'media_url' => $mediaUrl, // <-- Saves the URL from the spreadsheet
                     'is_case_sensitive' => false,
                     'created_at' => now(),
                     'updated_at' => now(),
                 ]);
 
-                // 3. Process Options (Maps to `assessment_options`)
+                // 3. Process Options
                 if ($questionType === 'true_false') {
-                    // Shortcut for True/False: Automatically create the options!
                     $correctAnswer = strtolower(trim($row['correct_answer'] ?? ''));
                     
-                    // Insert "True"
                     DB::table('assessment_options')->insert([
                         'question_id' => $questionId,
                         'option_text' => 'True',
@@ -76,7 +81,6 @@ class ExamImport implements ToCollection, WithHeadingRow
                         'updated_at' => now(),
                     ]);
 
-                    // Insert "False"
                     DB::table('assessment_options')->insert([
                         'question_id' => $questionId,
                         'option_text' => 'False',
@@ -86,11 +90,9 @@ class ExamImport implements ToCollection, WithHeadingRow
                     ]);
 
                 } else {
-                    // Standard logic for MCQ, Checkboxes, etc.
                     for ($i = 1; $i <= 4; $i++) {
                         $optionColumnName = 'option_' . $i;
 
-                        // Skip if this specific option column is empty
                         if (!isset($row[$optionColumnName]) || trim($row[$optionColumnName]) === '') {
                             continue;
                         }
@@ -113,7 +115,7 @@ class ExamImport implements ToCollection, WithHeadingRow
 
         } catch (Exception $e) {
             DB::rollBack();
-            throw $e; // Rethrow so your AssessmentController can catch it and return the error message
+            throw $e; 
         }
     }
 }

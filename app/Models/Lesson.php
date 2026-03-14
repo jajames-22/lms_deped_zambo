@@ -6,9 +6,9 @@ use Illuminate\Database\Eloquent\Model;
 
 class Lesson extends Model
 {
-    public function course()
+    public function materials()
     {
-        return $this->belongsTo(Course::class);
+        return $this->belongsTo(Materials::class);
     }
 
     public function quizzes()

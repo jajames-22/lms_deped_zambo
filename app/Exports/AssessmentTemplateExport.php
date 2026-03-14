@@ -15,6 +15,7 @@ class AssessmentTemplateExport implements FromArray, WithHeadings, ShouldAutoSiz
             'time_limit', 
             'type', 
             'question',
+            'media_url', // <-- Updated to media_url
             'option_1', 
             'option_2', 
             'option_3', 
@@ -25,10 +26,15 @@ class AssessmentTemplateExport implements FromArray, WithHeadings, ShouldAutoSiz
 
     public function array(): array
     {
-        // Providing two rows of sample data so users know how to fill it out
         return [
-            ['General Knowledge', '10', 'mcq', 'What is the capital of the Philippines?', 'Cebu', 'Manila', 'Davao', 'Iloilo', 'Option 2'],
-            ['General Knowledge', '5', 'true_false', 'The earth is flat.', '', '', '', '', 'Option 2'],
+            // Example 1: Standard MCQ
+            ['General Knowledge', '10', 'mcq', 'What is the capital of the Philippines?', '', 'Cebu', 'Manila', 'Davao', 'Iloilo', 'Option 2'],
+            
+            // Example 2: True/False 
+            ['General Knowledge', '5', 'true_false', 'The earth is flat.', '', 'True', 'False', '', '', 'Option 2'],
+            
+            // Example 3: A question WITH a media URL!
+            ['General Knowledge', '10', 'mcq', 'What animal is shown in the picture?', 'https://upload.wikimedia.org/wikipedia/commons/4/4d/Cat_November_2010-1a.jpg', 'Dog', 'Cat', 'Bird', 'Fish', 'Option 2'],
         ];
     } 
 }

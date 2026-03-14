@@ -57,6 +57,7 @@ window.initBuilder = function () {
         existingData.forEach((cat) => {
             window.renderExistingCategory(cat);
         });
+        window.updateCategoryNumbers(); // Ensure numbers are correct after load
     } else {
         if (document.querySelectorAll(".category-block").length === 0) {
             window.addCategory();
@@ -132,15 +133,16 @@ window.addCategory = function () {
         <div class="bg-white rounded-2xl shadow-sm border border-gray-200 category-block overflow-hidden transition-all mb-4" id="${catId}">
             <div class="p-4 bg-gray-50/50 flex items-center justify-between cursor-pointer group" onclick="window.toggleCategory('${catId}', event)">
                 <div class="flex items-center gap-4 flex-1">
-                    <div class="h-8 w-8 rounded-lg bg-[#a52a2a]/10 text-[#a52a2a] flex items-center justify-center font-bold text-sm">
+                    <div class="h-8 w-8 rounded-lg bg-[#a52a2a]/10 text-[#a52a2a] flex items-center justify-center font-bold text-sm cat-number-badge">
                         ${window.catCount}
                     </div>
                     <span class="font-bold text-gray-700 category-display-title">New Section</span>
                 </div>
-                <div class="flex items-center gap-2">
-                    <button type="button" onclick="window.removeElement('${catId}')" class="h-8 w-8 text-gray-400 hover:text-red-500 transition">
-                        <i class="fas fa-trash-alt"></i>
-                    </button>
+                
+                <div class="flex items-center gap-1">
+                    <button type="button" onclick="window.moveCategoryUp(this, event)" class="h-8 w-8 flex items-center justify-center text-gray-400 hover:text-gray-700 hover:bg-gray-200 rounded transition" title="Move Section Up"><i class="fas fa-arrow-up"></i></button>
+                    <button type="button" onclick="window.moveCategoryDown(this, event)" class="h-8 w-8 flex items-center justify-center text-gray-400 hover:text-gray-700 hover:bg-gray-200 rounded transition" title="Move Section Down"><i class="fas fa-arrow-down"></i></button>
+                    <button type="button" onclick="window.removeElement('${catId}')" class="h-8 w-8 flex items-center justify-center text-gray-400 hover:text-red-500 hover:bg-red-50 rounded transition ml-2" title="Delete Section"><i class="fas fa-trash-alt"></i></button>
                 </div>
             </div>
 
@@ -172,9 +174,7 @@ window.addCategory = function () {
                             <button type="button" onclick="window.addQuestion(${window.catCount}, 'mcq'); window.toggleDropdown(this.closest('.relative').querySelector('button'))" class="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 hover:text-[#a52a2a]"><i class="fas fa-dot-circle w-5 text-center text-gray-400 mr-1"></i> Multiple Choice</button>
                             <button type="button" onclick="window.addQuestion(${window.catCount}, 'checkbox'); window.toggleDropdown(this.closest('.relative').querySelector('button'))" class="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 hover:text-[#a52a2a]"><i class="fas fa-check-square w-5 text-center text-gray-400 mr-1"></i> Checkboxes</button>
                             <button type="button" onclick="window.addQuestion(${window.catCount}, 'text'); window.toggleDropdown(this.closest('.relative').querySelector('button'))" class="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 hover:text-[#a52a2a]"><i class="fas fa-align-left w-5 text-center text-gray-400 mr-1"></i> Short Text</button>
-                            
                             <button type="button" onclick="window.addQuestion(${window.catCount}, 'true_false'); window.toggleDropdown(this.closest('.relative').querySelector('button'))" class="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 hover:text-[#a52a2a]"><i class="fas fa-adjust w-5 text-center text-gray-400 mr-1"></i> True or False</button>
-                            
                             <div class="border-t border-gray-100 my-1"></div>
                             <button type="button" onclick="window.addQuestion(${window.catCount}, 'instruction'); window.toggleDropdown(this.closest('.relative').querySelector('button'))" class="w-full text-left px-4 py-2 text-sm text-[#a52a2a] bg-[#a52a2a]/5 hover:bg-[#a52a2a]/10 font-bold"><i class="fas fa-info-circle w-5 text-center mr-1"></i> Add Instruction</button>
                         </div>
@@ -184,6 +184,7 @@ window.addCategory = function () {
         </div>`;
 
     container.insertAdjacentHTML("beforeend", html);
+    window.updateCategoryNumbers();
 };
 
 window.toggleDropdown = function (btn) {
@@ -194,6 +195,7 @@ window.toggleDropdown = function (btn) {
     menu.classList.toggle("hidden");
 };
 
+// Add a Question Block
 // Add a Question Block
 window.addQuestion = function (cId, type = "mcq") {
     const container = document.getElementById(`q-container-${cId}`);
@@ -213,29 +215,45 @@ window.addQuestion = function (cId, type = "mcq") {
     const html = `
         <div class="p-4 rounded-xl border border-gray-100 question-block relative group ${bgClass}" id="${qId}" data-type="${type}">
             
-            <div class="flex justify-between items-start mb-2">
-                <span class="text-[10px] font-bold text-gray-400 uppercase tracking-wider flex items-center gap-1">
-                    <i class="fas ${icon}"></i> 
-                    ${type === "mcq" ? "Multiple Choice" : type === "checkbox" ? "Checkboxes" : type === "text" ? "Short Text" : type === "true_false" ? "True or False" : "Instruction Block"}
-                </span>
+            <div class="flex justify-between items-start mb-2 cursor-pointer" onclick="window.toggleQuestion('${qId}', event)">
+                <div class="flex items-center gap-2 overflow-hidden pr-2">
+                    <div class="h-6 w-6 flex items-center justify-center text-gray-400 group-hover:text-gray-600 transition q-chevron-icon shrink-0">
+                        <i class="fas fa-chevron-up text-xs"></i>
+                    </div>
+                    <span class="text-[10px] font-bold text-gray-400 uppercase tracking-wider flex items-center gap-1 shrink-0">
+                        <i class="fas ${icon}"></i> 
+                        ${type === "mcq" ? "Multiple Choice" : type === "checkbox" ? "Checkboxes" : type === "text" ? "Short Text" : type === "true_false" ? "True or False" : "Instruction Block"}
+                    </span>
+                    <span class="text-xs text-gray-500 font-medium truncate ml-2 q-preview-text hidden"></span>
+                </div>
                 
-                <button type="button" onclick="window.removeElement('${qId}')" class="h-7 w-7 flex items-center justify-center text-gray-300 hover:text-red-500 transition rounded-md hover:bg-red-50">
-                    <i class="fas fa-times"></i>
-                </button>
+                <div class="flex items-center gap-1 shrink-0">
+                    <button type="button" onclick="window.moveQuestionUp(this)" class="h-7 w-7 flex items-center justify-center text-gray-300 hover:text-gray-600 transition rounded-md hover:bg-gray-200" title="Move Question Up"><i class="fas fa-arrow-up"></i></button>
+                    <button type="button" onclick="window.moveQuestionDown(this)" class="h-7 w-7 flex items-center justify-center text-gray-300 hover:text-gray-600 transition rounded-md hover:bg-gray-200" title="Move Question Down"><i class="fas fa-arrow-down"></i></button>
+                    <button type="button" onclick="window.removeElement('${qId}')" class="h-7 w-7 flex items-center justify-center text-gray-300 hover:text-red-500 transition rounded-md hover:bg-red-50 ml-1" title="Delete Question"><i class="fas fa-times"></i></button>
+                </div>
             </div>
 
-            <div class="relative mb-3">
-                <textarea class="q-text w-full pl-3 pr-10 py-2 bg-white border border-gray-200 rounded-lg outline-none font-medium text-sm focus:border-[#a52a2a] resize-y min-h-[44px]" placeholder="${placeholder}"></textarea>
-                <input type="hidden" class="q-media-url" value="">
+            <div class="question-body">
+                <div class="relative mb-3">
+                    <textarea class="q-text w-full pl-3 pr-10 py-2 bg-white border border-gray-200 rounded-lg outline-none font-medium text-sm focus:border-[#a52a2a] resize-y min-h-[44px]" placeholder="${placeholder}"></textarea>
+                    <input type="hidden" class="q-media-url" value="">
+                    
+                    <button type="button" onclick="window.openMediaModal('${qId}')" title="Upload Media" class="absolute right-2 top-2 h-7 w-7 flex items-center justify-center text-gray-400 hover:text-[#a52a2a] hover:bg-gray-100 rounded transition">
+                        <i class="fas fa-photo-video"></i>
+                    </button>
+                </div>
+                
+                <div id="preview-${qId}" class="hidden relative mb-4 rounded-lg overflow-hidden border border-gray-200 inline-block w-full"></div>
+                
+                <div class="options-list space-y-2 mb-3"></div>
+                
+                ${(type === "mcq" || type === "checkbox") ? `
+                    <button type="button" onclick="window.addOptionToQuestion('${qId}', '${type}')" class="text-[10px] font-bold text-[#a52a2a] hover:underline uppercase flex items-center">
+                        <i class="fas fa-plus mr-1"></i> Add Choice
+                    </button>
+                ` : ""}
             </div>
-            
-            <div class="options-list space-y-2 mb-3"></div>
-            
-            ${(type === "mcq" || type === "checkbox") ? `
-                <button type="button" onclick="window.addOptionToQuestion('${qId}', '${type}')" class="text-[10px] font-bold text-[#a52a2a] hover:underline uppercase flex items-center">
-                    <i class="fas fa-plus mr-1"></i> Add Choice
-                </button>
-            ` : ""}
         </div>`;
 
     container.insertAdjacentHTML("beforeend", html);
@@ -312,6 +330,61 @@ window.addOptionToQuestion = function (qId, type, isCorrect = false, text = "", 
     window.handleAutosaveTrigger();
 };
 
+/* =========================================
+   MOVEMENT & REORDERING LOGIC
+========================================= */
+
+window.moveCategoryUp = function(btn, event) {
+    event.stopPropagation();
+    const catBlock = btn.closest('.category-block');
+    const prev = catBlock.previousElementSibling;
+    if (prev && prev.classList.contains('category-block')) {
+        prev.insertAdjacentElement('beforebegin', catBlock);
+        window.updateCategoryNumbers();
+        window.handleAutosaveTrigger();
+    }
+};
+
+window.moveCategoryDown = function(btn, event) {
+    event.stopPropagation();
+    const catBlock = btn.closest('.category-block');
+    const next = catBlock.nextElementSibling;
+    if (next && next.classList.contains('category-block')) {
+        next.insertAdjacentElement('afterend', catBlock);
+        window.updateCategoryNumbers();
+        window.handleAutosaveTrigger();
+    }
+};
+
+window.moveQuestionUp = function(btn) {
+    const qBlock = btn.closest('.question-block');
+    const prev = qBlock.previousElementSibling;
+    if (prev && prev.classList.contains('question-block')) {
+        prev.insertAdjacentElement('beforebegin', qBlock);
+        window.handleAutosaveTrigger();
+    }
+};
+
+window.moveQuestionDown = function(btn) {
+    const qBlock = btn.closest('.question-block');
+    const next = qBlock.nextElementSibling;
+    if (next && next.classList.contains('question-block')) {
+        next.insertAdjacentElement('afterend', qBlock);
+        window.handleAutosaveTrigger();
+    }
+};
+
+window.updateCategoryNumbers = function() {
+    document.querySelectorAll('.category-block').forEach((block, index) => {
+        const numberBadge = block.querySelector('.cat-number-badge');
+        if (numberBadge) {
+            numberBadge.innerText = index + 1;
+        }
+    });
+};
+
+/* ========================================= */
+
 window.removeOption = function (btnElement, qId) {
     btnElement.closest(".option-row").remove();
     window.handleAutosaveTrigger();
@@ -319,7 +392,11 @@ window.removeOption = function (btnElement, qId) {
 
 window.removeElement = function (id) {
     const el = document.getElementById(id);
-    if (el) el.remove();
+    if (el) {
+        const isCategory = el.classList.contains('category-block');
+        el.remove();
+        if (isCategory) window.updateCategoryNumbers(); 
+    }
     window.handleAutosaveTrigger();
 };
 
@@ -327,6 +404,31 @@ window.toggleCategory = function (id, event) {
     if (["INPUT", "BUTTON", "I"].includes(event.target.tagName)) return;
     const body = document.querySelector(`#${id} .category-body`);
     body.classList.toggle("hidden");
+};
+
+window.toggleQuestion = function (id, event) {
+    // Prevent collapsing if they are clicking the Up/Down/Delete buttons
+    if (event && event.target.closest("button")) return;
+    
+    const block = document.getElementById(id);
+    const body = block.querySelector(".question-body");
+    const icon = block.querySelector(".q-chevron-icon i");
+    const preview = block.querySelector(".q-preview-text");
+    const textarea = block.querySelector(".q-text");
+
+    body.classList.toggle("hidden");
+    icon.classList.toggle("fa-chevron-down");
+    icon.classList.toggle("fa-chevron-up");
+    
+    if (body.classList.contains("hidden")) {
+        // If it was just collapsed, grab what they typed to show as a preview!
+        let text = textarea.value.trim();
+        preview.innerText = text ? "- " + text : "- (Empty Question)";
+        preview.classList.remove("hidden");
+    } else {
+        // Hide the preview when expanded
+        preview.classList.add("hidden");
+    }
 };
 
 window.updateCatDisplay = function (input) {
@@ -403,248 +505,6 @@ window.updateAutosaveIndicator = function (html) {
     if (el) el.innerHTML = html;
 };
 
-// --- BUILDER UI LOGIC ---
-
-window.addCategory = function () {
-    const container = document.getElementById("builder-container");
-    if (!container) return;
-
-    window.catCount++;
-    const catId = `cat-${window.catCount}`;
-
-    const html = `
-        <div class="bg-white rounded-2xl shadow-sm border border-gray-200 category-block overflow-hidden transition-all mb-4" id="${catId}">
-            <div class="p-4 bg-gray-50/50 flex items-center justify-between cursor-pointer group" onclick="window.toggleCategory('${catId}', event)">
-                <div class="flex items-center gap-4 flex-1">
-                    <div class="h-8 w-8 rounded-lg bg-[#a52a2a]/10 text-[#a52a2a] flex items-center justify-center font-bold text-sm">
-                        ${window.catCount}
-                    </div>
-                    <span class="font-bold text-gray-700 category-display-title">New Section</span>
-                </div>
-                <div class="flex items-center gap-2">
-                    <button type="button" onclick="window.removeElement('${catId}')" class="h-8 w-8 text-gray-400 hover:text-red-500 transition">
-                        <i class="fas fa-trash-alt"></i>
-                    </button>
-                    <div class="h-8 w-8 flex items-center justify-center text-gray-400 group-hover:text-gray-600 transition chevron-icon">
-                        <i class="fas fa-chevron-up"></i>
-                    </div>
-                </div>
-            </div>
-
-            <div class="p-6 border-t border-gray-100 category-body">
-                <div class="flex gap-4 mb-6">
-                    <div class="flex-1">
-                        <label class="block text-[10px] font-bold text-gray-400 uppercase mb-1">Section Title</label>
-                        <input type="text" class="c-title w-full px-4 py-2 border border-gray-200 rounded-xl outline-none" placeholder="e.g., Mathematics" onkeyup="window.updateCatDisplay(this)">
-                    </div>
-                    <div class="w-32">
-                        <label class="block text-[10px] font-bold text-gray-400 uppercase mb-1">Mins</label>
-                        <input type="number" class="c-time w-full px-4 py-2 border border-gray-200 rounded-xl outline-none" placeholder="0">
-                    </div>
-                </div>
-                
-                <div id="q-container-${window.catCount}" class="space-y-4 mb-4"></div>
-                
-                <div class="relative flex items-center w-full rounded-xl border border-dashed border-gray-200 group/dropdown">
-                    <button type="button" onclick="window.addQuestion(${window.catCount}, 'mcq')" class="flex-1 py-3 text-gray-500 text-sm font-bold hover:bg-gray-50 hover:text-[#a52a2a] transition flex items-center justify-center rounded-l-xl">
-                        <i class="fas fa-plus-circle mr-2"></i> Add Question
-                    </button>
-                    
-                    <div class="relative h-full border-l border-gray-200">
-                        <button type="button" onclick="window.toggleDropdown(this)" class="px-4 py-3 text-gray-400 hover:bg-gray-50 hover:text-[#a52a2a] transition rounded-r-xl h-full flex items-center">
-                            <i class="fas fa-chevron-down"></i>
-                        </button>
-                        
-                        <div class="hidden absolute bottom-full right-0 mb-2 w-48 bg-white border border-gray-100 rounded-xl shadow-lg z-20 py-1 overflow-hidden dropdown-menu">
-                            <button type="button" onclick="window.addQuestion(${window.catCount}, 'mcq'); window.toggleDropdown(this.closest('.relative').querySelector('button'))" class="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 hover:text-[#a52a2a]"><i class="fas fa-dot-circle w-5 text-center text-gray-400 mr-1"></i> Multiple Choice</button>
-                            <button type="button" onclick="window.addQuestion(${window.catCount}, 'checkbox'); window.toggleDropdown(this.closest('.relative').querySelector('button'))" class="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 hover:text-[#a52a2a]"><i class="fas fa-check-square w-5 text-center text-gray-400 mr-1"></i> Checkboxes</button>
-                            <button type="button" onclick="window.addQuestion(${window.catCount}, 'text'); window.toggleDropdown(this.closest('.relative').querySelector('button'))" class="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 hover:text-[#a52a2a]"><i class="fas fa-align-left w-5 text-center text-gray-400 mr-1"></i> Short Text</button>
-                            
-                            <button type="button" onclick="window.addQuestion(${window.catCount}, 'true_false'); window.toggleDropdown(this.closest('.relative').querySelector('button'))" class="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 hover:text-[#a52a2a]"><i class="fas fa-adjust w-5 text-center text-gray-400 mr-1"></i> True or False</button>
-                            <div class="border-t border-gray-100 my-1"></div>
-                            <button type="button" onclick="window.addQuestion(${window.catCount}, 'instruction'); window.toggleDropdown(this.closest('.relative').querySelector('button'))" class="w-full text-left px-4 py-2 text-sm text-[#a52a2a] bg-[#a52a2a]/5 hover:bg-[#a52a2a]/10 font-bold"><i class="fas fa-info-circle w-5 text-center mr-1"></i> Add Instruction</button>
-                        </div>
-                    </div>
-                </div>
-
-            </div>
-        </div>`;
-
-    container.insertAdjacentHTML("beforeend", html);
-    window.addQuestion(window.catCount, "mcq");
-};
-
-window.toggleDropdown = function (btn) {
-    const menu = btn.nextElementSibling;
-    document.querySelectorAll(".dropdown-menu").forEach((el) => {
-        if (el !== menu) el.classList.add("hidden");
-    });
-    menu.classList.toggle("hidden");
-};
-
-window.addQuestion = function (cId, type = "mcq") {
-    const container = document.getElementById(`q-container-${cId}`);
-    if (!container) return;
-
-    const qId = `q-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
-
-    let placeholder = "Enter Question...";
-    let icon = "fa-question-circle";
-    let bgClass = "bg-gray-50";
-    if (type === "instruction") {
-        placeholder = "Enter Instructions / Context block...";
-        icon = "fa-info-circle";
-        bgClass = "bg-amber-50/30 border-amber-100";
-    }
-
-    const html = `
-        <div class="p-4 rounded-xl border border-gray-100 question-block relative group ${bgClass}" id="${qId}" data-type="${type}">
-            
-            <div class="flex justify-between items-start mb-2">
-               <span class="text-[10px] font-bold text-gray-400 uppercase tracking-wider flex items-center gap-1">
-                    <i class="fas ${icon}"></i> 
-                    ${type === "mcq" ? "Multiple Choice" : type === "checkbox" ? "Checkboxes" : type === "text" ? "Short Text" : type === "true_false" ? "True or False" : "Instruction Block"}
-                </span>    
-                <button type="button" onclick="window.removeElement('${qId}')" class="h-7 w-7 flex items-center justify-center text-gray-300 hover:text-red-500 transition rounded-md hover:bg-red-50">
-                    <i class="fas fa-times"></i>
-                </button>
-            </div>
-
-            <div class="relative mb-3">
-                <textarea class="q-text w-full pl-3 pr-10 py-2 bg-white border border-gray-200 rounded-lg outline-none font-medium text-sm focus:border-[#a52a2a] resize-y min-h-[44px]" placeholder="${placeholder}" oninput="this.style.height = ''; this.style.height = this.scrollHeight + 'px'"></textarea>
-               
-                <button type="button" onclick="window.openMediaModal('${qId}')" title="Upload Media" class="absolute right-2 top-2 h-7 w-7 flex items-center justify-center text-gray-400 hover:text-[#a52a2a] hover:bg-gray-100 rounded transition">
-                    <i class="fas fa-photo-video"></i>
-                </button>
-                <input type="hidden" class="q-media-url" value="">
-                
-            </div>
-
-            <div id="preview-${qId}" class="hidden relative mb-4 rounded-lg overflow-hidden border border-gray-200 inline-block">
-                </div>
-        
-            <div id="preview-${qId}" class="hidden relative mb-4 rounded-lg overflow-hidden border border-gray-200 inline-block">
-                <img src="" class="max-h-48 w-auto object-contain bg-white">
-                <button type="button" onclick="window.removeQuestionImage('${qId}')" class="absolute top-1 right-1 h-6 w-6 bg-red-500/80 hover:bg-red-600 text-white rounded flex items-center justify-center backdrop-blur-sm transition">
-                    <i class="fas fa-times text-xs"></i>
-                </button>
-            </div>
-            
-            <div class="options-list space-y-2 mb-3"></div>
-            
-            ${
-                type === "mcq" || type === "checkbox"
-                    ? `
-                <button type="button" onclick="window.addOptionToQuestion('${qId}', '${type}')" class="text-[10px] font-bold text-[#a52a2a] hover:underline uppercase flex items-center">
-                    <i class="fas fa-plus mr-1"></i> Add Choice
-                </button>
-            `
-                    : ""
-            }
-        </div>`;
-
-    container.insertAdjacentHTML("beforeend", html);
-
-    if (type === "mcq" || type === "checkbox") {
-        window.addOptionToQuestion(qId, type, true, "");
-        window.addOptionToQuestion(qId, type, false, "");
-    } else if (type === "text") {
-        window.addOptionToQuestion(qId, "text", true, "");
-    } else if (type === "true_false") {
-        // Automatically add True and False as the only options
-        window.addOptionToQuestion(qId, "true_false", true, "True");
-        window.addOptionToQuestion(qId, "true_false", false, "False");
-    }
-};
-
-window.addOptionToQuestion = function (
-    qId,
-    type,
-    isCorrect = false,
-    text = "",
-    isCaseSensitive = false,
-) {
-    const list = document.querySelector(`#${qId} .options-list`);
-    if (!list) return;
-
-    const optCount = list.querySelectorAll(".option-row").length + 1;
-    let optHtml = "";
-
-    if (type === "mcq") {
-        optHtml = `
-            <div class="flex items-center justify-between gap-3 bg-white px-3 py-2 rounded-lg border border-gray-200 focus-within:border-[#a52a2a] option-row transition">
-                <input type="text" class="option-input w-full bg-transparent outline-none text-sm" placeholder="Choice ${optCount}..." value="${text}">
-                <div class="flex items-center gap-3 border-l border-gray-100 pl-3 shrink-0">
-                    <label class="flex items-center gap-1.5 cursor-pointer text-gray-500 hover:text-green-600 transition">
-                        <input type="radio" name="correct-${qId}" class="is-correct-input cursor-pointer text-green-600 focus:ring-green-600 h-4 w-4" ${isCorrect ? "checked" : ""}>
-                        <span class="text-[10px] font-bold uppercase">Correct</span>
-                    </label>
-                    <button type="button" onclick="window.removeOption(this, '${qId}')" class="text-gray-300 hover:text-red-500 transition h-6 w-6 flex items-center justify-center"><i class="fas fa-times-circle text-base"></i></button>
-                </div>
-            </div>`;
-    } else if (type === "checkbox") {
-        optHtml = `
-            <div class="flex items-center justify-between gap-3 bg-white px-3 py-2 rounded-lg border border-gray-200 focus-within:border-[#a52a2a] option-row transition">
-                <input type="text" class="option-input w-full bg-transparent outline-none text-sm" placeholder="Choice ${optCount}..." value="${text}">
-                <div class="flex items-center gap-3 border-l border-gray-100 pl-3 shrink-0">
-                    <label class="flex items-center gap-1.5 cursor-pointer text-gray-500 hover:text-green-600 transition">
-                        <input type="checkbox" class="is-correct-input cursor-pointer text-green-600 rounded focus:ring-green-600 h-4 w-4" ${isCorrect ? "checked" : ""}>
-                        <span class="text-[10px] font-bold uppercase">Correct</span>
-                    </label>
-                    <button type="button" onclick="window.removeOption(this, '${qId}')" class="text-gray-300 hover:text-red-500 transition h-6 w-6 flex items-center justify-center"><i class="fas fa-times-circle text-base"></i></button>
-                </div>
-            </div>`;
-    } else if (type === "text") {
-        optHtml = `
-            <div class="flex items-center gap-3 bg-green-50/50 px-3 py-2 rounded-lg border border-green-200 focus-within:border-green-400 option-row transition">
-                <span class="text-[10px] font-bold text-green-600 uppercase shrink-0"><i class="fas fa-check mr-1"></i> Exact Match:</span>
-                <input type="text" class="option-input w-full bg-transparent outline-none text-sm font-medium" placeholder="Type the exact correct answer..." value="${text}">
-                <input type="hidden" class="is-correct-input" value="true" checked>
-                
-                <label class="flex items-center gap-1.5 cursor-pointer text-gray-500 hover:text-green-600 transition border-l border-green-200 pl-3 shrink-0" title="Check this if uppercase/lowercase letters must match exactly.">
-                    <input type="checkbox" class="case-sensitive-input cursor-pointer text-green-600 rounded focus:ring-green-600 h-4 w-4" ${isCaseSensitive ? "checked" : ""}>
-                    <span class="text-[10px] font-bold uppercase tracking-wider">Case Sensitive</span>
-                </label>
-            </div>`;
-    } else if (type === "true_false") {
-        optHtml = `
-            <div class="flex items-center justify-between gap-3 bg-white px-3 py-2 rounded-lg border border-gray-200 focus-within:border-[#a52a2a] option-row transition">
-                <input type="text" class="option-input w-full bg-transparent outline-none text-sm font-bold text-gray-700 cursor-default" value="${text}" readonly>
-                <div class="flex items-center gap-3 border-l border-gray-100 pl-3 shrink-0">
-                    <label class="flex items-center gap-1.5 cursor-pointer text-gray-500 hover:text-green-600 transition">
-                        <input type="radio" name="correct-${qId}" class="is-correct-input cursor-pointer text-green-600 focus:ring-green-600 h-4 w-4" ${isCorrect ? "checked" : ""}>
-                        <span class="text-[10px] font-bold uppercase">Correct</span>
-                    </label>
-                </div>
-            </div>`;
-    }
-
-    list.insertAdjacentHTML("beforeend", optHtml);
-    window.handleAutosaveTrigger();
-};
-
-window.removeOption = function (btnElement, qId) {
-    const block = document.getElementById(qId);
-    const type = block.dataset.type;
-    const list = block.querySelector(".options-list");
-
-    if (
-        (type === "mcq" || type === "checkbox") &&
-        list.querySelectorAll(".option-row").length <= 2
-    ) {
-        window.showModal(
-            "warning",
-            "Action Prevented",
-            "This question type must have at least two choices.",
-        );
-        return;
-    }
-
-    btnElement.closest(".option-row").remove();
-    window.handleAutosaveTrigger();
-};
-
-// --- IMAGE UPLOAD LOGIC ---
 // --- MEDIA UPLOAD LOGIC ---
 window.currentMediaUploadQId = null;
 window.selectedMediaFile = null;
@@ -713,7 +573,6 @@ window.executeMediaUpload = async function () {
         const data = await response.json();
 
         if (data.success) {
-            // NEW: Pass the exact media type (audio/video/image) directly from the server
             window.setMediaPreview(
                 window.currentMediaUploadQId,
                 data.media_url,
@@ -735,7 +594,6 @@ window.executeMediaUpload = async function () {
 window.setMediaPreview = function (qId, url, explicitType = null) {
     const block = document.getElementById(qId);
 
-    // BULLETPROOF: Look for either the old or new class name so it never crashes!
     const mediaInput =
         block.querySelector(".q-media-url") ||
         block.querySelector(".q-image-url");
@@ -743,7 +601,6 @@ window.setMediaPreview = function (qId, url, explicitType = null) {
 
     const previewDiv = document.getElementById(`preview-${qId}`);
 
-    // If the type wasn't passed (like during page reload), safely guess it
     let type = explicitType;
     if (!type) {
         const cleanUrl = url.split("?")[0];
@@ -762,7 +619,6 @@ window.setMediaPreview = function (qId, url, explicitType = null) {
         mediaHtml = `<img src="${url}" class="max-h-48 w-auto object-contain bg-white rounded-lg">`;
     }
 
-    // FIX: Change previewDiv to 'block w-full' so videos have enough room to render
     previewDiv.className =
         "relative mb-4 rounded-lg overflow-hidden border border-gray-200 block w-full";
 
@@ -773,130 +629,21 @@ window.setMediaPreview = function (qId, url, explicitType = null) {
         </button>
     `;
 };
+
 window.removeQuestionMedia = function (qId) {
     const block = document.getElementById(qId);
     block.querySelector(".q-media-url").value = "";
 
     const previewDiv = document.getElementById(`preview-${qId}`);
-    previewDiv.innerHTML = "";
-    previewDiv.classList.add("hidden");
+    if (previewDiv) {
+        previewDiv.innerHTML = "";
+        previewDiv.classList.add("hidden");
+    }
 
     window.handleAutosaveTrigger();
 };
-// --- DATA COLLECTION UPDATE ---
 
-window.getPayload = function (status) {
-    const categories = [];
-    document.querySelectorAll(".category-block").forEach((cat) => {
-        const questions = [];
-        cat.querySelectorAll(".question-block").forEach((q) => {
-            const options = [];
-
-            q.querySelectorAll(".option-row").forEach((opt) => {
-                const isCorrectInput = opt.querySelector(".is-correct-input");
-                let isCorrect = false;
-
-                if (
-                    isCorrectInput.type === "radio" ||
-                    isCorrectInput.type === "checkbox"
-                ) {
-                    isCorrect = isCorrectInput.checked;
-                } else if (isCorrectInput.type === "hidden") {
-                    isCorrect = true;
-                }
-
-                options.push({
-                    text: opt.querySelector(".option-input").value,
-                    is_correct: isCorrect ? 1 : 0,
-                });
-            });
-
-            questions.push({
-                type: q.dataset.type,
-                text: q.querySelector(".q-text").value,
-                media_url: q.querySelector(".q-media-url").value,
-                is_case_sensitive: q.querySelector(".case-sensitive-input")
-                    ? q.querySelector(".case-sensitive-input").checked
-                    : false,
-                options: options,
-            });
-        });
-        categories.push({
-            title: cat.querySelector(".c-title").value,
-            time_limit: cat.querySelector(".c-time").value,
-            questions: questions,
-        });
-    });
-
-    return {
-        status,
-        title: document.getElementById("setup-title").value,
-        year_level: document.getElementById("setup-year").value,
-        description: document.getElementById("setup-desc").value,
-        categories,
-    };
-};
-
-// --- RENDER EXISTING DATA UPDATE ---
-
-window.renderExistingCategory = function (catData) {
-    window.addCategory();
-    const latestCat = document.querySelector(".category-block:last-child");
-
-    // Set Category/Section Details
-    latestCat.querySelector(".c-title").value = catData.title || "";
-    latestCat.querySelector(".c-time").value = catData.time_limit || "";
-    latestCat.querySelector(".category-display-title").innerText =
-        catData.title || "New Section";
-
-    const qContainer = latestCat.querySelector('[id^="q-container-"]');
-
-    // Clear the default question added by window.addCategory()
-    // to prevent having an extra empty MCQ at the top
-    qContainer.innerHTML = "";
-
-    if (catData.questions && catData.questions.length > 0) {
-        catData.questions.forEach((q) => {
-            const type = q.type || "mcq";
-
-            // 1. Add the question block shell with the CORRECT type
-            window.addQuestion(qContainer.id.split("-").pop(), type);
-            const latestQ = qContainer.querySelector(
-                ".question-block:last-child",
-            );
-
-            // 2. Set the question text (handle both possible naming conventions)
-            latestQ.querySelector(".q-text").value =
-                q.text || q.question_text || "";
-
-            // 3. Handle Image Preview
-            const mediaUrl = q.media_url || q.image_url; // Fallback for old database rows
-            if (mediaUrl) {
-                window.setMediaPreview(latestQ.id, mediaUrl);
-            }
-            // 4. Clear the default options created by window.addQuestion
-            latestQ.querySelector(".options-list").innerHTML = "";
-
-            // 5. Render Options with specific type logic
-            if (q.options && q.options.length > 0) {
-                const isCaseSensitive =
-                    q.is_case_sensitive == 1 || q.is_case_sensitive === true;
-
-                q.options.forEach((opt) => {
-                    // CRITICAL: We pass 'type' here so the UI knows to render
-                    // radio buttons (mcq), checkboxes, or the green text input.
-                    window.addOptionToQuestion(
-                        latestQ.id,
-                        type,
-                        opt.is_correct == 1 || opt.is_correct === true,
-                        opt.text || opt.option_text || "",
-                        isCaseSensitive,
-                    );
-                });
-            }
-        });
-    }
-};
+// --- SAVE AND EXIT LOGIC ---
 
 window.collectCategoriesData = function () {
     return window.getPayload("draft").categories;
@@ -959,29 +706,6 @@ window.saveCompleteExam = async function (btn, status) {
         window.showModal("error", "Save Failed", e.message);
         window.resetBtn(btn, originalText);
     }
-};
-
-// --- UTILITIES ---
-
-window.toggleCategory = (id, e) => {
-    if (e.target.closest("button") || e.target.closest("input")) return;
-    const body = document.querySelector(`#${id} .category-body`);
-    const icon = document.querySelector(`#${id} .chevron-icon i`);
-    body.classList.toggle("hidden");
-    icon.classList.toggle("fa-chevron-down");
-    icon.classList.toggle("fa-chevron-up");
-};
-
-window.removeElement = (id) => {
-    document.getElementById(id).remove();
-    window.handleAutosaveTrigger();
-};
-
-window.updateCatDisplay = (input) => {
-    input
-        .closest(".category-block")
-        .querySelector(".category-display-title").innerText =
-        input.value || "New Section";
 };
 
 window.resetBtn = (btn, txt) => {
@@ -1084,7 +808,7 @@ if (backModal) {
     });
 }
 
-// UTILITIES
+// --- UTILITIES ---
 
 window.showModal = function (type, title, message, callback = null) {
     const modal = document.getElementById("status-modal");

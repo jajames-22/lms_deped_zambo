@@ -81,7 +81,7 @@ return [
     |--------------------------------------------------------------------------
     |
     | When using the "database" session driver, you may specify the table to
-    | be used to store sessions. Of course, a sensible default is defined
+    | be used to store sessions. Of materials, a sensible default is defined
     | for you; however, you're welcome to change this to another table.
     |
     */
@@ -129,7 +129,7 @@ return [
 
     'cookie' => env(
         'SESSION_COOKIE',
-        Str::slug((string) env('APP_NAME', 'laravel')).'-session'
+        Str::slug((string) env('APP_NAME', 'laravel')) . '-session'
     ),
 
     /*
