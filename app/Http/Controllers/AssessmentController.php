@@ -390,5 +390,29 @@ class AssessmentController extends Controller
         return response()->json(['success' => true, 'message' => 'Student access revoked.']);
     }
 
+    public function toggleStatus(Request $request, \App\Models\Assessment $assessment)
+    {
+        try {
+            // Flip the status
+            $newStatus = $assessment->status === 'published' ? 'draft' : 'published';
+            
+            // Update DB
+            \Illuminate\Support\Facades\DB::table('assessments')
+                ->where('id', $assessment->id)
+                ->update(['status' => $newStatus, 'updated_at' => now()]);
+
+            return response()->json([
+                'success' => true, 
+                'new_status' => $newStatus,
+                'message' => 'Assessment is now ' . ($newStatus === 'published' ? 'Live' : 'in Draft Mode')
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false, 
+                'message' => 'Error updating status: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
 
 }

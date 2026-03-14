@@ -63,8 +63,7 @@
                     Return to Dashboard
                 </a>
                 
-                {{-- This button would link to your actual exam/quiz execution route --}}
-                <form action="#" method="GET" class="flex-1">
+                <form action="{{ route('student.assessment.exam', $assessment->access_key) }}" method="GET" class="flex-1">
                     <button type="submit" class="w-full h-full flex items-center justify-center gap-2 px-6 py-4 bg-[#a52a2a] text-white font-bold rounded-2xl shadow-xl shadow-red-900/20 hover:bg-red-800 transition hover:-translate-y-1">
                         <i class="fas fa-play-circle"></i>
                         <span>Start Assessment Now</span>

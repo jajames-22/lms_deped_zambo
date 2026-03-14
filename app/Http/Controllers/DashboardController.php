@@ -151,10 +151,12 @@ class DashboardController extends Controller
 
     public function loadStudentsPartial()
     {
-        if (Auth::user()->role === 'admin') {
-            return view('dashboard.partials.admin.students');
-        }
-        return abort(403, 'Unauthorized access.');
+        // Fetch the students from your database. 
+        // (Adjust this query depending on if your model is Student or User)
+        $students = \App\Models\User::where('role', 'student')->get(); 
+        
+        // Pass the variable to the view using compact()
+        return view('dashboard.partials.admin.students', compact('students'));
     }
     /**
      * Loads the 'Statistics' partial

@@ -11,16 +11,27 @@ use App\Http\Controllers\StudentController;
 use App\Http\Controllers\StudentAssessmentController;
 use App\Http\Controllers\AssessmentController;
 
-// 1. GUEST ROUTE
-        Route::get('/', function () {
+/*
+|--------------------------------------------------------------------------
+| 1. GUEST ROUTE
+|--------------------------------------------------------------------------
+*/
+Route::get('/', function () {
     return view('index');
 })->middleware('guest')->name('index');
 
-// 2. AUTHENTICATED DASHBOARD ROUTES
+/*
+|--------------------------------------------------------------------------
+| 2. AUTHENTICATED DASHBOARD ROUTES
+|--------------------------------------------------------------------------
+*/
 Route::middleware(['auth', 'verified'])->group(function () {
     
     // Main Dashboard Entry Point
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard.main');
+    
+    // Alias for the student middleware redirect to fallback to the main dashboard
+    Route::get('/student/dashboard', [DashboardController::class, 'index'])->name('student.dashboard');
 
     // Dashboard Partials (All prefixed with /dashboard in the URL)
     Route::prefix('dashboard')->group(function () {
@@ -31,11 +42,12 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('/certificates', [DashboardController::class, 'loadCertificatesPartial'])->name('dashboard.certificates');
         Route::get('/materials', [DashboardController::class, 'loadMaterialsPartial'])->name('dashboard.materials');
         Route::get('/teachers', [DashboardController::class, 'loadTeachersPartial'])->name('dashboard.teachers');
-        Route::get('/students', [DashboardController::class, 'loadStudentsPartial'])->name('dashboard.students');
+        Route::get('/students', [StudentController::class, 'loadStudentsPartial'])->name('dashboard.students');
         Route::get('/profile', [DashboardController::class, 'loadProfilePartial'])->name('dashboard.profile');
         Route::get('/settings', [DashboardController::class, 'loadSettingsPartial'])->name('dashboard.settings');
         Route::get('/assessment', [DashboardController::class, 'loadAssessmentPartial'])->name('dashboard.assessment');
 
+        // Schools Management
         Route::get('/schools', [DashboardController::class, 'loadSchoolsPartial'])->name('schools');
         Route::get('/schools/create', [DashboardController::class, 'loadSchoolCreatePartial'])->name('schools.create');
         Route::post('/schools/store', [DashboardController::class, 'storeSchool'])->name('schools.store');
@@ -43,35 +55,39 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::put('/schools/{school}', [DashboardController::class, 'updateSchool'])->name('schools.update');
         Route::delete('/schools/{school}', [DashboardController::class, 'destroySchool'])->name('schools.destroy');
 
+        // Teachers Management
         Route::get('/teachers/create', [TeacherController::class, 'createTeacherPartial'])->name('teachers.create');
         Route::post('/teachers/store', [TeacherController::class, 'storeTeacher'])->name('teachers.store');
         Route::get('/teachers/{teacher}/edit', [TeacherController::class, 'editTeacherPartial'])->name('teachers.edit');
         Route::put('/teachers/{teacher}', [TeacherController::class, 'updateTeacher'])->name('teachers.update');
         Route::delete('/teachers/{teacher}', [TeacherController::class, 'destroyTeacher'])->name('teachers.destroy');
 
-        Route::get('/students', [StudentController::class, 'loadStudentsPartial'])->name('dashboard.students');
+        // Students Management
         Route::get('/students/create', [StudentController::class, 'createStudentPartial'])->name('students.create');
         Route::post('/students/store', [StudentController::class, 'storeStudent'])->name('students.store');
         Route::get('/students/{student}/edit', [StudentController::class, 'editStudentPartial'])->name('students.edit');
         Route::put('/students/{student}', [StudentController::class, 'updateStudent'])->name('students.update');
         Route::delete('/students/{student}', [StudentController::class, 'destroyStudent'])->name('students.destroy');
         
-        Route::post('/student/assessment/verify', [StudentAssessmentController::class, 'verifyCode'])->name('student.assessment.verify');
-        Route::get('/student/assessment/{access_key}/lobby', [StudentAssessmentController::class, 'lobby'])->name('student.assessment.lobby');
-
-        Route::get('/dashboard/assessments/{assessment}/manage', [AssessmentController::class, 'manage'])->name('dashboard.assessments.manage');
-
-        // Explicitly named Student Access Routes
-Route::post('/dashboard/assessments/{assessment}/access', [App\Http\Controllers\AssessmentController::class, 'addAccess'])->name('dashboard.assessments.access.add');
-
-Route::delete('/dashboard/assessments/access/{access}', [App\Http\Controllers\AssessmentController::class, 'removeAccess'])->name('dashboard.assessments.access.remove');
-                
+        // Admin Assessment Management
+        Route::prefix('assessments')->name('dashboard.assessments.')->group(function () {
+            Route::get('/{assessment}/manage', [AssessmentController::class, 'manage'])->name('manage');
+            Route::post('/{assessment}/access', [AssessmentController::class, 'addAccess'])->name('access.add');
+            Route::delete('/access/{access}', [AssessmentController::class, 'removeAccess'])->name('access.remove');
+            Route::post('/{assessment}/import-access', [AssessmentController::class, 'importAccess'])->name('access.import');
+            Route::patch('/{assessment}/toggle-status', [AssessmentController::class, 'toggleStatus'])->name('toggle-status');
+            Route::get('/access-template/download', [AssessmentController::class, 'downloadAccessTemplate'])->name('access.template');
+        });
     });
-        Route::get('/get-districts/{quadrantId}', [DashboardController::class, 'getDistricts'])->name('districts.get');
 
+    Route::get('/get-districts/{quadrantId}', [DashboardController::class, 'getDistricts'])->name('districts.get');
 });
 
-// 3. COURSE MANAGEMENT ROUTES
+/*
+|--------------------------------------------------------------------------
+| 3. COURSE MANAGEMENT ROUTES
+|--------------------------------------------------------------------------
+*/
 Route::middleware(['auth'])->group(function () {
     Route::resource('courses', CourseController::class);
     Route::resource('lessons', LessonController::class);
@@ -81,15 +97,26 @@ Route::middleware(['auth'])->group(function () {
     Route::post('/courses/{course}/enroll', [EnrollmentController::class, 'store'])->name('courses.enroll');
 });
 
-Route::prefix('assessments')->name('dashboard.assessments.')->group(function () {
-    
-    // ... your other assessment routes (manage, builder, etc.)
+/*
+|--------------------------------------------------------------------------
+| 4. STUDENT ASSESSMENT ROUTES
+|--------------------------------------------------------------------------
+*/
+Route::middleware(['auth'])->group(function () {
+    // Public validation endpoint (Checks if code is valid)
+    Route::post('/student/assessment/verify', [StudentAssessmentController::class, 'verifyCode'])->name('student.assessment.verify');
 
-    // ADD THIS LINE EXACTLY:
-    Route::post('/{assessment}/import-access', [AssessmentController::class, 'importAccess'])->name('access.import');
-
+    // Secure endpoints (Checks if Student LRN is authorized using your new Middleware)
+    Route::middleware(['check.assessment.access'])->group(function () {
+        Route::get('/assessment/{access_key}/lobby', [StudentAssessmentController::class, 'lobby'])->name('student.assessment.lobby');
+        Route::get('/assessment/{access_key}/exam', [StudentAssessmentController::class, 'exam'])->name('student.assessment.exam');
+    });
 });
 
-// 4. REQUIRED AUTH FILES
+/*
+|--------------------------------------------------------------------------
+| 5. REQUIRED AUTH FILES
+|--------------------------------------------------------------------------
+*/
 require __DIR__ . '/auth.php';
 require __DIR__ . '/assessment.php';
