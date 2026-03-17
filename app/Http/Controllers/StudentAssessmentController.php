@@ -4,6 +4,9 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use App\Models\Assessment; // Make sure your model matches the table you provided
+use App\Models\StudentAnswer;
+use App\Models\AssessmentSession;
+use Illuminate\Support\Facades\Auth;
 
 class StudentAssessmentController extends Controller
 {
@@ -54,39 +57,342 @@ class StudentAssessmentController extends Controller
      */
     public function lobby($access_key)
     {
-        // The Middleware already verified the assessment exists and the student is authorized!
-        $assessment = \App\Models\Assessment::where('access_key', $access_key)->first();
+        $assessment = \App\Models\Assessment::withCount('categories')
+            ->where('access_key', $access_key)
+            ->where('status', 'published')
+            ->firstOrFail();
 
-        // Just return the view (Make sure the path matches your actual file!)
-        return view('dashboard.partials.student.assessmentExam.assessment-lobby', compact('assessment')); 
+        $user = \Illuminate\Support\Facades\Auth::user();
+
+        $completedCategoriesCount = \App\Models\AssessmentSession::where('user_id', $user->id)
+            ->where('assessment_id', $assessment->id)
+            ->where('is_completed', true)
+            ->count();
+
+        if ($assessment->categories_count > 0 && $completedCategoriesCount >= $assessment->categories_count) {
+            return redirect()->route('student.assessment.results', $access_key);
+        }
+
+        // --- NEW: UPDATE STATUS TO LOBBY ---
+        // Note: Change 'AssessmentAccess' if your model is named differently (e.g., AssessmentStudent)
+        $access = \App\Models\AssessmentAccess::where('assessment_id', $assessment->id)
+            ->where('lrn', $user->user_id)
+            ->first();
+
+        if ($access && $access->status !== 'finished' && $access->status !== 'taking_exam') {
+            $access->update(['status' => 'lobby']);
+        }
+        // -----------------------------------
+
+        return view('dashboard.partials.student.assessmentExam.assessment-lobby', compact('assessment'));
     }
 
-    public function exam($access_key)
+    public function exam(Request $request, $access_key)
     {
-        // 1. Fetch the assessment and ALL relationships
         $assessment = \App\Models\Assessment::with(['categories.questions.options'])
                         ->where('access_key', $access_key)
                         ->where('status', 'published')
                         ->firstOrFail();
 
-        // 2. SECURITY CHECK: Hide the 'is_correct' field from students!
+        $user = \Illuminate\Support\Facades\Auth::user();
+
+        // Hide is_correct for security
         $assessment->categories->each(function ($category) {
             $category->questions->each(function ($question) {
                 $question->options->transform(function ($option) {
-                    // Return everything EXCEPT is_correct
-                    return [
-                        'id' => $option->id,
-                        'question_id' => $option->question_id,
-                        'option_text' => $option->option_text,
-                    ];
+                    return ['id' => $option->id, 'question_id' => $option->question_id, 'option_text' => $option->option_text];
                 });
             });
         });
 
-        // 3. For this example, let's load the FIRST category to start the exam.
-        // If you want them to take it section-by-section, we grab index 0.
-        $currentCategory = $assessment->categories->first();
+        // Get an array of Category IDs the student has already SUBMITTED
+        $completedCategoryIds = \App\Models\AssessmentSession::where('user_id', $user->id)
+            ->where('assessment_id', $assessment->id)
+            ->where('is_completed', true)
+            ->pluck('category_id')
+            ->toArray();
 
-        return view('dashboard.partials.student.assessmentExam.assessment-exam', compact('assessment', 'currentCategory'));
+        $categoryId = $request->query('category_id');
+
+        if ($categoryId) {
+            // Prevent them from going back to a finished section via URL tampering
+            if (in_array($categoryId, $completedCategoryIds)) {
+                return redirect()->route('student.assessment.exam', $access_key); 
+            }
+            $currentCategory = $assessment->categories->where('id', $categoryId)->first();
+        } else {
+            // Find the FIRST category they haven't completed yet (The Smart Resume)
+            $currentCategory = $assessment->categories->whereNotIn('id', $completedCategoryIds)->first();
+        }
+
+        // If they finished every section, boot them to the dashboard
+        if (!$currentCategory) {
+            return redirect()->route('student.assessment.results', $access_key);
+        }
+
+        // Load their saved timer and answers for the active section
+        $session = \App\Models\AssessmentSession::where('user_id', $user->id)
+            ->where('assessment_id', $assessment->id)
+            ->where('category_id', $currentCategory->id)
+            ->first();
+
+       $existingAnswers = \App\Models\StudentAnswer::where('user_id', $user->id)
+            ->where('assessment_id', $assessment->id)
+            ->get()
+            ->keyBy('question_id');
+
+        // --- NEW: UPDATE STATUS TO TAKING EXAM ---
+        $access = \App\Models\AssessmentAccess::where('assessment_id', $assessment->id)
+            ->where('lrn', $user->user_id)
+            ->first();
+
+        if ($access && $access->status !== 'finished') {
+            $access->update(['status' => 'taking_exam']);
+        }
+        // -----------------------------------------
+
+        return view('dashboard.partials.student.assessmentExam.assessment-exam', 
+            compact('assessment', 'currentCategory', 'session', 'existingAnswers')
+        );
+    }
+
+    public function autoSave(Request $request, $access_key)
+    {
+        try {
+            $assessment = \App\Models\Assessment::where('access_key', $access_key)->firstOrFail();
+            $user = \Illuminate\Support\Facades\Auth::user();
+
+            // 1. Save the timer
+            \App\Models\AssessmentSession::updateOrCreate(
+                [
+                    'user_id' => $user->id,
+                    'assessment_id' => $assessment->id,
+                    'category_id' => $request->input('category_id'),
+                ],
+                ['time_remaining' => (int) $request->input('time_remaining')]
+            );
+
+            // 2. Save the answers (Check if answers exist first)
+            if ($request->has('answers') && is_array($request->input('answers'))) {
+                foreach ($request->input('answers') as $questionId => $answerData) {
+                    
+                    $selectedOptions = is_array($answerData) ? json_encode($answerData) : json_encode([$answerData]);
+                    $answerText = is_string($answerData) ? $answerData : null;
+
+                    \App\Models\StudentAnswer::updateOrCreate(
+                        [
+                            'user_id' => $user->id,
+                            'assessment_id' => $assessment->id,
+                            'question_id' => $questionId,
+                        ],
+                        [
+                            'selected_options' => $selectedOptions,
+                            'answer_text' => $answerText,
+                        ]
+                    );
+                }
+            }
+
+            return response()->json(['status' => 'success']);
+            
+        } catch (\Exception $e) {
+            // Log the error so you can see it in storage/logs/laravel.log
+            \Illuminate\Support\Facades\Log::error('Autosave Error: ' . $e->getMessage());
+            return response()->json(['status' => 'error', 'message' => $e->getMessage()], 500);
+        }
+    }
+
+    public function submit(Request $request, $access_key)
+    {
+        $assessment = \App\Models\Assessment::where('access_key', $access_key)->firstOrFail();
+        $user = \Illuminate\Support\Facades\Auth::user();
+        $currentCategoryId = $request->input('category_id');
+
+        // 1. Mark THIS section as permanently completed
+        \App\Models\AssessmentSession::updateOrCreate(
+            [
+                'user_id' => $user->id,
+                'assessment_id' => $assessment->id,
+                'category_id' => $currentCategoryId,
+            ],
+            [
+                'is_completed' => true,
+                'time_remaining' => 0 
+            ]
+        );
+
+        // 2. Final save of their answers (Catching anything autosave missed in the last second)
+        if ($request->has('answers') && is_array($request->input('answers'))) {
+            foreach ($request->input('answers') as $questionId => $answerData) {
+                $selectedOptions = is_array($answerData) ? json_encode($answerData) : json_encode([$answerData]);
+                $answerText = is_string($answerData) ? $answerData : null;
+
+                \App\Models\StudentAnswer::updateOrCreate(
+                    ['user_id' => $user->id, 'assessment_id' => $assessment->id, 'question_id' => $questionId],
+                    ['selected_options' => $selectedOptions, 'answer_text' => $answerText]
+                );
+            }
+        }
+
+        // 3. Check what sections are finished and find the next one
+        $completedCategoryIds = \App\Models\AssessmentSession::where('user_id', $user->id)
+            ->where('assessment_id', $assessment->id)
+            ->where('is_completed', true)
+            ->pluck('category_id')
+            ->toArray();
+
+        $nextCategory = $assessment->categories()
+            ->whereNotIn('id', $completedCategoryIds)
+            ->orderBy('id', 'asc')
+            ->first();
+
+        if ($nextCategory) {
+            return redirect()->route('student.assessment.exam', ['access_key' => $access_key, 'category_id' => $nextCategory->id]);
+        } else {
+            
+            // --- NEW: UPDATE STATUS TO FINISHED ---
+            $access = \App\Models\AssessmentAccess::where('assessment_id', $assessment->id)
+                ->where('lrn', $user->user_id)
+                ->first();
+
+            if ($access) {
+                $access->update(['status' => 'finished']);
+            }
+            // --------------------------------------
+
+            return redirect()->route('student.assessment.results', $access_key)
+                             ->with('success', 'Assessment fully completed!');
+        }
+    }
+
+    public function results($access_key)
+    {
+        // 1. Fetch the assessment and all questions/options
+        $assessment = \App\Models\Assessment::with(['categories.questions.options'])
+            ->where('access_key', $access_key)
+            ->firstOrFail();
+
+        $user = \Illuminate\Support\Facades\Auth::user();
+
+        // 2. Fetch the student's saved answers
+        $studentAnswers = \App\Models\StudentAnswer::where('user_id', $user->id)
+            ->where('assessment_id', $assessment->id)
+            ->get()
+            ->keyBy('question_id'); 
+
+        $score = 0;
+        $totalQuestions = 0;
+        $detailedResults = [];
+
+        // 3. Loop through every question to grade it
+        foreach ($assessment->categories as $category) {
+            foreach ($category->questions as $question) {
+                $totalQuestions++;
+                $studentAnswer = $studentAnswers->get($question->id);
+
+                $isCorrect = false;
+                $isPending = false;
+                $correctAnswerText = '';
+                
+                // Get clean student text
+                $studentAnswerText = $studentAnswer ? trim($studentAnswer->answer_text) : '';
+                $displayStudentAnswer = $studentAnswerText !== '' ? $studentAnswerText : 'No answer provided';
+
+                // Handle Short Answer / Text Questions
+                if ($question->type === 'text') {
+                    
+                    // Filter out any empty correct options saved by the admin
+                    $correctOptions = $question->options->where('is_correct', true)->filter(function ($option) {
+                        return trim($option->option_text) !== '';
+                    });
+
+                    // If there is at least one valid, non-empty correct answer provided by the admin:
+                    if ($correctOptions->isNotEmpty()) {
+                        // ---------------------------------------------------------
+                        // AUTO-GRADED SHORT ANSWER
+                        // ---------------------------------------------------------
+                        $isPending = false;
+                        
+                        // Combine acceptable answers for the UI (e.g., "Color OR Colour")
+                        $correctAnswerText = $correctOptions->pluck('option_text')->implode(' OR ');
+                        
+                        // Check if case sensitive (Defaults to false if the column doesn't exist yet)
+                        $isCaseSensitive = $question->is_case_sensitive ?? false;
+
+                        if ($studentAnswerText !== '') {
+                            foreach ($correctOptions as $option) {
+                                $expectedAnswer = trim($option->option_text);
+                                
+                                if ($isCaseSensitive) {
+                                    // Exact match required
+                                    if ($studentAnswerText === $expectedAnswer) {
+                                        $isCorrect = true;
+                                        break;
+                                    }
+                                } else {
+                                    // Case-insensitive match (converts both to lowercase)
+                                    if (strtolower($studentAnswerText) === strtolower($expectedAnswer)) {
+                                        $isCorrect = true;
+                                        break;
+                                    }
+                                }
+                            }
+
+                            if ($isCorrect) {
+                                $score++;
+                            }
+                        }
+                        
+                        $studentAnswerText = $displayStudentAnswer;
+
+                    } else {
+                        // ---------------------------------------------------------
+                        // TRUE ESSAY (Pending Manual Grading)
+                        // ---------------------------------------------------------
+                        // Triggered if the admin left the correct answer completely blank
+                        $isPending = true; 
+                        $studentAnswerText = $displayStudentAnswer;
+                        $correctAnswerText = 'Pending manual grading by instructor.';
+                    }
+
+                } 
+                // Handle Multiple Choice & Checkboxes (Auto-graded)
+                else {
+                    $correctOptions = $question->options->where('is_correct', true);
+                    $correctOptionIds = $correctOptions->pluck('id')->toArray();
+                    $correctAnswerText = $correctOptions->pluck('option_text')->implode(', ');
+
+                    if ($studentAnswer && $studentAnswer->selected_options) {
+                        $selectedIds = json_decode($studentAnswer->selected_options, true) ?? [];
+                        
+                        // Map the student's selected IDs to actual text for the UI
+                        $selectedOptionsText = $question->options->whereIn('id', $selectedIds)->pluck('option_text')->implode(', ');
+                        $studentAnswerText = $selectedOptionsText ?: 'Unknown selection';
+
+                        // GRADING LOGIC: The student's array of IDs must perfectly match the correct array of IDs
+                        if (count($selectedIds) === count($correctOptionIds) && empty(array_diff($selectedIds, $correctOptionIds))) {
+                            $isCorrect = true;
+                            $score++;
+                        }
+                    } else {
+                        $studentAnswerText = 'No answer provided';
+                    }
+                }
+
+                // 4. Bundle the data into an object for the Blade view
+                $detailedResults[] = (object) [
+                    'question' => $question,
+                    'is_correct' => $isCorrect,
+                    'is_pending' => $isPending,
+                    'student_answer_text' => $studentAnswerText,
+                    'correct_answer_text' => $correctAnswerText,
+                ];
+            }
+        }
+
+        // 5. Return the view
+        return view('dashboard.partials.student.assessmentExam.assessment-result', compact(
+            'assessment', 'score', 'totalQuestions', 'detailedResults'
+        ));
     }
 }

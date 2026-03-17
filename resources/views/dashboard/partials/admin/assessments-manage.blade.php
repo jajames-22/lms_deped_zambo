@@ -265,14 +265,28 @@
             
         </div>
         <div id="pagination-wrapper" class="rounded-xl mt-1 hidden flex flex-col sm:flex-row items-center justify-between px-6 py-4 border-t border-gray-100 bg-gray-50/50">
-                <div class="text-sm text-gray-500 mb-3 sm:mb-0">
-                    Showing <span id="page-start-info" class="font-bold text-gray-900">0</span> to <span id="page-end-info" class="font-bold text-gray-900">0</span> of <span id="page-total-info" class="font-bold text-gray-900">0</span> results
-                </div>
-                <div class="flex items-center gap-1" id="pagination-controls">
-                    </div>
+            <div class="text-sm text-gray-500 mb-3 sm:mb-0">
+                Showing <span id="page-start-info" class="font-bold text-gray-900">0</span> to <span id="page-end-info" class="font-bold text-gray-900">0</span> of <span id="page-total-info" class="font-bold text-gray-900">0</span> results
             </div>
+            <div class="flex items-center gap-1" id="pagination-controls">
+            </div>
+        </div>
+    </div> <div class="bg-white rounded-3xl p-8 shadow-sm border border-gray-100 mt-8 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+            <h3 class="text-xl font-bold text-gray-900">Exam Results Visibility</h3>
+            <p class="text-sm text-gray-500 mt-1">Allow students to see their score and the correct answers immediately after submitting the exam.</p>
+        </div>
+        
+        <div class="shrink-0">
+            <label class="toggle-container relative inline-block w-16 h-8 cursor-pointer" title="Toggle Results Visibility">
+                <input type="checkbox" id="show-results-toggle" class="sr-only toggle-input" onchange="window.toggleShowResults(this)" {{ ($assessment->show_results ?? false) ? 'checked' : '' }}>
+                
+                <span class="toggle-track absolute inset-0 bg-gray-300 rounded-full transition-colors duration-300 peer-focus-visible:ring-2 peer-focus-visible:ring-[#a52a2a]/40 shadow-inner"></span>
+                
+                <span class="toggle-handle absolute left-1 top-1 bg-white w-6 h-6 rounded-full transition-transform duration-300 transform shadow-md shadow-black/20"></span>
+            </label>
+        </div>
     </div>
-
     <div class="bg-red-50 rounded-3xl p-6 border border-red-100 mt-8">
         <h3 class="text-red-800 font-bold mb-2">Danger Zone</h3>
         <p class="text-sm text-red-600 mb-4">Deleting this assessment will permanently remove it and all associated student submissions. This action cannot be undone.</p>
@@ -331,7 +345,7 @@
     </div>
 </div>
 <script>
-
+    
     // --- Toggle Status Logic ---
     window.toggleAssessmentStatus = async function(checkbox) {
         const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || '{{ csrf_token() }}';
@@ -387,6 +401,38 @@
             checkbox.disabled = false;
         }
     };
+
+    window.toggleShowResults = async function(checkbox) {
+        const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || '{{ csrf_token() }}';
+        
+        checkbox.disabled = true;
+
+        try {
+            const response = await fetch('{{ route("dashboard.assessments.toggle-results", $assessment->id) }}', {
+                method: 'PATCH',
+                headers: {
+                    'X-CSRF-TOKEN': csrfToken,
+                    'Accept': 'application/json',
+                    'Content-Type': 'application/json'
+                }
+            });
+
+            const data = await response.json();
+
+            if (response.ok && data.success) {
+                showSnackbar(data.message, 'success');
+            } else {
+                checkbox.checked = !checkbox.checked; // Revert if failed
+                throw new Error(data.message || 'Failed to update setting.');
+            }
+        } catch (error) {
+            console.error(error);
+            showSnackbar(error.message || 'A network error occurred.', 'error');
+        } finally {
+            checkbox.disabled = false;
+        }
+    };
+
     // --- Snackbar Logic ---
     var snackbarTimeout; // Changed to var
     

@@ -60,7 +60,7 @@
                 <i class="fas fa-file-signature text-3xl text-[#a52a2a]"></i>
             </div>
             
-            <h2 class="text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">Section 1</h2>
+            <h2 class="text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">Section {{ $assessment->categories->search(fn($cat) => $cat->id === $currentCategory->id) + 1 }}</h2>
             <h1 class="text-2xl font-black text-gray-900 mb-6">{{ $currentCategory->title }}</h1>
             
             <div class="bg-gray-50 rounded-2xl p-5 mb-8 border border-gray-100 flex items-center justify-center gap-4">
@@ -109,96 +109,87 @@
 
     <div class="h-24 md:h-28"></div>
 
-    <main class="flex-grow max-w-5xl w-full mx-auto px-4 pb-32 blur-sm transition-all duration-500 flex flex-col" id="exam-content">
-        <form id="assessment-form" onsubmit="submitAssessment(event)" class="flex-grow flex flex-col" method="POST" >
+ <main class="flex-grow max-w-5xl w-full mx-auto px-4 pb-32 blur-sm transition-all duration-500 flex flex-col" id="exam-content">
+        <form id="assessment-form" onsubmit="submitAssessment(event)" class="flex-grow flex flex-col" action="{{ route('student.assessment.submit', $assessment->access_key) }}" method="POST" >
             @csrf
+            
+            <input type="hidden" name="category_id" value="{{ $currentCategory->id }}">
             
             <div class="flex-grow mb-20">
                 @foreach($currentCategory->questions as $index => $question)
-                    <div class="question-card w-full" id="question-{{ $index }}" data-index="{{ $index }}">
-                        
+                <div class="question-card w-full" id="question-{{ $index }}" data-index="{{ $index }}">
                         <div class="bg-white rounded-3xl border-10 p-6 shadow-card border border-gray-300 relative mb-6">
-                            
                             <div class="grid grid-cols-1 md:grid-cols-2 gap-8 md:gap-12">
-                                
                                 <div class="flex flex-col">
                                     <div class="flex flex-row items-start mb-4">
                                         <div class="flex items-center justify-center bg-[#a52a2a] text-white rounded-2xl font-black shadow-badge w-12 h-12 aspect-square shrink-0">
                                             {{ $index + 1 }}
                                         </div>
-
                                         <h3 class="text-base font-bold ml-4 w-full text-gray-900 mt-2 leading-none">
                                             {{ $question->question_text }}
                                         </h3>
                                     </div>
-                                    
                                     @if($question->media_url)
                                         <div class="rounded-2xl overflow-hidden border border-gray-100 bg-gray-50 shadow-inner flex justify-center mt-4">
-                                            @php
-                                                $ext = strtolower(pathinfo($question->media_url, PATHINFO_EXTENSION));
-                                            @endphp
-
+                                            @php $ext = strtolower(pathinfo($question->media_url, PATHINFO_EXTENSION)); @endphp
                                             @if(in_array($ext, ['jpg', 'jpeg', 'png', 'gif', 'svg', 'webp']))
                                                 <img src="{{ $question->media_url }}" alt="Question Media" class="max-w-full max-h-80 object-contain p-2">
-                                                
                                             @elseif(in_array($ext, ['mp4', 'webm', 'ogg']))
                                                 <video controls class="w-full max-h-64 rounded-lg bg-black">
                                                     <source src="{{ $question->media_url }}" type="video/{{ $ext }}">
-                                                    Your browser does not support the video tag.
                                                 </video>
-                                                
                                             @elseif(in_array($ext, ['mp3', 'wav', 'ogg']))
-                                                <audio controls class="w-full m-4">
-                                                    <source src="{{ $question->media_url }}" type="audio/{{ $ext }}">
-                                                    Your browser does not support the audio element.
-                                                </audio>
-                                                
+                                                <audio controls class="w-full m-4"><source src="{{ $question->media_url }}" type="audio/{{ $ext }}"></audio>
                                             @else
                                                 <img src="{{ $question->media_url }}" alt="Question Media" class="max-w-full max-h-64 object-contain p-2">
                                             @endif
                                         </div>
                                     @endif
                                 </div>
-
                                 <div class="flex flex-col justify-center">
-    
                                     @if($question->type === 'text')
+                                        
+                                        @php
+                                            $savedText = isset($existingAnswers) && isset($existingAnswers[$question->id]) 
+                                                            ? $existingAnswers[$question->id]->answer_text 
+                                                            : '';
+                                        @endphp
+                                        
                                         <div class="w-full">
-                                            <textarea name="answers[{{ $question->id }}]" rows="6" 
-                                                placeholder="Type your answer here..." 
-                                                class="w-full p-5 border-2 border-gray-300 rounded-2xl focus:ring-4 focus:ring-[#a52a2a]/20 focus:border-[#a52a2a] outline-none transition-all text-gray-700 font-medium resize-y bg-gray-50/50"
-                                            ></textarea>
+                                            <textarea name="answers[{{ $question->id }}]" rows="6" placeholder="Type your answer here..." class="w-full p-5 border-2 border-gray-300 rounded-2xl focus:ring-4 focus:ring-[#a52a2a]/20 focus:border-[#a52a2a] outline-none transition-all text-gray-700 font-medium resize-y bg-gray-50/50">{{ $savedText }}</textarea>
                                         </div>
 
                                     @else
+                                        
+                                        @php
+                                            $savedOptions = [];
+                                            if(isset($existingAnswers) && isset($existingAnswers[$question->id]) && $existingAnswers[$question->id]->selected_options) {
+                                                $decoded = json_decode($existingAnswers[$question->id]->selected_options, true);
+                                                $savedOptions = is_array($decoded) ? $decoded : [];
+                                            }
+                                        @endphp
+                                        
                                         <div class="space-y-3">
                                             @foreach($question->options as $option)
+                                                
+                                                @php
+                                                    $isChecked = in_array($option['id'], $savedOptions) ? 'checked' : '';
+                                                @endphp
+                                                
                                                 <label class="option-label flex items-center p-3 border-2 border-gray-300 rounded-2xl cursor-pointer hover:bg-gray-50 hover:border-gray-200 transition-all group">
                                                     <div class="relative flex items-center justify-center shrink-0">
-                                                        
                                                         @if($question->type === 'checkbox')
-                                                            <input type="checkbox" 
-                                                                name="answers[{{ $question->id }}][]" 
-                                                                value="{{ $option['id'] }}" 
-                                                                class="w-6 h-6 accent-[#a52a2a] border-gray-300 rounded focus:ring-[#a52a2a] bg-gray-50 transition-all cursor-pointer">
+                                                            <input type="checkbox" name="answers[{{ $question->id }}][]" value="{{ $option['id'] }}" {{ $isChecked }} class="w-6 h-6 accent-[#a52a2a] border-gray-300 rounded focus:ring-[#a52a2a] bg-gray-50 transition-all cursor-pointer">
                                                         @else
-                                                            <input type="radio" 
-                                                                name="answers[{{ $question->id }}]" 
-                                                                value="{{ $option['id'] }}" 
-                                                                class="w-6 h-6 accent-[#a52a2a] border-gray-300 focus:ring-[#a52a2a] bg-gray-50 transition-all cursor-pointer">
+                                                            <input type="radio" name="answers[{{ $question->id }}]" value="{{ $option['id'] }}" {{ $isChecked }} class="w-6 h-6 accent-[#a52a2a] border-gray-300 focus:ring-[#a52a2a] bg-gray-50 transition-all cursor-pointer">
                                                         @endif
-
                                                     </div>
-                                                    <span class="ml-4 text-gray-700 font-medium text-base md:text-lg group-hover:text-gray-900 leading-snug">
-                                                        {{ $option['option_text'] }}
-                                                    </span>
+                                                    <span class="ml-4 text-gray-700 font-medium text-base md:text-lg group-hover:text-gray-900 leading-snug">{{ $option['option_text'] }}</span>
                                                 </label>
                                             @endforeach
                                         </div>
                                     @endif
-
                                 </div>
-
                             </div>
                         </div>
                     </div>
@@ -209,33 +200,36 @@
 
             <div class="fixed bottom-0 left-0 right-0 z-50 p-4 md:p-6 border-gray-300">
                 <div class="max-w-5xl mx-auto flex items-center justify-between bg-white border border-gray-300 p-4 md:p-5 rounded-3xl">
-                    
-                    <button type="button" id="prev-btn" onclick="navigateQuestion(-1)" 
-                        class="px-6 py-3 bg-gray-100 text-gray-600 font-bold rounded-xl hover:bg-gray-200 transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed">
+                    <button type="button" id="prev-btn" onclick="navigateQuestion(-1)" class="px-6 py-3 bg-gray-100 text-gray-600 font-bold rounded-xl hover:bg-gray-200 transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed">
                         <i class="fas fa-arrow-left"></i> <span class="hidden md:inline">Previous</span>
                     </button>
                     
-                    <button type="button" id="next-btn" onclick="navigateQuestion(1)" 
-                        class="px-8 py-3 bg-gray-900 text-white font-bold rounded-xl hover:bg-gray-800 transition-colors flex items-center gap-2 shadow-md">
+                    <button type="button" id="next-btn" onclick="navigateQuestion(1)" class="px-8 py-3 bg-gray-900 text-white font-bold rounded-xl hover:bg-gray-800 transition-colors flex items-center gap-2 shadow-md">
                         <span class="hidden md:inline">Next</span> <i class="fas fa-arrow-right"></i>
                     </button>
 
-                    <button type="submit" id="submit-btn" 
-                        class="hidden px-8 py-3 bg-[#a52a2a] text-white font-black rounded-xl hover:bg-red-800 transition-all shadow-lg shadow-[#a52a2a]/30 flex items-center gap-2">
-                        <i class="fas fa-paper-plane"></i> SUBMIT EXAM
+                    <button type="submit" id="submit-btn" class="hidden px-8 py-3 bg-[#a52a2a] text-white font-black rounded-xl hover:bg-red-800 transition-all shadow-lg shadow-[#a52a2a]/30 flex items-center gap-2">
+                        <i class="fas fa-paper-plane"></i> SUBMIT SECTION
                     </button>
-                    
                 </div>
             </div>
-            
         </form>
     </main>
 
-    <script>
+  <script>
+        // --- Initialization & Timer Variables ---
+        // Fetch saved time from session if it exists, otherwise fall back to null
+        const savedSeconds = {{ isset($session) && $session && $session->time_remaining !== null ? $session->time_remaining : 'null' }};
         const timeLimitMinutes = {{ $currentCategory->time_limit ?? 0 }};
-        let totalSeconds = timeLimitMinutes * 60;
+        
+        // Create a boolean to easily check if this section actually uses a timer
+        const isTimed = timeLimitMinutes > 0;
+        
+        // Determine starting time: Only use saved time if the section is actually timed!
+        let totalSeconds = (isTimed && savedSeconds !== null) ? savedSeconds : (timeLimitMinutes * 60);
         let timerInterval;
 
+        // --- Navigation Variables ---
         let currentIndex = 0;
         const totalQuestions = {{ count($currentCategory->questions) }};
         const questions = document.querySelectorAll('.question-card');
@@ -244,9 +238,62 @@
         const submitBtn = document.getElementById('submit-btn');
         const progressBar = document.getElementById('progress-bar');
         const progressText = document.getElementById('progress-text');
+        const form = document.getElementById('assessment-form');
 
+        // Initialize UI State
         updateNavigationUI();
 
+        // ==========================================
+        // BACKGROUND AUTO-SAVE LOGIC
+        // ==========================================
+        let isSaving = false;
+
+        function triggerAutoSave() {
+            // Only prevent saving if the exam IS timed AND the timer hit 0.
+            if (isSaving || (isTimed && totalSeconds <= 0)) return; 
+            
+            isSaving = true;
+
+            const originalText = submitBtn.innerHTML;
+            if(!submitBtn.classList.contains('hidden')) {
+                 submitBtn.innerHTML = '<i class="fas fa-sync fa-spin"></i> Saving...';
+            }
+
+            const formData = new FormData(form);
+            
+            // Only append the timer if the exam is actually timed
+            if (isTimed) {
+                formData.append('time_remaining', totalSeconds);
+            } else {
+                formData.append('time_remaining', 0);
+            }
+
+            fetch("{{ route('student.assessment.autosave', $assessment->access_key) }}", {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+                    'Accept': 'application/json'
+                }
+            })
+            .then(async response => {
+                if (!response.ok) throw new Error('Network response was not ok');
+                isSaving = false;
+                if(!submitBtn.classList.contains('hidden')) submitBtn.innerHTML = originalText;
+            })
+            .catch(error => {
+                isSaving = false;
+                if(!submitBtn.classList.contains('hidden')) submitBtn.innerHTML = originalText;
+            });
+        }
+
+        form.addEventListener('change', triggerAutoSave);
+        form.addEventListener('focusout', triggerAutoSave);
+        setInterval(triggerAutoSave, 15000);
+
+        // ==========================================
+        // EXAM MECHANICS & NAVIGATION
+        // ==========================================
         function startExam() {
             const modal = document.getElementById('exam-start-modal');
             modal.classList.add('opacity-0', 'pointer-events-none');
@@ -259,12 +306,19 @@
                 updateProgress();
             }
 
-            if (totalSeconds > 0) {
+            // Only trigger timer logic if the section actually has a time limit
+            if (isTimed) {
                 const timerDisplay = document.getElementById('timer-display');
                 timerDisplay.classList.remove('hidden');
                 timerDisplay.classList.add('flex');
                 updateTimerDisplay();
-                timerInterval = setInterval(tickTimer, 1000);
+                
+                // Only start ticking if there's actually time left
+                if (totalSeconds > 0) {
+                    timerInterval = setInterval(tickTimer, 1000);
+                } else {
+                    handleTimeUp();
+                }
             }
         }
 
@@ -281,7 +335,6 @@
             updateNavigationUI();
             updateProgress();
             
-            // Smoothly scroll back to the top of the question when navigating
             window.scrollTo({ top: 0, behavior: 'smooth' });
         }
 
@@ -304,6 +357,8 @@
         }
 
         function tickTimer() {
+            if (!isTimed) return; // Extra safety check
+
             totalSeconds--;
             updateTimerDisplay();
 
@@ -314,32 +369,39 @@
             }
 
             if (totalSeconds <= 0) {
-                clearInterval(timerInterval);
-                document.getElementById('time-remaining').innerText = "00:00";
-                alert("Time is up! Your answers are being submitted automatically.");
-                document.getElementById('assessment-form').submit();
+                handleTimeUp();
             }
         }
 
         function updateTimerDisplay() {
-            const minutes = Math.floor(totalSeconds / 60);
-            const seconds = totalSeconds % 60;
+            const displaySeconds = Math.max(0, totalSeconds);
+            const minutes = Math.floor(displaySeconds / 60);
+            const seconds = displaySeconds % 60;
             const formattedMinutes = minutes.toString().padStart(2, '0');
             const formattedSeconds = seconds.toString().padStart(2, '0');
             document.getElementById('time-remaining').innerText = `${formattedMinutes}:${formattedSeconds}`;
+        }
+
+        function handleTimeUp() {
+            clearInterval(timerInterval);
+            document.getElementById('time-remaining').innerText = "00:00";
+            
+            triggerAutoSave();
+            
+            alert("Time is up! Submitting this section automatically.");
+            
+            submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Submitting...';
+            submitBtn.disabled = true;
+            form.submit();
         }
 
         function submitAssessment(event) {
             if (event && event.preventDefault) {
                 event.preventDefault();
                 
-                // Count how many questions have been answered
                 let answeredCount = 0;
-                
                 questions.forEach(q => {
-                    // Check for checked radios or checkboxes
                     const checkedInputs = q.querySelectorAll('input[type="radio"]:checked, input[type="checkbox"]:checked');
-                    // Check for textareas
                     const textArea = q.querySelector('textarea');
                     
                     if (checkedInputs.length > 0) {
@@ -349,16 +411,19 @@
                     }
                 });
 
-                let confirmMessage = "Are you sure you want to submit your exam?";
+                let confirmMessage = "Are you sure you want to submit this section? You cannot return to it later.";
                 
                 if (answeredCount < totalQuestions) {
-                    confirmMessage = `You have only answered ${answeredCount} out of ${totalQuestions} questions. Are you sure you want to submit?`;
+                    confirmMessage = `You have only answered ${answeredCount} out of ${totalQuestions} questions. Are you sure you want to submit this section?`;
                 }
 
                 if(confirm(confirmMessage)) {
                     clearInterval(timerInterval);
                     submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Submitting...';
                     submitBtn.disabled = true;
+                    
+                    triggerAutoSave();
+                    
                     event.target.submit();
                 }
             }
