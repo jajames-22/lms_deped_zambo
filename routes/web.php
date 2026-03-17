@@ -6,6 +6,7 @@ use App\Http\Controllers\TeacherController;
 use App\Http\Controllers\StudentController;
 use App\Http\Controllers\StudentAssessmentController;
 use App\Http\Controllers\AssessmentController;
+use App\Http\Controllers\ProfileController;
 
 // Note: Ensure you import these if you haven't already!
 // use App\Http\Controllers\CourseController;
@@ -115,7 +116,16 @@ Route::middleware(['auth'])->group(function () {
         // Route::post('/assessment/{access_key}/submit', [StudentAssessmentController::class, 'submit'])->name('student.assessment.submit');
     });
 
-}); 
+    Route::get('/dashboard/profile', [ProfileController::class, 'show'])->name('profile');
+    
+    // Handles the form submissions via AJAX/JSON
+    Route::patch('/dashboard/profile', [ProfileController::class, 'update'])->name('profile.update');
+    Route::put('/dashboard/profile/password', [ProfileController::class, 'updatePassword'])->name('password.update');
+    Route::patch('/dashboard/profile/avatar', [ProfileController::class, 'updateAvatar'])->name('profile.avatar.update');
+
+});
+
+
 
 /*
 |--------------------------------------------------------------------------

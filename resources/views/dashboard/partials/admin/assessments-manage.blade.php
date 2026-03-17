@@ -271,7 +271,9 @@
             <div class="flex items-center gap-1" id="pagination-controls">
             </div>
         </div>
-    </div> <div class="bg-white rounded-3xl p-8 shadow-sm border border-gray-100 mt-8 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+    </div> 
+    
+    <div class="bg-white rounded-3xl p-8 shadow-sm border border-gray-100 mt-8 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
             <h3 class="text-xl font-bold text-gray-900">Exam Results Visibility</h3>
             <p class="text-sm text-gray-500 mt-1">Allow students to see their score and the correct answers immediately after submitting the exam.</p>
@@ -287,6 +289,7 @@
             </label>
         </div>
     </div>
+    
     <div class="bg-red-50 rounded-3xl p-6 border border-red-100 mt-8">
         <h3 class="text-red-800 font-bold mb-2">Danger Zone</h3>
         <p class="text-sm text-red-600 mb-4">Deleting this assessment will permanently remove it and all associated student submissions. This action cannot be undone.</p>

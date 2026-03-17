@@ -239,16 +239,19 @@ img {
 
 .button-blue,
 .button-primary {
-    background-color: #18181b;
-    border-bottom: 8px solid #18181b;
-    border-left: 18px solid #18181b;
-    border-right: 18px solid #18181b;
-    border-top: 8px solid #18181b;
+    background-color: #a52a2a !important;
+    border-top: 10px solid #a52a2a !important;
+    border-right: 18px solid #a52a2a !important;
+    border-bottom: 10px solid #a52a2a !important;
+    border-left: 18px solid #a52a2a !important;
+    border-radius: 12px !important; /* Rounded corners like your app */
+    font-weight: bold !important;
 }
 
 .button-green,
 .button-success {
-    background-color: #16a34a;
+    background-color: #22c55e !important;
+    border-radius: 12px !important;
     border-bottom: 8px solid #16a34a;
     border-left: 18px solid #16a34a;
     border-right: 18px solid #16a34a;

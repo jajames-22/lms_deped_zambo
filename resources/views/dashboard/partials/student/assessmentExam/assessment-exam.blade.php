@@ -29,23 +29,18 @@
         }
 
         /* --- Custom High-Contrast Shadows --- */
-        
-        /* Glass Shadow for the Header */
         .shadow-header {
             box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.3), 0 2px 10px -4px rgba(0, 0, 0, 0.2);
         }
 
-        /* Deep Elevation Shadow for Question Cards */
         .shadow-card {
             box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.4);
         }
 
-        /* Floating Navigation Shadow (Bottom Bar) */
         .shadow-nav {
             box-shadow: 0 -10px 40px -5px rgba(0, 0, 0, 0.35);
         }
 
-        /* Square Number Badge Shadow */
         .shadow-badge {
             box-shadow: 0 10px 15px -3px rgba(165, 42, 42, 0.4);
         }
@@ -55,7 +50,6 @@
 
     <div id="exam-start-modal" class="fixed inset-0 z-[100] flex items-center justify-center bg-[#a52a2a] backdrop-blur-xl transition-opacity duration-300 p-4">
         <div class="bg-white rounded-3xl p-8 max-w-md w-full mx-4 shadow-2xl transform transition-all text-center">
-            
             <div class="w-20 h-20 bg-red-50 rounded-full flex items-center justify-center mx-auto mb-6 shadow-inner">
                 <i class="fas fa-file-signature text-3xl text-[#a52a2a]"></i>
             </div>
@@ -109,10 +103,9 @@
 
     <div class="h-24 md:h-28"></div>
 
- <main class="flex-grow max-w-5xl w-full mx-auto px-4 pb-32 blur-sm transition-all duration-500 flex flex-col" id="exam-content">
-        <form id="assessment-form" onsubmit="submitAssessment(event)" class="flex-grow flex flex-col" action="{{ route('student.assessment.submit', $assessment->access_key) }}" method="POST" >
+    <main class="flex-grow max-w-5xl w-full mx-auto px-4 pb-32 blur-sm transition-all duration-500 flex flex-col" id="exam-content">
+        <form id="assessment-form" onsubmit="submitAssessment(event)" class="flex-grow flex flex-col" action="{{ route('student.assessment.submit', $assessment->access_key) }}" method="POST">
             @csrf
-            
             <input type="hidden" name="category_id" value="{{ $currentCategory->id }}">
             
             <div class="flex-grow mb-20">
@@ -148,19 +141,15 @@
                                 </div>
                                 <div class="flex flex-col justify-center">
                                     @if($question->type === 'text')
-                                        
                                         @php
                                             $savedText = isset($existingAnswers) && isset($existingAnswers[$question->id]) 
                                                             ? $existingAnswers[$question->id]->answer_text 
                                                             : '';
                                         @endphp
-                                        
                                         <div class="w-full">
                                             <textarea name="answers[{{ $question->id }}]" rows="6" placeholder="Type your answer here..." class="w-full p-5 border-2 border-gray-300 rounded-2xl focus:ring-4 focus:ring-[#a52a2a]/20 focus:border-[#a52a2a] outline-none transition-all text-gray-700 font-medium resize-y bg-gray-50/50">{{ $savedText }}</textarea>
                                         </div>
-
                                     @else
-                                        
                                         @php
                                             $savedOptions = [];
                                             if(isset($existingAnswers) && isset($existingAnswers[$question->id]) && $existingAnswers[$question->id]->selected_options) {
@@ -168,14 +157,11 @@
                                                 $savedOptions = is_array($decoded) ? $decoded : [];
                                             }
                                         @endphp
-                                        
                                         <div class="space-y-3">
                                             @foreach($question->options as $option)
-                                                
                                                 @php
                                                     $isChecked = in_array($option['id'], $savedOptions) ? 'checked' : '';
                                                 @endphp
-                                                
                                                 <label class="option-label flex items-center p-3 border-2 border-gray-300 rounded-2xl cursor-pointer hover:bg-gray-50 hover:border-gray-200 transition-all group">
                                                     <div class="relative flex items-center justify-center shrink-0">
                                                         @if($question->type === 'checkbox')
@@ -198,7 +184,7 @@
 
             <div class="h-24 md:h-28"></div>
 
-            <div class="fixed bottom-0 left-0 right-0 z-50 p-4 md:p-6 border-gray-300">
+            <div class="fixed bottom-0 left-0 right-0 z-40 p-4 md:p-6 border-gray-300">
                 <div class="max-w-5xl mx-auto flex items-center justify-between bg-white border border-gray-300 p-4 md:p-5 rounded-3xl">
                     <button type="button" id="prev-btn" onclick="navigateQuestion(-1)" class="px-6 py-3 bg-gray-100 text-gray-600 font-bold rounded-xl hover:bg-gray-200 transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed">
                         <i class="fas fa-arrow-left"></i> <span class="hidden md:inline">Previous</span>
@@ -216,16 +202,44 @@
         </form>
     </main>
 
-  <script>
+    <div id="time-up-modal" class="fixed inset-0 z-[200] hidden flex items-center justify-center bg-gray-900/90 backdrop-blur-sm p-4">
+        <div class="bg-white rounded-3xl p-8 max-w-sm w-full shadow-2xl text-center transform transition-all">
+            <div class="w-20 h-20 bg-red-50 rounded-full flex items-center justify-center mx-auto mb-6 shadow-inner">
+                <i class="fas fa-hourglass-end text-3xl text-red-500 animate-pulse"></i>
+            </div>
+            <h3 class="text-2xl font-black text-gray-900 mb-2">Time's Up!</h3>
+            <p class="text-gray-500 mb-6 font-medium">Your time for this section has expired. Submitting automatically...</p>
+            <div class="flex justify-center">
+                <i class="fas fa-spinner fa-spin text-[#a52a2a] text-4xl"></i>
+            </div>
+        </div>
+    </div>
+
+    <div id="confirm-submit-modal" class="fixed inset-0 z-[200] hidden flex items-center justify-center bg-gray-900/60 backdrop-blur-sm p-4">
+        <div class="bg-white rounded-3xl p-8 max-w-md w-full shadow-2xl text-center transform transition-all">
+            <div id="confirm-modal-icon-container" class="w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-6 shadow-inner">
+                <i id="confirm-modal-icon" class="text-3xl"></i>
+            </div>
+            <h3 class="text-2xl font-black text-gray-900 mb-2">Submit Section?</h3>
+            <p id="confirm-submit-message" class="text-gray-500 mb-8 font-medium leading-relaxed"></p>
+            
+            <div class="flex gap-3">
+                <button type="button" onclick="closeConfirmModal()" class="flex-1 px-4 py-3 bg-gray-100 text-gray-700 font-bold rounded-xl hover:bg-gray-200 transition active:scale-95">
+                    Review Answers
+                </button>
+                <button type="button" onclick="executeSubmit()" class="flex-1 px-4 py-3 bg-[#a52a2a] text-white font-bold rounded-xl shadow-lg shadow-[#a52a2a]/30 hover:bg-red-800 transition flex items-center justify-center gap-2 active:scale-95">
+                    <i class="fas fa-paper-plane"></i> Submit
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
         // --- Initialization & Timer Variables ---
-        // Fetch saved time from session if it exists, otherwise fall back to null
         const savedSeconds = {{ isset($session) && $session && $session->time_remaining !== null ? $session->time_remaining : 'null' }};
         const timeLimitMinutes = {{ $currentCategory->time_limit ?? 0 }};
-        
-        // Create a boolean to easily check if this section actually uses a timer
         const isTimed = timeLimitMinutes > 0;
         
-        // Determine starting time: Only use saved time if the section is actually timed!
         let totalSeconds = (isTimed && savedSeconds !== null) ? savedSeconds : (timeLimitMinutes * 60);
         let timerInterval;
 
@@ -249,19 +263,15 @@
         let isSaving = false;
 
         function triggerAutoSave() {
-            // Only prevent saving if the exam IS timed AND the timer hit 0.
             if (isSaving || (isTimed && totalSeconds <= 0)) return; 
             
             isSaving = true;
-
             const originalText = submitBtn.innerHTML;
             if(!submitBtn.classList.contains('hidden')) {
                  submitBtn.innerHTML = '<i class="fas fa-sync fa-spin"></i> Saving...';
             }
 
             const formData = new FormData(form);
-            
-            // Only append the timer if the exam is actually timed
             if (isTimed) {
                 formData.append('time_remaining', totalSeconds);
             } else {
@@ -306,14 +316,12 @@
                 updateProgress();
             }
 
-            // Only trigger timer logic if the section actually has a time limit
             if (isTimed) {
                 const timerDisplay = document.getElementById('timer-display');
                 timerDisplay.classList.remove('hidden');
                 timerDisplay.classList.add('flex');
                 updateTimerDisplay();
                 
-                // Only start ticking if there's actually time left
                 if (totalSeconds > 0) {
                     timerInterval = setInterval(tickTimer, 1000);
                 } else {
@@ -324,7 +332,6 @@
 
         function navigateQuestion(direction) {
             questions[currentIndex].classList.remove('active');
-            
             currentIndex += direction;
             
             if (currentIndex < 0) currentIndex = 0;
@@ -334,7 +341,6 @@
             
             updateNavigationUI();
             updateProgress();
-            
             window.scrollTo({ top: 0, behavior: 'smooth' });
         }
 
@@ -357,7 +363,7 @@
         }
 
         function tickTimer() {
-            if (!isTimed) return; // Extra safety check
+            if (!isTimed) return; 
 
             totalSeconds--;
             updateTimerDisplay();
@@ -382,51 +388,78 @@
             document.getElementById('time-remaining').innerText = `${formattedMinutes}:${formattedSeconds}`;
         }
 
+        // --- NEW MODAL LOGIC FOR SUBMITTING ---
+
         function handleTimeUp() {
             clearInterval(timerInterval);
             document.getElementById('time-remaining').innerText = "00:00";
             
             triggerAutoSave();
             
-            alert("Time is up! Submitting this section automatically.");
+            // Show custom Time's Up blocking modal instead of alert
+            const timeUpModal = document.getElementById('time-up-modal');
+            timeUpModal.classList.remove('hidden');
             
             submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Submitting...';
             submitBtn.disabled = true;
-            form.submit();
+            
+            // Force submission after 2.5 seconds so user reads the message
+            setTimeout(() => {
+                form.submit();
+            }, 2500);
         }
 
         function submitAssessment(event) {
             if (event && event.preventDefault) {
-                event.preventDefault();
-                
-                let answeredCount = 0;
-                questions.forEach(q => {
-                    const checkedInputs = q.querySelectorAll('input[type="radio"]:checked, input[type="checkbox"]:checked');
-                    const textArea = q.querySelector('textarea');
-                    
-                    if (checkedInputs.length > 0) {
-                        answeredCount++;
-                    } else if (textArea && textArea.value.trim() !== '') {
-                        answeredCount++;
-                    }
-                });
-
-                let confirmMessage = "Are you sure you want to submit this section? You cannot return to it later.";
-                
-                if (answeredCount < totalQuestions) {
-                    confirmMessage = `You have only answered ${answeredCount} out of ${totalQuestions} questions. Are you sure you want to submit this section?`;
-                }
-
-                if(confirm(confirmMessage)) {
-                    clearInterval(timerInterval);
-                    submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Submitting...';
-                    submitBtn.disabled = true;
-                    
-                    triggerAutoSave();
-                    
-                    event.target.submit();
-                }
+                event.preventDefault(); // Prevent native form submission
             }
+            
+            let answeredCount = 0;
+            questions.forEach(q => {
+                const checkedInputs = q.querySelectorAll('input[type="radio"]:checked, input[type="checkbox"]:checked');
+                const textArea = q.querySelector('textarea');
+                
+                if (checkedInputs.length > 0) {
+                    answeredCount++;
+                } else if (textArea && textArea.value.trim() !== '') {
+                    answeredCount++;
+                }
+            });
+
+            // Prepare Modal Content
+            let confirmMessage = "Are you sure you want to submit this section? You cannot return to it later.";
+            let iconClass = "fas fa-check-circle text-3xl text-[#a52a2a]";
+            let iconBg = "bg-red-50";
+
+            if (answeredCount < totalQuestions) {
+                confirmMessage = `You have only answered <span class="font-black text-[#a52a2a]">${answeredCount}</span> out of <span class="font-black text-gray-900">${totalQuestions}</span> questions. Are you sure you want to submit?`;
+                iconClass = "fas fa-exclamation-triangle text-3xl text-amber-500";
+                iconBg = "bg-amber-50";
+            }
+
+            // Inject dynamic text and icons
+            document.getElementById('confirm-submit-message').innerHTML = confirmMessage;
+            document.getElementById('confirm-modal-icon').className = iconClass;
+            document.getElementById('confirm-modal-icon-container').className = `w-20 h-20 ${iconBg} rounded-full flex items-center justify-center mx-auto mb-6 shadow-inner`;
+            
+            // Show Custom Confirm Modal
+            document.getElementById('confirm-submit-modal').classList.remove('hidden');
+        }
+
+        function closeConfirmModal() {
+            document.getElementById('confirm-submit-modal').classList.add('hidden');
+        }
+
+        function executeSubmit() {
+            clearInterval(timerInterval);
+            closeConfirmModal();
+            
+            submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Submitting...';
+            submitBtn.disabled = true;
+            
+            triggerAutoSave();
+            
+            form.submit(); // Actually submit the form
         }
     </script>
 </body>

@@ -68,4 +68,24 @@ class User extends Authenticatable implements MustVerifyEmail
     {
         return $this->belongsTo(School::class);
     }
+
+    public function sendEmailVerificationNotification()
+    {
+        $this->notify(new \App\Notifications\CustomVerifyEmail);
+    }
+
+    public function sendPasswordResetNotification($token)
+    {
+        $this->notify(new \App\Notifications\CustomResetPassword($token));
+    }
+
+    public function markEmailAsVerified()
+    {
+        $this->forceFill([
+            'email_verified_at' => $this->freshTimestamp(),
+            'status' => 'verified', // 👈 NEW: Automatically switch status!
+        ])->save();
+
+        return true;
+    }
 }

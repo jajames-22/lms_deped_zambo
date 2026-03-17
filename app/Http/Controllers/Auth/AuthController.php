@@ -65,6 +65,7 @@ class AuthController extends Controller
             'school_id' => $validated['school_id'],
             'grade_level' => $validated['grade_level'],
             'role' => $validated['role'],
+            'status' => 'pending', // 👈 NEW: Set default status here
         ]);
 
         event(new Registered($user));
@@ -87,18 +88,30 @@ class AuthController extends Controller
         $remember = $request->boolean('remember');
 
         if (Auth::attempt($credentials, $remember)) {
+            $user = Auth::user();
 
-            $request->session()->regenerate();
+            // Check if the account is suspended
+            if ($user->status === 'suspended') {
+                Auth::logout(); // Prevent access
+                
+                return back()->withErrors([
+                    'email' => 'Your account has been suspended. Please contact the administrator.'
+                ])->onlyInput('email');
+            }
 
             // Check if email is verified
-            if (!Auth::user()->hasVerifiedEmail()) {
-                $unverifiedEmail = Auth::user()->email; // Capture the email
-                Auth::logout(); // prevent access
+            if (!$user->hasVerifiedEmail()) {
+                $unverifiedEmail = $user->email; // Capture the email
+                Auth::logout(); // Prevent access
 
                 return back()->withErrors([
                     'email' => 'You must verify your email first.'
                 ])->with('unverified_email', $unverifiedEmail)->onlyInput('email');
             }
+
+            // If neither suspended nor unverified, regenerate session and log them in
+            $request->session()->regenerate();
+            
             return redirect()->intended('/dashboard');
         }
 
