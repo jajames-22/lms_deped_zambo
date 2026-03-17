@@ -1,10 +1,33 @@
 <head>
     <style>
-        .toggle-container .toggle-track { background-color: #d1d5db; }
-        .toggle-container .toggle-handle { transform: translateX(5px); }
-        .toggle-container .toggle-input:checked + .toggle-track { background-color: #26da65; }
-        .toggle-container .toggle-input:checked ~ .toggle-handle { transform: translateX(2.2rem); }
-        .toggle-container .toggle-input:focus-visible + .toggle-track { box-shadow: 0 0 0 4px rgba(165, 42, 42, 0.4); }
+        /* Styling for the visual track when the checkbox is UNCHECKED */
+        .toggle-container .toggle-track {
+            background-color: #d1d5db; /* Default gray-300 */
+        }
+
+        /* Styling for the knob/handle when the checkbox is UNCHECKED */
+        .toggle-container .toggle-handle {
+            transform: translateX(5px); /* Default left position */
+        }
+
+        /* * THE MAGIC: When the hidden checkbox (.toggle-input) is :checked, 
+        * change the styling of the TRACK element that immediately follows it (+)
+        */
+        .toggle-container .toggle-input:checked + .toggle-track {
+            background-color: #26da65; /* The precise teal color from the image! */
+        }
+
+        /* * When the hidden checkbox is :checked, shift the knob/handle 
+        * to the right (calculated based on track width minus handle width and padding)
+        */
+        .toggle-container .toggle-input:checked ~ .toggle-handle {
+            transform: translateX(2.2rem); /* Shifts the knob to the right side */
+        }
+        
+        /* Optional: Ensure focus state is visible for accessibility */
+        .toggle-container .toggle-input:focus-visible + .toggle-track {
+            box-shadow: 0 0 0 4px rgba(165, 42, 42, 0.4); /* subtle maroon glow */
+        }
     </style>  
 </head>
 
@@ -21,14 +44,14 @@
         </button>
 
         <div class="flex items-center gap-4">
-            <span id="status-badge" class="px-3 py-1.5 {{ $isLive ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700' }} text-xs font-bold rounded-lg uppercase tracking-wider flex items-center gap-2 transition-colors">
+            <span id="status-badge" class="px-3 py-1.5 {{ $isLive ? 'bg-teal-100 text-teal-700' : 'bg-gray-100 text-gray-700' }} text-xs font-bold rounded-lg uppercase tracking-wider flex items-center gap-2 transition-colors">
                 <span class="relative flex h-2 w-2">
                     @if($isLive)
-                        <span id="status-ping" class="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
-                        <span id="status-dot" class="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
+                        <span id="status-ping" class="animate-ping absolute inline-flex h-full w-full rounded-full bg-teal-400 opacity-75"></span>
+                        <span id="status-dot" class="relative inline-flex rounded-full h-2 w-2 bg-teal-500"></span>
                     @else
-                        <span id="status-ping" class="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75 hidden"></span>
-                        <span id="status-dot" class="relative inline-flex rounded-full h-2 w-2 bg-amber-500"></span>
+                        <span id="status-ping" class="animate-ping absolute inline-flex h-full w-full rounded-full bg-gray-400 opacity-75 hidden"></span>
+                        <span id="status-dot" class="relative inline-flex rounded-full h-2 w-2 bg-gray-500"></span>
                     @endif
                 </span>
                 <span id="status-text">{{ $isLive ? 'Published' : 'Draft Mode' }}</span>
@@ -274,15 +297,17 @@
                 const ping = document.getElementById('status-ping');
 
                 if (isLive) {
-                    badge.className = "px-3 py-1.5 bg-green-100 text-green-700 text-xs font-bold rounded-lg uppercase tracking-wider flex items-center gap-2 transition-colors";
+                    badge.className = "px-3 py-1.5 bg-teal-100 text-teal-700 text-xs font-bold rounded-lg uppercase tracking-wider flex items-center gap-2 transition-colors";
                     text.innerText = "Published";
-                    dot.className = "relative inline-flex rounded-full h-2 w-2 bg-green-500";
-                    ping.className = "animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75";
+                    dot.className = "relative inline-flex rounded-full h-2 w-2 bg-teal-500";
+                    ping.className = "animate-ping absolute inline-flex h-full w-full rounded-full bg-teal-400 opacity-75";
+                    ping.classList.remove('hidden');
                 } else {
-                    badge.className = "px-3 py-1.5 bg-amber-100 text-amber-700 text-xs font-bold rounded-lg uppercase tracking-wider flex items-center gap-2 transition-colors";
+                    badge.className = "px-3 py-1.5 bg-gray-100 text-gray-700 text-xs font-bold rounded-lg uppercase tracking-wider flex items-center gap-2 transition-colors";
                     text.innerText = "Draft Mode";
-                    dot.className = "relative inline-flex rounded-full h-2 w-2 bg-amber-500";
-                    ping.className = "animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75 hidden";
+                    dot.className = "relative inline-flex rounded-full h-2 w-2 bg-gray-500";
+                    ping.className = "animate-ping absolute inline-flex h-full w-full rounded-full bg-gray-400 opacity-75 hidden";
+                    ping.classList.add('hidden');
                 }
             } else {
                 checkbox.checked = !checkbox.checked;

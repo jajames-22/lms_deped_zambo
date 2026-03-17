@@ -6,7 +6,7 @@ use App\Models\Material;
 use App\Models\Lesson;
 use App\Models\Quiz;
 use App\Models\Enrollment;
-use App\Models\User;
+use App\Models\User; 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
@@ -44,7 +44,7 @@ class MaterialsController extends Controller
 
         $material = DB::table('materials')->where('id', $materialId)->first();
         $lessons = []; 
-        $isNew = true; // Added flag for a brand new module
+        $isNew = true; 
 
         return view('dashboard.partials.admin.materials-create', compact('material', 'lessons', 'isNew'));
     }
@@ -71,7 +71,7 @@ class MaterialsController extends Controller
                 return $lesson;
             });
 
-        $isNew = false; // Added flag for an existing module
+        $isNew = false;
 
         return view('dashboard.partials.admin.materials-create', compact('material', 'lessons', 'isNew'));
     }
@@ -168,10 +168,11 @@ class MaterialsController extends Controller
     {
         DB::beginTransaction();
         try {
+            // FIX: Using $request->input('status', 'draft') forces it to correctly map FormData strings
             DB::table('materials')->where('id', $id)->update([
-                'title' => $request->title ?? 'Untitled Material',
-                'description' => $request->description ?? '',
-                'status' => $request->status ?? 'draft',
+                'title' => $request->input('title', 'Untitled Material'),
+                'description' => $request->input('description', ''),
+                'status' => $request->input('status', 'draft'),
                 'draft_json' => null,
                 'updated_at' => now()
             ]);

@@ -132,12 +132,12 @@
                 <p class="text-gray-500 text-sm mb-6">How would you like to exit? Your progress is currently stored as a temporary draft.</p>
 
                 <div class="space-y-3">
-                    <button onclick="window.saveCompleteMaterial(this, 'published')"
+                    <button type="button" onclick="window.saveCompleteMaterial(this, 'published')"
                         class="w-full py-4 bg-[#a52a2a] text-white font-bold rounded-2xl hover:bg-red-800 transition flex items-center justify-center gap-2">
                         <i class="fas fa-upload text-sm"></i>
                         <span>Publish & Exit</span>
                     </button>
-                    <button onclick="window.saveCompleteMaterial(this, 'draft')"
+                    <button type="button" onclick="window.saveCompleteMaterial(this, 'draft')"
                         class="w-full py-4 bg-white border border-gray-200 text-gray-700 font-bold rounded-2xl hover:bg-gray-50 transition flex items-center justify-center gap-2">
                         <i class="fas fa-file-alt text-sm text-gray-400"></i>
                         <span>Save as Draft & Exit</span>
