@@ -36,5 +36,5 @@ class AssessmentTemplateExport implements FromArray, WithHeadings, ShouldAutoSiz
             // Example 3: A question WITH a media URL!
             ['General Knowledge', '10', 'mcq', 'What animal is shown in the picture?', 'https://upload.wikimedia.org/wikipedia/commons/4/4d/Cat_November_2010-1a.jpg', 'Dog', 'Cat', 'Bird', 'Fish', 'Option 2'],
         ];
-    }
+    } 
 }

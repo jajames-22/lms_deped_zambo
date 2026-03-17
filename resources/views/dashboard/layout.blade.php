@@ -47,9 +47,6 @@
                             class="w-48 h-auto object-contain block" alt="LMS Logo">
                     </a>
                 </div>
-                <button onclick="toggleSidebar()" class="md:hidden text-gray-500 hover:text-[#a52a2a] p-2">
-                    <i class="fas fa-times text-xl"></i>
-                </button>
             </div>
 
             <nav class="flex-1 overflow-y-auto">
@@ -259,7 +256,9 @@
                     element.classList.add('bg-[#a52a2a]/10', 'text-[#a52a2a]', 'font-medium', 'border-r-4', 'border-[#a52a2a]');
                     element.classList.remove('text-gray-600', 'hover:bg-gray-100');
 
-                    if (window.innerWidth < 768) toggleSidebar();
+                    if (window.innerWidth < 768 && !sidebar.classList.contains('-translate-x-full')) {
+                        toggleSidebar();
+                    }
                 })
                 .catch(err => console.error("Fetch failed entirely:", err));
         }

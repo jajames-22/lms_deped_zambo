@@ -1,3 +1,36 @@
+<head>
+    <style>
+        /* Styling for the visual track when the checkbox is UNCHECKED */
+        .toggle-container .toggle-track {
+            background-color: #d1d5db; /* Default gray-300 */
+        }
+
+        /* Styling for the knob/handle when the checkbox is UNCHECKED */
+        .toggle-container .toggle-handle {
+            transform: translateX(5px); /* Default left position */
+        }
+
+        /* * THE MAGIC: When the hidden checkbox (.toggle-input) is :checked, 
+        * change the styling of the TRACK element that immediately follows it (+)
+        */
+        .toggle-container .toggle-input:checked + .toggle-track {
+            background-color: #26da65; /* The precise teal color from the image! */
+        }
+
+        /* * When the hidden checkbox is :checked, shift the knob/handle 
+        * to the right (calculated based on track width minus handle width and padding)
+        */
+        .toggle-container .toggle-input:checked ~ .toggle-handle {
+            transform: translateX(2.2rem); /* Shifts the knob to the right side */
+        }
+        
+        /* Optional: Ensure focus state is visible for accessibility */
+        .toggle-container .toggle-input:focus-visible + .toggle-track {
+            box-shadow: 0 0 0 4px rgba(165, 42, 42, 0.4); /* subtle maroon glow */
+        }
+    </style>  
+</head>
+
 <div class="space-y-6 pb-20 max-w-6xl mx-auto relative">
     @php 
         $isLive = ($assessment->status === 'published'); 
@@ -10,18 +43,27 @@
             Back to Assessments
         </button>
 
-        <div class="flex items-center gap-3">
-            <span class="px-3 py-1.5 {{ $isLive ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700' }} text-xs font-bold rounded-lg uppercase tracking-wider flex items-center gap-2">
+        <div class="flex items-center gap-4">
+            <span id="status-badge" class="px-3 py-1.5 {{ $isLive ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700' }} text-xs font-bold rounded-lg uppercase tracking-wider flex items-center gap-2 transition-colors">
                 <span class="relative flex h-2 w-2">
                     @if($isLive)
-                        <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
-                        <span class="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
+                        <span id="status-ping" class="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                        <span id="status-dot" class="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
                     @else
-                        <span class="relative inline-flex rounded-full h-2 w-2 bg-amber-500"></span>
+                        <span id="status-ping" class="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75 hidden"></span>
+                        <span id="status-dot" class="relative inline-flex rounded-full h-2 w-2 bg-amber-500"></span>
                     @endif
                 </span>
-                {{ $isLive ? 'Published' : 'Draft Mode' }}
+                <span id="status-text">{{ $isLive ? 'Published' : 'Draft Mode' }}</span>
             </span>
+
+            <label class="toggle-container relative inline-block w-16 h-8 cursor-pointer" title="Toggle Assessment Status">
+                <input type="checkbox" id="assessment-status-toggle" class="sr-only toggle-input" onchange="window.toggleAssessmentStatus(this)" {{ $isLive ? 'checked' : '' }}>
+                
+                <span class="toggle-track absolute inset-0 bg-gray-300 rounded-full transition-colors duration-300 peer-focus-visible:ring-2 peer-focus-visible:ring-[#a52a2a]/40 shadow-inner"></span>
+                
+                <span class="toggle-handle absolute left-1 top-1 bg-white w-6 h-6 rounded-full transition-transform duration-300 transform shadow-md shadow-black/20"></span>
+            </label>
         </div>
     </div>
 
@@ -63,9 +105,9 @@
     </div>
 
     <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div class="md:col-span-2 bg-gradient-to-r from-gray-900 to-gray-800 rounded-3xl p-8 text-white shadow-lg relative overflow-hidden border border-gray-700">
+        <div class="md:col-span-2 bg-gradient-to-r from-red-700 to-red-900 rounded-3xl p-8 text-white shadow-lg relative overflow-hidden border border-gray-700">
             <i class="fas fa-key absolute -right-4 -bottom-4 text-8xl text-white/5 rotate-12"></i>
-            <h3 class="text-gray-400 font-bold uppercase tracking-widest text-xs mb-2">Student Access Key</h3>
+            <h3 class="text-white font-bold uppercase tracking-widest text-xs mb-2">Student Access Key</h3>
             <p class="text-sm text-gray-300 mb-6 max-w-md">Share this code with your students. They will use it to enter the exam lobby and start the assessment.</p>
             <div class="flex items-center gap-4 bg-black/30 p-2 rounded-2xl w-fit border border-white/10 backdrop-blur-sm">
                 <span id="access-key-text" class="text-3xl font-mono font-bold tracking-widest pl-4 pr-2 text-white">
@@ -219,19 +261,49 @@
                 @endforelse
                 </tbody>
             </table>
+            
+            
         </div>
+        <div id="pagination-wrapper" class="rounded-xl mt-1 hidden flex flex-col sm:flex-row items-center justify-between px-6 py-4 border-t border-gray-100 bg-gray-50/50">
+                <div class="text-sm text-gray-500 mb-3 sm:mb-0">
+                    Showing <span id="page-start-info" class="font-bold text-gray-900">0</span> to <span id="page-end-info" class="font-bold text-gray-900">0</span> of <span id="page-total-info" class="font-bold text-gray-900">0</span> results
+                </div>
+                <div class="flex items-center gap-1" id="pagination-controls">
+                    </div>
+            </div>
     </div>
 
     <div class="bg-red-50 rounded-3xl p-6 border border-red-100 mt-8">
         <h3 class="text-red-800 font-bold mb-2">Danger Zone</h3>
         <p class="text-sm text-red-600 mb-4">Deleting this assessment will permanently remove it and all associated student submissions. This action cannot be undone.</p>
-        <button onclick="window.deleteAssessmentFromList('{{ $assessment->id }}', '{{ route('dashboard.assessments.destroy', $assessment->id) }}')" 
+        <button onclick="window.openAssessmentDeleteModal()" 
             class="px-6 py-2.5 bg-white border border-red-200 text-red-600 text-sm font-bold rounded-xl hover:bg-red-600 hover:text-white transition-all shadow-sm">
             Delete Assessment
         </button>
     </div>
 
-    <div id="student-delete-modal" class="fixed inset-0 z-[100] hidden">
+    <div id="assessment-delete-modal" class="fixed inset-0 z-[100] hidden h-full">
+        <div class="absolute inset-0 bg-gray-900/60 backdrop-blur-sm" onclick="window.closeAssessmentDeleteModal()"></div>
+        <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-sm p-6">
+            <div class="bg-white rounded-2xl shadow-2xl overflow-hidden border border-gray-100 p-6 text-center">
+                <div class="h-16 w-16 bg-red-50 text-red-500 rounded-full flex items-center justify-center mx-auto mb-4 text-3xl">
+                    <i class="fas fa-trash-alt"></i>
+                </div>
+                <h3 class="text-xl font-bold text-gray-900 mb-2">Delete Assessment?</h3>
+                <p class="text-gray-500 text-sm mb-6">Are you sure you want to permanently delete this assessment? All associated student submissions will be lost. This action cannot be undone.</p>
+                <div class="flex gap-3 mt-2">
+                    <button type="button" onclick="window.closeAssessmentDeleteModal()" class="w-full py-3 bg-gray-100 text-gray-700 font-bold rounded-xl hover:bg-gray-200 transition active:scale-95">
+                        Cancel
+                    </button>
+                    <button type="button" id="confirm-assessment-delete-btn" onclick="window.executeAssessmentDelete()" class="w-full py-3 bg-red-600 text-white font-bold rounded-xl hover:bg-red-700 transition active:scale-95 shadow-md flex items-center justify-center gap-2">
+                        <i class="fas fa-trash-alt"></i> Delete
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="student-delete-modal" class="fixed inset-0 z-[100] hidden h-full">
         <div class="absolute inset-0 bg-gray-900/60 backdrop-blur-sm" onclick="window.closeDeleteModal()"></div>
         <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-sm p-6">
             <div class="bg-white rounded-2xl shadow-2xl overflow-hidden border border-gray-100 p-6 text-center">
@@ -258,17 +330,71 @@
         <button onclick="closeSnackbar()" class="ml-4 text-white/70 hover:text-white transition"><i class="fas fa-times"></i></button>
     </div>
 </div>
-
 <script>
+
+    // --- Toggle Status Logic ---
+    window.toggleAssessmentStatus = async function(checkbox) {
+        const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || '{{ csrf_token() }}';
+        
+        // Temporarily disable to prevent spam clicking
+        checkbox.disabled = true;
+
+        try {
+            const response = await fetch('{{ route("dashboard.assessments.toggle-status", $assessment->id) }}', {
+                method: 'PATCH',
+                headers: {
+                    'X-CSRF-TOKEN': csrfToken,
+                    'Accept': 'application/json',
+                    'Content-Type': 'application/json'
+                }
+            });
+
+            const data = await response.json();
+
+            if (response.ok && data.success) {
+                showSnackbar(data.message, 'success');
+                
+                // The visual track and knob state are handled automatically by CSS :checked!
+
+                // Update the visual status badge state
+                const isLive = data.new_status === 'published';
+                const badge = document.getElementById('status-badge');
+                const text = document.getElementById('status-text');
+                const dot = document.getElementById('status-dot');
+                const ping = document.getElementById('status-ping');
+
+                if (isLive) {
+                    badge.className = "px-3 py-1.5 bg-green-100 text-green-700 text-xs font-bold rounded-lg uppercase tracking-wider flex items-center gap-2 transition-colors";
+                    text.innerText = "Published";
+                    dot.className = "relative inline-flex rounded-full h-2 w-2 bg-green-500";
+                    ping.className = "animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75";
+                } else {
+                    badge.className = "px-3 py-1.5 bg-amber-100 text-amber-700 text-xs font-bold rounded-lg uppercase tracking-wider flex items-center gap-2 transition-colors";
+                    text.innerText = "Draft Mode";
+                    dot.className = "relative inline-flex rounded-full h-2 w-2 bg-amber-500";
+                    ping.className = "animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75 hidden";
+                }
+                
+            } else {
+                // If API failed, revert the visual checkbox state to match reality
+                checkbox.checked = !checkbox.checked;
+                throw new Error(data.message || 'Failed to update status.');
+            }
+        } catch (error) {
+            console.error(error);
+            showSnackbar(error.message || 'A network error occurred.', 'error');
+        } finally {
+            checkbox.disabled = false;
+        }
+    };
     // --- Snackbar Logic ---
-    let snackbarTimeout;
+    var snackbarTimeout; // Changed to var
     
     window.showSnackbar = function(message, type = 'error') {
         const snackbar = document.getElementById('custom-snackbar');
         const msgEl = document.getElementById('snackbar-message');
         const iconEl = document.getElementById('snackbar-icon');
 
-        // Reset classes
         snackbar.className = "fixed bottom-6 right-6 z-[200] transform translate-y-24 opacity-0 transition-all duration-300 flex items-center gap-3 px-5 py-4 rounded-xl shadow-2xl font-medium text-sm text-white";
         
         if (type === 'error') {
@@ -284,69 +410,217 @@
 
         msgEl.innerText = message;
 
-        // Animate In
-        setTimeout(() => {
-            snackbar.classList.remove('translate-y-24', 'opacity-0');
-        }, 10);
-
-        // Auto close after 4 seconds
+        setTimeout(() => snackbar.classList.remove('translate-y-24', 'opacity-0'), 10);
         clearTimeout(snackbarTimeout);
         snackbarTimeout = setTimeout(closeSnackbar, 4000);
     };
 
     window.closeSnackbar = function() {
-        const snackbar = document.getElementById('custom-snackbar');
-        snackbar.classList.add('translate-y-24', 'opacity-0');
+        document.getElementById('custom-snackbar').classList.add('translate-y-24', 'opacity-0');
     };
 
-    // --- Table Sorting Logic ---
-    let sortDirections = { 1: true, 2: true, 4: true }; // true = ascending
+    // --- State and Pagination Management ---
+    // Changed let/const to var to prevent redeclaration errors in loadPartial router
+    var allRows = [];
+    var currentRows = [];
+    var currentPage = 1;
+    var pageSize = 10; 
+    var sortColumnIndex = null;
+    var sortIsAscending = true;
+    var sortType = 'alpha';
 
-    window.sortTable = function(columnIndex, type) {
-        const table = document.getElementById("students-table");
-        const tbody = document.getElementById("students-tbody");
-        const rows = Array.from(tbody.querySelectorAll("tr.student-row"));
+    // Initial load
+    setTimeout(() => {
+        initializeTableData();
+    }, 50);
+
+    // Grabs the rows from the DOM and applies current filters/sorts/pagination
+    function initializeTableData() {
+        allRows = Array.from(document.querySelectorAll("#students-tbody .student-row"));
+        applyFilterAndSort();
+    }
+
+    function applyFilterAndSort() {
+        const query = document.getElementById('search-student').value.toLowerCase();
         
-        if (rows.length === 0) return;
-
-        const isAscending = sortDirections[columnIndex];
-        sortDirections[columnIndex] = !isAscending; // Flip direction for next click
-
-        rows.sort((a, b) => {
-            let valA, valB;
-
-            if (columnIndex === 2 || columnIndex === 4) {
-                // Read from data-value attribute for names and statuses to ignore HTML tags
-                valA = a.cells[columnIndex].getAttribute('data-value') || a.cells[columnIndex].innerText.trim();
-                valB = b.cells[columnIndex].getAttribute('data-value') || b.cells[columnIndex].innerText.trim();
-            } else {
-                valA = a.cells[columnIndex].innerText.trim();
-                valB = b.cells[columnIndex].innerText.trim();
-            }
-
-            if (type === 'numeric') {
-                return isAscending ? valA.localeCompare(valB, undefined, {numeric: true}) : valB.localeCompare(valA, undefined, {numeric: true});
-            } else {
-                return isAscending ? valA.localeCompare(valB) : valB.localeCompare(valA);
-            }
+        // Filter rows
+        currentRows = allRows.filter(row => {
+            const lrn = row.querySelector('.lrn-cell').innerText.toLowerCase();
+            const name = row.querySelector('.name-cell').innerText.toLowerCase();
+            return lrn.includes(query) || name.includes(query);
         });
 
-        // Re-append rows in new order
-        rows.forEach(row => tbody.appendChild(row));
-        
-        // Update header icons purely for visual feedback
+        // Sort rows if a column header was clicked
+        if (sortColumnIndex !== null) {
+            currentRows.sort((a, b) => {
+                let valA = a.cells[sortColumnIndex].getAttribute('data-value') || a.cells[sortColumnIndex].innerText.trim();
+                let valB = b.cells[sortColumnIndex].getAttribute('data-value') || b.cells[sortColumnIndex].innerText.trim();
+                
+                if (sortType === 'numeric') {
+                    return sortIsAscending ? valA.localeCompare(valB, undefined, {numeric: true}) : valB.localeCompare(valA, undefined, {numeric: true});
+                } else {
+                    return sortIsAscending ? valA.localeCompare(valB) : valB.localeCompare(valA);
+                }
+            });
+        }
+
+        updateTablePagination();
+    }
+
+    function updateTablePagination() {
+        const tbody = document.getElementById("students-tbody");
+        const emptyState = document.getElementById("empty-state-row");
+        const paginationWrapper = document.getElementById("pagination-wrapper");
+
+        // Hide all rows initially
+        allRows.forEach(row => row.style.display = 'none');
+
+        // Check if there's no data
+        if (currentRows.length === 0) {
+            if (emptyState) emptyState.style.display = '';
+            paginationWrapper.classList.remove('flex', 'sm:flex-row');
+            paginationWrapper.classList.add('hidden');
+            return;
+        }
+
+        // We have data, display it
+        if (emptyState) emptyState.style.display = 'none';
+        paginationWrapper.classList.remove('hidden');
+        paginationWrapper.classList.add('flex', 'sm:flex-row');
+
+        const totalPages = Math.ceil(currentRows.length / pageSize);
+        if (currentPage > totalPages) currentPage = totalPages;
+        if (currentPage < 1) currentPage = 1;
+
+        const startIdx = (currentPage - 1) * pageSize;
+        const endIdx = Math.min(startIdx + pageSize, currentRows.length);
+
+        // Show rows for current page and re-append to enforce sorted DOM order natively
+        for (let i = startIdx; i < endIdx; i++) {
+            currentRows[i].style.display = '';
+            tbody.appendChild(currentRows[i]);
+        }
+
+        // Update visual information
+        document.getElementById('page-start-info').innerText = startIdx + 1;
+        document.getElementById('page-end-info').innerText = endIdx;
+        document.getElementById('page-total-info').innerText = currentRows.length;
+
+        renderPaginationUI(totalPages);
+
+        // Ensure state resets accurately across pages
+        document.getElementById('select-all').checked = false;
+        updateBulkDeleteBtn();
+    }
+
+    function renderPaginationUI(totalPages) {
+        const controls = document.getElementById('pagination-controls');
+        controls.innerHTML = '';
+
+        const createPageBtn = (text, page, disabled = false, active = false) => {
+            const btn = document.createElement('button');
+            btn.innerHTML = text;
+            btn.disabled = disabled;
+            btn.className = `px-3 py-1 min-w-[32px] rounded-lg text-sm font-bold transition-all border ${
+                active 
+                ? 'bg-[#a52a2a] text-white border-[#a52a2a] shadow-sm' 
+                : disabled 
+                    ? 'bg-transparent text-gray-300 border-transparent cursor-not-allowed' 
+                    : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50 hover:text-[#a52a2a] hover:border-[#a52a2a]/30 shadow-sm'
+            }`;
+            if (!disabled && !active) {
+                btn.onclick = () => { currentPage = page; updateTablePagination(); };
+            }
+            return btn;
+        };
+
+        controls.appendChild(createPageBtn('<i class="fas fa-chevron-left text-xs"></i>', currentPage - 1, currentPage === 1));
+
+        // Logic for 1 2 3 ... Last
+        let startP = Math.max(1, currentPage - 1);
+        let endP = Math.min(totalPages, currentPage + 1);
+
+        if (currentPage === 1) endP = Math.min(3, totalPages);
+        if (currentPage === totalPages) startP = Math.max(1, totalPages - 2);
+
+        if (startP > 1) {
+            controls.appendChild(createPageBtn(1, 1, false, currentPage === 1));
+            if (startP > 2) controls.appendChild(createPageBtn('...', null, true));
+        }
+
+        for (let i = startP; i <= endP; i++) {
+            controls.appendChild(createPageBtn(i, i, false, i === currentPage));
+        }
+
+        if (endP < totalPages) {
+            if (endP < totalPages - 1) controls.appendChild(createPageBtn('...', null, true));
+            controls.appendChild(createPageBtn(totalPages, totalPages, false, currentPage === totalPages));
+        }
+
+        controls.appendChild(createPageBtn('<i class="fas fa-chevron-right text-xs"></i>', currentPage + 1, currentPage === totalPages));
+    }
+
+    window.filterStudents = function() {
+        currentPage = 1; // reset to page 1 on search
+        applyFilterAndSort();
+    };
+
+    window.sortTable = function(columnIndex, type) {
+        if (allRows.length === 0) return;
+
+        if (sortColumnIndex === columnIndex) {
+            sortIsAscending = !sortIsAscending;
+        } else {
+            sortColumnIndex = columnIndex;
+            sortIsAscending = true;
+            sortType = type;
+        }
+
+        // Reset all icons visually
+        const table = document.getElementById("students-table");
         const headers = table.querySelectorAll('th i.fa-sort, th i.fa-sort-up, th i.fa-sort-down');
-        headers.forEach(icon => icon.className = 'fas fa-sort ml-1 text-gray-300 group-hover:text-gray-500'); // reset all
+        headers.forEach(icon => icon.className = 'fas fa-sort ml-1 text-gray-300 group-hover:text-gray-500');
         
+        // Set active icon
         const clickedHeaderIcon = table.querySelectorAll('th')[columnIndex].querySelector('i');
         if (clickedHeaderIcon) {
-            clickedHeaderIcon.className = isAscending ? 'fas fa-sort-up ml-1 text-[#a52a2a]' : 'fas fa-sort-down ml-1 text-[#a52a2a]';
+            clickedHeaderIcon.className = sortIsAscending ? 'fas fa-sort-up ml-1 text-[#a52a2a]' : 'fas fa-sort-down ml-1 text-[#a52a2a]';
+        }
+
+        applyFilterAndSort();
+    };
+
+    window.toggleSelectAll = function(selectAllCheckbox) {
+        const checkboxes = document.querySelectorAll('.lrn-checkbox');
+        checkboxes.forEach(cb => {
+            // Only toggle currently visible checkboxes
+            if (cb.closest('tr').style.display !== 'none') {
+                cb.checked = selectAllCheckbox.checked;
+            }
+        });
+        updateBulkDeleteBtn();
+    };
+
+    window.updateBulkDeleteBtn = function() {
+        const selectedCount = document.querySelectorAll('.lrn-checkbox:checked').length;
+        const bulkBtn = document.getElementById('bulk-delete-btn');
+        const countSpan = document.getElementById('selected-count');
+        
+        if (selectedCount > 0) {
+            bulkBtn.classList.remove('hidden');
+            bulkBtn.classList.add('flex');
+            countSpan.innerText = selectedCount;
+        } else {
+            bulkBtn.classList.add('hidden');
+            bulkBtn.classList.remove('flex');
+            const selectAllCheck = document.getElementById('select-all');
+            if(selectAllCheck) selectAllCheck.checked = false;
         }
     };
 
 
     // --- Access Key Logic ---
-    function copyAccessKey(key, btnElement) {
+    window.copyAccessKey = function(key, btnElement) {
         navigator.clipboard.writeText(key).then(() => {
             const icon = btnElement.querySelector('i');
             icon.className = 'fas fa-check text-green-400';
@@ -356,10 +630,42 @@
                 btnElement.classList.remove('bg-green-500/20');
             }, 2000);
         });
+    };
+
+    // --- Dynamic Table Refreshing ---
+    async function refreshTableOnly() {
+        try {
+            // Added ?_t= timestamp to act as a cache-buster so the browser doesn't load a stale layout
+            const baseUrl = '{{ route("dashboard.assessments.manage", $assessment->id) }}';
+            const fetchUrl = baseUrl + (baseUrl.includes('?') ? '&' : '?') + '_t=' + new Date().getTime();
+
+            const response = await fetch(fetchUrl, {
+                headers: { 'X-Requested-With': 'XMLHttpRequest' }
+            });
+            const htmlText = await response.text();
+            
+            // Parse the returned HTML
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(htmlText, 'text/html');
+            
+            // Extract the new tbody content
+            const newTbody = doc.querySelector('#students-tbody');
+            if (newTbody) {
+                // Completely swap out the old table data with the newly parsed data
+                document.getElementById('students-tbody').innerHTML = newTbody.innerHTML;
+                
+                // Re-initialize the array and pagination with the fresh DOM nodes
+                initializeTableData();
+            }
+        } catch (error) {
+            console.error("Failed to refresh table quietly: ", error);
+            showSnackbar('Failed to update table visually. Please refresh.', 'error');
+        }
     }
 
-    // --- Add LRN logic ---
-    async function submitLrn(btn) {
+
+    // --- API Calls ---
+    window.submitLrn = async function(btn) {
         const lrnInput = document.getElementById('student-lrn-input');
         const lrnValue = lrnInput.value;
         const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || '{{ csrf_token() }}';
@@ -388,9 +694,7 @@
             if (response.ok && data.success) {
                 lrnInput.value = ''; 
                 showSnackbar('Student added successfully!', 'success');
-                setTimeout(() => {
-                    loadPartial('{{ route("dashboard.assessments.manage", $assessment->id) }}', document.getElementById('nav-assessment-btn'));
-                }, 500); // Slight delay so they see the success message before reload
+                setTimeout(refreshTableOnly, 200);
             } else if (response.status === 422) {
                 showSnackbar("Validation Error: " + data.errors.lrn[0], 'error');
             } else {
@@ -402,54 +706,9 @@
             btn.innerHTML = originalHtml;
             btn.disabled = false;
         }
-    }
+    };
 
-    // --- Search Logic ---
-    function filterStudents() {
-        const query = document.getElementById('search-student').value.toLowerCase();
-        const rows = document.querySelectorAll('.student-row');
-
-        rows.forEach(row => {
-            const lrn = row.querySelector('.lrn-cell').innerText.toLowerCase();
-            const name = row.querySelector('.name-cell').innerText.toLowerCase();
-            
-            if (lrn.includes(query) || name.includes(query)) {
-                row.style.display = '';
-            } else {
-                row.style.display = 'none';
-            }
-        });
-    }
-
-    // --- Checkbox & Bulk Logic ---
-    function toggleSelectAll(selectAllCheckbox) {
-        const checkboxes = document.querySelectorAll('.lrn-checkbox');
-        checkboxes.forEach(cb => {
-            if (cb.closest('tr').style.display !== 'none') {
-                cb.checked = selectAllCheckbox.checked;
-            }
-        });
-        updateBulkDeleteBtn();
-    }
-
-    function updateBulkDeleteBtn() {
-        const selectedCount = document.querySelectorAll('.lrn-checkbox:checked').length;
-        const bulkBtn = document.getElementById('bulk-delete-btn');
-        const countSpan = document.getElementById('selected-count');
-        
-        if (selectedCount > 0) {
-            bulkBtn.classList.remove('hidden');
-            bulkBtn.classList.add('flex');
-            countSpan.innerText = selectedCount;
-        } else {
-            bulkBtn.classList.add('hidden');
-            bulkBtn.classList.remove('flex');
-            document.getElementById('select-all').checked = false;
-        }
-    }
-
-    // --- Modal & Delete Logic ---
-    var targetsToDelete = [];
+    var targetsToDelete = []; // Changed let to var here as well
 
     window.openDeleteModal = function(id) {
         if (id === 'bulk') {
@@ -488,8 +747,7 @@
             let successCount = 0;
 
             for (const id of targetsToDelete) {
-                let deleteUrl = '{{ route("dashboard.assessments.access.remove", ":id") }}';
-                deleteUrl = deleteUrl.replace(':id', id);
+                let deleteUrl = '{{ route("dashboard.assessments.access.remove", ":id") }}'.replace(':id', id);
 
                 const response = await fetch(deleteUrl, {
                     method: 'DELETE',
@@ -513,9 +771,7 @@
             
             if (successCount > 0) {
                 showSnackbar(`Successfully removed ${successCount} student(s).`, 'success');
-                setTimeout(() => {
-                    loadPartial('{{ route("dashboard.assessments.manage", $assessment->id) }}', document.getElementById('nav-assessment-btn'));
-                }, 800);
+                setTimeout(refreshTableOnly, 200);
             }
             
         } catch (error) {
@@ -551,9 +807,7 @@
 
             if (response.ok && data.success) {
                 showSnackbar(data.message, 'success');
-                setTimeout(() => {
-                    loadPartial('{{ route("dashboard.assessments.manage", $assessment->id) }}', document.getElementById('nav-assessment-btn'));
-                }, 1000);
+                setTimeout(refreshTableOnly, 200);
             } else {
                 showSnackbar(data.message || 'Import failed.', 'error');
             }
@@ -561,6 +815,58 @@
             showSnackbar('A network error occurred during import.', 'error');
         } finally {
             input.value = ''; // Reset file input
+        }
+    };
+
+    // --- Assessment Delete Logic ---
+    window.openAssessmentDeleteModal = function() {
+        document.getElementById('assessment-delete-modal').classList.remove('hidden');
+    };
+
+    window.closeAssessmentDeleteModal = function() {
+        document.getElementById('assessment-delete-modal').classList.add('hidden');
+    };
+
+    window.executeAssessmentDelete = async function() {
+        const btn = document.getElementById('confirm-assessment-delete-btn');
+        const originalHtml = btn.innerHTML;
+        const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || '{{ csrf_token() }}';
+
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Deleting...';
+        btn.disabled = true;
+
+        try {
+            const response = await fetch('{{ route("dashboard.assessments.destroy", $assessment->id) }}', {
+                method: 'DELETE',
+                headers: {
+                    'X-CSRF-TOKEN': csrfToken,
+                    'Accept': 'application/json',
+                    'Content-Type': 'application/json'
+                }
+            });
+
+            // Handle both JSON and redirect scenarios based on your Laravel backend configuration
+            if (response.ok) {
+                window.closeAssessmentDeleteModal();
+                showSnackbar('Assessment deleted successfully.', 'success');
+                
+                // Route user back to the assessments list
+                setTimeout(() => {
+                    loadPartial('{{ url("/dashboard/assessment") }}', document.getElementById('nav-assessment-btn'));
+                }, 1000);
+            } else {
+                let data = {};
+                try { data = await response.json(); } catch(e) {}
+                showSnackbar(data.message || 'Failed to delete assessment.', 'error');
+            }
+        } catch (error) {
+            showSnackbar('A network error occurred.', 'error');
+            console.error(error);
+        } finally {
+            if (btn) {
+                btn.innerHTML = originalHtml;
+                btn.disabled = false;
+            }
         }
     };
 </script>

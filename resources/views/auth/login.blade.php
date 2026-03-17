@@ -17,16 +17,20 @@
 
     <main>
         <section style="background-image: url('{{ asset('storage/images/deped_zamdiv.jpg') }}');"
-            class="relative bg-cover bg-center bg-no-repeat min-h-screen flex items-center pt-40 pb-10 px-4 md:px-8">
+            class="relative bg-cover bg-center bg-no-repeat min-h-screen flex items-center justify-center pt-20 md:pt-32 pb-12 px-4">
             
             <div class="absolute inset-0 bg-red-900/50"></div>
 
             <div class="relative z-10 w-full max-w-6xl mx-auto flex flex-col md:flex-row items-center justify-between gap-12">
                 
                 <div class="w-full md:w-1/2 text-center md:text-left text-white">
-                    <a href="{{ url('/') }}" class="inline-flex items-center text-white/80 hover:text-white mb-6 group transition-colors">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2 transform group-hover:-translate-x-1 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+                    <a href="{{ url('/') }}"
+                        class="inline-flex w-full items-center text-white/80 hover:text-white mb-6 group transition-colors">
+                        <svg xmlns="http://www.w3.org/2000/svg"
+                            class="h-5 w-5 mr-2 transform group-hover:-translate-x-1 transition-transform" fill="none"
+                            viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M10 19l-7-7m0 0l7-7m-7 7h18" />
                         </svg>
                         <span class="font-medium">Back to Home</span>
                     </a>

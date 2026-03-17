@@ -13,9 +13,12 @@ class AssessmentQuestion extends Model
         'media_url',  // <-- ADD THIS
     ];
 
+    
+
     public function options()
     {
-        return $this->hasMany(AssessmentOption::class);
+        // Tell Laravel exactly which column connects these two tables
+        return $this->hasMany(AssessmentOption::class, 'question_id');
     }
 
     public function category()

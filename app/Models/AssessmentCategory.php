@@ -10,11 +10,13 @@ class AssessmentCategory extends Model
 
     public function questions()
     {
-        return $this->hasMany(AssessmentQuestion::class);
+        // Add 'category_id' as the second parameter
+        return $this->hasMany(AssessmentQuestion::class, 'category_id');
     }
 
-    public function assessment()
+    public function options()
     {
-        return $this->belongsTo(Assessment::class);
+        // Add 'question_id' as the second parameter
+        return $this->hasMany(AssessmentOption::class, 'question_id');
     }
 }
