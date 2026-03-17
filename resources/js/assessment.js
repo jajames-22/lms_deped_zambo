@@ -7,6 +7,7 @@ window.builderState = {
 
 window.hasChanged = false;
 window.catCount = 0;
+window.isInitializing = false;
 
 let autosaveTimer;
 const SYNC_DELAY = 3000;
@@ -14,6 +15,7 @@ let lastPayload = "";
 
 // Initialize the Builder
 window.initBuilder = function () {
+    window.isInitializing = true;
     window.catCount = 0;
     lastPayload = "";
     window.hasChanged = false;
@@ -71,6 +73,10 @@ window.initBuilder = function () {
     });
 
     window.updateAutosaveIndicator("Ready");
+    setTimeout(() => {
+        window.isInitializing = false;
+        window.hasChanged = false; // strictly ensure it's false after loading
+    }, 500);
 };
 
 // Render Existing Categories (Like from an Excel Import)
@@ -473,6 +479,8 @@ window.getPayload = function (status) {
 };
 
 window.handleAutosaveTrigger = function () {
+    if (window.isInitializing) return; // Prevent triggering during page load
+    
     window.hasChanged = true;
     window.updateAutosaveIndicator('<i class="fas fa-pencil-alt fa-spin"></i> Typing...');
     clearTimeout(autosaveTimer);
@@ -692,12 +700,9 @@ window.saveCompleteExam = async function (btn, status) {
                     ? "Your test is live and ready for students."
                     : "Your progress has been safely stored.";
 
+            // CHANGED: Now redirects to the manage URL!
             window.showModal("success", title, msg, () => {
-                if (typeof loadPartial === "function") {
-                    loadPartial(wrapper.dataset.redirectUrl);
-                } else {
-                    window.location.href = wrapper.dataset.redirectUrl;
-                }
+                window.goToUrl(wrapper.dataset.manageUrl);
             });
         } else {
             throw new Error(result.message || "Failed to save");
@@ -767,33 +772,37 @@ window.discardChangesAndExit = function (btn) {
             clearTimeout(autosaveTimer);
             lastPayload = "";
 
+            const isNew = wrapper.dataset.isNew === 'true';
+
             const originalText = btn.innerHTML;
-            btn.innerHTML =
-                '<i class="fas fa-spinner fa-spin mr-2"></i> Discarding...';
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Discarding...';
             btn.disabled = true;
 
-            localStorage.removeItem(
-                "assessment_draft_" + wrapper.dataset.assessmentId,
-            );
+            localStorage.removeItem("assessment_draft_" + wrapper.dataset.assessmentId);
 
             try {
-                await fetch(wrapper.dataset.autosaveUrl, {
-                    method: "POST",
-                    headers: {
-                        "Content-Type": "application/json",
-                        "X-CSRF-TOKEN": wrapper.dataset.csrf,
-                        Accept: "application/json",
-                    },
-                    body: JSON.stringify({ clear_draft: true }),
-                });
+                if (isNew) {
+                    // It's a brand new assessment, delete it entirely!
+                    await window.silentlyDeleteAndExit();
+                    // Go to index because the manage page no longer exists
+                    window.goToUrl(wrapper.dataset.redirectUrl);
+                } else {
+                    // It's an existing one, clear the draft and return to the manage screen
+                    await fetch(wrapper.dataset.autosaveUrl, {
+                        method: "POST",
+                        headers: {
+                            "Content-Type": "application/json",
+                            "X-CSRF-TOKEN": wrapper.dataset.csrf,
+                            Accept: "application/json",
+                        },
+                        body: JSON.stringify({ clear_draft: true }),
+                    });
+                    // CHANGED: Now redirects to manage URL
+                    window.goToUrl(wrapper.dataset.manageUrl);
+                }
             } catch (e) {
-                console.warn("Failed to clear drafts:", e);
-            }
-
-            if (typeof loadPartial === "function") {
-                loadPartial(wrapper.dataset.redirectUrl);
-            } else {
-                window.location.href = wrapper.dataset.redirectUrl;
+                console.warn("Failed to clear drafts or delete:", e);
+                window.goToUrl(wrapper.dataset.redirectUrl); 
             }
         },
     );
@@ -885,4 +894,52 @@ window.showModal = function (type, title, message, callback = null) {
             callback();
         }
     };
+};
+
+window.goToUrl = function(url) {
+    if (typeof loadPartial === "function") {
+        loadPartial(url);
+    } else {
+        window.location.href = url;
+    }
+};
+
+window.silentlyDeleteAndExit = async function() {
+    const wrapper = document.getElementById("assessment-wrapper");
+    try {
+        await fetch(wrapper.dataset.deleteUrl, {
+            method: "DELETE",
+            headers: {
+                "X-CSRF-TOKEN": wrapper.dataset.csrf,
+                Accept: "application/json",
+            },
+        });
+    } catch (e) {
+        console.warn("Failed to delete empty assessment");
+    }
+};
+
+window.handleBackButton = async function(btn) {
+    const wrapper = document.getElementById("assessment-wrapper");
+    const isNew = wrapper.dataset.isNew === 'true';
+
+    if (window.hasChanged) {
+        // Changes detected! Show the modal.
+        document.getElementById('back-modal').classList.remove('hidden');
+    } else {
+        // No changes. Exit quietly.
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+        btn.disabled = true;
+
+        if (isNew) {
+            // It's an untouched brand new assessment, delete it instantly.
+            await window.silentlyDeleteAndExit();
+            // Go strictly to the main assessments.blade.php
+            window.goToUrl(wrapper.dataset.redirectUrl);
+        } else {
+            // It's an existing assessment that was viewed but not changed.
+            // Go strictly to the assessments-manage.blade.php
+            window.goToUrl(wrapper.dataset.manageUrl);
+        }
+    }
 };

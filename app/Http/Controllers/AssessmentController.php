@@ -27,14 +27,14 @@ class AssessmentController extends Controller
 
         try {
             Excel::import(new LrnAccessImport($assessment->id), $request->file('file'));
-            
+
             return response()->json([
-                'success' => true, 
+                'success' => true,
                 'message' => 'LRN list imported successfully!'
             ]);
         } catch (\Exception $e) {
             return response()->json([
-                'success' => false, 
+                'success' => false,
                 'message' => 'Import failed. Check if your file has an "lrn" header.'
             ], 500);
         }
@@ -67,7 +67,8 @@ class AssessmentController extends Controller
         ]);
 
         $assessment = DB::table('assessments')->where('id', $assessmentId)->first();
-        return view('dashboard.partials.admin.assessments-create', compact('assessment'));
+        $isNew = true;
+        return view('dashboard.partials.admin.assessments-create', compact('assessment', 'isNew'));
     }
 
     // Inside AssessmentController.php
@@ -97,7 +98,8 @@ class AssessmentController extends Controller
                 return $category;
             });
 
-        return view('dashboard.partials.admin.assessments-create', compact('assessment', 'categories'));
+        $isNew = false;
+        return view('dashboard.partials.admin.assessments-create', compact('assessment', 'categories', 'isNew'));
     }
 
     public function storeQuestions(Request $request, $id)
