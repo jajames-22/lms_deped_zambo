@@ -23,4 +23,7 @@ Route::middleware(['auth', 'verified'])->prefix('dashboard/assessments')->name('
 
     Route::post('/{id}/import', [AssessmentController::class, 'importQuestions'])
         ->name('import');
+
+    Route::patch('/{id}/toggle-status', [AssessmentController::class, 'toggleStatus'])
+    ->name('toggle-status');
 });

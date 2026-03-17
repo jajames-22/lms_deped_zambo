@@ -30,57 +30,62 @@
         </div>
     </div>
 
-    <div id="material-grid" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 items-stretch relative">
+    <div id="material-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-5 items-stretch relative">
         @forelse($materials as $material)
             @php $isLive = ($material->status === 'published'); @endphp
 
             <div id="material-card-{{ $material->id }}"
-                onclick="loadPartial('{{ route('dashboard.materials.show', $material->id) }}', document.getElementById('nav-materials-btn'))"
-                class="material-card {{ $isLive ? 'published' : 'draft' }} flex flex-col h-full bg-white rounded-2xl border border-gray-200 {{ $isLive ? 'border-t-[#a52a2a] border-t-4' : 'border-t-amber-400 border-t-4' }} shadow-sm hover:shadow-lg transition-all duration-300 group overflow-hidden relative cursor-pointer">
+                onclick="loadPartial('{{ route('dashboard.materials.manage', $material->id) }}', document.getElementById('nav-materials-btn'))"
+                class="material-card {{ $isLive ? 'published' : 'draft' }} flex flex-col h-full bg-white rounded-xl border border-gray-200 shadow-sm hover:shadow-md transition-all duration-200 group overflow-hidden relative cursor-pointer">
 
-                <button
-                    onclick="event.stopPropagation(); window.deleteMaterialFromList('{{ $material->id }}', '{{ route('dashboard.materials.destroy', $material->id) }}')"
-                    class="absolute top-4 right-4 h-8 w-8 rounded-full bg-gray-50 text-gray-400 opacity-0 group-hover:opacity-100 transition-all flex items-center justify-center hover:bg-red-100 hover:text-red-600 z-10"
-                    title="Delete Material">
-                    <i class="fas fa-trash-alt text-sm"></i>
-                </button>
+                <div class="w-full h-36 bg-gray-50 relative border-b border-gray-100">
+                    <div class="absolute top-0 left-0 w-full h-1 {{ $isLive ? 'bg-green-500' : 'bg-amber-400' }} z-10"></div>
 
-                <div class="p-6 flex-1 flex flex-col">
-                    <div class="flex justify-between items-start mb-4 pr-8">
-                        <div class="flex items-center gap-3">
-                            <div class="{{ $isLive ? 'bg-[#a52a2a]/10 text-[#a52a2a]' : 'bg-amber-50 text-amber-600' }} p-3 rounded-xl flex items-center justify-center">
-                                <i class="fas {{ $isLive ? 'fa-book-open' : 'fa-tools' }} text-xl"></i>
-                            </div>
-                            <span class="px-2.5 py-1 {{ $isLive ? 'bg-[#a52a2a]/10 text-[#a52a2a]' : 'bg-amber-100 text-amber-700' }} text-[10px] font-bold rounded-md uppercase tracking-wide">
-                                {{ $isLive ? 'Published' : 'Draft' }}
-                            </span>
+                    @if($material->thumbnail)
+                        <img src="{{ asset('storage/' . $material->thumbnail) }}" alt="{{ $material->title }}" class="w-full h-full object-cover">
+                    @else
+                        <div class="w-full h-full flex items-center justify-center bg-gray-50">
+                            <i class="fas fa-book-open text-4xl text-gray-200"></i>
                         </div>
+                    @endif
+                    
+                    <button
+                        onclick="event.stopPropagation(); window.deleteMaterialFromList('{{ $material->id }}', '{{ route('dashboard.materials.destroy', $material->id) }}')"
+                        class="absolute top-3 right-3 h-7 w-7 rounded-full bg-white/90 backdrop-blur-sm text-gray-500 opacity-0 group-hover:opacity-100 transition-all flex items-center justify-center hover:bg-red-50 hover:text-red-600 z-10 shadow-sm"
+                        title="Delete Material">
+                        <i class="fas fa-trash-alt text-xs"></i>
+                    </button>
+
+                    <div class="absolute top-3 left-3 flex items-center">
+                        <span class="px-2 py-1 {{ $isLive ? 'bg-green-500/90 text-white' : 'bg-amber-100/95 text-amber-700' }} backdrop-blur-sm text-[9px] font-bold rounded uppercase tracking-wider shadow-sm">
+                            {{ $isLive ? 'Published' : 'Draft' }}
+                        </span>
                     </div>
+                </div>
 
-                    <h4 class="material-title text-lg font-bold text-gray-900 mb-2 line-clamp-1" title="{{ $material->title }}">{{ $material->title ?? 'Untitled Material' }}</h4>
+                <div class="p-5 flex-1 flex flex-col">
+                    <h4 class="material-title text-base font-bold text-gray-900 mb-1.5 line-clamp-1" title="{{ $material->title }}">{{ $material->title ?? 'Untitled Material' }}</h4>
 
-                    <p class="text-sm text-gray-500 mb-5 line-clamp-2 flex-1">
-                        {{ $material->description ?? 'No description provided for this module.' }}
+                    <p class="text-xs text-gray-500 mb-4 line-clamp-2 flex-1 leading-relaxed">
+                        {{ $material->description ?: 'No description provided for this module.' }}
                     </p>
 
-                    <div class="bg-gray-50 rounded-xl p-4 mb-2 space-y-2 text-xs text-gray-600 border border-gray-100">
-                        <div class="flex items-center justify-between">
-                            <span class="flex items-center gap-2 text-gray-500"><i class="fas fa-chalkboard-teacher"></i> Instructor:</span>
-                            <b class="text-gray-900">{{ $material->instructor->first_name ?? 'N/A' }}</b>
+                    <div class="flex items-center justify-between bg-gray-50 rounded-lg px-3 py-2.5 mb-4 text-[11px] text-gray-600 border border-gray-100">
+                        <div class="flex items-center gap-1.5 truncate pr-2" title="Instructor">
+                            <i class="fas fa-chalkboard-teacher text-gray-400"></i>
+                            <span class="truncate font-medium text-gray-700">{{ $material->instructor->first_name ?? 'N/A' }}</span>
                         </div>
-                        <div class="flex items-center justify-between">
-                            <span class="flex items-center gap-2 text-gray-500"><i class="fas fa-book"></i> Lessons:</span>
-                            <b class="text-gray-900">{{ $material->lessons_count ?? 0 }}</b>
+                        <div class="flex items-center gap-1.5 shrink-0 border-l border-gray-200 pl-3" title="Sections">
+                            <i class="fas fa-layer-group text-gray-400"></i>
+                            <span class="font-bold text-gray-700">{{ $material->lessons_count ?? 0 }}</span>
                         </div>
                     </div>
 
-                    <div class="flex gap-3 mt-4 pt-4 border-t border-gray-100">
-                        <button onclick="event.stopPropagation(); loadPartial('{{ route('dashboard.materials.edit', $material->id) }}', document.getElementById('nav-materials-btn'))"
-                            class="flex-1 py-2.5 bg-white border border-gray-200 text-gray-700 text-sm font-bold rounded-xl hover:bg-gray-50 hover:border-[#a52a2a]/30 hover:text-[#a52a2a] transition-all shadow-sm">
-                            <i class="fas {{ $isLive ? 'fa-edit' : 'fa-play' }} mr-1"></i>
-                            {{ $isLive ? 'Edit' : 'Resume' }}
-                        </button>
-                    </div>
+                    <button onclick="event.stopPropagation(); loadPartial('{{ route('dashboard.materials.edit', $material->id) }}', document.getElementById('nav-materials-btn'))"
+                        class="w-full py-2 bg-white border border-gray-200 text-gray-700 text-xs font-bold rounded-lg hover:bg-gray-50 hover:border-[#a52a2a]/30 hover:text-[#a52a2a] transition-all shadow-sm flex items-center justify-center gap-1.5">
+                        <i class="fas {{ $isLive ? 'fa-edit' : 'fa-play' }}"></i>
+                        {{ $isLive ? 'Edit Content' : 'Resume Draft' }}
+                    </button>
                 </div>
             </div>
         @empty
@@ -102,10 +107,117 @@
 </div>
 
 <div id="status-modal" class="fixed inset-0 z-[110] hidden">
+    <div class="absolute inset-0 bg-gray-900/60 backdrop-blur-sm"
+        onclick="document.getElementById('status-modal').classList.add('hidden')"></div>
+
+    <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-sm p-6">
+        <div class="bg-white rounded-2xl shadow-2xl overflow-hidden border border-gray-100 p-6 text-center">
+
+            <div id="status-modal-icon"
+                class="h-16 w-16 rounded-full flex items-center justify-center mx-auto mb-4 text-3xl"></div>
+
+            <h3 id="status-modal-title" class="text-xl font-bold text-gray-900 mb-2">Title</h3>
+            <p id="status-modal-message" class="text-gray-500 text-sm mb-6">Message goes here.</p>
+
+            <div class="flex gap-3 mt-2">
+                <button id="status-modal-cancel-btn" type="button"
+                    class="w-full py-3 bg-gray-100 text-gray-700 font-bold rounded-xl hover:bg-gray-200 transition active:scale-95 hidden">
+                    Cancel
+                </button>
+                <button id="status-modal-btn" type="button"
+                    class="w-full py-3 text-white font-bold rounded-xl transition active:scale-95 shadow-md">
+                    OK
+                </button>
+            </div>
+        </div>
     </div>
+</div>
 
 <script>
-    // Filtering Logic Similar to Assessments
+    if (typeof window.showModal === 'undefined') {
+        window.showModal = function (type, title, message, callback = null) {
+            const modal = document.getElementById('status-modal');
+            if (!modal) return alert(message);
+
+            const iconContainer = document.getElementById('status-modal-icon');
+            const titleEl = document.getElementById('status-modal-title');
+            const msgEl = document.getElementById('status-modal-message');
+            const btn = document.getElementById('status-modal-btn');
+            const cancelBtn = document.getElementById('status-modal-cancel-btn');
+
+            titleEl.innerText = title;
+            msgEl.innerText = message;
+            iconContainer.className = 'h-16 w-16 rounded-full flex items-center justify-center mx-auto mb-4 text-3xl';
+            btn.className = 'w-full py-3 text-white font-bold rounded-xl transition active:scale-95 shadow-md';
+            cancelBtn.classList.add('hidden');
+            btn.innerText = 'OK';
+            cancelBtn.onclick = null;
+            btn.onclick = null;
+
+            if (type === 'error') {
+                iconContainer.classList.add('bg-red-50', 'text-red-500');
+                iconContainer.innerHTML = '<i class="fas fa-times-circle"></i>';
+                btn.classList.add('bg-red-600', 'hover:bg-red-700', 'shadow-red-600/20');
+            } else if (type === 'confirm') {
+                iconContainer.classList.add('bg-red-50', 'text-red-500');
+                iconContainer.innerHTML = '<i class="fas fa-trash-alt"></i>';
+                btn.classList.add('bg-red-600', 'hover:bg-red-700', 'shadow-red-600/20');
+                btn.innerText = 'Yes, Delete';
+                cancelBtn.classList.remove('hidden');
+                cancelBtn.onclick = () => modal.classList.add('hidden');
+            }
+
+            modal.classList.remove('hidden');
+            btn.onclick = () => {
+                modal.classList.add('hidden');
+                if (callback) callback();
+            };
+        };
+    }
+
+    window.deleteMaterialFromList = function (id, url) {
+        window.showModal('confirm', 'Delete Material?', 'Are you sure you want to delete this material? This action cannot be undone.', async () => {
+
+            const card = document.getElementById('material-card-' + id);
+            if (!card) return;
+
+            const btn = card.querySelector('.fa-trash-alt').closest('button');
+            const originalHtml = btn.innerHTML;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin text-sm"></i>';
+            btn.disabled = true;
+
+            const csrf = document.querySelector('meta[name="csrf-token"]')?.content || "{{ csrf_token() }}";
+
+            try {
+                const response = await fetch(url, {
+                    method: 'DELETE',
+                    headers: {
+                        'X-CSRF-TOKEN': csrf,
+                        'Accept': 'application/json'
+                    }
+                });
+
+                if (response.ok) {
+                    card.style.transform = 'scale(0.95)';
+                    card.style.opacity = '0';
+                    setTimeout(() => {
+                        card.remove();
+                        window.applyMaterialFilters(); 
+                    }, 300);
+                } else {
+                    window.showModal('error', 'Delete Failed', 'The server returned an error while deleting.');
+                    btn.innerHTML = originalHtml;
+                    btn.disabled = false;
+                }
+            } catch (e) {
+                window.showModal('error', 'Network Error', 'Could not delete the material. Please check your connection.');
+                btn.innerHTML = originalHtml;
+                btn.disabled = false;
+            }
+
+        }); 
+    }; 
+
     window.currentMaterialStatus = 'all';
 
     window.filterMaterials = function(status, btnElement) {
@@ -152,4 +264,4 @@
             }
         }
     };
-</script>
+</script>   

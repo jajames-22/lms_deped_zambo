@@ -4,7 +4,6 @@ import tailwindcss from '@tailwindcss/vite';
 
 export default defineConfig({
     plugins: [
-        tailwindcss(), 
         laravel({
             input: [
                 'resources/css/app.css', 
@@ -12,11 +11,11 @@ export default defineConfig({
                 'resources/js/assessment-manage.js'],
             refresh: true,
         }),
+        tailwindcss({
+            content: [
+                './resources/**/*.blade.php',
+                './resources/**/*.js',
+            ],
+        }),
     ],
-    server: {
-        host: true,
-        watch: {
-            ignored: ['**/storage/framework/views/**'],
-        },
-    },
 });
