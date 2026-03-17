@@ -72,6 +72,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::delete('/assessments/access/{access}', [AssessmentController::class, 'removeAccess'])->name('dashboard.assessments.access.remove');
         Route::post('/assessments/{assessment}/import-access', [AssessmentController::class, 'importAccess'])->name('dashboard.assessments.access.import');
 
+        Route::patch('/assessments/{assessment}/toggle-status', [AssessmentController::class, 'toggleStatus'])->name('dashboard.assessments.toggle-status');
+        Route::patch('/assessments/{assessment}/toggle-results', [AssessmentController::class, 'toggleResults'])->name('dashboard.assessments.toggle-results');
+
     });
 
     Route::get('/get-districts/{quadrantId}', [DashboardController::class, 'getDistricts'])->name('districts.get');
@@ -102,12 +105,17 @@ Route::middleware(['auth'])->group(function () {
     Route::middleware(['check.assessment.access'])->group(function () {
         Route::get('/assessment/{access_key}/lobby', [StudentAssessmentController::class, 'lobby'])->name('student.assessment.lobby');
         Route::get('/assessment/{access_key}/exam', [StudentAssessmentController::class, 'exam'])->name('student.assessment.exam');
+        Route::post('/assessment/{access_key}/submit', [StudentAssessmentController::class, 'submit'])->name('student.assessment.submit');
+        Route::post('/assessment/{access_key}/autosave', [StudentAssessmentController::class, 'autoSave'])->name('student.assessment.autosave');
+
+        Route::get('/assessment/{access_key}/results', [StudentAssessmentController::class, 'results'])->name('student.assessment.results');
         
-        // ADD YOUR SUBMIT ROUTE HERE LATER:
+        
+        // ADD SUBMIT ROUTE HERE LATER:
         // Route::post('/assessment/{access_key}/submit', [StudentAssessmentController::class, 'submit'])->name('student.assessment.submit');
     });
 
-}); // <-- FIXED: Was missing this closing bracket
+}); 
 
 /*
 |--------------------------------------------------------------------------

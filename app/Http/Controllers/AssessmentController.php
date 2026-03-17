@@ -222,6 +222,19 @@ class AssessmentController extends Controller
         }
     }
 
+    public function toggleResults(Request $request, \App\Models\Assessment $assessment)
+    {
+        // Flip the boolean
+        $assessment->show_results = !$assessment->show_results;
+        $assessment->save();
+
+        return response()->json([
+            'success' => true,
+            'message' => $assessment->show_results ? 'Students will now see their results after the exam.' : 'Results are now hidden from students.',
+            'new_status' => $assessment->show_results
+        ]);
+    }
+
     public function autosave(Request $request, $id)
     {
         try {
