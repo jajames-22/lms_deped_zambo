@@ -1,4 +1,6 @@
 <div id="assessment-wrapper" data-assessment-id="{{ $assessment->id }}"
+    data-is-new="{{ isset($isNew) && $isNew ? 'true' : 'false' }}"
+    data-manage-url="{{ route('dashboard.assessments.manage', $assessment->id) }}"
     data-autosave-url="{{ route('dashboard.assessments.autosave', $assessment->id) }}"
     data-save-url="{{ route('dashboard.assessments.store_questions', $assessment->id) }}"
     data-delete-url="{{ route('dashboard.assessments.destroy', $assessment->id) }}"
@@ -14,7 +16,7 @@
     <div class="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
         <div class="border-b border-gray-100 p-6 flex items-center justify-between bg-gray-50/50">
             <div class="flex items-center gap-4">
-                <button type="button" onclick="this.innerHTML='<i class=\'fas fa-spinner fa-spin\'></i>'; loadPartial('{{ route('dashboard.assessments.manage', $assessment->id) }}', document.getElementById('nav-assessment-btn'))"
+                <button type="button" onclick="window.handleBackButton(this)"
                     class="h-10 w-10 flex items-center justify-center rounded-xl bg-white border border-gray-200 text-gray-500 hover:text-[#a52a2a] transition shadow-sm">
                     <i class="fas fa-arrow-left"></i>
                 </button>
