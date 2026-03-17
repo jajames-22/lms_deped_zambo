@@ -2,13 +2,22 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
 class Lesson extends Model
 {
-    public function materials()
+    use HasFactory;
+
+    protected $fillable = [
+        'materials_id',
+        'title',
+        'time_limit'
+    ];
+
+    public function material()
     {
-        return $this->belongsTo(Materials::class);
+        return $this->belongsTo(Material::class, 'materials_id');
     }
 
     public function quizzes()
