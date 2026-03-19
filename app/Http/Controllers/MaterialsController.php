@@ -19,7 +19,14 @@ use Exception;
 
 class MaterialsController extends Controller
 {
-    public function index()
+    // ==========================================
+    // --- ADMIN FUNCTIONS ---
+    // ==========================================
+
+    /**
+     * Admin Index: Fetches ALL materials across the entire platform.
+     */
+    public function adminIndex()
     {
         $materials = Material::with('instructor')
             ->withCount([
@@ -32,6 +39,53 @@ class MaterialsController extends Controller
 
         return view('dashboard.partials.admin.materials', compact('materials'));
     }
+
+    // ==========================================
+    // --- TEACHER FUNCTIONS ---
+    // ==========================================
+
+    /**
+     * Teacher Index: Fetches ONLY the materials belonging to the logged-in teacher.
+     */
+    public function teacherIndex()
+    {
+        $materials = Material::with('instructor')
+            ->where('instructor_id', Auth::id())
+            ->withCount([
+                'lessons' => function ($query) {
+                    $query->where('section_type', 'lesson');
+                }
+            ])
+            ->orderBy('updated_at', 'desc')
+            ->get();
+
+        return view('dashboard.partials.teacher.materials', compact('materials'));
+    }
+
+    /**
+     * Legacy/Default Index (Kept for backward compatibility if needed)
+     */
+    public function index()
+    {
+        $user = Auth::user();
+
+        // If the user is an admin or superadmin, load the Admin Index
+        if (in_array($user->role, ['admin', 'superadmin'])) {
+            return $this->adminIndex();
+        }
+
+        // If the user is a teacher, load the Teacher Index
+        if ($user->role === 'teacher') {
+            return $this->teacherIndex();
+        }
+
+        // Failsafe catch
+        abort(403, 'Unauthorized access.');
+    }
+
+    // ==========================================
+    // --- GENERAL FUNCTIONS (Shared by Admin & Teacher) ---
+    // ==========================================
 
     public function create()
     {
@@ -48,7 +102,7 @@ class MaterialsController extends Controller
         $lessons = [];
         $isNew = true;
 
-        return view('dashboard.partials.admin.materials-create', compact('material', 'lessons', 'isNew'));
+        return view('dashboard.partials.teacher.materials-create', compact('material', 'lessons', 'isNew'));
     }
 
     public function edit($id)
@@ -76,7 +130,7 @@ class MaterialsController extends Controller
 
         $isNew = false;
 
-        return view('dashboard.partials.admin.materials-create', compact('material', 'lessons', 'isNew'));
+        return view('dashboard.partials.teacher.materials-create', compact('material', 'lessons', 'isNew'));
     }
 
     public function manage($id)
@@ -101,7 +155,7 @@ class MaterialsController extends Controller
                 return $enrollment;
             });
 
-        return view('dashboard.partials.admin.materials-manage', compact('material', 'whitelistedStudents'));
+        return view('dashboard.partials.teacher.materials-manage', compact('material', 'whitelistedStudents'));
     }
 
     public function toggleStatus(Request $request, $id)
@@ -203,7 +257,7 @@ class MaterialsController extends Controller
                 DB::table('lessons')->where('materials_id', $id)->delete();
             }
 
-            // 2. CLEANUP OLD EXAMS (Added this!)
+            // 2. CLEANUP OLD EXAMS
             $existingExams = DB::table('exams')->where('material_id', $id)->pluck('id');
             if ($existingExams->isNotEmpty()) {
                 DB::table('exam_options')->whereIn('id', $existingExams)->delete();
@@ -212,13 +266,9 @@ class MaterialsController extends Controller
 
             // 3. INSERT NEW DATA TO PROPER TABLES
             foreach ($categories as $cat) {
-                // Check if the JS sent section_type (fallback to 'type' just in case)
                 $sectionType = $cat['section_type'] ?? ($cat['type'] ?? 'lesson');
 
                 if ($sectionType === 'exam') {
-                    // ==========================================
-                    // SAVE FINAL EXAM (Directly to Material)
-                    // ==========================================
                     foreach ($cat['questions'] ?? [] as $q) {
                         $examId = DB::table('exams')->insertGetId([
                             'material_id' => $id, 
@@ -233,7 +283,7 @@ class MaterialsController extends Controller
                         $options = $q['options'] ?? [];
                         foreach ($options as $opt) {
                             DB::table('exam_options')->insert([
-                                'exam_id    ' => $examId,
+                                'exam_id' => $examId,
                                 'option_text' => $opt['text'] ?? '',
                                 'is_correct' => $opt['is_correct'] ?? false,
                                 'created_at' => now(),
@@ -242,9 +292,6 @@ class MaterialsController extends Controller
                         }
                     }
                 } else {
-                    // ==========================================
-                    // SAVE REGULAR LESSON & QUIZ
-                    // ==========================================
                     $lessonId = DB::table('lessons')->insertGetId([
                         'materials_id' => $id,
                         'section_type' => 'lesson',
@@ -286,6 +333,7 @@ class MaterialsController extends Controller
             return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
         }
     }
+
     public function autosave(Request $request, $id)
     {
         try {
@@ -393,21 +441,16 @@ class MaterialsController extends Controller
                 'updated_at' => now()
             ]);
 
-            // Assuming $id is your $materialId
             if ($request->has('categories')) {
                 $categories = json_decode($request->categories, true);
 
                 foreach ($categories as $cat) {
-                    // Check what type of section this is from the frontend payload
                     $sectionType = $cat['section_type'] ?? 'lesson';
 
                     if ($sectionType === 'exam') {
-                        // ==========================================
-                        // SAVE FINAL EXAM (Directly to Material)
-                        // ==========================================
                         foreach ($cat['questions'] ?? [] as $q) {
                             $examId = DB::table('exams')->insertGetId([
-                                'material_id' => $id, // Attach to Material
+                                'material_id' => $id,
                                 'type' => $q['type'] ?? 'mcq',
                                 'question_text' => $q['text'] ?? '',
                                 'media_url' => $q['media_url'] ?? null,
@@ -418,7 +461,7 @@ class MaterialsController extends Controller
 
                             foreach ($q['options'] ?? [] as $opt) {
                                 DB::table('exam_options')->insert([
-                                    'id' => $examId,
+                                    'exam_id' => $examId,
                                     'option_text' => $opt['text'] ?? '',
                                     'is_correct' => $opt['is_correct'] ?? false,
                                     'created_at' => now(),
@@ -427,21 +470,18 @@ class MaterialsController extends Controller
                             }
                         }
                     } else {
-                        // ==========================================
-                        // SAVE LESSON & QUIZZES
-                        // ==========================================
                         $lessonId = DB::table('lessons')->insertGetId([
-                            'material_id' => $id,
+                            'materials_id' => $id, 
                             'title' => $cat['title'] ?? 'New Lesson',
                             'section_type' => 'lesson',
-                            // ... any other lesson fields
+                            'time_limit' => $cat['time_limit'] ?? 0,
                             'created_at' => now(),
                             'updated_at' => now(),
                         ]);
 
                         foreach ($cat['questions'] ?? [] as $q) {
                             $quizId = DB::table('quizzes')->insertGetId([
-                                'lesson_id' => $lessonId, // Attach to Lesson
+                                'lesson_id' => $lessonId, 
                                 'type' => $q['type'] ?? 'mcq',
                                 'question_text' => $q['text'] ?? '',
                                 'media_url' => $q['media_url'] ?? null,
