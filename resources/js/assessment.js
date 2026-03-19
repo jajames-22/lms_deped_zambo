@@ -867,7 +867,7 @@ AssessmentBuilder.silentlyDeleteAndExit = async function() {
 };
 
 // Accept the nav element directly from the HTML click
-window.handleAssessmentBackButton = async function(btn) {
+AssessmentBuilder.handleAssessmentBackButton = async function(btn) {
     const wrapper = document.getElementById("assessment-wrapper");
     if (!wrapper) return;
 
