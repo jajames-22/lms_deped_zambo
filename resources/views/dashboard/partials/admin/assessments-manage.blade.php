@@ -7,7 +7,7 @@
 
         /* Styling for the knob/handle when the checkbox is UNCHECKED */
         .toggle-container .toggle-handle {
-            transform: translateX(5px); /* Default left position */
+            transform: translateX(1px); /* Default left position */
         }
 
         /* * THE MAGIC: When the hidden checkbox (.toggle-input) is :checked, 
@@ -21,7 +21,7 @@
         * to the right (calculated based on track width minus handle width and padding)
         */
         .toggle-container .toggle-input:checked ~ .toggle-handle {
-            transform: translateX(2.2rem); /* Shifts the knob to the right side */
+            transform: translateX(2rem); /* Shifts the knob to the right side */
         }
         
         /* Optional: Ensure focus state is visible for accessibility */
@@ -918,4 +918,20 @@
             }
         }
     };
+
+    setTimeout(() => {
+        const assessmentBtn = document.getElementById('nav-assessment-btn');
+        
+        if (assessmentBtn) {
+            // 1. Strip the active classes from ALL sidebar buttons and restore default text
+            document.querySelectorAll('.nav-btn').forEach(btn => {
+                btn.classList.remove('bg-[#a52a2a]/10', 'text-[#a52a2a]', 'font-medium', 'border-r-4', 'border-[#a52a2a]');
+                btn.classList.add('text-gray-600', 'hover:bg-gray-100');
+            });
+
+            // 2. Apply the exact active classes to the Assessment button
+            assessmentBtn.classList.remove('text-gray-600', 'hover:bg-gray-100');
+            assessmentBtn.classList.add('bg-[#a52a2a]/10', 'text-[#a52a2a]', 'font-medium', 'border-r-4', 'border-[#a52a2a]');
+        }
+    }, 50); // 50ms delay ensures the DOM is ready
 </script>

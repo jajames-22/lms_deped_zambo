@@ -671,7 +671,7 @@ window.saveCompleteExam = async function (btn, status) {
                 : "Your progress has been safely stored.";
 
             window.showModal("success", title, msg, () => {
-                window.goToUrl(wrapper.dataset.manageUrl);
+                window.goToUrl(wrapper.dataset.manageUrl, window.currentNavBtn);
             });
         } else {
             throw new Error(result.message || "Failed to save");
@@ -703,7 +703,7 @@ window.deleteAssessmentFromBuilder = async function () {
                     },
                 });
                 if (response.ok) {
-                    window.goToUrl(wrapper.dataset.redirectUrl);
+                    window.goToUrl(wrapper.dataset.redirectUrl, window.currentNavBtn);
                 }
             } catch (e) {
                 window.showModal(
@@ -838,20 +838,13 @@ window.showModal = function (type, title, message, callback = null) {
         }
     };
 };
+window.currentNavBtn = null; // Store it globally for the modals to use
 
 window.goToUrl = function(url) {
-    console.log("Attempting to navigate to: ", url);
-    
     if (typeof loadPartial === "function") {
         try {
-            const navBtn = document.getElementById('nav-assessment-btn');
-            if (navBtn) {
-                loadPartial(url, navBtn);
-            } else {
-                loadPartial(url);
-            }
+            loadPartial(url); // Just load the page! Let the page handle its own sidebar.
         } catch (e) {
-            console.warn("loadPartial failed, falling back to standard redirect.", e);
             window.location.href = url;
         }
     } else {
@@ -864,27 +857,21 @@ window.silentlyDeleteAndExit = async function() {
     try {
         await fetch(wrapper.dataset.deleteUrl, {
             method: "DELETE",
-            headers: {
-                "X-CSRF-TOKEN": wrapper.dataset.csrf,
-                Accept: "application/json",
-            },
+            headers: { "X-CSRF-TOKEN": wrapper.dataset.csrf, Accept: "application/json" },
         });
     } catch (e) {
         console.warn("Failed to delete empty assessment");
     }
 };
 
+// Accept the nav element directly from the HTML click
 window.handleAssessmentBackButton = async function(btn) {
     const wrapper = document.getElementById("assessment-wrapper");
-    
-    if (!wrapper) {
-        console.error("Assessment wrapper missing data attributes.");
-        return;
-    }
+    if (!wrapper) return;
 
     const isNew = wrapper.dataset.isNew === 'true';
-    const manageUrl = wrapper.dataset.manageUrl;
-    const redirectUrl = wrapper.dataset.redirectUrl;
+    const manageUrl = wrapper.dataset.manageUrl; 
+    const redirectUrl = wrapper.dataset.redirectUrl; 
 
     if (window.hasChanged) {
         document.getElementById('back-modal').classList.remove('hidden');
@@ -894,20 +881,14 @@ window.handleAssessmentBackButton = async function(btn) {
         btn.innerHTML = '<i class="fas fa-spinner fa-spin text-[#a52a2a]"></i>';
         btn.disabled = true;
 
-        try {
-            if (isNew) {
-                await window.silentlyDeleteAndExit();
-                window.goToUrl(redirectUrl);
-            } else {
-                window.goToUrl(manageUrl);
-            }
-        } catch (e) {
-            console.error("Error during navigation:", e);
-            window.location.href = manageUrl;
+        if (isNew) {
+            await window.silentlyDeleteAndExit();
+            window.goToUrl(redirectUrl); 
+        } else {
+            window.goToUrl(manageUrl);
         }
     }
 };
-
 // --- IMPORT EXCEL LOGIC ADDED HERE ---
 
 let selectedFile = null;
