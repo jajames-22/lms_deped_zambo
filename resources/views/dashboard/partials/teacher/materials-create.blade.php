@@ -55,6 +55,13 @@
                     
                     <img id="thumbnail-preview" src="{{ isset($material) && $material->thumbnail ? asset('storage/' . $material->thumbnail) : '' }}" class="absolute inset-0 w-full h-full object-cover {{ isset($material) && $material->thumbnail ? '' : 'hidden' }} z-0" alt="Thumbnail Preview">
                     
+                    <button type="button" id="remove-thumbnail-btn" 
+                        onclick="removeThumbnail(event, {{ $material->id ?? 'null' }})" 
+                        class="absolute top-3 right-3 bg-red-600 text-white w-8 h-8 rounded-full flex items-center justify-center shadow-lg hover:bg-red-700 transition z-20 {{ isset($material) && $material->thumbnail ? '' : 'hidden' }}" 
+                        title="Remove Thumbnail">
+                        <i class="fas fa-times"></i>
+                    </button>
+
                     <div id="thumbnail-placeholder" class="flex flex-col items-center justify-center relative z-10 w-full h-full rounded-xl transition {{ isset($material) && $material->thumbnail ? 'bg-black/40 opacity-0 hover:opacity-100' : 'bg-white/50 backdrop-blur-[2px] group-hover:bg-white/80' }}">
                         <i class="fas fa-image text-4xl {{ isset($material) && $material->thumbnail ? 'text-white' : 'text-gray-400 group-hover:text-[#a52a2a]' }} transition mb-3"></i>
                         <span class="text-sm font-bold {{ isset($material) && $material->thumbnail ? 'text-white' : 'text-gray-700' }} mb-1">{{ isset($material) && $material->thumbnail ? 'Change Thumbnail' : 'Course Thumbnail' }}</span>
@@ -263,9 +270,14 @@
             reader.onload = function(e) {
                 const preview = document.getElementById('thumbnail-preview');
                 const placeholder = document.getElementById('thumbnail-placeholder');
+                const removeBtn = document.getElementById('remove-thumbnail-btn');
+
                 if(preview) {
                     preview.src = e.target.result;
                     preview.classList.remove('hidden');
+                }
+                if(removeBtn) {
+                    removeBtn.classList.remove('hidden');
                 }
                 if(placeholder) {
                     placeholder.className = "flex flex-col items-center justify-center relative z-10 w-full h-full rounded-xl transition bg-black/40 opacity-0 hover:opacity-100";
@@ -277,6 +289,63 @@
                 }
             }
             reader.readAsDataURL(input.files[0]);
+        }
+    }
+
+    async function removeThumbnail(event, materialId) {
+        event.stopPropagation(); 
+
+        const btn = document.getElementById('remove-thumbnail-btn');
+        const originalHtml = btn.innerHTML;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+        btn.disabled = true;
+
+        const input = document.getElementById('thumbnail-upload');
+        const preview = document.getElementById('thumbnail-preview');
+        const placeholder = document.getElementById('thumbnail-placeholder');
+
+        const resetUI = () => {
+            input.value = '';
+            preview.src = '';
+            preview.classList.add('hidden');
+            btn.classList.add('hidden');
+
+            placeholder.className = "flex flex-col items-center justify-center relative z-10 w-full h-full rounded-xl transition bg-white/50 backdrop-blur-[2px] group-hover:bg-white/80";
+            placeholder.innerHTML = `
+                <i class="fas fa-image text-4xl text-gray-400 group-hover:text-[#a52a2a] transition mb-3"></i>
+                <span class="text-sm font-bold text-gray-700 mb-1">Course Thumbnail</span>
+                <p class="text-[10px] text-center text-gray-500 px-4">Upload a cover image (JPG, PNG).</p>
+            `;
+        };
+
+        if (materialId && preview.src.includes('storage')) {
+            const csrf = document.querySelector('[data-csrf]')?.dataset.csrf;
+
+            try {
+                const response = await fetch(`/dashboard/materials/${materialId}/thumbnail`, {
+                    method: 'DELETE',
+                    headers: {
+                        'X-CSRF-TOKEN': csrf,
+                        'Accept': 'application/json'
+                    }
+                });
+
+                if (response.ok) {
+                    resetUI();
+                } else {
+                    showStatusModal('Removal Failed', 'Failed to remove the thumbnail from the server.', 'error');
+                }
+            } catch (error) {
+                console.error(error);
+                showStatusModal('Network Error', 'A network error occurred while trying to remove the thumbnail.', 'error');
+            } finally {
+                btn.innerHTML = originalHtml;
+                btn.disabled = false;
+            }
+        } else {
+            resetUI();
+            btn.innerHTML = originalHtml;
+            btn.disabled = false;
         }
     }
 
@@ -322,10 +391,7 @@
         let payload = MaterialBuilder.getPayload("draft");
         let formData = new FormData();
         
-        // Ensure this key matches exactly what your MaterialController looks for!
-        // Typical defaults are 'module_file', 'import_file', or simply 'file'.
         formData.append('module_file', selectedFile); 
-        
         formData.append('_token', document.querySelector('[data-csrf]').dataset.csrf);
         formData.append('title', payload.title);
         formData.append('description', payload.description);
@@ -344,7 +410,6 @@
                 let errorData = await response.json().catch(() => ({}));
                 let errorMessage = errorData.message || `Server error (${response.status})`;
                 
-                // Show specific validation errors if the backend rejected the file key
                 if (errorData.errors) {
                     const firstErrorKey = Object.keys(errorData.errors)[0];
                     errorMessage = errorData.errors[firstErrorKey][0];
