@@ -44,7 +44,7 @@
                     @if($material->thumbnail)
                         <img src="{{ asset('storage/' . $material->thumbnail) }}" alt="{{ $material->title }}" class="w-full h-full object-cover">
                     @else
-                        <div class="w-full h-full flex items-center justify-center bg-gray-50">
+                        <div class="w-full min-h-full flex items-center justify-center bg-gray-50 py-12">
                             <i class="fas fa-book-open text-4xl text-gray-200"></i>
                         </div>
                     @endif
