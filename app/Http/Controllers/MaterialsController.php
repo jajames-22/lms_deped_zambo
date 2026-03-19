@@ -6,7 +6,7 @@ use App\Models\Material;
 use App\Models\Lesson;
 use App\Models\Quiz;
 use App\Models\Enrollment;
-use App\Models\User; 
+use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
@@ -20,17 +20,73 @@ use Exception;
 
 class MaterialsController extends Controller
 {
-    public function index()
+    // ==========================================
+    // --- ADMIN FUNCTIONS ---
+    // ==========================================
+
+    /**
+     * Admin Index: Fetches ALL materials across the entire platform.
+     */
+    public function adminIndex()
     {
         $materials = Material::with('instructor')
-            ->withCount(['lessons' => function ($query) {
-                $query->where('section_type', 'lesson');
-            }])
+            ->withCount([
+                'lessons' => function ($query) {
+                    $query->where('section_type', 'lesson');
+                }
+            ])
             ->orderBy('updated_at', 'desc')
             ->get();
 
         return view('dashboard.partials.admin.materials', compact('materials'));
     }
+
+    // ==========================================
+    // --- TEACHER FUNCTIONS ---
+    // ==========================================
+
+    /**
+     * Teacher Index: Fetches ONLY the materials belonging to the logged-in teacher.
+     */
+    public function teacherIndex()
+    {
+        $materials = Material::with('instructor')
+            ->where('instructor_id', Auth::id())
+            ->withCount([
+                'lessons' => function ($query) {
+                    $query->where('section_type', 'lesson');
+                }
+            ])
+            ->orderBy('updated_at', 'desc')
+            ->get();
+
+        return view('dashboard.partials.teacher.materials', compact('materials'));
+    }
+
+    /**
+     * Legacy/Default Index (Kept for backward compatibility if needed)
+     */
+    public function index()
+    {
+        $user = Auth::user();
+
+        // If the user is an admin or superadmin, load the Admin Index
+        if (in_array($user->role, ['admin', 'superadmin'])) {
+            return $this->adminIndex();
+        }
+
+        // If the user is a teacher, load the Teacher Index
+        if ($user->role === 'teacher') {
+            return $this->teacherIndex();
+        }
+
+        // Failsafe catch
+        abort(403, 'Unauthorized access.');
+    }
+
+    // ==========================================
+    // --- GENERAL FUNCTIONS (Shared by Admin & Teacher) ---
+    // ==========================================
 
     public function create()
     {
@@ -44,17 +100,18 @@ class MaterialsController extends Controller
         ]);
 
         $material = DB::table('materials')->where('id', $materialId)->first();
-        $lessons = []; 
-        $isNew = true; 
+        $lessons = [];
+        $isNew = true;
 
-        return view('dashboard.partials.admin.materials-create', compact('material', 'lessons', 'isNew'));
+        return view('dashboard.partials.teacher.materials-create', compact('material', 'lessons', 'isNew'));
     }
 
     public function edit($id)
     {
         $material = DB::table('materials')->where('id', $id)->first();
 
-        if (!$material) abort(404, 'Material not found');
+        if (!$material)
+            abort(404, 'Material not found');
 
         $lessons = DB::table('lessons')
             ->where('materials_id', $id)
@@ -64,30 +121,30 @@ class MaterialsController extends Controller
                     ->where('lesson_id', $lesson->id)
                     ->get()
                     ->map(function ($quiz) {
-                    $quiz->options = DB::table('quiz_options')
-                        ->where('quiz_id', $quiz->id)
-                        ->get();
-                    return $quiz;
-                });
+                        $quiz->options = DB::table('quiz_options')
+                            ->where('quiz_id', $quiz->id)
+                            ->get();
+                        return $quiz;
+                    });
                 return $lesson;
             });
 
         $isNew = false;
 
-        return view('dashboard.partials.admin.materials-create', compact('material', 'lessons', 'isNew'));
+        return view('dashboard.partials.teacher.materials-create', compact('material', 'lessons', 'isNew'));
     }
 
     public function manage($id)
     {
         $material = Material::findOrFail($id);
-        
+
         $material->lessons_count = DB::table('lessons')
             ->where('materials_id', $id)
             ->where('section_type', 'lesson')
             ->count();
-        
-        $lessonIds = DB::table('lessons')->where('materials_id', $id)->pluck('id');
-        $material->items_count = DB::table('quizzes')->whereIn('lesson_id', $lessonIds)->count();
+
+        $examIds = DB::table('exams')->where('material_id', $id)->pluck('id');
+        $material->items_count = DB::table('exams')->whereIn('id', $examIds)->count();
 
         $whitelistedStudents = Enrollment::with('user')
             ->where('materials_id', $material->id)
@@ -99,7 +156,7 @@ class MaterialsController extends Controller
                 return $enrollment;
             });
 
-        return view('dashboard.partials.admin.materials-manage', compact('material', 'whitelistedStudents'));
+        return view('dashboard.partials.teacher.materials-manage', compact('material', 'whitelistedStudents'));
     }
 
     public function toggleStatus(Request $request, $id)
@@ -169,7 +226,6 @@ class MaterialsController extends Controller
     {
         DB::beginTransaction();
         try {
-            // FIX: Using $request->input('status', 'draft') forces it to correctly map FormData strings
             DB::table('materials')->where('id', $id)->update([
                 'title' => $request->input('title', 'Untitled Material'),
                 'description' => $request->input('description', ''),
@@ -189,6 +245,7 @@ class MaterialsController extends Controller
             }
             $categories = $categories ?? [];
 
+            // 1. CLEANUP OLD LESSONS AND QUIZZES
             $existingLessons = DB::table('lessons')->where('materials_id', $id)->pluck('id');
             if ($existingLessons->isNotEmpty()) {
                 $existingQuizzes = DB::table('quizzes')->whereIn('lesson_id', $existingLessons)->pluck('id');
@@ -201,36 +258,71 @@ class MaterialsController extends Controller
                 DB::table('lessons')->where('materials_id', $id)->delete();
             }
 
-            foreach ($categories as $cat) {
-                $lessonId = DB::table('lessons')->insertGetId([
-                    'materials_id' => $id,
-                    'section_type' => $cat['section_type'] ?? 'lesson',
-                    'title' => $cat['title'] ?? 'New Lesson',
-                    'time_limit' => $cat['time_limit'] ?? 0,
-                    'created_at' => now(),
-                    'updated_at' => now(),
-                ]);
+            // 2. CLEANUP OLD EXAMS
+            $existingExams = DB::table('exams')->where('material_id', $id)->pluck('id');
+            if ($existingExams->isNotEmpty()) {
+                DB::table('exam_options')->whereIn('id', $existingExams)->delete();
+                DB::table('exams')->where('material_id', $id)->delete();
+            }
 
-                foreach ($cat['questions'] as $q) {
-                    $quizId = DB::table('quizzes')->insertGetId([
-                        'lesson_id' => $lessonId,
-                        'type' => $q['type'] ?? 'mcq',
-                        'question_text' => $q['text'] ?? '',
-                        'media_url' => $q['media_url'] ?? null,
-                        'is_case_sensitive' => $q['is_case_sensitive'] ?? false,
+            // 3. INSERT NEW DATA TO PROPER TABLES
+            foreach ($categories as $cat) {
+                $sectionType = $cat['section_type'] ?? ($cat['type'] ?? 'lesson');
+
+                if ($sectionType === 'exam') {
+                    foreach ($cat['questions'] ?? [] as $q) {
+                        $examId = DB::table('exams')->insertGetId([
+                            'material_id' => $id, 
+                            'type' => $q['type'] ?? 'mcq',
+                            'question_text' => $q['text'] ?? '',
+                            'media_url' => $q['media_url'] ?? null,
+                            'is_case_sensitive' => $q['is_case_sensitive'] ?? false,
+                            'created_at' => now(),
+                            'updated_at' => now(),
+                        ]);
+
+                        $options = $q['options'] ?? [];
+                        foreach ($options as $opt) {
+                            DB::table('exam_options')->insert([
+                                'exam_id' => $examId,
+                                'option_text' => $opt['text'] ?? '',
+                                'is_correct' => $opt['is_correct'] ?? false,
+                                'created_at' => now(),
+                                'updated_at' => now(),
+                            ]);
+                        }
+                    }
+                } else {
+                    $lessonId = DB::table('lessons')->insertGetId([
+                        'materials_id' => $id,
+                        'section_type' => 'lesson',
+                        'title' => $cat['title'] ?? 'New Lesson',
+                        'time_limit' => $cat['time_limit'] ?? 0,
                         'created_at' => now(),
                         'updated_at' => now(),
                     ]);
 
-                    $options = $q['options'] ?? [];
-                    foreach ($options as $opt) {
-                        DB::table('quiz_options')->insert([
-                            'quiz_id' => $quizId,
-                            'option_text' => $opt['text'] ?? '',
-                            'is_correct' => $opt['is_correct'] ?? false,
+                    foreach ($cat['questions'] ?? [] as $q) {
+                        $quizId = DB::table('quizzes')->insertGetId([
+                            'lesson_id' => $lessonId,
+                            'type' => $q['type'] ?? 'mcq',
+                            'question_text' => $q['text'] ?? '',
+                            'media_url' => $q['media_url'] ?? null,
+                            'is_case_sensitive' => $q['is_case_sensitive'] ?? false,
                             'created_at' => now(),
                             'updated_at' => now(),
                         ]);
+
+                        $options = $q['options'] ?? [];
+                        foreach ($options as $opt) {
+                            DB::table('quiz_options')->insert([
+                                'quiz_id' => $quizId,
+                                'option_text' => $opt['text'] ?? '',
+                                'is_correct' => $opt['is_correct'] ?? false,
+                                'created_at' => now(),
+                                'updated_at' => now(),
+                            ]);
+                        }
                     }
                 }
             }
@@ -289,9 +381,12 @@ class MaterialsController extends Controller
             $ext = strtolower($file->getClientOriginalExtension());
 
             $type = 'image';
-            if (in_array($ext, ['mp4', 'webm'])) $type = 'video';
-            if (in_array($ext, ['mp3', 'wav', 'ogg'])) $type = 'audio';
-            if (in_array($ext, ['pdf', 'ppt', 'pptx', 'zip'])) $type = 'document';
+            if (in_array($ext, ['mp4', 'webm']))
+                $type = 'video';
+            if (in_array($ext, ['mp3', 'wav', 'ogg']))
+                $type = 'audio';
+            if (in_array($ext, ['pdf', 'ppt', 'pptx', 'zip']))
+                $type = 'document';
 
             return response()->json([
                 'success' => true,
@@ -350,31 +445,45 @@ class MaterialsController extends Controller
             if ($request->has('categories')) {
                 $categories = json_decode($request->categories, true);
 
-                $existingLessons = DB::table('lessons')->where('materials_id', $id)->pluck('id');
-                if ($existingLessons->isNotEmpty()) {
-                    $existingQuizzes = DB::table('quizzes')->whereIn('lesson_id', $existingLessons)->pluck('id');
-                    if ($existingQuizzes->isNotEmpty()) {
-                        DB::table('quiz_options')->whereIn('quiz_id', $existingQuizzes)->delete();
-                    }
-                    DB::table('quizzes')->whereIn('lesson_id', $existingLessons)->delete();
-                    DB::table('lessons')->where('materials_id', $id)->delete();
-                }
+                foreach ($categories as $cat) {
+                    $sectionType = $cat['section_type'] ?? 'lesson';
 
-                if (is_array($categories)) {
-                    foreach ($categories as $cat) {
+                    if ($sectionType === 'exam') {
+                        foreach ($cat['questions'] ?? [] as $q) {
+                            $examId = DB::table('exams')->insertGetId([
+                                'material_id' => $id,
+                                'type' => $q['type'] ?? 'mcq',
+                                'question_text' => $q['text'] ?? '',
+                                'media_url' => $q['media_url'] ?? null,
+                                'is_case_sensitive' => $q['is_case_sensitive'] ?? false,
+                                'created_at' => now(),
+                                'updated_at' => now(),
+                            ]);
+
+                            foreach ($q['options'] ?? [] as $opt) {
+                                DB::table('exam_options')->insert([
+                                    'exam_id' => $examId,
+                                    'option_text' => $opt['text'] ?? '',
+                                    'is_correct' => $opt['is_correct'] ?? false,
+                                    'created_at' => now(),
+                                    'updated_at' => now(),
+                                ]);
+                            }
+                        }
+                    } else {
                         $lessonId = DB::table('lessons')->insertGetId([
-                            'materials_id' => $id,
-                            'section_type' => $cat['section_type'] ?? 'lesson',
+                            'materials_id' => $id, 
                             'title' => $cat['title'] ?? 'New Lesson',
-                            'time_limit' => (int) ($cat['time_limit'] ?? 0),
+                            'section_type' => 'lesson',
+                            'time_limit' => $cat['time_limit'] ?? 0,
                             'created_at' => now(),
                             'updated_at' => now(),
                         ]);
 
                         foreach ($cat['questions'] ?? [] as $q) {
                             $quizId = DB::table('quizzes')->insertGetId([
-                                'lesson_id' => $lessonId,
-                                'type' => $q['type'] ?? 'instruction',
+                                'lesson_id' => $lessonId, 
+                                'type' => $q['type'] ?? 'mcq',
                                 'question_text' => $q['text'] ?? '',
                                 'media_url' => $q['media_url'] ?? null,
                                 'is_case_sensitive' => $q['is_case_sensitive'] ?? false,

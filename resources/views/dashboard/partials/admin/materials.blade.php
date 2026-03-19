@@ -1,107 +1,152 @@
-<div class="space-y-6 pb-20">
+<div class="space-y-6 relative pb-20">
     <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div class="w-full">
+        <div>
             <h1 class="text-2xl font-bold text-gray-900">Learning Materials</h1>
             <p class="text-gray-500 text-sm">Create and manage modules, files, and lessons for your students.</p>
         </div>
 
         <button onclick="loadPartial('{{ route('dashboard.materials.create') }}', document.getElementById('nav-materials-btn'))"
-            class="flex-shrink-0 flex items-center justify-center gap-2 px-6 py-3 bg-[#a52a2a] text-white font-bold rounded-xl shadow-lg shadow-[#a52a2a]/20 hover:bg-red-800 transition-all active:scale-95">
-            <i class="fas fa-plus"></i>
+            class="flex-shrink-0 flex items-center justify-center gap-2 px-6 py-3 bg-[#a52a2a] text-white font-bold rounded-xl shadow-lg hover:bg-red-800 transition-all">
+            <i class="fas fa-plus-circle"></i>
             <span>Create New Material</span>
         </button>
     </div>
 
-    <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-        <div class="flex items-center space-x-1 bg-gray-200/50 p-1 rounded-xl w-fit shrink-0">
-            <button onclick="MaterialManager.filter('all', this)"
-                class="material-tab px-6 py-2 text-sm font-bold rounded-lg transition-all bg-white text-[#a52a2a] shadow-sm">All</button>
-            <button onclick="MaterialManager.filter('published', this)"
-                class="material-tab px-6 py-2 text-sm font-bold rounded-lg transition-all text-gray-500 hover:text-gray-700">Published</button>
-            <button onclick="MaterialManager.filter('draft', this)"
-                class="material-tab px-6 py-2 text-sm font-bold rounded-lg transition-all text-gray-500 hover:text-gray-700">Drafts</button>
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        <div class="bg-white border border-gray-100 p-2 rounded-2xl shadow-sm flex items-center justify-center lg:justify-start lg:col-span-1 overflow-x-auto">
+            <div class="flex items-center space-x-1 bg-gray-50 p-1 rounded-xl w-full">
+                <button onclick="MaterialTableManager.filterStatus('all', this)"
+                    class="material-tab w-full px-4 py-2.5 text-xs font-bold rounded-lg transition-all bg-white text-[#a52a2a] shadow-sm border border-gray-100">All</button>
+                <button onclick="MaterialTableManager.filterStatus('published', this)"
+                    class="material-tab w-full px-4 py-2.5 text-xs font-bold rounded-lg transition-all text-gray-500 hover:text-gray-700">Published</button>
+                <button onclick="MaterialTableManager.filterStatus('draft', this)"
+                    class="material-tab w-full px-4 py-2.5 text-xs font-bold rounded-lg transition-all text-gray-500 hover:text-gray-700">Drafts</button>
+            </div>
         </div>
 
-        <div class="relative w-full max-w-md">
-            <i class="fas fa-search absolute left-4 top-1/2 -translate-y-1/2 text-gray-400"></i>
-            <input type="text" id="material-search" onkeyup="MaterialManager.search()"
-                placeholder="Search materials by title..."
-                class="w-full pl-11 pr-4 py-2.5 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#a52a2a]/20 focus:border-[#a52a2a] outline-none transition-all shadow-sm">
+        <div class="bg-white border border-gray-100 p-2 rounded-2xl shadow-sm flex items-center lg:col-span-2">
+            <div class="relative w-full">
+                <i class="fas fa-search absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400"></i>
+                <input type="text" id="materialSearchInput" placeholder="Search materials by title or description..."
+                    class="w-full pl-11 pr-4 py-2.5 bg-gray-50 border border-transparent focus:border-[#a52a2a] focus:bg-white rounded-xl outline-none transition-all text-sm text-gray-700">
+            </div>
         </div>
     </div>
 
-    <div id="material-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-5 items-stretch relative">
-        @forelse($materials as $material)
-            @php $isLive = ($material->status === 'published'); @endphp
+    <div class="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden flex flex-col">
+        <div class="overflow-x-auto">
+            <table class="w-full text-left border-collapse" id="materialsTable">
+                <thead class="bg-gray-50/50 text-xs uppercase text-gray-500 font-bold border-b border-gray-100">
+                    <tr>
+                        <th class="px-4 py-3 text-center w-16">Cover</th>
+                        <th class="px-4 py-3 cursor-pointer hover:bg-gray-100 transition sortable-col select-none" title="Sort by Title">
+                            Material Details <i class="fas fa-sort ml-1 text-gray-300"></i>
+                        </th>
+                        <th class="px-4 py-3 cursor-pointer hover:bg-gray-100 transition sortable-col select-none" title="Sort by Status">
+                            Status <i class="fas fa-sort ml-1 text-gray-300"></i>
+                        </th>
+                        <th class="px-4 py-3 cursor-pointer hover:bg-gray-100 transition sortable-col select-none" title="Sort by Instructor">
+                            Instructor <i class="fas fa-sort ml-1 text-gray-300"></i>
+                        </th>
+                        <th class="px-4 py-3 text-center cursor-pointer hover:bg-gray-100 transition sortable-col select-none" title="Sort by Lessons">
+                            Sections <i class="fas fa-sort ml-1 text-gray-300"></i>
+                        </th>
+                        <th class="px-4 py-3 text-center">Actions</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-50">
+                    @forelse($materials as $material)
+                        @php $isLive = ($material->status === 'published'); @endphp
+                        <tr class="hover:bg-gray-50/50 transition material-row cursor-pointer" 
+                            data-status="{{ $material->status }}"
+                            onclick="loadPartial('{{ route('dashboard.materials.manage', $material->id) }}', document.getElementById('nav-materials-btn'))">
+                            
+                            <td class="px-4 py-3">
+                                <div class="w-12 h-12 rounded-lg bg-gray-100 border border-gray-200 overflow-hidden flex items-center justify-center shadow-sm mx-auto relative">
+                                    <div class="absolute bottom-0 left-0 w-full h-1 {{ $isLive ? 'bg-green-500' : 'bg-amber-400' }} z-10"></div>
+                                    @if($material->thumbnail)
+                                        <img src="{{ asset('storage/' . $material->thumbnail) }}" class="w-full h-full object-cover">
+                                    @else
+                                        <i class="fas fa-book-open text-gray-300 text-lg"></i>
+                                    @endif
+                                </div>
+                            </td>
 
-            <div id="material-card-{{ $material->id }}"
-                onclick="loadPartial('{{ route('dashboard.materials.manage', $material->id) }}', document.getElementById('nav-materials-btn'))"
-                class="material-card {{ $isLive ? 'published' : 'draft' }} flex flex-col h-full bg-white rounded-xl border border-gray-200 shadow-sm hover:shadow-md transition-all duration-200 group overflow-hidden relative cursor-pointer">
+                            <td class="px-4 py-3">
+                                <div class="flex flex-col">
+                                    <p class="text-sm font-bold text-gray-900 leading-tight material-title">{{ $material->title ?? 'Untitled Material' }}</p>
+                                    <p class="text-xs text-gray-500 mt-1 max-w-[300px] truncate material-desc">
+                                        {{ $material->description ?: 'No description provided.' }}
+                                    </p>
+                                </div>
+                            </td>
 
-                <div class="w-full h-36 bg-gray-50 relative border-b border-gray-100">
-                    <div class="absolute top-0 left-0 w-full h-1 {{ $isLive ? 'bg-green-500' : 'bg-amber-400' }} z-10"></div>
+                            <td class="px-4 py-3">
+                                <span class="px-2.5 py-1 text-[10px] font-bold rounded-md border uppercase tracking-tighter material-status-text {{ $isLive ? 'bg-green-50 text-green-700 border-green-200' : 'bg-amber-50 text-amber-700 border-amber-200' }}">
+                                    {{ $isLive ? 'Published' : 'Draft' }}
+                                </span>
+                            </td>
 
-                    @if($material->thumbnail)
-                        <img src="{{ asset('storage/' . $material->thumbnail) }}" alt="{{ $material->title }}" class="w-full h-full object-cover">
-                    @else
-                        <div class="w-full min-h-full flex items-center justify-center bg-gray-50 py-12">
-                            <i class="fas fa-book-open text-4xl text-gray-200"></i>
-                        </div>
-                    @endif
-                    
-                    <button
-                        onclick="event.stopPropagation(); MaterialManager.delete('{{ $material->id }}', '{{ route('dashboard.materials.destroy', $material->id) }}')"
-                        class="absolute top-3 right-3 h-7 w-7 rounded-full bg-white/90 backdrop-blur-sm text-gray-500 opacity-0 group-hover:opacity-100 transition-all flex items-center justify-center hover:bg-red-50 hover:text-red-600 z-10 shadow-sm"
-                        title="Delete Material">
-                        <i class="fas fa-trash-alt text-xs"></i>
-                    </button>
+                            <td class="px-4 py-3">
+                                <div class="flex items-center gap-2">
+                                    <div class="w-6 h-6 rounded-full bg-gray-200 flex items-center justify-center text-gray-500 text-[10px]">
+                                        <i class="fas fa-user"></i>
+                                    </div>
+                                    <span class="text-sm font-medium text-gray-700 material-instructor">{{ $material->instructor->first_name ?? 'N/A' }} {{ $material->instructor->last_name ?? '' }}</span>
+                                </div>
+                            </td>
 
-                    <div class="absolute top-3 left-3 flex items-center">
-                        <span class="px-2 py-1 {{ $isLive ? 'bg-green-500/90 text-white' : 'bg-amber-100/95 text-amber-700' }} backdrop-blur-sm text-[9px] font-bold rounded uppercase tracking-wider shadow-sm">
-                            {{ $isLive ? 'Published' : 'Draft' }}
-                        </span>
+                            <td class="px-4 py-3 text-center">
+                                <span class="bg-gray-100 text-gray-600 text-xs px-2 py-1 rounded-md font-bold border border-gray-200 material-count">
+                                    {{ $material->lessons_count ?? 0 }}
+                                </span>
+                            </td>
+
+                            <td class="px-4 py-3 text-center" onclick="event.stopPropagation();">
+                                <div class="flex items-center justify-center gap-2">
+                                    <button onclick="loadPartial('{{ route('dashboard.materials.edit', $material->id) }}', document.getElementById('nav-materials-btn'))"
+                                        class="w-8 h-8 flex items-center justify-center text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition shadow-none"
+                                        title="{{ $isLive ? 'Edit Content' : 'Resume Draft' }}">
+                                        <i class="fas {{ $isLive ? 'fa-edit' : 'fa-play' }} text-sm"></i>
+                                    </button>
+                                    <button onclick="MaterialTableManager.confirmDelete({{ $material->id }}, '{{ route('dashboard.materials.destroy', $material->id) }}', this)" 
+                                        class="w-8 h-8 flex items-center justify-center text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition shadow-none" title="Delete">
+                                        <i class="fas fa-trash-alt text-sm"></i>
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                    @empty
+                        <tr id="emptyStateRowInit">
+                            <td colspan="6" class="px-6 py-16 text-center">
+                                <div class="flex flex-col items-center">
+                                    <div class="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center mb-4">
+                                        <i class="fas fa-folder-open text-gray-200 text-2xl"></i>
+                                    </div>
+                                    <p class="text-gray-500 font-medium">No materials found.</p>
+                                    <p class="text-gray-400 text-xs mt-1">Start by creating a new learning module.</p>
+                                </div>
+                            </td>
+                        </tr>
+                    @endforelse
+                </tbody>
+            </table>
+            
+            <div id="dynamicEmptyState" class="hidden px-6 py-16 text-center">
+                <div class="flex flex-col items-center">
+                    <div class="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center mb-4">
+                        <i class="fas fa-search-minus text-gray-200 text-2xl"></i>
                     </div>
-                </div>
-
-                <div class="p-5 flex-1 flex flex-col">
-                    <h4 class="material-title text-base font-bold text-gray-900 mb-1.5 line-clamp-1" title="{{ $material->title }}">{{ $material->title ?? 'Untitled Material' }}</h4>
-
-                    <p class="text-xs text-gray-500 mb-4 line-clamp-2 flex-1 leading-relaxed">
-                        {{ $material->description ?: 'No description provided for this module.' }}
-                    </p>
-
-                    <div class="flex items-center justify-between bg-gray-50 rounded-lg px-3 py-2.5 mb-4 text-[11px] text-gray-600 border border-gray-100">
-                        <div class="flex items-center gap-1.5 truncate pr-2" title="Instructor">
-                            <i class="fas fa-chalkboard-teacher text-gray-400"></i>
-                            <span class="truncate font-medium text-gray-700">{{ $material->instructor->first_name ?? 'N/A' }}</span>
-                        </div>
-                        <div class="flex items-center gap-1.5 shrink-0 border-l border-gray-200 pl-3" title="Sections">
-                            <i class="fas fa-layer-group text-gray-400"></i>
-                            <span class="font-bold text-gray-700">{{ $material->lessons_count ?? 0 }}</span>
-                        </div>
-                    </div>
-
-                    <button onclick="event.stopPropagation(); loadPartial('{{ route('dashboard.materials.edit', $material->id) }}', document.getElementById('nav-materials-btn'))"
-                        class="w-full py-2 bg-white border border-gray-200 text-gray-700 text-xs font-bold rounded-lg hover:bg-gray-50 hover:border-[#a52a2a]/30 hover:text-[#a52a2a] transition-all shadow-sm flex items-center justify-center gap-1.5">
-                        <i class="fas {{ $isLive ? 'fa-edit' : 'fa-play' }}"></i>
-                        {{ $isLive ? 'Edit Content' : 'Resume Draft' }}
-                    </button>
+                    <p class="text-gray-500 font-medium">No materials found matching your filters.</p>
                 </div>
             </div>
-        @empty
-            <div class="col-span-full py-16 flex flex-col items-center justify-center bg-white rounded-2xl border border-dashed border-gray-300">
-                <div class="h-16 w-16 rounded-full bg-gray-50 flex items-center justify-center text-gray-400 mb-4">
-                    <i class="fas fa-folder-open text-2xl"></i>
-                </div>
-                <h3 class="text-lg font-bold text-gray-900 mb-1">No materials found, start building one!</h3>
-            </div>
-        @endforelse
+        </div>
 
-        <div id="dynamic-empty-state" style="display: none;" class="col-span-full py-16 flex flex-col items-center justify-center bg-white rounded-2xl border border-dashed border-gray-300">
-            <div class="h-16 w-16 rounded-full bg-gray-50 flex items-center justify-center text-gray-400 mb-4">
-                <i class="fas fa-search-minus text-2xl"></i>
+        <div id="pagination-wrapper" class="hidden flex flex-col sm:flex-row items-center justify-between px-6 py-4 border-t border-gray-100 bg-gray-50/50">
+            <div class="text-sm text-gray-500 mb-3 sm:mb-0">
+                Showing <span id="page-start-info" class="font-bold text-gray-900">0</span> to <span id="page-end-info" class="font-bold text-gray-900">0</span> of <span id="page-total-info" class="font-bold text-gray-900">0</span> results
             </div>
-            <h3 class="text-lg font-bold text-gray-900 mb-1">No materials found matching your search.</h3>
+            <div class="flex items-center gap-1" id="pagination-controls"></div>
         </div>
     </div>
 </div>
@@ -112,7 +157,6 @@
 
     <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-sm p-6">
         <div class="bg-white rounded-2xl shadow-2xl overflow-hidden border border-gray-100 p-6 text-center">
-
             <div id="status-modal-icon"
                 class="h-16 w-16 rounded-full flex items-center justify-center mx-auto mb-4 text-3xl"></div>
 
@@ -134,133 +178,285 @@
 </div>
 
 <script>
-    window.MaterialManager = window.MaterialManager || {};
-    
-    MaterialManager.currentStatus = 'all';
+    window.MaterialTableManager = {
+        currentPage: 1,
+        pageSize: 15,
+        currentStatusFilter: 'all',
+        allRows: [],
+        filteredRows: [],
 
-    MaterialManager.showModal = function (type, title, message, callback = null) {
-        const modal = document.getElementById('status-modal');
-        if (!modal) return alert(message);
+        init: function() {
+            setTimeout(() => {
+                this.allRows = Array.from(document.querySelectorAll('.material-row'));
+                this.applyFilters();
+                this.setupSearch();
+                this.setupSorting();
+            }, 50);
+        },
 
-        const iconContainer = document.getElementById('status-modal-icon');
-        const titleEl = document.getElementById('status-modal-title');
-        const msgEl = document.getElementById('status-modal-message');
-        const btn = document.getElementById('status-modal-btn');
-        const cancelBtn = document.getElementById('status-modal-cancel-btn');
+        filterStatus: function(status, btnElement) {
+            this.currentStatusFilter = status;
 
-        titleEl.innerText = title;
-        msgEl.innerText = message;
-        iconContainer.className = 'h-16 w-16 rounded-full flex items-center justify-center mx-auto mb-4 text-3xl';
-        btn.className = 'w-full py-3 text-white font-bold rounded-xl transition active:scale-95 shadow-md';
-        cancelBtn.classList.add('hidden');
-        btn.innerText = 'OK';
-        cancelBtn.onclick = null;
-        btn.onclick = null;
+            // Update Tab UI
+            document.querySelectorAll('.material-tab').forEach(tab => {
+                tab.classList.remove('bg-white', 'text-[#a52a2a]', 'shadow-sm', 'border', 'border-gray-100');
+                tab.classList.add('text-gray-500', 'hover:text-gray-700');
+            });
 
-        if (type === 'error') {
-            iconContainer.classList.add('bg-red-50', 'text-red-500');
-            iconContainer.innerHTML = '<i class="fas fa-times-circle"></i>';
-            btn.classList.add('bg-red-600', 'hover:bg-red-700', 'shadow-red-600/20');
-        } else if (type === 'confirm') {
-            iconContainer.classList.add('bg-red-50', 'text-red-500');
-            iconContainer.innerHTML = '<i class="fas fa-trash-alt"></i>';
-            btn.classList.add('bg-red-600', 'hover:bg-red-700', 'shadow-red-600/20');
-            btn.innerText = 'Yes, Delete';
-            cancelBtn.classList.remove('hidden');
-            cancelBtn.onclick = () => modal.classList.add('hidden');
-        }
+            btnElement.classList.remove('text-gray-500', 'hover:text-gray-700');
+            btnElement.classList.add('bg-white', 'text-[#a52a2a]', 'shadow-sm', 'border', 'border-gray-100');
 
-        modal.classList.remove('hidden');
-        btn.onclick = () => {
-            modal.classList.add('hidden');
-            if (callback) callback();
-        };
-    };
+            this.applyFilters();
+        },
 
-    MaterialManager.delete = function (id, url) {
-        MaterialManager.showModal('confirm', 'Delete Material?', 'Are you sure you want to delete this material? This action cannot be undone.', async () => {
-
-            const card = document.getElementById('material-card-' + id);
-            if (!card) return;
-
-            const btn = card.querySelector('.fa-trash-alt').closest('button');
-            const originalHtml = btn.innerHTML;
-            btn.innerHTML = '<i class="fas fa-spinner fa-spin text-sm"></i>';
-            btn.disabled = true;
-
-            const csrf = document.querySelector('meta[name="csrf-token"]')?.content || "{{ csrf_token() }}";
-
-            try {
-                const response = await fetch(url, {
-                    method: 'DELETE',
-                    headers: {
-                        'X-CSRF-TOKEN': csrf,
-                        'Accept': 'application/json'
-                    }
+        setupSearch: function() {
+            const searchInput = document.getElementById('materialSearchInput');
+            if (searchInput) {
+                searchInput.addEventListener('input', () => {
+                    this.applyFilters();
                 });
+            }
+        },
 
-                if (response.ok) {
-                    card.style.transform = 'scale(0.95)';
-                    card.style.opacity = '0';
-                    setTimeout(() => {
-                        card.remove();
-                        MaterialManager.applyFilters(); 
-                    }, 300);
+        applyFilters: function() {
+            const query = (document.getElementById('materialSearchInput')?.value || '').toLowerCase();
+            
+            this.filteredRows = this.allRows.filter(row => {
+                const textContent = row.textContent.toLowerCase();
+                const matchesSearch = textContent.includes(query);
+                const matchesStatus = (this.currentStatusFilter === 'all' || row.dataset.status === this.currentStatusFilter);
+                return matchesSearch && matchesStatus;
+            });
+
+            this.currentPage = 1;
+            this.renderPagination();
+        },
+
+        setupSorting: function() {
+            const sortableHeaders = document.querySelectorAll('.sortable-col');
+            sortableHeaders.forEach(header => {
+                header.addEventListener('click', () => {
+                    const colIndex = Array.from(header.parentNode.children).indexOf(header);
+                    const isAsc = header.classList.contains('asc');
+
+                    // Reset all headers
+                    document.querySelectorAll('.sortable-col i').forEach(icon => {
+                        icon.className = 'fas fa-sort ml-1 text-gray-300';
+                    });
+                    document.querySelectorAll('.sortable-col').forEach(h => h.classList.remove('asc', 'desc'));
+
+                    // Toggle sort direction
+                    let multiplier = 1;
+                    if (isAsc) {
+                        header.classList.add('desc');
+                        header.querySelector('i').className = 'fas fa-sort-down ml-1 text-[#a52a2a]';
+                        multiplier = -1;
+                    } else {
+                        header.classList.add('asc');
+                        header.querySelector('i').className = 'fas fa-sort-up ml-1 text-[#a52a2a]';
+                        multiplier = 1;
+                    }
+
+                    // Sort filtered array
+                    this.filteredRows.sort((a, b) => {
+                        let aText = a.children[colIndex].textContent.trim().toLowerCase();
+                        let bText = b.children[colIndex].textContent.trim().toLowerCase();
+
+                        // Parse as numbers if sorting by the sections/counts column
+                        if (colIndex === 4) {
+                            aText = parseInt(aText) || 0;
+                            bText = parseInt(bText) || 0;
+                        }
+
+                        if (aText < bText) return -1 * multiplier;
+                        if (aText > bText) return 1 * multiplier;
+                        return 0;
+                    });
+
+                    this.currentPage = 1;
+                    this.renderPagination();
+                });
+            });
+        },
+
+        renderPagination: function() {
+            const tbody = document.querySelector('#materialsTable tbody');
+            const initEmptyState = document.getElementById('emptyStateRowInit');
+            const dynamicEmptyState = document.getElementById('dynamicEmptyState');
+            const paginationWrapper = document.getElementById('pagination-wrapper');
+
+            // Hide all globally
+            this.allRows.forEach(row => row.style.display = 'none');
+            if (initEmptyState) initEmptyState.style.display = 'none';
+
+            if (this.filteredRows.length === 0) {
+                if (this.allRows.length === 0 && initEmptyState) {
+                    initEmptyState.style.display = '';
+                    dynamicEmptyState.classList.add('hidden');
                 } else {
-                    MaterialManager.showModal('error', 'Delete Failed', 'The server returned an error while deleting.');
-                    btn.innerHTML = originalHtml;
-                    btn.disabled = false;
+                    dynamicEmptyState.classList.remove('hidden');
                 }
-            } catch (e) {
-                MaterialManager.showModal('error', 'Network Error', 'Could not delete the material. Please check your connection.');
-                btn.innerHTML = originalHtml;
-                btn.disabled = false;
+                paginationWrapper.classList.add('hidden');
+                paginationWrapper.classList.remove('flex');
+                return;
             }
-        }); 
-    }; 
 
-    MaterialManager.filter = function(status, btnElement) {
-        MaterialManager.currentStatus = status;
+            dynamicEmptyState.classList.add('hidden');
+            paginationWrapper.classList.remove('hidden');
+            paginationWrapper.classList.add('flex');
 
-        document.querySelectorAll('.material-tab').forEach(tab => {
-            tab.classList.remove('bg-white', 'text-[#a52a2a]', 'shadow-sm');
-            tab.classList.add('text-gray-500', 'hover:text-gray-700');
-        });
+            const totalPages = Math.ceil(this.filteredRows.length / this.pageSize);
+            if (this.currentPage > totalPages) this.currentPage = totalPages;
+            if (this.currentPage < 1) this.currentPage = 1;
 
-        btnElement.classList.remove('text-gray-500', 'hover:text-gray-700');
-        btnElement.classList.add('bg-white', 'text-[#a52a2a]', 'shadow-sm');
+            const startIdx = (this.currentPage - 1) * this.pageSize;
+            const endIdx = Math.min(startIdx + this.pageSize, this.filteredRows.length);
 
-        MaterialManager.applyFilters();
-    };
-
-    MaterialManager.search = function() {
-        MaterialManager.applyFilters();
-    };
-
-    MaterialManager.applyFilters = function() {
-        const query = document.getElementById('material-search').value.toLowerCase();
-        let visibleCount = 0;
-
-        document.querySelectorAll('.material-card').forEach(card => {
-            const title = card.querySelector('.material-title').innerText.toLowerCase();
-            const matchesTab = (MaterialManager.currentStatus === 'all' || card.classList.contains(MaterialManager.currentStatus));
-
-            if (matchesTab && title.includes(query)) {
-                card.style.display = 'flex';
-                visibleCount++;
-            } else {
-                card.style.display = 'none';
+            // Append sorted/filtered rows for current page
+            for (let i = startIdx; i < endIdx; i++) {
+                this.filteredRows[i].style.display = '';
+                tbody.appendChild(this.filteredRows[i]);
             }
-        });
 
-        const dynamicEmptyState = document.getElementById('dynamic-empty-state');
-        if (dynamicEmptyState) {
-            const totalCards = document.querySelectorAll('.material-card').length;
-            if (totalCards > 0 && visibleCount === 0) {
-                dynamicEmptyState.style.display = 'flex';
-            } else {
-                dynamicEmptyState.style.display = 'none';
+            // Update info text
+            document.getElementById('page-start-info').innerText = startIdx + 1;
+            document.getElementById('page-end-info').innerText = endIdx;
+            document.getElementById('page-total-info').innerText = this.filteredRows.length;
+
+            this.buildPaginationControls(totalPages);
+        },
+
+        buildPaginationControls: function(totalPages) {
+            const controls = document.getElementById('pagination-controls');
+            controls.innerHTML = '';
+
+            const createBtn = (text, page, disabled, active) => {
+                const btn = document.createElement('button');
+                btn.innerHTML = text;
+                btn.disabled = disabled;
+                btn.className = `px-3 py-1 min-w-[32px] rounded-lg text-sm font-bold transition-all border ${
+                    active 
+                    ? 'bg-[#a52a2a] text-white border-[#a52a2a] shadow-sm' 
+                    : disabled 
+                        ? 'bg-transparent text-gray-300 border-transparent cursor-not-allowed' 
+                        : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50 hover:text-[#a52a2a] hover:border-[#a52a2a]/30 shadow-sm'
+                }`;
+                
+                if (!disabled && !active) {
+                    btn.onclick = () => {
+                        this.currentPage = page;
+                        this.renderPagination();
+                    };
+                }
+                return btn;
+            };
+
+            controls.appendChild(createBtn('<i class="fas fa-chevron-left text-xs"></i>', this.currentPage - 1, this.currentPage === 1, false));
+
+            let startP = Math.max(1, this.currentPage - 1);
+            let endP = Math.min(totalPages, this.currentPage + 1);
+
+            if (this.currentPage === 1) endP = Math.min(3, totalPages);
+            if (this.currentPage === totalPages) startP = Math.max(1, totalPages - 2);
+
+            if (startP > 1) {
+                controls.appendChild(createBtn(1, 1, false, this.currentPage === 1));
+                if (startP > 2) controls.appendChild(createBtn('...', null, true, false));
             }
+
+            for (let i = startP; i <= endP; i++) {
+                controls.appendChild(createBtn(i, i, false, i === this.currentPage));
+            }
+
+            if (endP < totalPages) {
+                if (endP < totalPages - 1) controls.appendChild(createBtn('...', null, true, false));
+                controls.appendChild(createBtn(totalPages, totalPages, false, this.currentPage === totalPages));
+            }
+
+            controls.appendChild(createBtn('<i class="fas fa-chevron-right text-xs"></i>', this.currentPage + 1, this.currentPage === totalPages, false));
+        },
+
+        // Modal Handlers
+        showModal: function(type, title, message, callback = null) {
+            const modal = document.getElementById('status-modal');
+            if (!modal) return alert(message);
+
+            const iconContainer = document.getElementById('status-modal-icon');
+            const titleEl = document.getElementById('status-modal-title');
+            const msgEl = document.getElementById('status-modal-message');
+            const btn = document.getElementById('status-modal-btn');
+            const cancelBtn = document.getElementById('status-modal-cancel-btn');
+
+            titleEl.innerText = title;
+            msgEl.innerText = message;
+            
+            // Reset styles
+            iconContainer.className = 'h-16 w-16 rounded-full flex items-center justify-center mx-auto mb-4 text-3xl';
+            btn.className = 'w-full py-3 text-white font-bold rounded-xl transition active:scale-95 shadow-md';
+            cancelBtn.classList.add('hidden');
+            btn.innerText = 'OK';
+            
+            if (type === 'error') {
+                iconContainer.classList.add('bg-red-50', 'text-red-500');
+                iconContainer.innerHTML = '<i class="fas fa-times-circle"></i>';
+                btn.classList.add('bg-red-600', 'hover:bg-red-700', 'shadow-red-600/20');
+            } else if (type === 'confirm') {
+                iconContainer.classList.add('bg-red-50', 'text-red-500');
+                iconContainer.innerHTML = '<i class="fas fa-trash-alt"></i>';
+                btn.classList.add('bg-red-600', 'hover:bg-red-700', 'shadow-red-600/20');
+                btn.innerText = 'Yes, Delete';
+                cancelBtn.classList.remove('hidden');
+                cancelBtn.onclick = () => modal.classList.add('hidden');
+            }
+
+            modal.classList.remove('hidden');
+            btn.onclick = () => {
+                modal.classList.add('hidden');
+                if (callback) callback();
+            };
+        },
+
+        confirmDelete: function(id, url, btnElement) {
+            this.showModal('confirm', 'Delete Material?', 'Are you sure you want to permanently delete this material? This action cannot be undone.', async () => {
+                
+                const originalHtml = btnElement.innerHTML;
+                btnElement.innerHTML = '<i class="fas fa-spinner fa-spin text-sm"></i>';
+                btnElement.disabled = true;
+
+                const csrf = document.querySelector('meta[name="csrf-token"]')?.content || "{{ csrf_token() }}";
+
+                try {
+                    const response = await fetch(url, {
+                        method: 'DELETE',
+                        headers: {
+                            'X-CSRF-TOKEN': csrf,
+                            'Accept': 'application/json'
+                        }
+                    });
+
+                    if (response.ok) {
+                        const row = btnElement.closest('tr');
+                        row.style.opacity = '0';
+                        setTimeout(() => {
+                            row.remove();
+                            // Update our tracking arrays
+                            this.allRows = this.allRows.filter(r => r !== row);
+                            this.applyFilters();
+                        }, 300);
+                    } else {
+                        this.showModal('error', 'Delete Failed', 'The server returned an error while deleting.');
+                        btnElement.innerHTML = originalHtml;
+                        btnElement.disabled = false;
+                    }
+                } catch (e) {
+                    this.showModal('error', 'Network Error', 'Could not delete the material. Please check your connection.');
+                    btnElement.innerHTML = originalHtml;
+                    btnElement.disabled = false;
+                }
+            });
         }
     };
+
+    // Initialize Table Logic
+    MaterialTableManager.init();
 </script>
