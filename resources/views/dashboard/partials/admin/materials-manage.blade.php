@@ -114,7 +114,7 @@
             </div>
             <div>
                 <p class="text-3xl font-black text-gray-900">{{ $material->items_count ?? 0 }}</p>
-                <p class="text-sm font-bold text-gray-500 uppercase tracking-widest mt-1">Total Items</p>
+                <p class="text-sm font-bold text-gray-500 uppercase tracking-widest mt-1">Total Exam Items</p>
             </div>
         </div>
     </div>
