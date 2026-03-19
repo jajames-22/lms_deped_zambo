@@ -59,7 +59,7 @@ window.initBuilder = function () {
         existingData.forEach((cat) => {
             window.renderExistingCategory(cat);
         });
-        window.updateCategoryNumbers(); // Ensure numbers are correct after load
+        window.updateCategoryNumbers(); 
     } else {
         if (document.querySelectorAll(".category-block").length === 0) {
             window.addCategory();
@@ -75,7 +75,7 @@ window.initBuilder = function () {
     window.updateAutosaveIndicator("Ready");
     setTimeout(() => {
         window.isInitializing = false;
-        window.hasChanged = false; // strictly ensure it's false after loading
+        window.hasChanged = false; 
     }, 500);
 };
 
@@ -104,7 +104,6 @@ window.renderExistingCategory = function (catData) {
                 window.setMediaPreview(latestQ.id, mediaUrl);
             }
             
-            // Clear defaults and render specific options
             latestQ.querySelector(".options-list").innerHTML = "";
 
             if (q.options && q.options.length > 0) {
@@ -119,7 +118,6 @@ window.renderExistingCategory = function (catData) {
                     );
                 });
             } else if (type === "true_false") {
-                // FALLBACK: If Excel import missed the options, automatically build True/False
                 window.addOptionToQuestion(latestQ.id, "true_false", false, "True");
                 window.addOptionToQuestion(latestQ.id, "true_false", false, "False");
             }
@@ -127,7 +125,6 @@ window.renderExistingCategory = function (catData) {
     }
 };
 
-// Add a New Category/Section
 window.addCategory = function () {
     const container = document.getElementById("builder-container");
     if (!container) return;
@@ -201,8 +198,6 @@ window.toggleDropdown = function (btn) {
     menu.classList.toggle("hidden");
 };
 
-// Add a Question Block
-// Add a Question Block
 window.addQuestion = function (cId, type = "mcq") {
     const container = document.getElementById(`q-container-${cId}`);
     if (!container) return;
@@ -264,7 +259,6 @@ window.addQuestion = function (cId, type = "mcq") {
 
     container.insertAdjacentHTML("beforeend", html);
 
-    // Auto-generate starting options based on type
     if (type === "mcq" || type === "checkbox") {
         window.addOptionToQuestion(qId, type, true, "");
         window.addOptionToQuestion(qId, type, false, "");
@@ -276,7 +270,6 @@ window.addQuestion = function (cId, type = "mcq") {
     }
 };
 
-// Generate HTML for the Answer Choices
 window.addOptionToQuestion = function (qId, type, isCorrect = false, text = "", isCaseSensitive = false) {
     const list = document.querySelector(`#${qId} .options-list`);
     if (!list) return;
@@ -336,10 +329,6 @@ window.addOptionToQuestion = function (qId, type, isCorrect = false, text = "", 
     window.handleAutosaveTrigger();
 };
 
-/* =========================================
-   MOVEMENT & REORDERING LOGIC
-========================================= */
-
 window.moveCategoryUp = function(btn, event) {
     event.stopPropagation();
     const catBlock = btn.closest('.category-block');
@@ -389,8 +378,6 @@ window.updateCategoryNumbers = function() {
     });
 };
 
-/* ========================================= */
-
 window.removeOption = function (btnElement, qId) {
     btnElement.closest(".option-row").remove();
     window.handleAutosaveTrigger();
@@ -413,7 +400,6 @@ window.toggleCategory = function (id, event) {
 };
 
 window.toggleQuestion = function (id, event) {
-    // Prevent collapsing if they are clicking the Up/Down/Delete buttons
     if (event && event.target.closest("button")) return;
     
     const block = document.getElementById(id);
@@ -427,12 +413,10 @@ window.toggleQuestion = function (id, event) {
     icon.classList.toggle("fa-chevron-up");
     
     if (body.classList.contains("hidden")) {
-        // If it was just collapsed, grab what they typed to show as a preview!
         let text = textarea.value.trim();
         preview.innerText = text ? "- " + text : "- (Empty Question)";
         preview.classList.remove("hidden");
     } else {
-        // Hide the preview when expanded
         preview.classList.add("hidden");
     }
 };
@@ -442,7 +426,6 @@ window.updateCatDisplay = function (input) {
     title.innerText = input.value || "New Section";
 };
 
-// Fetch Payload to send to Backend
 window.getPayload = function (status) {
     const categories = [];
     document.querySelectorAll(".category-block").forEach((cat) => {
@@ -479,7 +462,7 @@ window.getPayload = function (status) {
 };
 
 window.handleAutosaveTrigger = function () {
-    if (window.isInitializing) return; // Prevent triggering during page load
+    if (window.isInitializing) return; 
     
     window.hasChanged = true;
     window.updateAutosaveIndicator('<i class="fas fa-pencil-alt fa-spin"></i> Typing...');
@@ -532,13 +515,10 @@ window.handleMediaFileSelect = function (input) {
     if (!input.files || input.files.length === 0) return;
 
     window.selectedMediaFile = input.files[0];
-    document.getElementById("selected-media-name").innerText =
-        window.selectedMediaFile.name;
+    document.getElementById("selected-media-name").innerText = window.selectedMediaFile.name;
 
     document.getElementById("media-dropzone").classList.add("hidden");
-    document
-        .getElementById("selected-media-display")
-        .classList.remove("hidden");
+    document.getElementById("selected-media-display").classList.remove("hidden");
     document.getElementById("selected-media-display").classList.add("flex");
 
     document.getElementById("start-media-upload-btn").disabled = false;
@@ -560,8 +540,7 @@ window.executeMediaUpload = async function () {
 
     const btn = document.getElementById("start-media-upload-btn");
     const originalHtml = btn.innerHTML;
-    btn.innerHTML =
-        '<i class="fas fa-spinner fa-spin"></i> <span>Uploading...</span>';
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> <span>Uploading...</span>';
     btn.disabled = true;
 
     const wrapper = document.getElementById("assessment-wrapper");
@@ -602,9 +581,7 @@ window.executeMediaUpload = async function () {
 window.setMediaPreview = function (qId, url, explicitType = null) {
     const block = document.getElementById(qId);
 
-    const mediaInput =
-        block.querySelector(".q-media-url") ||
-        block.querySelector(".q-image-url");
+    const mediaInput = block.querySelector(".q-media-url") || block.querySelector(".q-image-url");
     if (mediaInput) mediaInput.value = url;
 
     const previewDiv = document.getElementById(`preview-${qId}`);
@@ -627,8 +604,7 @@ window.setMediaPreview = function (qId, url, explicitType = null) {
         mediaHtml = `<img src="${url}" class="max-h-48 w-auto object-contain bg-white rounded-lg">`;
     }
 
-    previewDiv.className =
-        "relative mb-4 rounded-lg overflow-hidden border border-gray-200 block w-full";
+    previewDiv.className = "relative mb-4 rounded-lg overflow-hidden border border-gray-200 block w-full";
 
     previewDiv.innerHTML = `
         ${mediaHtml}
@@ -650,8 +626,6 @@ window.removeQuestionMedia = function (qId) {
 
     window.handleAutosaveTrigger();
 };
-
-// --- SAVE AND EXIT LOGIC ---
 
 window.collectCategoriesData = function () {
     return window.getPayload("draft").categories;
@@ -689,18 +663,13 @@ window.saveCompleteExam = async function (btn, status) {
         const result = await response.json();
 
         if (response.ok && result.success) {
-            localStorage.removeItem(
-                "assessment_draft_" + wrapper.dataset.assessmentId,
-            );
+            localStorage.removeItem("assessment_draft_" + wrapper.dataset.assessmentId);
 
-            const title =
-                status === "published" ? "Test Published!" : "Draft Saved!";
-            const msg =
-                status === "published"
-                    ? "Your test is live and ready for students."
-                    : "Your progress has been safely stored.";
+            const title = status === "published" ? "Test Published!" : "Draft Saved!";
+            const msg = status === "published"
+                ? "Your test is live and ready for students."
+                : "Your progress has been safely stored.";
 
-            // CHANGED: Now redirects to the manage URL!
             window.showModal("success", title, msg, () => {
                 window.goToUrl(wrapper.dataset.manageUrl);
             });
@@ -734,11 +703,7 @@ window.deleteAssessmentFromBuilder = async function () {
                     },
                 });
                 if (response.ok) {
-                    if (typeof loadPartial === "function") {
-                        loadPartial(wrapper.dataset.redirectUrl);
-                    } else {
-                        window.location.href = wrapper.dataset.redirectUrl;
-                    }
+                    window.goToUrl(wrapper.dataset.redirectUrl);
                 }
             } catch (e) {
                 window.showModal(
@@ -782,12 +747,9 @@ window.discardChangesAndExit = function (btn) {
 
             try {
                 if (isNew) {
-                    // It's a brand new assessment, delete it entirely!
                     await window.silentlyDeleteAndExit();
-                    // Go to index because the manage page no longer exists
                     window.goToUrl(wrapper.dataset.redirectUrl);
                 } else {
-                    // It's an existing one, clear the draft and return to the manage screen
                     await fetch(wrapper.dataset.autosaveUrl, {
                         method: "POST",
                         headers: {
@@ -797,7 +759,6 @@ window.discardChangesAndExit = function (btn) {
                         },
                         body: JSON.stringify({ clear_draft: true }),
                     });
-                    // CHANGED: Now redirects to manage URL
                     window.goToUrl(wrapper.dataset.manageUrl);
                 }
             } catch (e) {
@@ -816,8 +777,6 @@ if (backModal) {
         }
     });
 }
-
-// --- UTILITIES ---
 
 window.showModal = function (type, title, message, callback = null) {
     const modal = document.getElementById("status-modal");
@@ -849,35 +808,19 @@ window.showModal = function (type, title, message, callback = null) {
     if (type === "success") {
         iconContainer.classList.add("bg-green-50", "text-green-500");
         iconContainer.innerHTML = '<i class="fas fa-check-circle"></i>';
-        btn.classList.add(
-            "bg-green-600",
-            "hover:bg-green-700",
-            "shadow-green-600/20",
-        );
+        btn.classList.add("bg-green-600", "hover:bg-green-700", "shadow-green-600/20");
     } else if (type === "error") {
         iconContainer.classList.add("bg-red-50", "text-red-500");
         iconContainer.innerHTML = '<i class="fas fa-times-circle"></i>';
-        btn.classList.add(
-            "bg-red-600",
-            "hover:bg-red-700",
-            "shadow-red-600/20",
-        );
+        btn.classList.add("bg-red-600", "hover:bg-red-700", "shadow-red-600/20");
     } else if (type === "warning") {
         iconContainer.classList.add("bg-amber-50", "text-amber-500");
         iconContainer.innerHTML = '<i class="fas fa-exclamation-triangle"></i>';
-        btn.classList.add(
-            "bg-amber-500",
-            "hover:bg-amber-600",
-            "shadow-amber-500/20",
-        );
+        btn.classList.add("bg-amber-500", "hover:bg-amber-600", "shadow-amber-500/20");
     } else if (type === "confirm") {
         iconContainer.classList.add("bg-red-50", "text-red-500");
         iconContainer.innerHTML = '<i class="fas fa-trash-alt"></i>';
-        btn.classList.add(
-            "bg-red-600",
-            "hover:bg-red-700",
-            "shadow-red-600/20",
-        );
+        btn.classList.add("bg-red-600", "hover:bg-red-700", "shadow-red-600/20");
         btn.innerText = "Yes, Discard";
 
         cancelBtn.classList.remove("hidden");
@@ -897,8 +840,20 @@ window.showModal = function (type, title, message, callback = null) {
 };
 
 window.goToUrl = function(url) {
+    console.log("Attempting to navigate to: ", url);
+    
     if (typeof loadPartial === "function") {
-        loadPartial(url);
+        try {
+            const navBtn = document.getElementById('nav-assessment-btn');
+            if (navBtn) {
+                loadPartial(url, navBtn);
+            } else {
+                loadPartial(url);
+            }
+        } catch (e) {
+            console.warn("loadPartial failed, falling back to standard redirect.", e);
+            window.location.href = url;
+        }
     } else {
         window.location.href = url;
     }
@@ -919,27 +874,131 @@ window.silentlyDeleteAndExit = async function() {
     }
 };
 
-window.handleBackButton = async function(btn) {
+window.handleAssessmentBackButton = async function(btn) {
     const wrapper = document.getElementById("assessment-wrapper");
+    
+    if (!wrapper) {
+        console.error("Assessment wrapper missing data attributes.");
+        return;
+    }
+
     const isNew = wrapper.dataset.isNew === 'true';
+    const manageUrl = wrapper.dataset.manageUrl;
+    const redirectUrl = wrapper.dataset.redirectUrl;
 
     if (window.hasChanged) {
-        // Changes detected! Show the modal.
         document.getElementById('back-modal').classList.remove('hidden');
     } else {
-        // No changes. Exit quietly.
-        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+        btn.style.width = btn.offsetWidth + 'px';
+        btn.style.height = btn.offsetHeight + 'px';
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin text-[#a52a2a]"></i>';
         btn.disabled = true;
 
-        if (isNew) {
-            // It's an untouched brand new assessment, delete it instantly.
-            await window.silentlyDeleteAndExit();
-            // Go strictly to the main assessments.blade.php
-            window.goToUrl(wrapper.dataset.redirectUrl);
-        } else {
-            // It's an existing assessment that was viewed but not changed.
-            // Go strictly to the assessments-manage.blade.php
-            window.goToUrl(wrapper.dataset.manageUrl);
+        try {
+            if (isNew) {
+                await window.silentlyDeleteAndExit();
+                window.goToUrl(redirectUrl);
+            } else {
+                window.goToUrl(manageUrl);
+            }
+        } catch (e) {
+            console.error("Error during navigation:", e);
+            window.location.href = manageUrl;
         }
     }
+};
+
+// --- IMPORT EXCEL LOGIC ADDED HERE ---
+
+let selectedFile = null;
+
+window.openImportModal = function() {
+    window.clearSelectedFile(); 
+    document.getElementById('excel-import-modal').classList.remove('hidden');
+};
+
+window.closeImportModal = function() {
+    document.getElementById('excel-import-modal').classList.add('hidden');
+};
+
+window.handleFileSelect = function(input) {
+    if (!input.files || input.files.length === 0) return;
+
+    selectedFile = input.files[0];
+    document.getElementById('selected-file-name').innerText = selectedFile.name;
+    document.getElementById('file-dropzone').classList.add('hidden');
+    document.getElementById('selected-file-display').classList.remove('hidden');
+    document.getElementById('selected-file-display').classList.add('flex'); 
+    document.getElementById('start-upload-btn').disabled = false;
+};
+
+window.clearSelectedFile = function() {
+    selectedFile = null;
+    document.getElementById('excel-file-input').value = '';
+    document.getElementById('file-dropzone').classList.remove('hidden');
+    document.getElementById('selected-file-display').classList.add('hidden');
+    document.getElementById('selected-file-display').classList.remove('flex');
+    document.getElementById('start-upload-btn').disabled = true;
+};
+
+window.executeExcelUpload = function() {
+    if (!selectedFile) return;
+
+    let btn = document.getElementById('start-upload-btn');
+    let originalHtml = btn.innerHTML;
+
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> <span>Processing...</span>';
+    btn.disabled = true;
+
+    let payload = window.getPayload("draft");
+    let formData = new FormData();
+    formData.append('exam_file', selectedFile);
+    formData.append('_token', document.querySelector('[data-csrf]').dataset.csrf);
+    formData.append('title', payload.title);
+    formData.append('year_level', payload.year_level);
+    formData.append('description', payload.description);
+    formData.append('categories', JSON.stringify(payload.categories));
+
+    let wrapper = document.getElementById('assessment-wrapper');
+    let assessmentId = wrapper.dataset.assessmentId;
+
+    fetch(`/dashboard/assessments/${assessmentId}/import`, {
+        method: 'POST',
+        headers: { 'Accept': 'application/json' },
+        body: formData
+    })
+        .then(async response => {
+            if (!response.ok) {
+                let errorData = await response.json().catch(() => ({}));
+                throw new Error(errorData.message || `Server error (${response.status})`);
+            }
+            return response.json();
+        })
+        .then(data => {
+            if (data.success) {
+                window.closeImportModal();
+                window.showStatusModal('Success!', 'Your exam has been updated with the imported questions.', 'success');
+
+                window.hasChanged = false;
+                lastPayload = "";
+                localStorage.removeItem("assessment_draft_" + assessmentId);
+
+                setTimeout(() => {
+                    let buildUrl = `/dashboard/assessments/${assessmentId}/build`;
+                    if (typeof loadPartial === 'function') {
+                        loadPartial(buildUrl, document.getElementById('nav-assessment-btn'));
+                    } else {
+                        window.location.href = buildUrl;
+                    }
+                }, 2000);
+            } else {
+                throw new Error(data.message || 'Import failed.');
+            }
+        })
+        .catch(error => {
+            console.error('Upload Error:', error);
+            btn.innerHTML = originalHtml;
+            btn.disabled = false;
+            window.showStatusModal('Import Failed', error.message, 'error');
+        });
 };
