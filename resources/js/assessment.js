@@ -673,8 +673,8 @@ AssessmentBuilder.saveCompleteExam = async function (btn, status) {
             const title = status === "published" ? "Test Published!" : "Draft Saved!";
             const msg = status === "published" ? "Your test is live and ready for students." : "Your progress has been safely stored.";
 
-            AssessmentBuilder.showModal("success", title, msg, () => {
-                AssessmentBuilder.goToUrl(wrapper.dataset.manageUrl);
+            window.showModal("success", title, msg, () => {
+                window.goToUrl(wrapper.dataset.manageUrl, window.currentNavBtn);
             });
         } else {
             throw new Error(result.message || "Failed to save");
@@ -708,11 +708,7 @@ AssessmentBuilder.deleteAssessmentFromBuilder = async function () {
                     },
                 });
                 if (response.ok) {
-                    if (typeof loadPartial === "function") {
-                        loadPartial(wrapper.dataset.redirectUrl);
-                    } else {
-                        window.location.href = wrapper.dataset.redirectUrl;
-                    }
+                    window.goToUrl(wrapper.dataset.redirectUrl, window.currentNavBtn);
                 }
             } catch (e) {
                 AssessmentBuilder.showModal("error", "Error", "Failed to discard assessment.");
@@ -843,10 +839,15 @@ AssessmentBuilder.showModal = function (type, title, message, callback = null) {
         }
     };
 };
+window.currentNavBtn = null; // Store it globally for the modals to use
 
-AssessmentBuilder.goToUrl = function(url) {
+window.goToUrl = function(url) {
     if (typeof loadPartial === "function") {
-        loadPartial(url);
+        try {
+            loadPartial(url); // Just load the page! Let the page handle its own sidebar.
+        } catch (e) {
+            window.location.href = url;
+        }
     } else {
         window.location.href = url;
     }
@@ -858,21 +859,21 @@ AssessmentBuilder.silentlyDeleteAndExit = async function() {
     try {
         await fetch(wrapper.dataset.deleteUrl, {
             method: "DELETE",
-            headers: {
-                "X-CSRF-TOKEN": wrapper.dataset.csrf,
-                Accept: "application/json",
-            },
+            headers: { "X-CSRF-TOKEN": wrapper.dataset.csrf, Accept: "application/json" },
         });
     } catch (e) {
         console.warn("Failed to delete empty assessment");
     }
 };
 
-AssessmentBuilder.handleBackButton = async function(btn) {
+// Accept the nav element directly from the HTML click
+window.handleAssessmentBackButton = async function(btn) {
     const wrapper = document.getElementById("assessment-wrapper");
-    if (!wrapper) return; // Guard
+    if (!wrapper) return;
 
     const isNew = wrapper.dataset.isNew === 'true';
+    const manageUrl = wrapper.dataset.manageUrl; 
+    const redirectUrl = wrapper.dataset.redirectUrl; 
 
     if (AssessmentBuilder.hasChanged) {
         const backModal = document.getElementById('back-modal');
@@ -882,11 +883,104 @@ AssessmentBuilder.handleBackButton = async function(btn) {
         btn.disabled = true;
 
         if (isNew) {
-            await AssessmentBuilder.silentlyDeleteAndExit();
-            AssessmentBuilder.goToUrl(wrapper.dataset.redirectUrl);
+            await window.silentlyDeleteAndExit();
+            window.goToUrl(redirectUrl); 
         } else {
-            AssessmentBuilder.goToUrl(wrapper.dataset.manageUrl);
+            window.goToUrl(manageUrl);
         }
     }
 };
+// --- IMPORT EXCEL LOGIC ADDED HERE ---
 
+let selectedFile = null;
+
+window.openImportModal = function() {
+    window.clearSelectedFile(); 
+    document.getElementById('excel-import-modal').classList.remove('hidden');
+};
+
+window.closeImportModal = function() {
+    document.getElementById('excel-import-modal').classList.add('hidden');
+};
+
+window.handleFileSelect = function(input) {
+    if (!input.files || input.files.length === 0) return;
+
+    selectedFile = input.files[0];
+    document.getElementById('selected-file-name').innerText = selectedFile.name;
+    document.getElementById('file-dropzone').classList.add('hidden');
+    document.getElementById('selected-file-display').classList.remove('hidden');
+    document.getElementById('selected-file-display').classList.add('flex'); 
+    document.getElementById('start-upload-btn').disabled = false;
+};
+
+window.clearSelectedFile = function() {
+    selectedFile = null;
+    document.getElementById('excel-file-input').value = '';
+    document.getElementById('file-dropzone').classList.remove('hidden');
+    document.getElementById('selected-file-display').classList.add('hidden');
+    document.getElementById('selected-file-display').classList.remove('flex');
+    document.getElementById('start-upload-btn').disabled = true;
+};
+
+window.executeExcelUpload = function() {
+    if (!selectedFile) return;
+
+    let btn = document.getElementById('start-upload-btn');
+    let originalHtml = btn.innerHTML;
+
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> <span>Processing...</span>';
+    btn.disabled = true;
+
+    let payload = window.getPayload("draft");
+    let formData = new FormData();
+    formData.append('exam_file', selectedFile);
+    formData.append('_token', document.querySelector('[data-csrf]').dataset.csrf);
+    formData.append('title', payload.title);
+    formData.append('year_level', payload.year_level);
+    formData.append('description', payload.description);
+    formData.append('categories', JSON.stringify(payload.categories));
+
+    let wrapper = document.getElementById('assessment-wrapper');
+    let assessmentId = wrapper.dataset.assessmentId;
+
+    fetch(`/dashboard/assessments/${assessmentId}/import`, {
+        method: 'POST',
+        headers: { 'Accept': 'application/json' },
+        body: formData
+    })
+        .then(async response => {
+            if (!response.ok) {
+                let errorData = await response.json().catch(() => ({}));
+                throw new Error(errorData.message || `Server error (${response.status})`);
+            }
+            return response.json();
+        })
+        .then(data => {
+            if (data.success) {
+                window.closeImportModal();
+                window.showStatusModal('Success!', 'Your exam has been updated with the imported questions.', 'success');
+
+                window.hasChanged = false;
+                lastPayload = "";
+                localStorage.removeItem("assessment_draft_" + assessmentId);
+
+                setTimeout(() => {
+                    let buildUrl = `/dashboard/assessments/${assessmentId}/build`;
+                    if (typeof loadPartial === 'function') {
+                        loadPartial(buildUrl, document.getElementById('nav-assessment-btn'));
+                    } else {
+                        window.location.href = buildUrl;
+                    }
+                }, 2000);
+            } else {
+                throw new Error(data.message || 'Import failed.');
+            }
+        })
+        .catch(error => {
+            console.error('Upload Error:', error);
+            btn.innerHTML = originalHtml;
+            btn.disabled = false;
+            window.showStatusModal('Import Failed', error.message, 'error');
+        });
+};
