@@ -221,21 +221,27 @@ class DashboardController extends Controller
     }
 
     public function destroySchool($id)
-{
-    $school = \App\Models\School::findOrFail($id);
+    {
+        $school = \App\Models\School::findOrFail($id);
 
-    // Delete the logo file from the public/storage folder if it exists
-    if ($school->logo) {
-        $logoPath = public_path('storage/' . $school->logo);
-        if (file_exists($logoPath)) {
-            unlink($logoPath); // This deletes the physical file
+        // Delete the logo file from the public/storage folder if it exists
+        if ($school->logo) {
+            $logoPath = public_path('storage/' . $school->logo);
+            if (file_exists($logoPath)) {
+                unlink($logoPath); // This deletes the physical file
+            }
         }
+
+        // Delete the database record
+        $school->delete();
+
+        return response()->json(['success' => 'School deleted successfully!']);
     }
 
-    // Delete the database record
-    $school->delete();
-
-    return response()->json(['success' => 'School deleted successfully!']);
-}
+    public function loadExplorePartial()
+    {
+        // This looks for: resources/views/partials/student/explore.blade.php
+        return view('dashboard.partials.student.explore');
+    }
 
 }

@@ -7,6 +7,7 @@ use App\Http\Controllers\StudentController;
 use App\Http\Controllers\StudentAssessmentController;
 use App\Http\Controllers\AssessmentController;
 use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\MaterialsController;
 
 // Note: Ensure you import these if you haven't already!
 // use App\Http\Controllers\CourseController;
@@ -75,6 +76,11 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
         Route::patch('/assessments/{assessment}/toggle-status', [AssessmentController::class, 'toggleStatus'])->name('dashboard.assessments.toggle-status');
         Route::patch('/assessments/{assessment}/toggle-results', [AssessmentController::class, 'toggleResults'])->name('dashboard.assessments.toggle-results');
+
+        Route::get('/explore', [DashboardController::class, 'loadExplorePartial'])->name('dashboard.explore');
+
+        Route::post('/dashboard/materials/{material}/tags', [MaterialsController::class, 'addTag'])->name('dashboard.materials.tags.add');
+        Route::delete('/dashboard/materials/{material}/tags/{tag}', [MaterialsController::class, 'removeTag'])->name('dashboard.materials.tags.remove');
 
     });
 

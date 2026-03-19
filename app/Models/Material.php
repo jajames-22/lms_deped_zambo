@@ -33,4 +33,9 @@ class Material extends Model
     {
         return $this->hasMany(Enrollment::class, 'materials_id');
     }
+
+    public function tags()
+    {
+        return $this->belongsToMany(Tag::class);
+    }
 }

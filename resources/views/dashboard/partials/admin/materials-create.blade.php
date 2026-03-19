@@ -406,4 +406,20 @@
         modal.classList.remove('hidden');
         actionBtn.onclick = () => modal.classList.add('hidden');
     }
+
+    setTimeout(() => {
+        const materialsBtn = document.getElementById('nav-materials-btn');
+        
+        if (materialsBtn) {
+            // 1. Strip the active classes from ALL sidebar buttons and restore default styling
+            document.querySelectorAll('.nav-btn').forEach(btn => {
+                btn.classList.remove('bg-[#a52a2a]/10', 'text-[#a52a2a]', 'font-medium', 'border-r-4', 'border-[#a52a2a]');
+                btn.classList.add('text-gray-600', 'hover:bg-gray-100');
+            });
+
+            // 2. Apply the exact active classes to the Materials button
+            materialsBtn.classList.remove('text-gray-600', 'hover:bg-gray-100');
+            materialsBtn.classList.add('bg-[#a52a2a]/10', 'text-[#a52a2a]', 'font-medium', 'border-r-4', 'border-[#a52a2a]');
+        }
+    }, 50);
 </script>

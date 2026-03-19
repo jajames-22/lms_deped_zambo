@@ -13,6 +13,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
 use Maatwebsite\Excel\Facades\Excel;
 use App\Imports\LessonImport; 
+use App\Models\Tag;
 use App\Imports\LrnMaterialAccessImport; 
 use App\Exports\MaterialTemplateExport; 
 use Exception;
@@ -403,5 +404,39 @@ class MaterialsController extends Controller
             DB::RollBack();
             return response()->json(['success' => false, 'message' => 'Import failed: ' . $e->getMessage()], 500);
         }
+    }
+
+    public function addTag(Request $request, Material $material)
+    {
+        $request->validate([
+            'tag' => 'required|string|max:50'
+        ]);
+
+        // Find the tag or create it if it doesn't exist
+        $tag = Tag::firstOrCreate(['name' => current(explode(',', $request->tag))]); // basic sanitization
+
+        // Attach it to the material without duplicating the link
+        $material->tags()->syncWithoutDetaching([$tag->id]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Tag attached successfully'
+        ]);
+    }
+
+    public function removeTag(Material $material, $tagName)
+    {
+        // Find the tag by name
+        $tag = Tag::where('name', $tagName)->first();
+
+        if ($tag) {
+            // Detach it from this specific material
+            $material->tags()->detach($tag->id);
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Tag removed successfully'
+        ]);
     }
 }
