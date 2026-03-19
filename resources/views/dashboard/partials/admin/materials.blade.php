@@ -14,17 +14,17 @@
 
     <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
         <div class="flex items-center space-x-1 bg-gray-200/50 p-1 rounded-xl w-fit shrink-0">
-            <button onclick="window.filterMaterials('all', this)"
+            <button onclick="MaterialManager.filter('all', this)"
                 class="material-tab px-6 py-2 text-sm font-bold rounded-lg transition-all bg-white text-[#a52a2a] shadow-sm">All</button>
-            <button onclick="window.filterMaterials('published', this)"
+            <button onclick="MaterialManager.filter('published', this)"
                 class="material-tab px-6 py-2 text-sm font-bold rounded-lg transition-all text-gray-500 hover:text-gray-700">Published</button>
-            <button onclick="window.filterMaterials('draft', this)"
+            <button onclick="MaterialManager.filter('draft', this)"
                 class="material-tab px-6 py-2 text-sm font-bold rounded-lg transition-all text-gray-500 hover:text-gray-700">Drafts</button>
         </div>
 
         <div class="relative w-full max-w-md">
             <i class="fas fa-search absolute left-4 top-1/2 -translate-y-1/2 text-gray-400"></i>
-            <input type="text" id="material-search" onkeyup="window.searchMaterials()"
+            <input type="text" id="material-search" onkeyup="MaterialManager.search()"
                 placeholder="Search materials by title..."
                 class="w-full pl-11 pr-4 py-2.5 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#a52a2a]/20 focus:border-[#a52a2a] outline-none transition-all shadow-sm">
         </div>
@@ -50,7 +50,7 @@
                     @endif
                     
                     <button
-                        onclick="event.stopPropagation(); window.deleteMaterialFromList('{{ $material->id }}', '{{ route('dashboard.materials.destroy', $material->id) }}')"
+                        onclick="event.stopPropagation(); MaterialManager.delete('{{ $material->id }}', '{{ route('dashboard.materials.destroy', $material->id) }}')"
                         class="absolute top-3 right-3 h-7 w-7 rounded-full bg-white/90 backdrop-blur-sm text-gray-500 opacity-0 group-hover:opacity-100 transition-all flex items-center justify-center hover:bg-red-50 hover:text-red-600 z-10 shadow-sm"
                         title="Delete Material">
                         <i class="fas fa-trash-alt text-xs"></i>
@@ -134,49 +134,51 @@
 </div>
 
 <script>
-    if (typeof window.showModal === 'undefined') {
-        window.showModal = function (type, title, message, callback = null) {
-            const modal = document.getElementById('status-modal');
-            if (!modal) return alert(message);
+    window.MaterialManager = window.MaterialManager || {};
+    
+    MaterialManager.currentStatus = 'all';
 
-            const iconContainer = document.getElementById('status-modal-icon');
-            const titleEl = document.getElementById('status-modal-title');
-            const msgEl = document.getElementById('status-modal-message');
-            const btn = document.getElementById('status-modal-btn');
-            const cancelBtn = document.getElementById('status-modal-cancel-btn');
+    MaterialManager.showModal = function (type, title, message, callback = null) {
+        const modal = document.getElementById('status-modal');
+        if (!modal) return alert(message);
 
-            titleEl.innerText = title;
-            msgEl.innerText = message;
-            iconContainer.className = 'h-16 w-16 rounded-full flex items-center justify-center mx-auto mb-4 text-3xl';
-            btn.className = 'w-full py-3 text-white font-bold rounded-xl transition active:scale-95 shadow-md';
-            cancelBtn.classList.add('hidden');
-            btn.innerText = 'OK';
-            cancelBtn.onclick = null;
-            btn.onclick = null;
+        const iconContainer = document.getElementById('status-modal-icon');
+        const titleEl = document.getElementById('status-modal-title');
+        const msgEl = document.getElementById('status-modal-message');
+        const btn = document.getElementById('status-modal-btn');
+        const cancelBtn = document.getElementById('status-modal-cancel-btn');
 
-            if (type === 'error') {
-                iconContainer.classList.add('bg-red-50', 'text-red-500');
-                iconContainer.innerHTML = '<i class="fas fa-times-circle"></i>';
-                btn.classList.add('bg-red-600', 'hover:bg-red-700', 'shadow-red-600/20');
-            } else if (type === 'confirm') {
-                iconContainer.classList.add('bg-red-50', 'text-red-500');
-                iconContainer.innerHTML = '<i class="fas fa-trash-alt"></i>';
-                btn.classList.add('bg-red-600', 'hover:bg-red-700', 'shadow-red-600/20');
-                btn.innerText = 'Yes, Delete';
-                cancelBtn.classList.remove('hidden');
-                cancelBtn.onclick = () => modal.classList.add('hidden');
-            }
+        titleEl.innerText = title;
+        msgEl.innerText = message;
+        iconContainer.className = 'h-16 w-16 rounded-full flex items-center justify-center mx-auto mb-4 text-3xl';
+        btn.className = 'w-full py-3 text-white font-bold rounded-xl transition active:scale-95 shadow-md';
+        cancelBtn.classList.add('hidden');
+        btn.innerText = 'OK';
+        cancelBtn.onclick = null;
+        btn.onclick = null;
 
-            modal.classList.remove('hidden');
-            btn.onclick = () => {
-                modal.classList.add('hidden');
-                if (callback) callback();
-            };
+        if (type === 'error') {
+            iconContainer.classList.add('bg-red-50', 'text-red-500');
+            iconContainer.innerHTML = '<i class="fas fa-times-circle"></i>';
+            btn.classList.add('bg-red-600', 'hover:bg-red-700', 'shadow-red-600/20');
+        } else if (type === 'confirm') {
+            iconContainer.classList.add('bg-red-50', 'text-red-500');
+            iconContainer.innerHTML = '<i class="fas fa-trash-alt"></i>';
+            btn.classList.add('bg-red-600', 'hover:bg-red-700', 'shadow-red-600/20');
+            btn.innerText = 'Yes, Delete';
+            cancelBtn.classList.remove('hidden');
+            cancelBtn.onclick = () => modal.classList.add('hidden');
+        }
+
+        modal.classList.remove('hidden');
+        btn.onclick = () => {
+            modal.classList.add('hidden');
+            if (callback) callback();
         };
-    }
+    };
 
-    window.deleteMaterialFromList = function (id, url) {
-        window.showModal('confirm', 'Delete Material?', 'Are you sure you want to delete this material? This action cannot be undone.', async () => {
+    MaterialManager.delete = function (id, url) {
+        MaterialManager.showModal('confirm', 'Delete Material?', 'Are you sure you want to delete this material? This action cannot be undone.', async () => {
 
             const card = document.getElementById('material-card-' + id);
             if (!card) return;
@@ -202,26 +204,23 @@
                     card.style.opacity = '0';
                     setTimeout(() => {
                         card.remove();
-                        window.applyMaterialFilters(); 
+                        MaterialManager.applyFilters(); 
                     }, 300);
                 } else {
-                    window.showModal('error', 'Delete Failed', 'The server returned an error while deleting.');
+                    MaterialManager.showModal('error', 'Delete Failed', 'The server returned an error while deleting.');
                     btn.innerHTML = originalHtml;
                     btn.disabled = false;
                 }
             } catch (e) {
-                window.showModal('error', 'Network Error', 'Could not delete the material. Please check your connection.');
+                MaterialManager.showModal('error', 'Network Error', 'Could not delete the material. Please check your connection.');
                 btn.innerHTML = originalHtml;
                 btn.disabled = false;
             }
-
         }); 
     }; 
 
-    window.currentMaterialStatus = 'all';
-
-    window.filterMaterials = function(status, btnElement) {
-        window.currentMaterialStatus = status;
+    MaterialManager.filter = function(status, btnElement) {
+        MaterialManager.currentStatus = status;
 
         document.querySelectorAll('.material-tab').forEach(tab => {
             tab.classList.remove('bg-white', 'text-[#a52a2a]', 'shadow-sm');
@@ -231,20 +230,20 @@
         btnElement.classList.remove('text-gray-500', 'hover:text-gray-700');
         btnElement.classList.add('bg-white', 'text-[#a52a2a]', 'shadow-sm');
 
-        window.applyMaterialFilters();
+        MaterialManager.applyFilters();
     };
 
-    window.searchMaterials = function() {
-        window.applyMaterialFilters();
+    MaterialManager.search = function() {
+        MaterialManager.applyFilters();
     };
 
-    window.applyMaterialFilters = function() {
+    MaterialManager.applyFilters = function() {
         const query = document.getElementById('material-search').value.toLowerCase();
         let visibleCount = 0;
 
         document.querySelectorAll('.material-card').forEach(card => {
             const title = card.querySelector('.material-title').innerText.toLowerCase();
-            const matchesTab = (window.currentMaterialStatus === 'all' || card.classList.contains(window.currentMaterialStatus));
+            const matchesTab = (MaterialManager.currentStatus === 'all' || card.classList.contains(MaterialManager.currentStatus));
 
             if (matchesTab && title.includes(query)) {
                 card.style.display = 'flex';
@@ -264,4 +263,4 @@
             }
         }
     };
-</script>   
+</script>

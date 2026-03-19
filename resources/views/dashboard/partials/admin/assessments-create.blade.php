@@ -1,9 +1,10 @@
-<div id="assessment-wrapper" data-assessment-id="{{ $assessment->id }}"
+<div id="assessment-wrapper" data-assessment-id="{{ $assessment->id ?? '' }}"
     data-is-new="{{ isset($isNew) && $isNew ? 'true' : 'false' }}"
-    data-manage-url="{{ route('dashboard.assessments.manage', $assessment->id) }}"
-    data-autosave-url="{{ route('dashboard.assessments.autosave', $assessment->id) }}"
-    data-save-url="{{ route('dashboard.assessments.store_questions', $assessment->id) }}"
-    data-delete-url="{{ route('dashboard.assessments.destroy', $assessment->id) }}"
+    data-manage-url="{{ isset($assessment) && isset($assessment->id) ? route('dashboard.assessments.manage', $assessment->id) : '#' }}"
+    data-builder-url="{{ isset($assessment) && isset($assessment->id) ? route('dashboard.assessments.builder', $assessment->id) : '#' }}"
+    data-autosave-url="{{ isset($assessment) && isset($assessment->id) ? route('dashboard.assessments.autosave', $assessment->id) : '#' }}"
+    data-save-url="{{ isset($assessment) && isset($assessment->id) ? route('dashboard.assessments.store_questions', $assessment->id) : '#' }}"
+    data-delete-url="{{ isset($assessment) && isset($assessment->id) ? route('dashboard.assessments.destroy', $assessment->id) : '#' }}"
     data-redirect-url="{{ route('dashboard.assessments.index') }}" data-csrf="{{ csrf_token() }}"
     data-upload-url="{{ route('dashboard.assessments.upload_media') }}"
     class="space-y-6 pb-20 w-full max-w-5xl mx-auto">
@@ -11,12 +12,14 @@
     <input type="hidden" id="existing-data" value="{{ json_encode($categories ?? []) }}">
     <input type="hidden" id="server-draft-data" value="{{ $assessment->draft_json ?? '' }}">
 
-    <img src onerror="if(typeof window.initBuilder === 'function') window.initBuilder()" style="display:none;">
+    <img src
+        onerror="if(typeof AssessmentBuilder !== 'undefined' && typeof AssessmentBuilder.initBuilder === 'function') AssessmentBuilder.initBuilder()"
+        style="display:none;">
 
     <div class="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
         <div class="border-b border-gray-100 p-6 flex items-center justify-between bg-gray-50/50">
             <div class="flex items-center gap-4">
-                <button type="button" onclick="window.handleAssessmentBackButton(this)"
+                <button type="button" onclick="AssessmentBuilder.handleBackButton(this)"
                     class="h-10 w-10 flex items-center justify-center rounded-xl bg-white border border-gray-200 text-gray-500 hover:text-[#a52a2a] transition shadow-sm">
                     <i class="fas fa-arrow-left"></i>
                 </button>
@@ -26,7 +29,7 @@
                 <div id="autosave-indicator"
                     class="text-xs text-gray-400 italic font-medium px-3 py-1 bg-white border border-gray-100 rounded-lg">
                     Ready</div>
-                <button type="button" onclick="window.deleteAssessmentFromBuilder()"
+                <button type="button" onclick="AssessmentBuilder.deleteAssessmentFromBuilder()"
                     class="h-10 px-4 flex items-center gap-2 rounded-xl bg-red-50 text-red-600 hover:bg-red-100 transition text-sm font-bold">
                     <i class="fas fa-trash-alt"></i> Discard
                 </button>
@@ -39,13 +42,12 @@
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
                             <label class="block text-xs font-bold text-gray-500 uppercase mb-1 ml-1">Test Title</label>
-                            <input type="text" id="setup-title" value="{{ $assessment->title }}"
+                            <input type="text" id="setup-title" value="{{ $assessment->title ?? '' }}"
                                 class="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#a52a2a]/20 focus:border-[#a52a2a] outline-none transition font-medium">
                         </div>
                         <div>
-                            <label class="block text-xs font-bold text-gray-500 uppercase mb-1 ml-1">Year / Grade
-                                Level: </label>
-                            <input type="number" id="setup-year" value="{{ $assessment->year_level }}"
+                            <label class="block text-xs font-bold text-gray-500 uppercase mb-1 ml-1">Year / Grade Level: </label>
+                            <input type="number" id="setup-year" value="{{ $assessment->year_level ?? '' }}"
                                 placeholder="ex. 7"
                                 class="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#a52a2a]/20 focus:border-[#a52a2a] outline-none transition font-medium">
                         </div>
@@ -53,18 +55,16 @@
                     <div>
                         <label class="block text-xs font-bold text-gray-500 uppercase mb-1 ml-1">Instructions</label>
                         <textarea id="setup-desc" rows="2"
-                            class="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#a52a2a]/20 focus:border-[#a52a2a] outline-none transition font-medium">{{ $assessment->description }}</textarea>
+                            class="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#a52a2a]/20 focus:border-[#a52a2a] outline-none transition font-medium">{{ $assessment->description ?? '' }}</textarea>
                     </div>
                 </div>
 
                 <div
                     class="bg-[#a52a2a] rounded-2xl p-6 text-white relative overflow-hidden flex flex-col justify-center items-center shadow-lg shadow-[#a52a2a]/20">
                     <i class="fas fa-key absolute -right-2 -bottom-2 text-6xl text-white/10 rotate-12"></i>
-                    <span class="text-[10px] font-bold uppercase tracking-[0.2em] opacity-80 mb-1">Student Access
-                        Key</span>
-                    <div class="text-4xl font-mono font-black tracking-widest">{{ $assessment->access_key }}</div>
-                    <p class="text-[10px] mt-3 opacity-70 text-center">Share this key for students to begin the test.
-                    </p>
+                    <span class="text-[10px] font-bold uppercase tracking-[0.2em] opacity-80 mb-1">Student Access Key</span>
+                    <div class="text-4xl font-mono font-black tracking-widest">{{ $assessment->access_key ?? 'PENDING' }}</div>
+                    <p class="text-[10px] mt-3 opacity-70 text-center">Share this key for students to begin the test.</p>
                 </div>
             </div>
         </div>
@@ -75,7 +75,7 @@
 
 
     <div class="mt-6 grid grid-cols-1 md:grid-cols-3 gap-4">
-        <button type="button" onclick="window.addCategory()"
+        <button type="button" onclick="AssessmentBuilder.addCategory()"
             class="md:col-span-2 px-4 py-5 border-2 border-dashed border-gray-200 text-gray-500 font-bold rounded-2xl hover:bg-gray-50 hover:border-[#a52a2a]/30 hover:text-[#a52a2a] transition flex items-center justify-center gap-3 group">
             <div
                 class="h-8 w-8 rounded-full bg-gray-100 group-hover:bg-[#a52a2a]/10 flex items-center justify-center transition">
@@ -97,11 +97,11 @@
     </div>
 
     <div class="mt-10 pt-6 border-t border-gray-200 flex justify-end gap-4">
-        <button type="button" onclick="window.saveCompleteExam(this, 'draft')"
+        <button type="button" onclick="AssessmentBuilder.saveCompleteExam(this, 'draft')"
             class="px-8 py-4 bg-white border border-gray-200 text-gray-700 font-bold rounded-2xl hover:bg-gray-50 transition shadow-sm active:scale-95">
             Save as Draft
         </button>
-        <button type="button" onclick="window.saveCompleteExam(this, 'published')"
+        <button type="button" onclick="AssessmentBuilder.saveCompleteExam(this, 'published')"
             class="px-10 py-4 bg-green-600 text-white font-bold rounded-2xl hover:bg-green-700 transition shadow-lg shadow-green-600/20 flex items-center gap-2 active:scale-95">
             <span>Publish & Open Exam</span>
             <i class="fas fa-paper-plane"></i>
@@ -125,19 +125,19 @@
                     temporary draft.</p>
 
                 <div class="space-y-3">
-                    <button onclick="window.saveCompleteExam(this, 'published')"
+                    <button onclick="AssessmentBuilder.saveCompleteExam(this, 'published')"
                         class="w-full py-4 bg-green-600 text-white font-bold rounded-2xl hover:bg-green-700 transition flex items-center justify-center gap-2">
                         <i class="fas fa-paper-plane text-sm"></i>
                         <span>Publish & Exit</span>
                     </button>
 
-                    <button onclick="window.saveCompleteExam(this, 'draft')"
+                    <button onclick="AssessmentBuilder.saveCompleteExam(this, 'draft')"
                         class="w-full py-4 bg-white border border-gray-200 text-gray-700 font-bold rounded-2xl hover:bg-gray-50 transition flex items-center justify-center gap-2">
                         <i class="fas fa-file-alt text-sm text-gray-400"></i>
                         <span>Save as Draft & Exit</span>
                     </button>
 
-                    <button type="button" onclick="window.discardChangesAndExit(this)"
+                    <button type="button" onclick="AssessmentBuilder.discardChangesAndExit(this)"
                         class="w-full py-3 text-gray-400 hover:text-red-500 text-sm font-bold transition">
                         Discard changes and Exit
                     </button>
@@ -238,7 +238,7 @@
 </div>
 
 <div id="media-upload-modal" class="fixed inset-0 z-[120] hidden">
-    <div class="absolute inset-0 bg-gray-900/60 backdrop-blur-sm" onclick="window.closeMediaModal()"></div>
+    <div class="absolute inset-0 bg-gray-900/60 backdrop-blur-sm" onclick="AssessmentBuilder.closeMediaModal()"></div>
 
     <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-md p-6">
         <div class="bg-white rounded-2xl shadow-2xl overflow-hidden border border-gray-100 p-6">
@@ -254,7 +254,7 @@
 
             <div class="mb-6">
                 <input type="file" id="media-file-input" accept="image/*, audio/*, video/*" class="hidden"
-                    onchange="window.handleMediaFileSelect(this)">
+                    onchange="AssessmentBuilder.handleMediaFileSelect(this)">
 
                 <label for="media-file-input" id="media-dropzone"
                     class="cursor-pointer flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-gray-300 rounded-xl bg-gray-50 hover:bg-gray-100 hover:border-[#a52a2a]/50 transition">
@@ -272,7 +272,7 @@
                         <span id="selected-media-name"
                             class="font-mono text-sm text-gray-700 truncate font-medium">file.mp4</span>
                     </div>
-                    <button type="button" onclick="window.clearSelectedMedia()"
+                    <button type="button" onclick="AssessmentBuilder.clearSelectedMedia()"
                         class="text-gray-400 hover:text-red-500 transition px-2">
                         <i class="fas fa-times"></i>
                     </button>
@@ -280,11 +280,11 @@
             </div>
 
             <div class="flex gap-3">
-                <button type="button" onclick="window.closeMediaModal()"
+                <button type="button" onclick="AssessmentBuilder.closeMediaModal()"
                     class="w-full py-3.5 bg-gray-100 text-gray-700 font-bold rounded-xl hover:bg-gray-200 transition active:scale-95">
                     Cancel
                 </button>
-                <button type="button" id="start-media-upload-btn" onclick="window.executeMediaUpload()" disabled
+                <button type="button" id="start-media-upload-btn" onclick="AssessmentBuilder.executeMediaUpload()" disabled
                     class="w-full py-3.5 bg-[#a52a2a] text-white font-bold rounded-xl hover:bg-[#801f1f] transition disabled:opacity-50 disabled:cursor-not-allowed shadow-md flex justify-center items-center gap-2">
                     <i class="fas fa-upload"></i>
                     <span>Upload Media</span>
@@ -293,3 +293,129 @@
         </div>
     </div>
 </div>
+
+<script src="{{ asset('js/assessment.js') }}"></script>
+
+<script>
+    let selectedFile = null;
+
+    function openImportModal() {
+        clearSelectedFile();
+        document.getElementById('excel-import-modal').classList.remove('hidden');
+    }
+
+    function closeImportModal() {
+        document.getElementById('excel-import-modal').classList.add('hidden');
+    }
+
+    function handleFileSelect(input) {
+        if (!input.files || input.files.length === 0) return;
+        selectedFile = input.files[0];
+        document.getElementById('selected-file-name').innerText = selectedFile.name;
+        document.getElementById('file-dropzone').classList.add('hidden');
+        document.getElementById('selected-file-display').classList.remove('hidden');
+        document.getElementById('selected-file-display').classList.add('flex');
+        document.getElementById('start-upload-btn').disabled = false;
+    }
+
+    function clearSelectedFile() {
+        selectedFile = null;
+        document.getElementById('excel-file-input').value = '';
+        document.getElementById('file-dropzone').classList.remove('hidden');
+        document.getElementById('selected-file-display').classList.add('hidden');
+        document.getElementById('selected-file-display').classList.remove('flex');
+        document.getElementById('start-upload-btn').disabled = true;
+    }
+
+    function executeExcelUpload() {
+        if (!selectedFile) return;
+        
+        let btn = document.getElementById('start-upload-btn');
+        let originalHtml = btn.innerHTML;
+
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> <span>Processing...</span>';
+        btn.disabled = true;
+
+        let payload = AssessmentBuilder.getPayload("draft");
+        let formData = new FormData();
+        
+        formData.append('exam_file', selectedFile); 
+        formData.append('_token', document.querySelector('[data-csrf]').dataset.csrf);
+        formData.append('title', payload.title);
+        formData.append('description', payload.description);
+        formData.append('year_level', payload.year_level); 
+        formData.append('categories', JSON.stringify(payload.categories));
+
+        let wrapper = document.getElementById('assessment-wrapper');
+        let assessmentId = wrapper.dataset.assessmentId;
+
+        fetch(`/dashboard/assessments/${assessmentId}/import`, {
+            method: 'POST',
+            headers: { 'Accept': 'application/json' },
+            body: formData
+        })
+        .then(async response => {
+            if (!response.ok) {
+                let errorData = await response.json().catch(() => ({}));
+                let errorMessage = errorData.message || `Server error (${response.status})`;
+                if (errorData.errors) {
+                    const firstErrorKey = Object.keys(errorData.errors)[0];
+                    errorMessage = errorData.errors[firstErrorKey][0];
+                }
+                throw new Error(errorMessage);
+            }
+            return response.json();
+        })
+        .then(data => {
+            if (data.success) {
+                closeImportModal();
+                showStatusModal('Success!', 'Your test has been updated with the imported questions.', 'success');
+
+                AssessmentBuilder.hasChanged = false;
+                localStorage.removeItem("assessment_draft_" + assessmentId);
+
+                setTimeout(() => {
+                    let buildUrl = wrapper.dataset.builderUrl;
+                    if (typeof loadPartial === 'function') {
+                        loadPartial(buildUrl);
+                    } else {
+                        window.location.href = buildUrl;
+                    }
+                }, 2000);
+            } else {
+                throw new Error(data.message || 'Import failed.');
+            }
+        })
+        .catch(error => {
+            btn.innerHTML = originalHtml;
+            btn.disabled = false;
+            showStatusModal('Import Failed', error.message, 'error');
+        });
+    }
+
+    function showStatusModal(title, message, type) {
+        const modal = document.getElementById('status-modal');
+        const iconContainer = document.getElementById('status-modal-icon');
+        const titleEl = document.getElementById('status-modal-title');
+        const msgEl = document.getElementById('status-modal-message');
+        const actionBtn = document.getElementById('status-modal-btn');
+
+        iconContainer.className = 'h-16 w-16 rounded-full flex items-center justify-center mx-auto mb-4 text-3xl';
+        actionBtn.className = 'w-full py-3.5 text-white font-bold rounded-xl transition active:scale-95 shadow-md';
+
+        if (type === 'success') {
+            iconContainer.classList.add('bg-green-50', 'text-green-500');
+            iconContainer.innerHTML = '<i class="fas fa-check-circle"></i>';
+            actionBtn.classList.add('bg-green-600', 'hover:bg-green-700');
+        } else {
+            iconContainer.classList.add('bg-red-50', 'text-red-500');
+            iconContainer.innerHTML = '<i class="fas fa-exclamation-triangle"></i>';
+            actionBtn.classList.add('bg-red-600', 'hover:bg-red-700');
+        }
+
+        titleEl.innerText = title;
+        msgEl.innerText = message;
+        modal.classList.remove('hidden');
+        actionBtn.onclick = () => modal.classList.add('hidden');
+    }
+</script>

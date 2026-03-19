@@ -1,25 +1,26 @@
-window.builderState = {
+window.AssessmentBuilder = window.AssessmentBuilder || {};
+
+AssessmentBuilder.state = {
     title: "",
     year_level: "",
     description: "",
     categories: [],
 };
 
-window.hasChanged = false;
-window.catCount = 0;
-window.isInitializing = false;
-
-let autosaveTimer;
-const SYNC_DELAY = 3000;
-let lastPayload = "";
+AssessmentBuilder.hasChanged = false;
+AssessmentBuilder.catCount = 0;
+AssessmentBuilder.isInitializing = false;
+AssessmentBuilder.autosaveTimer = null;
+AssessmentBuilder.SYNC_DELAY = 3000;
+AssessmentBuilder.lastPayload = "";
 
 // Initialize the Builder
-window.initBuilder = function () {
-    window.isInitializing = true;
-    window.catCount = 0;
-    lastPayload = "";
-    window.hasChanged = false;
-    clearTimeout(autosaveTimer);
+AssessmentBuilder.initBuilder = function () {
+    AssessmentBuilder.isInitializing = true;
+    AssessmentBuilder.catCount = 0;
+    AssessmentBuilder.lastPayload = "";
+    AssessmentBuilder.hasChanged = false;
+    clearTimeout(AssessmentBuilder.autosaveTimer);
 
     const wrapper = document.getElementById("assessment-wrapper");
     const container = document.getElementById("builder-container");
@@ -57,31 +58,31 @@ window.initBuilder = function () {
 
     if (existingData && existingData.length > 0) {
         existingData.forEach((cat) => {
-            window.renderExistingCategory(cat);
+            AssessmentBuilder.renderExistingCategory(cat);
         });
-        window.updateCategoryNumbers(); 
+        AssessmentBuilder.updateCategoryNumbers(); 
     } else {
         if (document.querySelectorAll(".category-block").length === 0) {
-            window.addCategory();
+            AssessmentBuilder.addCategory();
         }
     }
 
     wrapper.addEventListener("input", (e) => {
         if (["INPUT", "TEXTAREA", "SELECT"].includes(e.target.tagName)) {
-            window.handleAutosaveTrigger();
+            AssessmentBuilder.handleAutosaveTrigger();
         }
     });
 
-    window.updateAutosaveIndicator("Ready");
+    AssessmentBuilder.updateAutosaveIndicator("Ready");
     setTimeout(() => {
-        window.isInitializing = false;
-        window.hasChanged = false; 
+        AssessmentBuilder.isInitializing = false;
+        AssessmentBuilder.hasChanged = false; 
     }, 500);
 };
 
-// Render Existing Categories (Like from an Excel Import)
-window.renderExistingCategory = function (catData) {
-    window.addCategory();
+// Render Existing Categories 
+AssessmentBuilder.renderExistingCategory = function (catData) {
+    AssessmentBuilder.addCategory();
     const latestCat = document.querySelector(".category-block:last-child");
 
     latestCat.querySelector(".c-title").value = catData.title || "";
@@ -94,14 +95,14 @@ window.renderExistingCategory = function (catData) {
     if (catData.questions && catData.questions.length > 0) {
         catData.questions.forEach((q) => {
             const type = q.type || "mcq";
-            window.addQuestion(qContainer.id.split("-").pop(), type);
+            AssessmentBuilder.addQuestion(qContainer.id.split("-").pop(), type);
             
             const latestQ = qContainer.querySelector(".question-block:last-child");
             latestQ.querySelector(".q-text").value = q.text || q.question_text || "";
 
             const mediaUrl = q.media_url || q.image_url; 
             if (mediaUrl) {
-                window.setMediaPreview(latestQ.id, mediaUrl);
+                AssessmentBuilder.setMediaPreview(latestQ.id, mediaUrl);
             }
             
             latestQ.querySelector(".options-list").innerHTML = "";
@@ -109,7 +110,7 @@ window.renderExistingCategory = function (catData) {
             if (q.options && q.options.length > 0) {
                 const isCaseSensitive = q.is_case_sensitive == 1 || q.is_case_sensitive === true;
                 q.options.forEach((opt) => {
-                    window.addOptionToQuestion(
+                    AssessmentBuilder.addOptionToQuestion(
                         latestQ.id,
                         type,
                         opt.is_correct == 1 || opt.is_correct === true,
@@ -118,34 +119,34 @@ window.renderExistingCategory = function (catData) {
                     );
                 });
             } else if (type === "true_false") {
-                window.addOptionToQuestion(latestQ.id, "true_false", false, "True");
-                window.addOptionToQuestion(latestQ.id, "true_false", false, "False");
+                AssessmentBuilder.addOptionToQuestion(latestQ.id, "true_false", false, "True");
+                AssessmentBuilder.addOptionToQuestion(latestQ.id, "true_false", false, "False");
             }
         });
     }
 };
 
-window.addCategory = function () {
+AssessmentBuilder.addCategory = function () {
     const container = document.getElementById("builder-container");
     if (!container) return;
 
-    window.catCount++;
-    const catId = `cat-${window.catCount}`;
+    AssessmentBuilder.catCount++;
+    const catId = `cat-${AssessmentBuilder.catCount}`;
 
     const html = `
         <div class="bg-white rounded-2xl shadow-sm border border-gray-200 category-block overflow-hidden transition-all mb-4" id="${catId}">
-            <div class="p-4 bg-gray-50/50 flex items-center justify-between cursor-pointer group" onclick="window.toggleCategory('${catId}', event)">
+            <div class="p-4 bg-gray-50/50 flex items-center justify-between cursor-pointer group" onclick="AssessmentBuilder.toggleCategory('${catId}', event)">
                 <div class="flex items-center gap-4 flex-1">
                     <div class="h-8 w-8 rounded-lg bg-[#a52a2a]/10 text-[#a52a2a] flex items-center justify-center font-bold text-sm cat-number-badge">
-                        ${window.catCount}
+                        ${AssessmentBuilder.catCount}
                     </div>
                     <span class="font-bold text-gray-700 category-display-title">New Section</span>
                 </div>
                 
                 <div class="flex items-center gap-1">
-                    <button type="button" onclick="window.moveCategoryUp(this, event)" class="h-8 w-8 flex items-center justify-center text-gray-400 hover:text-gray-700 hover:bg-gray-200 rounded transition" title="Move Section Up"><i class="fas fa-arrow-up"></i></button>
-                    <button type="button" onclick="window.moveCategoryDown(this, event)" class="h-8 w-8 flex items-center justify-center text-gray-400 hover:text-gray-700 hover:bg-gray-200 rounded transition" title="Move Section Down"><i class="fas fa-arrow-down"></i></button>
-                    <button type="button" onclick="window.removeElement('${catId}')" class="h-8 w-8 flex items-center justify-center text-gray-400 hover:text-red-500 hover:bg-red-50 rounded transition ml-2" title="Delete Section"><i class="fas fa-trash-alt"></i></button>
+                    <button type="button" onclick="AssessmentBuilder.moveCategoryUp(this, event)" class="h-8 w-8 flex items-center justify-center text-gray-400 hover:text-gray-700 hover:bg-gray-200 rounded transition" title="Move Section Up"><i class="fas fa-arrow-up"></i></button>
+                    <button type="button" onclick="AssessmentBuilder.moveCategoryDown(this, event)" class="h-8 w-8 flex items-center justify-center text-gray-400 hover:text-gray-700 hover:bg-gray-200 rounded transition" title="Move Section Down"><i class="fas fa-arrow-down"></i></button>
+                    <button type="button" onclick="AssessmentBuilder.removeElement('${catId}')" class="h-8 w-8 flex items-center justify-center text-gray-400 hover:text-red-500 hover:bg-red-50 rounded transition ml-2" title="Delete Section"><i class="fas fa-trash-alt"></i></button>
                 </div>
             </div>
 
@@ -153,7 +154,7 @@ window.addCategory = function () {
                 <div class="flex gap-4 mb-6">
                     <div class="flex-1">
                         <label class="block text-[10px] font-bold text-gray-400 uppercase mb-1">Section Title</label>
-                        <input type="text" class="c-title w-full px-4 py-2 border border-gray-200 rounded-xl outline-none" placeholder="e.g., Mathematics" onkeyup="window.updateCatDisplay(this)">
+                        <input type="text" class="c-title w-full px-4 py-2 border border-gray-200 rounded-xl outline-none" placeholder="e.g., Mathematics" onkeyup="AssessmentBuilder.updateCatDisplay(this)">
                     </div>
                     <div class="w-32">
                         <label class="block text-[10px] font-bold text-gray-400 uppercase mb-1">Mins</label>
@@ -161,25 +162,25 @@ window.addCategory = function () {
                     </div>
                 </div>
                 
-                <div id="q-container-${window.catCount}" class="space-y-4 mb-4"></div>
+                <div id="q-container-${AssessmentBuilder.catCount}" class="space-y-4 mb-4"></div>
                 
                 <div class="relative flex items-center w-full rounded-xl border border-dashed border-gray-200 group/dropdown">
-                    <button type="button" onclick="window.addQuestion(${window.catCount}, 'mcq')" class="flex-1 py-3 text-gray-500 text-sm font-bold hover:bg-gray-50 hover:text-[#a52a2a] transition flex items-center justify-center rounded-l-xl">
+                    <button type="button" onclick="AssessmentBuilder.addQuestion(${AssessmentBuilder.catCount}, 'mcq')" class="flex-1 py-3 text-gray-500 text-sm font-bold hover:bg-gray-50 hover:text-[#a52a2a] transition flex items-center justify-center rounded-l-xl">
                         <i class="fas fa-plus-circle mr-2"></i> Add Question
                     </button>
                     
                     <div class="relative h-full border-l border-gray-200">
-                        <button type="button" onclick="window.toggleDropdown(this)" class="px-4 py-3 text-gray-400 hover:bg-gray-50 hover:text-[#a52a2a] transition rounded-r-xl h-full flex items-center">
+                        <button type="button" onclick="AssessmentBuilder.toggleDropdown(this)" class="px-4 py-3 text-gray-400 hover:bg-gray-50 hover:text-[#a52a2a] transition rounded-r-xl h-full flex items-center">
                             <i class="fas fa-chevron-down"></i>
                         </button>
                         
                         <div class="hidden absolute bottom-full right-0 mb-2 w-48 bg-white border border-gray-100 rounded-xl shadow-lg z-20 py-1 overflow-hidden dropdown-menu">
-                            <button type="button" onclick="window.addQuestion(${window.catCount}, 'mcq'); window.toggleDropdown(this.closest('.relative').querySelector('button'))" class="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 hover:text-[#a52a2a]"><i class="fas fa-dot-circle w-5 text-center text-gray-400 mr-1"></i> Multiple Choice</button>
-                            <button type="button" onclick="window.addQuestion(${window.catCount}, 'checkbox'); window.toggleDropdown(this.closest('.relative').querySelector('button'))" class="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 hover:text-[#a52a2a]"><i class="fas fa-check-square w-5 text-center text-gray-400 mr-1"></i> Checkboxes</button>
-                            <button type="button" onclick="window.addQuestion(${window.catCount}, 'text'); window.toggleDropdown(this.closest('.relative').querySelector('button'))" class="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 hover:text-[#a52a2a]"><i class="fas fa-align-left w-5 text-center text-gray-400 mr-1"></i> Short Text</button>
-                            <button type="button" onclick="window.addQuestion(${window.catCount}, 'true_false'); window.toggleDropdown(this.closest('.relative').querySelector('button'))" class="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 hover:text-[#a52a2a]"><i class="fas fa-adjust w-5 text-center text-gray-400 mr-1"></i> True or False</button>
+                            <button type="button" onclick="AssessmentBuilder.addQuestion(${AssessmentBuilder.catCount}, 'mcq'); AssessmentBuilder.toggleDropdown(this.closest('.relative').querySelector('button'))" class="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 hover:text-[#a52a2a]"><i class="fas fa-dot-circle w-5 text-center text-gray-400 mr-1"></i> Multiple Choice</button>
+                            <button type="button" onclick="AssessmentBuilder.addQuestion(${AssessmentBuilder.catCount}, 'checkbox'); AssessmentBuilder.toggleDropdown(this.closest('.relative').querySelector('button'))" class="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 hover:text-[#a52a2a]"><i class="fas fa-check-square w-5 text-center text-gray-400 mr-1"></i> Checkboxes</button>
+                            <button type="button" onclick="AssessmentBuilder.addQuestion(${AssessmentBuilder.catCount}, 'text'); AssessmentBuilder.toggleDropdown(this.closest('.relative').querySelector('button'))" class="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 hover:text-[#a52a2a]"><i class="fas fa-align-left w-5 text-center text-gray-400 mr-1"></i> Short Text</button>
+                            <button type="button" onclick="AssessmentBuilder.addQuestion(${AssessmentBuilder.catCount}, 'true_false'); AssessmentBuilder.toggleDropdown(this.closest('.relative').querySelector('button'))" class="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 hover:text-[#a52a2a]"><i class="fas fa-adjust w-5 text-center text-gray-400 mr-1"></i> True or False</button>
                             <div class="border-t border-gray-100 my-1"></div>
-                            <button type="button" onclick="window.addQuestion(${window.catCount}, 'instruction'); window.toggleDropdown(this.closest('.relative').querySelector('button'))" class="w-full text-left px-4 py-2 text-sm text-[#a52a2a] bg-[#a52a2a]/5 hover:bg-[#a52a2a]/10 font-bold"><i class="fas fa-info-circle w-5 text-center mr-1"></i> Add Instruction</button>
+                            <button type="button" onclick="AssessmentBuilder.addQuestion(${AssessmentBuilder.catCount}, 'instruction'); AssessmentBuilder.toggleDropdown(this.closest('.relative').querySelector('button'))" class="w-full text-left px-4 py-2 text-sm text-[#a52a2a] bg-[#a52a2a]/5 hover:bg-[#a52a2a]/10 font-bold"><i class="fas fa-info-circle w-5 text-center mr-1"></i> Add Instruction</button>
                         </div>
                     </div>
                 </div>
@@ -187,10 +188,10 @@ window.addCategory = function () {
         </div>`;
 
     container.insertAdjacentHTML("beforeend", html);
-    window.updateCategoryNumbers();
+    AssessmentBuilder.updateCategoryNumbers();
 };
 
-window.toggleDropdown = function (btn) {
+AssessmentBuilder.toggleDropdown = function (btn) {
     const menu = btn.nextElementSibling;
     document.querySelectorAll(".dropdown-menu").forEach((el) => {
         if (el !== menu) el.classList.add("hidden");
@@ -198,7 +199,7 @@ window.toggleDropdown = function (btn) {
     menu.classList.toggle("hidden");
 };
 
-window.addQuestion = function (cId, type = "mcq") {
+AssessmentBuilder.addQuestion = function (cId, type = "mcq") {
     const container = document.getElementById(`q-container-${cId}`);
     if (!container) return;
 
@@ -216,7 +217,7 @@ window.addQuestion = function (cId, type = "mcq") {
     const html = `
         <div class="p-4 rounded-xl border border-gray-100 question-block relative group ${bgClass}" id="${qId}" data-type="${type}">
             
-            <div class="flex justify-between items-start mb-2 cursor-pointer" onclick="window.toggleQuestion('${qId}', event)">
+            <div class="flex justify-between items-start mb-2 cursor-pointer" onclick="AssessmentBuilder.toggleQuestion('${qId}', event)">
                 <div class="flex items-center gap-2 overflow-hidden pr-2">
                     <div class="h-6 w-6 flex items-center justify-center text-gray-400 group-hover:text-gray-600 transition q-chevron-icon shrink-0">
                         <i class="fas fa-chevron-up text-xs"></i>
@@ -229,9 +230,9 @@ window.addQuestion = function (cId, type = "mcq") {
                 </div>
                 
                 <div class="flex items-center gap-1 shrink-0">
-                    <button type="button" onclick="window.moveQuestionUp(this)" class="h-7 w-7 flex items-center justify-center text-gray-300 hover:text-gray-600 transition rounded-md hover:bg-gray-200" title="Move Question Up"><i class="fas fa-arrow-up"></i></button>
-                    <button type="button" onclick="window.moveQuestionDown(this)" class="h-7 w-7 flex items-center justify-center text-gray-300 hover:text-gray-600 transition rounded-md hover:bg-gray-200" title="Move Question Down"><i class="fas fa-arrow-down"></i></button>
-                    <button type="button" onclick="window.removeElement('${qId}')" class="h-7 w-7 flex items-center justify-center text-gray-300 hover:text-red-500 transition rounded-md hover:bg-red-50 ml-1" title="Delete Question"><i class="fas fa-times"></i></button>
+                    <button type="button" onclick="AssessmentBuilder.moveQuestionUp(this)" class="h-7 w-7 flex items-center justify-center text-gray-300 hover:text-gray-600 transition rounded-md hover:bg-gray-200" title="Move Question Up"><i class="fas fa-arrow-up"></i></button>
+                    <button type="button" onclick="AssessmentBuilder.moveQuestionDown(this)" class="h-7 w-7 flex items-center justify-center text-gray-300 hover:text-gray-600 transition rounded-md hover:bg-gray-200" title="Move Question Down"><i class="fas fa-arrow-down"></i></button>
+                    <button type="button" onclick="AssessmentBuilder.removeElement('${qId}')" class="h-7 w-7 flex items-center justify-center text-gray-300 hover:text-red-500 transition rounded-md hover:bg-red-50 ml-1" title="Delete Question"><i class="fas fa-times"></i></button>
                 </div>
             </div>
 
@@ -240,7 +241,7 @@ window.addQuestion = function (cId, type = "mcq") {
                     <textarea class="q-text w-full pl-3 pr-10 py-2 bg-white border border-gray-200 rounded-lg outline-none font-medium text-sm focus:border-[#a52a2a] resize-y min-h-[44px]" placeholder="${placeholder}"></textarea>
                     <input type="hidden" class="q-media-url" value="">
                     
-                    <button type="button" onclick="window.openMediaModal('${qId}')" title="Upload Media" class="absolute right-2 top-2 h-7 w-7 flex items-center justify-center text-gray-400 hover:text-[#a52a2a] hover:bg-gray-100 rounded transition">
+                    <button type="button" onclick="AssessmentBuilder.openMediaModal('${qId}')" title="Upload Media" class="absolute right-2 top-2 h-7 w-7 flex items-center justify-center text-gray-400 hover:text-[#a52a2a] hover:bg-gray-100 rounded transition">
                         <i class="fas fa-photo-video"></i>
                     </button>
                 </div>
@@ -250,7 +251,7 @@ window.addQuestion = function (cId, type = "mcq") {
                 <div class="options-list space-y-2 mb-3"></div>
                 
                 ${(type === "mcq" || type === "checkbox") ? `
-                    <button type="button" onclick="window.addOptionToQuestion('${qId}', '${type}')" class="text-[10px] font-bold text-[#a52a2a] hover:underline uppercase flex items-center">
+                    <button type="button" onclick="AssessmentBuilder.addOptionToQuestion('${qId}', '${type}')" class="text-[10px] font-bold text-[#a52a2a] hover:underline uppercase flex items-center">
                         <i class="fas fa-plus mr-1"></i> Add Choice
                     </button>
                 ` : ""}
@@ -260,17 +261,17 @@ window.addQuestion = function (cId, type = "mcq") {
     container.insertAdjacentHTML("beforeend", html);
 
     if (type === "mcq" || type === "checkbox") {
-        window.addOptionToQuestion(qId, type, true, "");
-        window.addOptionToQuestion(qId, type, false, "");
+        AssessmentBuilder.addOptionToQuestion(qId, type, true, "");
+        AssessmentBuilder.addOptionToQuestion(qId, type, false, "");
     } else if (type === "text") {
-        window.addOptionToQuestion(qId, "text", true, "");
+        AssessmentBuilder.addOptionToQuestion(qId, "text", true, "");
     } else if (type === "true_false") {
-        window.addOptionToQuestion(qId, "true_false", false, "True");
-        window.addOptionToQuestion(qId, "true_false", false, "False");
+        AssessmentBuilder.addOptionToQuestion(qId, "true_false", false, "True");
+        AssessmentBuilder.addOptionToQuestion(qId, "true_false", false, "False");
     }
 };
 
-window.addOptionToQuestion = function (qId, type, isCorrect = false, text = "", isCaseSensitive = false) {
+AssessmentBuilder.addOptionToQuestion = function (qId, type, isCorrect = false, text = "", isCaseSensitive = false) {
     const list = document.querySelector(`#${qId} .options-list`);
     if (!list) return;
 
@@ -286,7 +287,7 @@ window.addOptionToQuestion = function (qId, type, isCorrect = false, text = "", 
                         <input type="radio" name="correct-${qId}" class="is-correct-input cursor-pointer text-green-600 h-4 w-4" ${isCorrect ? "checked" : ""}>
                         <span class="text-[10px] font-bold uppercase">Correct</span>
                     </label>
-                    <button type="button" onclick="window.removeOption(this, '${qId}')" class="text-gray-300 hover:text-red-500 transition h-6 w-6 flex items-center justify-center"><i class="fas fa-times-circle"></i></button>
+                    <button type="button" onclick="AssessmentBuilder.removeOption(this, '${qId}')" class="text-gray-300 hover:text-red-500 transition h-6 w-6 flex items-center justify-center"><i class="fas fa-times-circle"></i></button>
                 </div>
             </div>`;
     } else if (type === "checkbox") {
@@ -298,7 +299,7 @@ window.addOptionToQuestion = function (qId, type, isCorrect = false, text = "", 
                         <input type="checkbox" class="is-correct-input cursor-pointer text-green-600 rounded h-4 w-4" ${isCorrect ? "checked" : ""}>
                         <span class="text-[10px] font-bold uppercase">Correct</span>
                     </label>
-                    <button type="button" onclick="window.removeOption(this, '${qId}')" class="text-gray-300 hover:text-red-500 transition h-6 w-6 flex items-center justify-center"><i class="fas fa-times-circle"></i></button>
+                    <button type="button" onclick="AssessmentBuilder.removeOption(this, '${qId}')" class="text-gray-300 hover:text-red-500 transition h-6 w-6 flex items-center justify-center"><i class="fas fa-times-circle"></i></button>
                 </div>
             </div>`;
     } else if (type === "text") {
@@ -326,50 +327,50 @@ window.addOptionToQuestion = function (qId, type, isCorrect = false, text = "", 
     }
 
     list.insertAdjacentHTML("beforeend", optHtml);
-    window.handleAutosaveTrigger();
+    AssessmentBuilder.handleAutosaveTrigger();
 };
 
-window.moveCategoryUp = function(btn, event) {
+AssessmentBuilder.moveCategoryUp = function(btn, event) {
     event.stopPropagation();
     const catBlock = btn.closest('.category-block');
     const prev = catBlock.previousElementSibling;
     if (prev && prev.classList.contains('category-block')) {
         prev.insertAdjacentElement('beforebegin', catBlock);
-        window.updateCategoryNumbers();
-        window.handleAutosaveTrigger();
+        AssessmentBuilder.updateCategoryNumbers();
+        AssessmentBuilder.handleAutosaveTrigger();
     }
 };
 
-window.moveCategoryDown = function(btn, event) {
+AssessmentBuilder.moveCategoryDown = function(btn, event) {
     event.stopPropagation();
     const catBlock = btn.closest('.category-block');
     const next = catBlock.nextElementSibling;
     if (next && next.classList.contains('category-block')) {
         next.insertAdjacentElement('afterend', catBlock);
-        window.updateCategoryNumbers();
-        window.handleAutosaveTrigger();
+        AssessmentBuilder.updateCategoryNumbers();
+        AssessmentBuilder.handleAutosaveTrigger();
     }
 };
 
-window.moveQuestionUp = function(btn) {
+AssessmentBuilder.moveQuestionUp = function(btn) {
     const qBlock = btn.closest('.question-block');
     const prev = qBlock.previousElementSibling;
     if (prev && prev.classList.contains('question-block')) {
         prev.insertAdjacentElement('beforebegin', qBlock);
-        window.handleAutosaveTrigger();
+        AssessmentBuilder.handleAutosaveTrigger();
     }
 };
 
-window.moveQuestionDown = function(btn) {
+AssessmentBuilder.moveQuestionDown = function(btn) {
     const qBlock = btn.closest('.question-block');
     const next = qBlock.nextElementSibling;
     if (next && next.classList.contains('question-block')) {
         next.insertAdjacentElement('afterend', qBlock);
-        window.handleAutosaveTrigger();
+        AssessmentBuilder.handleAutosaveTrigger();
     }
 };
 
-window.updateCategoryNumbers = function() {
+AssessmentBuilder.updateCategoryNumbers = function() {
     document.querySelectorAll('.category-block').forEach((block, index) => {
         const numberBadge = block.querySelector('.cat-number-badge');
         if (numberBadge) {
@@ -378,28 +379,28 @@ window.updateCategoryNumbers = function() {
     });
 };
 
-window.removeOption = function (btnElement, qId) {
+AssessmentBuilder.removeOption = function (btnElement, qId) {
     btnElement.closest(".option-row").remove();
-    window.handleAutosaveTrigger();
+    AssessmentBuilder.handleAutosaveTrigger();
 };
 
-window.removeElement = function (id) {
+AssessmentBuilder.removeElement = function (id) {
     const el = document.getElementById(id);
     if (el) {
         const isCategory = el.classList.contains('category-block');
         el.remove();
-        if (isCategory) window.updateCategoryNumbers(); 
+        if (isCategory) AssessmentBuilder.updateCategoryNumbers(); 
     }
-    window.handleAutosaveTrigger();
+    AssessmentBuilder.handleAutosaveTrigger();
 };
 
-window.toggleCategory = function (id, event) {
+AssessmentBuilder.toggleCategory = function (id, event) {
     if (["INPUT", "BUTTON", "I"].includes(event.target.tagName)) return;
     const body = document.querySelector(`#${id} .category-body`);
     body.classList.toggle("hidden");
 };
 
-window.toggleQuestion = function (id, event) {
+AssessmentBuilder.toggleQuestion = function (id, event) {
     if (event && event.target.closest("button")) return;
     
     const block = document.getElementById(id);
@@ -421,12 +422,12 @@ window.toggleQuestion = function (id, event) {
     }
 };
 
-window.updateCatDisplay = function (input) {
+AssessmentBuilder.updateCatDisplay = function (input) {
     const title = input.closest(".category-block").querySelector(".category-display-title");
     title.innerText = input.value || "New Section";
 };
 
-window.getPayload = function (status) {
+AssessmentBuilder.getPayload = function (status) {
     const categories = [];
     document.querySelectorAll(".category-block").forEach((cat) => {
         const questions = [];
@@ -461,23 +462,23 @@ window.getPayload = function (status) {
     };
 };
 
-window.handleAutosaveTrigger = function () {
-    if (window.isInitializing) return; 
+AssessmentBuilder.handleAutosaveTrigger = function () {
+    if (AssessmentBuilder.isInitializing) return; 
     
-    window.hasChanged = true;
-    window.updateAutosaveIndicator('<i class="fas fa-pencil-alt fa-spin"></i> Typing...');
-    clearTimeout(autosaveTimer);
-    autosaveTimer = setTimeout(() => { window.autosaveToServer(); }, SYNC_DELAY);
+    AssessmentBuilder.hasChanged = true;
+    AssessmentBuilder.updateAutosaveIndicator('<i class="fas fa-pencil-alt fa-spin"></i> Typing...');
+    clearTimeout(AssessmentBuilder.autosaveTimer);
+    AssessmentBuilder.autosaveTimer = setTimeout(() => { AssessmentBuilder.autosaveToServer(); }, AssessmentBuilder.SYNC_DELAY);
 };
 
-window.autosaveToServer = async function () {
+AssessmentBuilder.autosaveToServer = async function () {
     const wrapper = document.getElementById("assessment-wrapper");
-    if (!wrapper) return;
+    if (!wrapper) return; // Guard 
 
-    const payload = window.getPayload("draft");
+    const payload = AssessmentBuilder.getPayload("draft");
     const payloadString = JSON.stringify(payload);
-    if (payloadString === lastPayload) return;
-    lastPayload = payloadString;
+    if (payloadString === AssessmentBuilder.lastPayload) return;
+    AssessmentBuilder.lastPayload = payloadString;
 
     try {
         await fetch(wrapper.dataset.autosaveUrl, {
@@ -485,37 +486,36 @@ window.autosaveToServer = async function () {
             headers: { "Content-Type": "application/json", "X-CSRF-TOKEN": wrapper.dataset.csrf, Accept: "application/json" },
             body: payloadString,
         });
-        window.updateAutosaveIndicator('<i class="fas fa-check-circle text-green-500"></i> Synced');
+        AssessmentBuilder.updateAutosaveIndicator('<i class="fas fa-check-circle text-green-500"></i> Synced');
     } catch (e) {
-        window.updateAutosaveIndicator('<i class="fas fa-wifi-slash text-amber-500"></i> Offline');
+        AssessmentBuilder.updateAutosaveIndicator('<i class="fas fa-wifi-slash text-amber-500"></i> Offline');
     }
 };
 
-window.updateAutosaveIndicator = function (html) {
+AssessmentBuilder.updateAutosaveIndicator = function (html) {
     const el = document.getElementById("autosave-indicator");
     if (el) el.innerHTML = html;
 };
 
-// --- MEDIA UPLOAD LOGIC ---
-window.currentMediaUploadQId = null;
-window.selectedMediaFile = null;
+AssessmentBuilder.currentMediaUploadQId = null;
+AssessmentBuilder.selectedMediaFile = null;
 
-window.openMediaModal = function (qId) {
-    window.currentMediaUploadQId = qId;
-    window.clearSelectedMedia();
+AssessmentBuilder.openMediaModal = function (qId) {
+    AssessmentBuilder.currentMediaUploadQId = qId;
+    AssessmentBuilder.clearSelectedMedia();
     document.getElementById("media-upload-modal").classList.remove("hidden");
 };
 
-window.closeMediaModal = function () {
+AssessmentBuilder.closeMediaModal = function () {
     document.getElementById("media-upload-modal").classList.add("hidden");
-    window.currentMediaUploadQId = null;
+    AssessmentBuilder.currentMediaUploadQId = null;
 };
 
-window.handleMediaFileSelect = function (input) {
+AssessmentBuilder.handleMediaFileSelect = function (input) {
     if (!input.files || input.files.length === 0) return;
 
-    window.selectedMediaFile = input.files[0];
-    document.getElementById("selected-media-name").innerText = window.selectedMediaFile.name;
+    AssessmentBuilder.selectedMediaFile = input.files[0];
+    document.getElementById("selected-media-name").innerText = AssessmentBuilder.selectedMediaFile.name;
 
     document.getElementById("media-dropzone").classList.add("hidden");
     document.getElementById("selected-media-display").classList.remove("hidden");
@@ -524,8 +524,8 @@ window.handleMediaFileSelect = function (input) {
     document.getElementById("start-media-upload-btn").disabled = false;
 };
 
-window.clearSelectedMedia = function () {
-    window.selectedMediaFile = null;
+AssessmentBuilder.clearSelectedMedia = function () {
+    AssessmentBuilder.selectedMediaFile = null;
     document.getElementById("media-file-input").value = "";
 
     document.getElementById("media-dropzone").classList.remove("hidden");
@@ -535,17 +535,20 @@ window.clearSelectedMedia = function () {
     document.getElementById("start-media-upload-btn").disabled = true;
 };
 
-window.executeMediaUpload = async function () {
-    if (!window.selectedMediaFile || !window.currentMediaUploadQId) return;
+AssessmentBuilder.executeMediaUpload = async function () {
+    if (!AssessmentBuilder.selectedMediaFile || !AssessmentBuilder.currentMediaUploadQId) return;
+
+    const wrapper = document.getElementById("assessment-wrapper");
+    if (!wrapper) return; // Guard
 
     const btn = document.getElementById("start-media-upload-btn");
+    if (!btn) return;
     const originalHtml = btn.innerHTML;
     btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> <span>Uploading...</span>';
     btn.disabled = true;
 
-    const wrapper = document.getElementById("assessment-wrapper");
     const formData = new FormData();
-    formData.append("media_file", window.selectedMediaFile);
+    formData.append("media_file", AssessmentBuilder.selectedMediaFile);
 
     try {
         const response = await fetch(wrapper.dataset.uploadUrl, {
@@ -560,13 +563,13 @@ window.executeMediaUpload = async function () {
         const data = await response.json();
 
         if (data.success) {
-            window.setMediaPreview(
-                window.currentMediaUploadQId,
+            AssessmentBuilder.setMediaPreview(
+                AssessmentBuilder.currentMediaUploadQId,
                 data.media_url,
                 data.media_type,
             );
-            window.closeMediaModal();
-            window.handleAutosaveTrigger();
+            AssessmentBuilder.closeMediaModal();
+            AssessmentBuilder.handleAutosaveTrigger();
         } else {
             alert(data.message || "Failed to upload media.");
         }
@@ -578,7 +581,7 @@ window.executeMediaUpload = async function () {
     }
 };
 
-window.setMediaPreview = function (qId, url, explicitType = null) {
+AssessmentBuilder.setMediaPreview = function (qId, url, explicitType = null) {
     const block = document.getElementById(qId);
 
     const mediaInput = block.querySelector(".q-media-url") || block.querySelector(".q-image-url");
@@ -608,13 +611,13 @@ window.setMediaPreview = function (qId, url, explicitType = null) {
 
     previewDiv.innerHTML = `
         ${mediaHtml}
-        <button type="button" onclick="window.removeQuestionMedia('${qId}')" class="absolute top-1 right-1 h-6 w-6 bg-red-500/80 hover:bg-red-600 text-white rounded flex items-center justify-center backdrop-blur-sm transition z-10 shadow-sm">
+        <button type="button" onclick="AssessmentBuilder.removeQuestionMedia('${qId}')" class="absolute top-1 right-1 h-6 w-6 bg-red-500/80 hover:bg-red-600 text-white rounded flex items-center justify-center backdrop-blur-sm transition z-10 shadow-sm">
             <i class="fas fa-times text-xs"></i>
         </button>
     `;
 };
 
-window.removeQuestionMedia = function (qId) {
+AssessmentBuilder.removeQuestionMedia = function (qId) {
     const block = document.getElementById(qId);
     block.querySelector(".q-media-url").value = "";
 
@@ -624,22 +627,24 @@ window.removeQuestionMedia = function (qId) {
         previewDiv.classList.add("hidden");
     }
 
-    window.handleAutosaveTrigger();
+    AssessmentBuilder.handleAutosaveTrigger();
 };
 
-window.collectCategoriesData = function () {
-    return window.getPayload("draft").categories;
+AssessmentBuilder.collectCategoriesData = function () {
+    return AssessmentBuilder.getPayload("draft").categories;
 };
 
-window.saveCompleteExam = async function (btn, status) {
-    clearTimeout(autosaveTimer);
-    lastPayload = "";
+AssessmentBuilder.saveCompleteExam = async function (btn, status) {
+    clearTimeout(AssessmentBuilder.autosaveTimer);
+    AssessmentBuilder.lastPayload = "";
 
     const wrapper = document.getElementById("assessment-wrapper");
-    const payload = window.getPayload(status);
+    if (!wrapper) return; // Guard
+
+    const payload = AssessmentBuilder.getPayload(status);
 
     if (!payload.title || !payload.year_level) {
-        return window.showModal(
+        return AssessmentBuilder.showModal(
             "warning",
             "Missing Information",
             "Please fill out the Assessment Title and Year / Grade Level before saving.",
@@ -666,34 +671,34 @@ window.saveCompleteExam = async function (btn, status) {
             localStorage.removeItem("assessment_draft_" + wrapper.dataset.assessmentId);
 
             const title = status === "published" ? "Test Published!" : "Draft Saved!";
-            const msg = status === "published"
-                ? "Your test is live and ready for students."
-                : "Your progress has been safely stored.";
+            const msg = status === "published" ? "Your test is live and ready for students." : "Your progress has been safely stored.";
 
-            window.showModal("success", title, msg, () => {
-                window.goToUrl(wrapper.dataset.manageUrl);
+            AssessmentBuilder.showModal("success", title, msg, () => {
+                AssessmentBuilder.goToUrl(wrapper.dataset.manageUrl);
             });
         } else {
             throw new Error(result.message || "Failed to save");
         }
     } catch (e) {
-        window.showModal("error", "Save Failed", e.message);
-        window.resetBtn(btn, originalText);
+        AssessmentBuilder.showModal("error", "Save Failed", e.message);
+        AssessmentBuilder.resetBtn(btn, originalText);
     }
 };
 
-window.resetBtn = (btn, txt) => {
+AssessmentBuilder.resetBtn = (btn, txt) => {
     btn.disabled = false;
     btn.innerHTML = txt;
 };
 
-window.deleteAssessmentFromBuilder = async function () {
-    window.showModal(
+AssessmentBuilder.deleteAssessmentFromBuilder = async function () {
+    AssessmentBuilder.showModal(
         "confirm",
         "Discard Assessment?",
         "Are you sure you want to discard this entire assessment? This cannot be undone.",
         async () => {
             const wrapper = document.getElementById("assessment-wrapper");
+            if (!wrapper) return; // Guard
+
             try {
                 const response = await fetch(wrapper.dataset.deleteUrl, {
                     method: "DELETE",
@@ -703,39 +708,40 @@ window.deleteAssessmentFromBuilder = async function () {
                     },
                 });
                 if (response.ok) {
-                    window.goToUrl(wrapper.dataset.redirectUrl);
+                    if (typeof loadPartial === "function") {
+                        loadPartial(wrapper.dataset.redirectUrl);
+                    } else {
+                        window.location.href = wrapper.dataset.redirectUrl;
+                    }
                 }
             } catch (e) {
-                window.showModal(
-                    "error",
-                    "Error",
-                    "Failed to discard assessment.",
-                );
+                AssessmentBuilder.showModal("error", "Error", "Failed to discard assessment.");
             }
         },
     );
 };
 
 window.addEventListener("beforeunload", (event) => {
-    if (lastPayload !== "") {
+    if (AssessmentBuilder.lastPayload !== "") {
         event.preventDefault();
         event.returnValue = "";
     }
 });
 
-window.discardChangesAndExit = function (btn) {
-    window.showModal(
+AssessmentBuilder.discardChangesAndExit = function (btn) {
+    AssessmentBuilder.showModal(
         "confirm",
         "Discard Unsaved Changes?",
         "Are you sure you want to discard your unsaved work and exit? This cannot be undone.",
         async () => {
             const wrapper = document.getElementById("assessment-wrapper");
-            if (!wrapper) return;
+            if (!wrapper) return; // Guard
 
-            document.getElementById("back-modal").classList.add("hidden");
+            const backModal = document.getElementById("back-modal");
+            if (backModal) backModal.classList.add("hidden");
 
-            clearTimeout(autosaveTimer);
-            lastPayload = "";
+            clearTimeout(AssessmentBuilder.autosaveTimer);
+            AssessmentBuilder.lastPayload = "";
 
             const isNew = wrapper.dataset.isNew === 'true';
 
@@ -747,8 +753,8 @@ window.discardChangesAndExit = function (btn) {
 
             try {
                 if (isNew) {
-                    await window.silentlyDeleteAndExit();
-                    window.goToUrl(wrapper.dataset.redirectUrl);
+                    await AssessmentBuilder.silentlyDeleteAndExit();
+                    AssessmentBuilder.goToUrl(wrapper.dataset.redirectUrl);
                 } else {
                     await fetch(wrapper.dataset.autosaveUrl, {
                         method: "POST",
@@ -759,11 +765,11 @@ window.discardChangesAndExit = function (btn) {
                         },
                         body: JSON.stringify({ clear_draft: true }),
                     });
-                    window.goToUrl(wrapper.dataset.manageUrl);
+                    AssessmentBuilder.goToUrl(wrapper.dataset.manageUrl);
                 }
             } catch (e) {
                 console.warn("Failed to clear drafts or delete:", e);
-                window.goToUrl(wrapper.dataset.redirectUrl); 
+                AssessmentBuilder.goToUrl(wrapper.dataset.redirectUrl); 
             }
         },
     );
@@ -778,7 +784,7 @@ if (backModal) {
     });
 }
 
-window.showModal = function (type, title, message, callback = null) {
+AssessmentBuilder.showModal = function (type, title, message, callback = null) {
     const modal = document.getElementById("status-modal");
     if (!modal) {
         alert(`${title}\n${message}`);
@@ -790,15 +796,14 @@ window.showModal = function (type, title, message, callback = null) {
     const titleEl = document.getElementById("status-modal-title");
     const msgEl = document.getElementById("status-modal-message");
     const btn = document.getElementById("status-modal-btn");
+    if (!btn) return;
     const cancelBtn = document.getElementById("status-modal-cancel-btn");
 
     titleEl.innerText = title;
     msgEl.innerText = message;
 
-    iconContainer.className =
-        "h-16 w-16 rounded-full flex items-center justify-center mx-auto mb-4 text-3xl";
-    btn.className =
-        "w-full py-3.5 text-white font-bold rounded-xl transition active:scale-95 shadow-md";
+    iconContainer.className = "h-16 w-16 rounded-full flex items-center justify-center mx-auto mb-4 text-3xl";
+    btn.className = "w-full py-3.5 text-white font-bold rounded-xl transition active:scale-95 shadow-md";
     cancelBtn.classList.add("hidden");
     btn.innerText = "OK";
 
@@ -839,28 +844,17 @@ window.showModal = function (type, title, message, callback = null) {
     };
 };
 
-window.goToUrl = function(url) {
-    console.log("Attempting to navigate to: ", url);
-    
+AssessmentBuilder.goToUrl = function(url) {
     if (typeof loadPartial === "function") {
-        try {
-            const navBtn = document.getElementById('nav-assessment-btn');
-            if (navBtn) {
-                loadPartial(url, navBtn);
-            } else {
-                loadPartial(url);
-            }
-        } catch (e) {
-            console.warn("loadPartial failed, falling back to standard redirect.", e);
-            window.location.href = url;
-        }
+        loadPartial(url);
     } else {
         window.location.href = url;
     }
 };
 
-window.silentlyDeleteAndExit = async function() {
+AssessmentBuilder.silentlyDeleteAndExit = async function() {
     const wrapper = document.getElementById("assessment-wrapper");
+    if (!wrapper) return; // Guard
     try {
         await fetch(wrapper.dataset.deleteUrl, {
             method: "DELETE",
@@ -874,131 +868,25 @@ window.silentlyDeleteAndExit = async function() {
     }
 };
 
-window.handleAssessmentBackButton = async function(btn) {
+AssessmentBuilder.handleBackButton = async function(btn) {
     const wrapper = document.getElementById("assessment-wrapper");
-    
-    if (!wrapper) {
-        console.error("Assessment wrapper missing data attributes.");
-        return;
-    }
+    if (!wrapper) return; // Guard
 
     const isNew = wrapper.dataset.isNew === 'true';
-    const manageUrl = wrapper.dataset.manageUrl;
-    const redirectUrl = wrapper.dataset.redirectUrl;
 
-    if (window.hasChanged) {
-        document.getElementById('back-modal').classList.remove('hidden');
+    if (AssessmentBuilder.hasChanged) {
+        const backModal = document.getElementById('back-modal');
+        if (backModal) backModal.classList.remove('hidden');
     } else {
-        btn.style.width = btn.offsetWidth + 'px';
-        btn.style.height = btn.offsetHeight + 'px';
-        btn.innerHTML = '<i class="fas fa-spinner fa-spin text-[#a52a2a]"></i>';
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
         btn.disabled = true;
 
-        try {
-            if (isNew) {
-                await window.silentlyDeleteAndExit();
-                window.goToUrl(redirectUrl);
-            } else {
-                window.goToUrl(manageUrl);
-            }
-        } catch (e) {
-            console.error("Error during navigation:", e);
-            window.location.href = manageUrl;
+        if (isNew) {
+            await AssessmentBuilder.silentlyDeleteAndExit();
+            AssessmentBuilder.goToUrl(wrapper.dataset.redirectUrl);
+        } else {
+            AssessmentBuilder.goToUrl(wrapper.dataset.manageUrl);
         }
     }
 };
 
-// --- IMPORT EXCEL LOGIC ADDED HERE ---
-
-let selectedFile = null;
-
-window.openImportModal = function() {
-    window.clearSelectedFile(); 
-    document.getElementById('excel-import-modal').classList.remove('hidden');
-};
-
-window.closeImportModal = function() {
-    document.getElementById('excel-import-modal').classList.add('hidden');
-};
-
-window.handleFileSelect = function(input) {
-    if (!input.files || input.files.length === 0) return;
-
-    selectedFile = input.files[0];
-    document.getElementById('selected-file-name').innerText = selectedFile.name;
-    document.getElementById('file-dropzone').classList.add('hidden');
-    document.getElementById('selected-file-display').classList.remove('hidden');
-    document.getElementById('selected-file-display').classList.add('flex'); 
-    document.getElementById('start-upload-btn').disabled = false;
-};
-
-window.clearSelectedFile = function() {
-    selectedFile = null;
-    document.getElementById('excel-file-input').value = '';
-    document.getElementById('file-dropzone').classList.remove('hidden');
-    document.getElementById('selected-file-display').classList.add('hidden');
-    document.getElementById('selected-file-display').classList.remove('flex');
-    document.getElementById('start-upload-btn').disabled = true;
-};
-
-window.executeExcelUpload = function() {
-    if (!selectedFile) return;
-
-    let btn = document.getElementById('start-upload-btn');
-    let originalHtml = btn.innerHTML;
-
-    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> <span>Processing...</span>';
-    btn.disabled = true;
-
-    let payload = window.getPayload("draft");
-    let formData = new FormData();
-    formData.append('exam_file', selectedFile);
-    formData.append('_token', document.querySelector('[data-csrf]').dataset.csrf);
-    formData.append('title', payload.title);
-    formData.append('year_level', payload.year_level);
-    formData.append('description', payload.description);
-    formData.append('categories', JSON.stringify(payload.categories));
-
-    let wrapper = document.getElementById('assessment-wrapper');
-    let assessmentId = wrapper.dataset.assessmentId;
-
-    fetch(`/dashboard/assessments/${assessmentId}/import`, {
-        method: 'POST',
-        headers: { 'Accept': 'application/json' },
-        body: formData
-    })
-        .then(async response => {
-            if (!response.ok) {
-                let errorData = await response.json().catch(() => ({}));
-                throw new Error(errorData.message || `Server error (${response.status})`);
-            }
-            return response.json();
-        })
-        .then(data => {
-            if (data.success) {
-                window.closeImportModal();
-                window.showStatusModal('Success!', 'Your exam has been updated with the imported questions.', 'success');
-
-                window.hasChanged = false;
-                lastPayload = "";
-                localStorage.removeItem("assessment_draft_" + assessmentId);
-
-                setTimeout(() => {
-                    let buildUrl = `/dashboard/assessments/${assessmentId}/build`;
-                    if (typeof loadPartial === 'function') {
-                        loadPartial(buildUrl, document.getElementById('nav-assessment-btn'));
-                    } else {
-                        window.location.href = buildUrl;
-                    }
-                }, 2000);
-            } else {
-                throw new Error(data.message || 'Import failed.');
-            }
-        })
-        .catch(error => {
-            console.error('Upload Error:', error);
-            btn.innerHTML = originalHtml;
-            btn.disabled = false;
-            window.showStatusModal('Import Failed', error.message, 'error');
-        });
-};

@@ -1,10 +1,11 @@
-<div id="material-wrapper" data-material-id="{{ $material->id ?? 'new' }}"
+<div id="material-wrapper" data-material-id="{{ $material->id ?? '' }}"
     data-is-new="{{ isset($isNew) && $isNew ? 'true' : 'false' }}"
-    data-autosave-url="{{ route('dashboard.materials.autosave', $material->id ?? 0) }}"
-    data-save-url="{{ route('dashboard.materials.store', $material->id ?? 0) }}"
+    data-autosave-url="{{ isset($material) && isset($material->id) ? route('dashboard.materials.autosave', $material->id) : '#' }}"
+    data-save-url="{{ isset($material) && isset($material->id) ? route('dashboard.materials.store', $material->id) : '#' }}"
+    data-builder-url="{{ isset($material) && isset($material->id) ? route('dashboard.materials.edit', $material->id) : '#' }}"
+    data-manage-url="{{ isset($material) && isset($material->id) ? route('dashboard.materials.manage', $material->id) : '#' }}"
+    data-delete-url="{{ isset($material) && isset($material->id) ? route('dashboard.materials.destroy', $material->id) : '#' }}"
     data-redirect-url="{{ route('dashboard.materials.index') }}" 
-    data-manage-url="{{ route('dashboard.materials.manage', $material->id ?? 0) }}"
-    data-delete-url="{{ route('dashboard.materials.destroy', $material->id ?? 0) }}"
     data-csrf="{{ csrf_token() }}"
     data-upload-url="{{ route('dashboard.materials.upload_media') }}"
     class="space-y-6 pb-20 w-full max-w-5xl mx-auto">
@@ -12,12 +13,12 @@
     <input type="hidden" id="existing-data" value="{{ json_encode($lessons ?? []) }}">
     <input type="hidden" id="server-draft-data" value="{{ $material->draft_json ?? '' }}">
 
-    <img src onerror="if(typeof window.initBuilder === 'function') window.initBuilder()" style="display:none;">
+    <img src onerror="if(typeof MaterialBuilder !== 'undefined' && typeof MaterialBuilder.initBuilder === 'function') MaterialBuilder.initBuilder()" style="display:none;">
 
     <div class="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
         <div class="border-b border-gray-100 p-6 flex items-center justify-between bg-gray-50/50">
             <div class="flex items-center gap-4">
-                <button type="button" onclick="window.handleBackButton(this)"
+                <button type="button" onclick="MaterialBuilder.handleBackButton(this)"
                     class="h-10 w-10 flex items-center justify-center rounded-xl bg-white border border-gray-200 text-gray-500 hover:text-[#a52a2a] transition shadow-sm">
                     <i class="fas fa-arrow-left"></i>
                 </button>
@@ -27,7 +28,7 @@
                 <div id="autosave-indicator" class="text-xs text-gray-400 italic font-medium px-3 py-1 bg-white border border-gray-100 rounded-lg">
                     Ready
                 </div>
-                <button type="button" onclick="window.discardChangesAndExit(this)"
+                <button type="button" onclick="MaterialBuilder.discardChangesAndExit(this)"
                     class="h-10 px-4 flex items-center gap-2 rounded-xl bg-red-50 text-red-600 hover:bg-red-100 transition text-sm font-bold">
                     <i class="fas fa-trash-alt"></i> Discard
                 </button>
@@ -52,12 +53,12 @@
                 <div class="border-2 border-dashed border-gray-200 rounded-2xl p-0 relative overflow-hidden flex flex-col justify-center items-center bg-gray-50 hover:bg-gray-100 transition group cursor-pointer min-h-[160px] h-full" onclick="document.getElementById('thumbnail-upload').click()">
                     <input type="file" id="thumbnail-upload" class="hidden" accept="image/*" onchange="previewThumbnail(this)">
                     
-                    <img id="thumbnail-preview" src="{{ $material->thumbnail ? asset('storage/' . $material->thumbnail) : '' }}" class="absolute inset-0 w-full h-full object-cover {{ $material->thumbnail ? '' : 'hidden' }} z-0" alt="Thumbnail Preview">
+                    <img id="thumbnail-preview" src="{{ isset($material) && $material->thumbnail ? asset('storage/' . $material->thumbnail) : '' }}" class="absolute inset-0 w-full h-full object-cover {{ isset($material) && $material->thumbnail ? '' : 'hidden' }} z-0" alt="Thumbnail Preview">
                     
-                    <div id="thumbnail-placeholder" class="flex flex-col items-center justify-center relative z-10 w-full h-full rounded-xl transition {{ $material->thumbnail ? 'bg-black/40 opacity-0 hover:opacity-100' : 'bg-white/50 backdrop-blur-[2px] group-hover:bg-white/80' }}">
-                        <i class="fas fa-image text-4xl {{ $material->thumbnail ? 'text-white' : 'text-gray-400 group-hover:text-[#a52a2a]' }} transition mb-3"></i>
-                        <span class="text-sm font-bold {{ $material->thumbnail ? 'text-white' : 'text-gray-700' }} mb-1">{{ $material->thumbnail ? 'Change Thumbnail' : 'Course Thumbnail' }}</span>
-                        <p class="text-[10px] text-center {{ $material->thumbnail ? 'text-gray-200' : 'text-gray-500' }} px-4">Upload a cover image (JPG, PNG).</p>
+                    <div id="thumbnail-placeholder" class="flex flex-col items-center justify-center relative z-10 w-full h-full rounded-xl transition {{ isset($material) && $material->thumbnail ? 'bg-black/40 opacity-0 hover:opacity-100' : 'bg-white/50 backdrop-blur-[2px] group-hover:bg-white/80' }}">
+                        <i class="fas fa-image text-4xl {{ isset($material) && $material->thumbnail ? 'text-white' : 'text-gray-400 group-hover:text-[#a52a2a]' }} transition mb-3"></i>
+                        <span class="text-sm font-bold {{ isset($material) && $material->thumbnail ? 'text-white' : 'text-gray-700' }} mb-1">{{ isset($material) && $material->thumbnail ? 'Change Thumbnail' : 'Course Thumbnail' }}</span>
+                        <p class="text-[10px] text-center {{ isset($material) && $material->thumbnail ? 'text-gray-200' : 'text-gray-500' }} px-4">Upload a cover image (JPG, PNG).</p>
                     </div>
                 </div>
             </div>
@@ -74,7 +75,7 @@
         </div>
 
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <button type="button" onclick="window.addSection('lesson')" class="px-4 py-8 border-2 border-dashed border-blue-200 text-blue-600 font-bold rounded-2xl hover:bg-blue-50 transition flex flex-col items-center justify-center gap-3 group bg-white shadow-sm">
+            <button type="button" onclick="MaterialBuilder.addSection('lesson')" class="px-4 py-8 border-2 border-dashed border-blue-200 text-blue-600 font-bold rounded-2xl hover:bg-blue-50 transition flex flex-col items-center justify-center gap-3 group bg-white shadow-sm">
                 <div class="h-12 w-12 rounded-full bg-blue-100 group-hover:bg-blue-200 flex items-center justify-center transition text-xl">
                     <i class="fas fa-book-open"></i>
                 </div>
@@ -84,7 +85,7 @@
                 </div>
             </button>
 
-            <button type="button" onclick="window.addSection('exam')" class="px-4 py-8 border-2 border-dashed border-red-200 text-red-600 font-bold rounded-2xl hover:bg-red-50 transition flex flex-col items-center justify-center gap-3 group bg-white shadow-sm">
+            <button type="button" onclick="MaterialBuilder.addSection('exam')" class="px-4 py-8 border-2 border-dashed border-red-200 text-red-600 font-bold rounded-2xl hover:bg-red-50 transition flex flex-col items-center justify-center gap-3 group bg-white shadow-sm">
                 <div class="h-12 w-12 rounded-full bg-red-100 group-hover:bg-red-200 flex items-center justify-center transition text-xl">
                     <i class="fas fa-file-signature"></i>
                 </div>
@@ -108,11 +109,11 @@
     </div>
 
     <div class="mt-10 pt-6 border-t border-gray-200 flex justify-end gap-4">
-        <button type="button" onclick="window.saveCompleteMaterial(this, 'draft')"
+        <button type="button" onclick="MaterialBuilder.saveCompleteMaterial(this, 'draft')"
             class="px-8 py-4 bg-white border border-gray-200 text-gray-700 font-bold rounded-2xl hover:bg-gray-50 transition shadow-sm active:scale-95">
             Save as Draft
         </button>
-        <button type="button" onclick="window.saveCompleteMaterial(this, 'published')"
+        <button type="button" onclick="MaterialBuilder.saveCompleteMaterial(this, 'published')"
             class="px-10 py-4 bg-[#a52a2a] text-white font-bold rounded-2xl hover:bg-red-800 transition shadow-lg shadow-[#a52a2a]/20 flex items-center gap-2 active:scale-95">
             <span>Publish Module</span>
             <i class="fas fa-upload"></i>
@@ -132,17 +133,17 @@
                 <p class="text-gray-500 text-sm mb-6">How would you like to exit? Your progress is currently stored as a temporary draft.</p>
 
                 <div class="space-y-3">
-                    <button type="button" onclick="window.saveCompleteMaterial(this, 'published')"
+                    <button type="button" onclick="MaterialBuilder.saveCompleteMaterial(this, 'published')"
                         class="w-full py-4 bg-[#a52a2a] text-white font-bold rounded-2xl hover:bg-red-800 transition flex items-center justify-center gap-2">
                         <i class="fas fa-upload text-sm"></i>
                         <span>Publish & Exit</span>
                     </button>
-                    <button type="button" onclick="window.saveCompleteMaterial(this, 'draft')"
+                    <button type="button" onclick="MaterialBuilder.saveCompleteMaterial(this, 'draft')"
                         class="w-full py-4 bg-white border border-gray-200 text-gray-700 font-bold rounded-2xl hover:bg-gray-50 transition flex items-center justify-center gap-2">
                         <i class="fas fa-file-alt text-sm text-gray-400"></i>
                         <span>Save as Draft & Exit</span>
                     </button>
-                    <button type="button" onclick="window.discardChangesAndExit(this)"
+                    <button type="button" onclick="MaterialBuilder.discardChangesAndExit(this)"
                         class="w-full py-3 text-gray-400 hover:text-red-500 text-sm font-bold transition">
                         Discard changes and Exit
                     </button>
@@ -213,7 +214,7 @@
 </div>
 
 <div id="media-upload-modal" class="fixed inset-0 z-[120] hidden">
-    <div class="absolute inset-0 bg-gray-900/60 backdrop-blur-sm" onclick="window.closeMediaModal()"></div>
+    <div class="absolute inset-0 bg-gray-900/60 backdrop-blur-sm" onclick="MaterialBuilder.closeMediaModal()"></div>
     <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-md p-6">
         <div class="bg-white rounded-2xl shadow-2xl overflow-hidden border border-gray-100 p-6">
             <div class="text-center mb-6">
@@ -224,7 +225,7 @@
                 <p class="text-gray-500 text-sm mt-1">Attach an image, audio, video, PDF or ZIP.</p>
             </div>
             <div class="mb-6">
-                <input type="file" id="media-file-input" class="hidden" onchange="window.handleMediaFileSelect(this)">
+                <input type="file" id="media-file-input" class="hidden" onchange="MaterialBuilder.handleMediaFileSelect(this)">
                 <label for="media-file-input" id="media-dropzone"
                     class="cursor-pointer flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-gray-300 rounded-xl bg-gray-50 hover:bg-gray-100 hover:border-[#a52a2a]/50 transition">
                     <div class="flex flex-col items-center justify-center pt-5 pb-6">
@@ -237,14 +238,14 @@
                         <i class="fas fa-file-alt text-[#a52a2a] text-lg"></i>
                         <span id="selected-media-name" class="font-mono text-sm text-gray-700 truncate font-medium">file.mp4</span>
                     </div>
-                    <button type="button" onclick="window.clearSelectedMedia()" class="text-gray-400 hover:text-red-500 transition px-2">
+                    <button type="button" onclick="MaterialBuilder.clearSelectedMedia()" class="text-gray-400 hover:text-red-500 transition px-2">
                         <i class="fas fa-times"></i>
                     </button>
                 </div>
             </div>
             <div class="flex gap-3">
-                <button type="button" onclick="window.closeMediaModal()" class="w-full py-3.5 bg-gray-100 text-gray-700 font-bold rounded-xl hover:bg-gray-200 transition active:scale-95">Cancel</button>
-                <button type="button" id="start-media-upload-btn" onclick="window.executeMediaUpload()" disabled
+                <button type="button" onclick="MaterialBuilder.closeMediaModal()" class="w-full py-3.5 bg-gray-100 text-gray-700 font-bold rounded-xl hover:bg-gray-200 transition active:scale-95">Cancel</button>
+                <button type="button" id="start-media-upload-btn" onclick="MaterialBuilder.executeMediaUpload()" disabled
                     class="w-full py-3.5 bg-[#a52a2a] text-white font-bold rounded-xl hover:bg-[#801f1f] transition disabled:opacity-50 disabled:cursor-not-allowed shadow-md flex justify-center items-center gap-2">
                     <i class="fas fa-upload"></i><span>Upload Media</span>
                 </button>
@@ -262,15 +263,18 @@
             reader.onload = function(e) {
                 const preview = document.getElementById('thumbnail-preview');
                 const placeholder = document.getElementById('thumbnail-placeholder');
-                preview.src = e.target.result;
-                preview.classList.remove('hidden');
-                
-                placeholder.className = "flex flex-col items-center justify-center relative z-10 w-full h-full rounded-xl transition bg-black/40 opacity-0 hover:opacity-100";
-                placeholder.innerHTML = `
-                    <i class="fas fa-image text-4xl text-white transition mb-3"></i>
-                    <span class="text-sm font-bold text-white mb-1">Change Thumbnail</span>
-                    <p class="text-[10px] text-center text-gray-200 px-4">Upload a cover image (JPG, PNG).</p>
-                `;
+                if(preview) {
+                    preview.src = e.target.result;
+                    preview.classList.remove('hidden');
+                }
+                if(placeholder) {
+                    placeholder.className = "flex flex-col items-center justify-center relative z-10 w-full h-full rounded-xl transition bg-black/40 opacity-0 hover:opacity-100";
+                    placeholder.innerHTML = `
+                        <i class="fas fa-image text-4xl text-white transition mb-3"></i>
+                        <span class="text-sm font-bold text-white mb-1">Change Thumbnail</span>
+                        <p class="text-[10px] text-center text-gray-200 px-4">Upload a cover image (JPG, PNG).</p>
+                    `;
+                }
             }
             reader.readAsDataURL(input.files[0]);
         }
@@ -308,15 +312,20 @@
 
     function executeExcelUpload() {
         if (!selectedFile) return;
+        
         let btn = document.getElementById('start-upload-btn');
         let originalHtml = btn.innerHTML;
 
         btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> <span>Processing...</span>';
         btn.disabled = true;
 
-        let payload = window.getPayload("draft");
+        let payload = MaterialBuilder.getPayload("draft");
         let formData = new FormData();
-        formData.append('module_file', selectedFile);
+        
+        // Ensure this key matches exactly what your MaterialController looks for!
+        // Typical defaults are 'module_file', 'import_file', or simply 'file'.
+        formData.append('module_file', selectedFile); 
+        
         formData.append('_token', document.querySelector('[data-csrf]').dataset.csrf);
         formData.append('title', payload.title);
         formData.append('description', payload.description);
@@ -330,38 +339,46 @@
             headers: { 'Accept': 'application/json' },
             body: formData
         })
-            .then(async response => {
-                if (!response.ok) {
-                    let errorData = await response.json().catch(() => ({}));
-                    throw new Error(errorData.message || `Server error (${response.status})`);
+        .then(async response => {
+            if (!response.ok) {
+                let errorData = await response.json().catch(() => ({}));
+                let errorMessage = errorData.message || `Server error (${response.status})`;
+                
+                // Show specific validation errors if the backend rejected the file key
+                if (errorData.errors) {
+                    const firstErrorKey = Object.keys(errorData.errors)[0];
+                    errorMessage = errorData.errors[firstErrorKey][0];
                 }
-                return response.json();
-            })
-            .then(data => {
-                if (data.success) {
-                    closeImportModal();
-                    showStatusModal('Success!', 'Your module has been updated with the imported lessons.', 'success');
+                
+                throw new Error(errorMessage);
+            }
+            return response.json();
+        })
+        .then(data => {
+            if (data.success) {
+                closeImportModal();
+                showStatusModal('Success!', 'Your module has been updated with the imported lessons.', 'success');
 
-                    window.hasChanged = false;
-                    localStorage.removeItem("material_draft_" + materialId);
+                MaterialBuilder.hasChanged = false;
+                localStorage.removeItem("material_draft_" + materialId);
 
-                    setTimeout(() => {
-                        let buildUrl = `/dashboard/materials/${materialId}/edit`;
-                        if (typeof loadPartial === 'function') {
-                            loadPartial(buildUrl);
-                        } else {
-                            window.location.href = buildUrl;
-                        }
-                    }, 2000);
-                } else {
-                    throw new Error(data.message || 'Import failed.');
-                }
-            })
-            .catch(error => {
-                btn.innerHTML = originalHtml;
-                btn.disabled = false;
-                showStatusModal('Import Failed', error.message, 'error');
-            });
+                setTimeout(() => {
+                    let buildUrl = wrapper.dataset.builderUrl;
+                    if (typeof loadPartial === 'function') {
+                        loadPartial(buildUrl);
+                    } else {
+                        window.location.href = buildUrl;
+                    }
+                }, 2000);
+            } else {
+                throw new Error(data.message || 'Import failed.');
+            }
+        })
+        .catch(error => {
+            btn.innerHTML = originalHtml;
+            btn.disabled = false;
+            showStatusModal('Import Failed', error.message, 'error');
+        });
     }
 
     function showStatusModal(title, message, type) {

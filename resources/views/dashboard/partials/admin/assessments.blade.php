@@ -14,17 +14,17 @@
 
     <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
         <div class="flex items-center space-x-1 bg-gray-200/50 p-1 rounded-xl w-fit shrink-0">
-            <button onclick="window.filterAssessments('all', this)"
+            <button onclick="AssessmentManager.filter('all', this)"
                 class="assessment-tab px-6 py-2 text-sm font-bold rounded-lg transition-all bg-white text-[#a52a2a] shadow-sm">All</button>
-            <button onclick="window.filterAssessments('live', this)"
+            <button onclick="AssessmentManager.filter('live', this)"
                 class="assessment-tab px-6 py-2 text-sm font-bold rounded-lg transition-all text-gray-500 hover:text-gray-700">Live</button>
-            <button onclick="window.filterAssessments('draft', this)"
+            <button onclick="AssessmentManager.filter('draft', this)"
                 class="assessment-tab px-6 py-2 text-sm font-bold rounded-lg transition-all text-gray-500 hover:text-gray-700">Drafts</button>
         </div>
 
         <div class="relative w-full max-w-md">
             <i class="fas fa-search absolute left-4 top-1/2 -translate-y-1/2 text-gray-400"></i>
-            <input type="text" id="assessment-search" onkeyup="window.searchAssessments()"
+            <input type="text" id="assessment-search" onkeyup="AssessmentManager.search()"
                 placeholder="Search test by title..."
                 class="w-full pl-11 pr-4 py-2.5 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#a52a2a]/20 focus:border-[#a52a2a] outline-none transition-all shadow-sm">
         </div>
@@ -39,7 +39,7 @@
                 class="assessment-card {{ $isLive ? 'live' : 'draft' }} flex flex-col h-full bg-white rounded-2xl border border-gray-200 {{ $isLive ? 'border-t-green-500 border-t-4' : 'border-t-amber-400 border-t-4' }} shadow-sm hover:shadow-lg transition-all duration-300 group overflow-hidden relative cursor-pointer">
 
                 <button
-                    onclick="event.stopPropagation(); window.deleteAssessmentFromList('{{ $assessment->id }}', '{{ route('dashboard.assessments.destroy', $assessment->id) }}')"
+                    onclick="event.stopPropagation(); AssessmentManager.delete('{{ $assessment->id }}', '{{ route('dashboard.assessments.destroy', $assessment->id) }}')"
                     class="absolute top-4 right-4 h-8 w-8 rounded-full bg-gray-50 text-gray-400 opacity-0 group-hover:opacity-100 transition-all flex items-center justify-center hover:bg-red-100 hover:text-red-600 z-10"
                     title="Delete Assessment">
                     <i class="fas fa-trash-alt text-sm"></i>
@@ -148,51 +148,51 @@
 </div>
 
 <script>
-    // 1. Ensure the modal helper exists on this page
-    if (typeof window.showModal === 'undefined') {
-        window.showModal = function (type, title, message, callback = null) {
-            const modal = document.getElementById('status-modal');
-            if (!modal) return alert(message);
+    window.AssessmentManager = window.AssessmentManager || {};
+    
+    AssessmentManager.currentStatus = 'all';
 
-            const iconContainer = document.getElementById('status-modal-icon');
-            const titleEl = document.getElementById('status-modal-title');
-            const msgEl = document.getElementById('status-modal-message');
-            const btn = document.getElementById('status-modal-btn');
-            const cancelBtn = document.getElementById('status-modal-cancel-btn');
+    AssessmentManager.showModal = function (type, title, message, callback = null) {
+        const modal = document.getElementById('status-modal');
+        if (!modal) return alert(message);
 
-            titleEl.innerText = title;
-            msgEl.innerText = message;
-            iconContainer.className = 'h-16 w-16 rounded-full flex items-center justify-center mx-auto mb-4 text-3xl';
-            btn.className = 'w-full py-3.5 text-white font-bold rounded-xl transition active:scale-95 shadow-md';
-            cancelBtn.classList.add('hidden');
-            btn.innerText = 'OK';
-            cancelBtn.onclick = null;
-            btn.onclick = null;
+        const iconContainer = document.getElementById('status-modal-icon');
+        const titleEl = document.getElementById('status-modal-title');
+        const msgEl = document.getElementById('status-modal-message');
+        const btn = document.getElementById('status-modal-btn');
+        const cancelBtn = document.getElementById('status-modal-cancel-btn');
 
-            if (type === 'error') {
-                iconContainer.classList.add('bg-red-50', 'text-red-500');
-                iconContainer.innerHTML = '<i class="fas fa-times-circle"></i>';
-                btn.classList.add('bg-red-600', 'hover:bg-red-700', 'shadow-red-600/20');
-            } else if (type === 'confirm') {
-                iconContainer.classList.add('bg-red-50', 'text-red-500');
-                iconContainer.innerHTML = '<i class="fas fa-trash-alt"></i>';
-                btn.classList.add('bg-red-600', 'hover:bg-red-700', 'shadow-red-600/20');
-                btn.innerText = 'Yes, Delete';
-                cancelBtn.classList.remove('hidden');
-                cancelBtn.onclick = () => modal.classList.add('hidden');
-            }
+        titleEl.innerText = title;
+        msgEl.innerText = message;
+        iconContainer.className = 'h-16 w-16 rounded-full flex items-center justify-center mx-auto mb-4 text-3xl';
+        btn.className = 'w-full py-3.5 text-white font-bold rounded-xl transition active:scale-95 shadow-md';
+        cancelBtn.classList.add('hidden');
+        btn.innerText = 'OK';
+        cancelBtn.onclick = null;
+        btn.onclick = null;
 
-            modal.classList.remove('hidden');
-            btn.onclick = () => {
-                modal.classList.add('hidden');
-                if (callback) callback();
-            };
+        if (type === 'error') {
+            iconContainer.classList.add('bg-red-50', 'text-red-500');
+            iconContainer.innerHTML = '<i class="fas fa-times-circle"></i>';
+            btn.classList.add('bg-red-600', 'hover:bg-red-700', 'shadow-red-600/20');
+        } else if (type === 'confirm') {
+            iconContainer.classList.add('bg-red-50', 'text-red-500');
+            iconContainer.innerHTML = '<i class="fas fa-trash-alt"></i>';
+            btn.classList.add('bg-red-600', 'hover:bg-red-700', 'shadow-red-600/20');
+            btn.innerText = 'Yes, Delete';
+            cancelBtn.classList.remove('hidden');
+            cancelBtn.onclick = () => modal.classList.add('hidden');
+        }
+
+        modal.classList.remove('hidden');
+        btn.onclick = () => {
+            modal.classList.add('hidden');
+            if (callback) callback();
         };
-    }
+    };
 
-    // 2. The upgraded Delete Function
-    window.deleteAssessmentFromList = function (id, url) {
-        window.showModal('confirm', 'Delete Assessment?', 'Are you sure you want to delete this assessment? This action cannot be undone.', async () => {
+    AssessmentManager.delete = function (id, url) {
+        AssessmentManager.showModal('confirm', 'Delete Assessment?', 'Are you sure you want to delete this assessment? This action cannot be undone.', async () => {
 
             const card = document.getElementById('assessment-card-' + id);
             if (!card) return;
@@ -218,15 +218,15 @@
                     card.style.opacity = '0';
                     setTimeout(() => {
                         card.remove();
-                        window.applyFilters(); // Re-run filters to check if list is now empty
+                        AssessmentManager.applyFilters();
                     }, 300);
                 } else {
-                    window.showModal('error', 'Delete Failed', 'The server returned an error while deleting.');
+                    AssessmentManager.showModal('error', 'Delete Failed', 'The server returned an error while deleting.');
                     btn.innerHTML = originalHtml;
                     btn.disabled = false;
                 }
             } catch (e) {
-                window.showModal('error', 'Network Error', 'Could not delete the assessment. Please check your connection.');
+                AssessmentManager.showModal('error', 'Network Error', 'Could not delete the assessment. Please check your connection.');
                 btn.innerHTML = originalHtml;
                 btn.disabled = false;
             }
@@ -234,12 +234,8 @@
         }); 
     }; 
 
-
-    // 3. Search and Filter Functions
-    window.currentStatus = 'all';
-
-    window.filterAssessments = function(status, btnElement) {
-        window.currentStatus = status;
+    AssessmentManager.filter = function(status, btnElement) {
+        AssessmentManager.currentStatus = status;
 
         document.querySelectorAll('.assessment-tab').forEach(tab => {
             tab.classList.remove('bg-white', 'text-[#a52a2a]', 'shadow-sm');
@@ -249,20 +245,20 @@
         btnElement.classList.remove('text-gray-500', 'hover:text-gray-700');
         btnElement.classList.add('bg-white', 'text-[#a52a2a]', 'shadow-sm');
 
-        window.applyFilters();
+        AssessmentManager.applyFilters();
     };
 
-    window.searchAssessments = function() {
-        window.applyFilters();
+    AssessmentManager.search = function() {
+        AssessmentManager.applyFilters();
     };
 
-    window.applyFilters = function() {
+    AssessmentManager.applyFilters = function() {
         const query = document.getElementById('assessment-search').value.toLowerCase();
         let visibleCount = 0;
 
         document.querySelectorAll('.assessment-card').forEach(card => {
             const title = card.querySelector('.test-title').innerText.toLowerCase();
-            const matchesTab = (window.currentStatus === 'all' || card.classList.contains(window.currentStatus));
+            const matchesTab = (AssessmentManager.currentStatus === 'all' || card.classList.contains(AssessmentManager.currentStatus));
 
             if (matchesTab && title.includes(query)) {
                 card.style.display = 'flex';
@@ -272,10 +268,8 @@
             }
         });
 
-        // Show dynamic empty state if nothing matches search/filter
         const dynamicEmptyState = document.getElementById('dynamic-empty-state');
         if (dynamicEmptyState) {
-            // Only show JS empty state if there are actual cards in the DOM, but none are visible
             const totalCards = document.querySelectorAll('.assessment-card').length;
             if (totalCards > 0 && visibleCount === 0) {
                 dynamicEmptyState.style.display = 'flex';

@@ -1,23 +1,27 @@
-window.builderState = {
+window.MaterialBuilder = window.MaterialBuilder || {};
+
+// Scope all state variables to the MaterialBuilder namespace
+MaterialBuilder.state = {
     title: "",
     description: "",
     categories: [],
 };
 
-window.hasChanged = false;
-window.catCount = 0;
-window.isInitializing = false;
+MaterialBuilder.hasChanged = false;
+MaterialBuilder.catCount = 0;
+MaterialBuilder.isInitializing = false;
+MaterialBuilder.autosaveTimer = null;
+MaterialBuilder.SYNC_DELAY = 3000;
+MaterialBuilder.lastPayload = "";
+MaterialBuilder.currentMediaUploadQId = null;
+MaterialBuilder.selectedMediaFile = null;
 
-let autosaveTimer;
-const SYNC_DELAY = 3000;
-let lastPayload = "";
-
-window.initBuilder = function () {
-    window.isInitializing = true;
-    window.catCount = 0;
-    lastPayload = "";
-    window.hasChanged = false;
-    clearTimeout(autosaveTimer);
+MaterialBuilder.initBuilder = function () {
+    MaterialBuilder.isInitializing = true;
+    MaterialBuilder.catCount = 0;
+    MaterialBuilder.lastPayload = "";
+    MaterialBuilder.hasChanged = false;
+    clearTimeout(MaterialBuilder.autosaveTimer);
 
     const wrapper = document.getElementById("material-wrapper");
     const container = document.getElementById("builder-container");
@@ -53,27 +57,27 @@ window.initBuilder = function () {
 
     if (existingData && existingData.length > 0) {
         existingData.forEach((cat) => {
-            window.renderExistingCategory(cat);
+            MaterialBuilder.renderExistingCategory(cat);
         });
-        window.updateCategoryNumbers(); 
+        MaterialBuilder.updateCategoryNumbers(); 
     }
 
     wrapper.addEventListener("input", (e) => {
         if (["INPUT", "TEXTAREA", "SELECT"].includes(e.target.tagName)) {
-            window.handleAutosaveTrigger();
+            MaterialBuilder.handleAutosaveTrigger();
         }
     });
 
-    window.updateAutosaveIndicator("Ready");
+    MaterialBuilder.updateAutosaveIndicator("Ready");
     setTimeout(() => {
-        window.isInitializing = false;
-        window.hasChanged = false; 
+        MaterialBuilder.isInitializing = false;
+        MaterialBuilder.hasChanged = false; 
     }, 500);
 };
 
-window.renderExistingCategory = function (catData) {
+MaterialBuilder.renderExistingCategory = function (catData) {
     const sectionType = catData.section_type || 'lesson'; 
-    window.addSection(sectionType);
+    MaterialBuilder.addSection(sectionType);
     
     const latestCat = document.querySelector(".category-block:last-child");
 
@@ -91,14 +95,14 @@ window.renderExistingCategory = function (catData) {
             if (sectionType === 'exam') mainType = 'exam';
             if (subType === 'content' || subType === 'instruction') mainType = 'content';
 
-            window.addItem(qContainer.id.split("-").pop(), mainType, subType);
+            MaterialBuilder.addItem(qContainer.id.split("-").pop(), mainType, subType);
             
             const latestQ = qContainer.querySelector(".question-block:last-child");
             latestQ.querySelector(".q-text").value = q.text || q.question_text || "";
 
             const mediaUrl = q.media_url || q.image_url; 
             if (mediaUrl) {
-                window.setMediaPreview(latestQ.id, mediaUrl);
+                MaterialBuilder.setMediaPreview(latestQ.id, mediaUrl);
             }
             
             latestQ.querySelector(".options-list").innerHTML = "";
@@ -106,7 +110,7 @@ window.renderExistingCategory = function (catData) {
             if (q.options && q.options.length > 0 && mainType !== 'content') {
                 const isCaseSensitive = q.is_case_sensitive == 1 || q.is_case_sensitive === true;
                 q.options.forEach((opt) => {
-                    window.addOptionToQuestion(
+                    MaterialBuilder.addOptionToQuestion(
                         latestQ.id,
                         subType,
                         opt.is_correct == 1 || opt.is_correct === true,
@@ -115,19 +119,19 @@ window.renderExistingCategory = function (catData) {
                     );
                 });
             } else if (subType === "true_false" && mainType !== 'content') {
-                window.addOptionToQuestion(latestQ.id, "true_false", false, "True");
-                window.addOptionToQuestion(latestQ.id, "true_false", false, "False");
+                MaterialBuilder.addOptionToQuestion(latestQ.id, "true_false", false, "True");
+                MaterialBuilder.addOptionToQuestion(latestQ.id, "true_false", false, "False");
             }
         });
     }
 };
 
-window.addSection = function (type = 'lesson') {
+MaterialBuilder.addSection = function (type = 'lesson') {
     const container = document.getElementById("builder-container");
     if (!container) return;
 
-    window.catCount++;
-    const catId = `cat-${window.catCount}`;
+    MaterialBuilder.catCount++;
+    const catId = `cat-${MaterialBuilder.catCount}`;
 
     let badgeColor = type === 'exam' ? 'bg-red-100 text-red-600' : 'bg-blue-100 text-blue-600';
     let borderColor = type === 'exam' ? 'border-red-200' : 'border-blue-200';
@@ -138,40 +142,40 @@ window.addSection = function (type = 'lesson') {
     if(type === 'lesson') {
         controlsHtml = `
             <div class="flex flex-col md:flex-row items-center gap-3">
-                <button type="button" onclick="window.addItem(${window.catCount}, 'content')" class="flex-1 w-full py-3 text-blue-600 bg-blue-50 text-sm font-bold hover:bg-blue-100 transition rounded-xl border border-blue-100 flex items-center justify-center shadow-sm">
+                <button type="button" onclick="MaterialBuilder.addItem(${MaterialBuilder.catCount}, 'content')" class="flex-1 w-full py-3 text-blue-600 bg-blue-50 text-sm font-bold hover:bg-blue-100 transition rounded-xl border border-blue-100 flex items-center justify-center shadow-sm">
                     <i class="fas fa-align-left mr-2"></i> Add Lesson Content
                 </button>
                 
                 <div class="relative flex-1 w-full group/dropdown">
-                    <button type="button" onclick="window.toggleDropdown(this)" class="w-full py-3 text-purple-600 bg-purple-50 text-sm font-bold hover:bg-purple-100 transition rounded-xl border border-purple-100 flex items-center justify-center shadow-sm">
+                    <button type="button" onclick="MaterialBuilder.toggleDropdown(this)" class="w-full py-3 text-purple-600 bg-purple-50 text-sm font-bold hover:bg-purple-100 transition rounded-xl border border-purple-100 flex items-center justify-center shadow-sm">
                         <i class="fas fa-question-circle mr-2"></i> Add Practice Quiz <i class="fas fa-chevron-down ml-2 text-xs"></i>
                     </button>
                     <div class="hidden absolute bottom-full right-0 mb-2 w-full bg-white border border-gray-100 rounded-xl shadow-lg z-20 py-1 overflow-hidden dropdown-menu">
-                        <button type="button" onclick="window.addItem(${window.catCount}, 'quiz', 'mcq'); window.toggleDropdown(this.closest('.relative').querySelector('button'))" class="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 hover:text-purple-600"><i class="fas fa-dot-circle w-5 text-center text-gray-400 mr-2"></i> Multiple Choice</button>
-                        <button type="button" onclick="window.addItem(${window.catCount}, 'quiz', 'checkbox'); window.toggleDropdown(this.closest('.relative').querySelector('button'))" class="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 hover:text-purple-600"><i class="fas fa-check-square w-5 text-center text-gray-400 mr-2"></i> Checkboxes</button>
-                        <button type="button" onclick="window.addItem(${window.catCount}, 'quiz', 'text'); window.toggleDropdown(this.closest('.relative').querySelector('button'))" class="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 hover:text-purple-600"><i class="fas fa-pencil-alt w-5 text-center text-gray-400 mr-2"></i> Short Text</button>
-                        <button type="button" onclick="window.addItem(${window.catCount}, 'quiz', 'true_false'); window.toggleDropdown(this.closest('.relative').querySelector('button'))" class="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 hover:text-purple-600"><i class="fas fa-adjust w-5 text-center text-gray-400 mr-2"></i> True or False</button>
+                        <button type="button" onclick="MaterialBuilder.addItem(${MaterialBuilder.catCount}, 'quiz', 'mcq'); MaterialBuilder.toggleDropdown(this.closest('.relative').querySelector('button'))" class="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 hover:text-purple-600"><i class="fas fa-dot-circle w-5 text-center text-gray-400 mr-2"></i> Multiple Choice</button>
+                        <button type="button" onclick="MaterialBuilder.addItem(${MaterialBuilder.catCount}, 'quiz', 'checkbox'); MaterialBuilder.toggleDropdown(this.closest('.relative').querySelector('button'))" class="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 hover:text-purple-600"><i class="fas fa-check-square w-5 text-center text-gray-400 mr-2"></i> Checkboxes</button>
+                        <button type="button" onclick="MaterialBuilder.addItem(${MaterialBuilder.catCount}, 'quiz', 'text'); MaterialBuilder.toggleDropdown(this.closest('.relative').querySelector('button'))" class="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 hover:text-purple-600"><i class="fas fa-pencil-alt w-5 text-center text-gray-400 mr-2"></i> Short Text</button>
+                        <button type="button" onclick="MaterialBuilder.addItem(${MaterialBuilder.catCount}, 'quiz', 'true_false'); MaterialBuilder.toggleDropdown(this.closest('.relative').querySelector('button'))" class="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 hover:text-purple-600"><i class="fas fa-adjust w-5 text-center text-gray-400 mr-2"></i> True or False</button>
                     </div>
                 </div>
             </div>`;
     } else {
         controlsHtml = `
             <div class="relative w-full group/dropdown">
-                <button type="button" onclick="window.toggleDropdown(this)" class="w-full py-3 text-red-600 bg-red-50 text-sm font-bold hover:bg-red-100 transition rounded-xl border border-red-100 flex items-center justify-center shadow-sm">
+                <button type="button" onclick="MaterialBuilder.toggleDropdown(this)" class="w-full py-3 text-red-600 bg-red-50 text-sm font-bold hover:bg-red-100 transition rounded-xl border border-red-100 flex items-center justify-center shadow-sm">
                     <i class="fas fa-plus-circle mr-2"></i> Add Exam Question <i class="fas fa-chevron-down ml-2 text-xs"></i>
                 </button>
                 <div class="hidden absolute bottom-full right-0 mb-2 w-full bg-white border border-gray-100 rounded-xl shadow-lg z-20 py-1 overflow-hidden dropdown-menu">
-                    <button type="button" onclick="window.addItem(${window.catCount}, 'exam', 'mcq'); window.toggleDropdown(this.closest('.relative').querySelector('button'))" class="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 hover:text-red-600"><i class="fas fa-dot-circle w-5 text-center text-gray-400 mr-2"></i> Multiple Choice</button>
-                    <button type="button" onclick="window.addItem(${window.catCount}, 'exam', 'checkbox'); window.toggleDropdown(this.closest('.relative').querySelector('button'))" class="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 hover:text-red-600"><i class="fas fa-check-square w-5 text-center text-gray-400 mr-2"></i> Checkboxes</button>
-                    <button type="button" onclick="window.addItem(${window.catCount}, 'exam', 'text'); window.toggleDropdown(this.closest('.relative').querySelector('button'))" class="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 hover:text-red-600"><i class="fas fa-pencil-alt w-5 text-center text-gray-400 mr-2"></i> Short Text</button>
-                    <button type="button" onclick="window.addItem(${window.catCount}, 'exam', 'true_false'); window.toggleDropdown(this.closest('.relative').querySelector('button'))" class="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 hover:text-red-600"><i class="fas fa-adjust w-5 text-center text-gray-400 mr-2"></i> True or False</button>
+                    <button type="button" onclick="MaterialBuilder.addItem(${MaterialBuilder.catCount}, 'exam', 'mcq'); MaterialBuilder.toggleDropdown(this.closest('.relative').querySelector('button'))" class="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 hover:text-red-600"><i class="fas fa-dot-circle w-5 text-center text-gray-400 mr-2"></i> Multiple Choice</button>
+                    <button type="button" onclick="MaterialBuilder.addItem(${MaterialBuilder.catCount}, 'exam', 'checkbox'); MaterialBuilder.toggleDropdown(this.closest('.relative').querySelector('button'))" class="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 hover:text-red-600"><i class="fas fa-check-square w-5 text-center text-gray-400 mr-2"></i> Checkboxes</button>
+                    <button type="button" onclick="MaterialBuilder.addItem(${MaterialBuilder.catCount}, 'exam', 'text'); MaterialBuilder.toggleDropdown(this.closest('.relative').querySelector('button'))" class="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 hover:text-red-600"><i class="fas fa-pencil-alt w-5 text-center text-gray-400 mr-2"></i> Short Text</button>
+                    <button type="button" onclick="MaterialBuilder.addItem(${MaterialBuilder.catCount}, 'exam', 'true_false'); MaterialBuilder.toggleDropdown(this.closest('.relative').querySelector('button'))" class="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 hover:text-red-600"><i class="fas fa-adjust w-5 text-center text-gray-400 mr-2"></i> True or False</button>
                 </div>
             </div>`;
     }
 
     const html = `
         <div class="bg-white rounded-2xl shadow-sm border ${borderColor} category-block overflow-hidden transition-all mb-4" id="${catId}" data-section-type="${type}">
-            <div class="p-4 bg-gray-50/50 flex items-center justify-between cursor-pointer group" onclick="window.toggleCategory('${catId}', event)">
+            <div class="p-4 bg-gray-50/50 flex items-center justify-between cursor-pointer group" onclick="MaterialBuilder.toggleCategory('${catId}', event)">
                 <div class="flex items-center gap-4 flex-1">
                     <div class="h-8 w-8 rounded-lg ${badgeColor} flex items-center justify-center font-bold text-sm cat-number-badge">
                         <i class="fas ${icon}"></i>
@@ -180,29 +184,29 @@ window.addSection = function (type = 'lesson') {
                 </div>
                 
                 <div class="flex items-center gap-1">
-                    <button type="button" onclick="window.moveCategoryUp(this, event)" class="h-8 w-8 flex items-center justify-center text-gray-400 hover:text-gray-700 hover:bg-gray-200 rounded transition" title="Move Section Up"><i class="fas fa-arrow-up"></i></button>
-                    <button type="button" onclick="window.moveCategoryDown(this, event)" class="h-8 w-8 flex items-center justify-center text-gray-400 hover:text-gray-700 hover:bg-gray-200 rounded transition" title="Move Section Down"><i class="fas fa-arrow-down"></i></button>
-                    <button type="button" onclick="window.removeElement('${catId}')" class="h-8 w-8 flex items-center justify-center text-gray-400 hover:text-red-500 hover:bg-red-50 rounded transition ml-2" title="Delete Section"><i class="fas fa-trash-alt"></i></button>
+                    <button type="button" onclick="MaterialBuilder.moveCategoryUp(this, event)" class="h-8 w-8 flex items-center justify-center text-gray-400 hover:text-gray-700 hover:bg-gray-200 rounded transition" title="Move Section Up"><i class="fas fa-arrow-up"></i></button>
+                    <button type="button" onclick="MaterialBuilder.moveCategoryDown(this, event)" class="h-8 w-8 flex items-center justify-center text-gray-400 hover:text-gray-700 hover:bg-gray-200 rounded transition" title="Move Section Down"><i class="fas fa-arrow-down"></i></button>
+                    <button type="button" onclick="MaterialBuilder.removeElement('${catId}')" class="h-8 w-8 flex items-center justify-center text-gray-400 hover:text-red-500 hover:bg-red-50 rounded transition ml-2" title="Delete Section"><i class="fas fa-trash-alt"></i></button>
                 </div>
             </div>
 
             <div class="p-6 border-t border-gray-100 category-body">
                 <div class="mb-6">
                     <label class="block text-[10px] font-bold text-gray-400 uppercase mb-1">${type === 'exam' ? 'Exam Title' : 'Lesson Title'}</label>
-                    <input type="text" class="c-title w-full px-4 py-2 border border-gray-200 rounded-xl outline-none focus:border-[#a52a2a] transition font-medium" placeholder="e.g., ${type === 'exam' ? 'Final Examination' : 'Introduction to the Topic'}" onkeyup="window.updateCatDisplay(this, '${titleDefault}')">
+                    <input type="text" class="c-title w-full px-4 py-2 border border-gray-200 rounded-xl outline-none focus:border-[#a52a2a] transition font-medium" placeholder="e.g., ${type === 'exam' ? 'Final Examination' : 'Introduction to the Topic'}" onkeyup="MaterialBuilder.updateCatDisplay(this, '${titleDefault}')">
                 </div>
                 
-                <div id="q-container-${window.catCount}" class="space-y-4 mb-4"></div>
+                <div id="q-container-${MaterialBuilder.catCount}" class="space-y-4 mb-4"></div>
                 
                 ${controlsHtml}
             </div>
         </div>`;
 
     container.insertAdjacentHTML("beforeend", html);
-    window.handleAutosaveTrigger();
+    MaterialBuilder.handleAutosaveTrigger();
 };
 
-window.toggleDropdown = function (btn) {
+MaterialBuilder.toggleDropdown = function (btn) {
     const menu = btn.nextElementSibling;
     document.querySelectorAll(".dropdown-menu").forEach((el) => {
         if (el !== menu) el.classList.add("hidden");
@@ -210,7 +214,7 @@ window.toggleDropdown = function (btn) {
     menu.classList.toggle("hidden");
 };
 
-window.addItem = function (cId, mainType, subType = 'content') {
+MaterialBuilder.addItem = function (cId, mainType, subType = 'content') {
     const container = document.getElementById(`q-container-${cId}`);
     if (!container) return;
 
@@ -238,7 +242,7 @@ window.addItem = function (cId, mainType, subType = 'content') {
     const html = `
         <div class="p-4 rounded-xl border border-gray-100 question-block relative group ${bgClass}" id="${qId}" data-main-type="${mainType}" data-sub-type="${subType}">
             
-            <div class="flex justify-between items-start mb-2 cursor-pointer" onclick="window.toggleQuestion('${qId}', event)">
+            <div class="flex justify-between items-start mb-2 cursor-pointer" onclick="MaterialBuilder.toggleQuestion('${qId}', event)">
                 <div class="flex items-center gap-2 overflow-hidden pr-2">
                     <div class="h-6 w-6 flex items-center justify-center text-gray-400 group-hover:text-gray-600 transition q-chevron-icon shrink-0">
                         <i class="fas fa-chevron-up text-xs"></i>
@@ -250,9 +254,9 @@ window.addItem = function (cId, mainType, subType = 'content') {
                 </div>
                 
                 <div class="flex items-center gap-1 shrink-0">
-                    <button type="button" onclick="window.moveQuestionUp(this)" class="h-7 w-7 flex items-center justify-center text-gray-300 hover:text-gray-600 transition rounded-md hover:bg-gray-200" title="Move Up"><i class="fas fa-arrow-up"></i></button>
-                    <button type="button" onclick="window.moveQuestionDown(this)" class="h-7 w-7 flex items-center justify-center text-gray-300 hover:text-gray-600 transition rounded-md hover:bg-gray-200" title="Move Down"><i class="fas fa-arrow-down"></i></button>
-                    <button type="button" onclick="window.removeElement('${qId}')" class="h-7 w-7 flex items-center justify-center text-gray-300 hover:text-red-500 transition rounded-md hover:bg-red-50 ml-1" title="Delete Block"><i class="fas fa-times"></i></button>
+                    <button type="button" onclick="MaterialBuilder.moveQuestionUp(this)" class="h-7 w-7 flex items-center justify-center text-gray-300 hover:text-gray-600 transition rounded-md hover:bg-gray-200" title="Move Up"><i class="fas fa-arrow-up"></i></button>
+                    <button type="button" onclick="MaterialBuilder.moveQuestionDown(this)" class="h-7 w-7 flex items-center justify-center text-gray-300 hover:text-gray-600 transition rounded-md hover:bg-gray-200" title="Move Down"><i class="fas fa-arrow-down"></i></button>
+                    <button type="button" onclick="MaterialBuilder.removeElement('${qId}')" class="h-7 w-7 flex items-center justify-center text-gray-300 hover:text-red-500 transition rounded-md hover:bg-red-50 ml-1" title="Delete Block"><i class="fas fa-times"></i></button>
                 </div>
             </div>
 
@@ -261,7 +265,7 @@ window.addItem = function (cId, mainType, subType = 'content') {
                     <textarea class="q-text w-full pl-3 pr-10 py-3 bg-white border border-gray-200 rounded-lg outline-none font-medium text-sm focus:border-[#a52a2a] resize-y min-h-[60px]" placeholder="${placeholder}"></textarea>
                     <input type="hidden" class="q-media-url" value="">
                     
-                    <button type="button" onclick="window.openMediaModal('${qId}')" title="Attach Media" class="absolute right-2 top-2 h-8 w-8 flex items-center justify-center text-gray-400 hover:text-[#a52a2a] hover:bg-gray-100 rounded transition">
+                    <button type="button" onclick="MaterialBuilder.openMediaModal('${qId}')" title="Attach Media" class="absolute right-2 top-2 h-8 w-8 flex items-center justify-center text-gray-400 hover:text-[#a52a2a] hover:bg-gray-100 rounded transition">
                         <i class="fas fa-photo-video"></i>
                     </button>
                 </div>
@@ -271,7 +275,7 @@ window.addItem = function (cId, mainType, subType = 'content') {
                 <div class="options-list space-y-2 mb-3"></div>
                 
                 ${(mainType !== 'content' && (subType === "mcq" || subType === "checkbox")) ? `
-                    <button type="button" onclick="window.addOptionToQuestion('${qId}', '${subType}')" class="text-[10px] font-bold text-[#a52a2a] hover:underline uppercase flex items-center mt-2">
+                    <button type="button" onclick="MaterialBuilder.addOptionToQuestion('${qId}', '${subType}')" class="text-[10px] font-bold text-[#a52a2a] hover:underline uppercase flex items-center mt-2">
                         <i class="fas fa-plus mr-1"></i> Add Choice
                     </button>
                 ` : ""}
@@ -282,18 +286,18 @@ window.addItem = function (cId, mainType, subType = 'content') {
 
     if (mainType !== "content") {
         if (subType === "mcq" || subType === "checkbox") {
-            window.addOptionToQuestion(qId, subType, true, "");
-            window.addOptionToQuestion(qId, subType, false, "");
+            MaterialBuilder.addOptionToQuestion(qId, subType, true, "");
+            MaterialBuilder.addOptionToQuestion(qId, subType, false, "");
         } else if (subType === "text") {
-            window.addOptionToQuestion(qId, "text", true, "");
+            MaterialBuilder.addOptionToQuestion(qId, "text", true, "");
         } else if (subType === "true_false") {
-            window.addOptionToQuestion(qId, "true_false", false, "True");
-            window.addOptionToQuestion(qId, "true_false", false, "False");
+            MaterialBuilder.addOptionToQuestion(qId, "true_false", false, "True");
+            MaterialBuilder.addOptionToQuestion(qId, "true_false", false, "False");
         }
     }
 };
 
-window.addOptionToQuestion = function (qId, type, isCorrect = false, text = "", isCaseSensitive = false) {
+MaterialBuilder.addOptionToQuestion = function (qId, type, isCorrect = false, text = "", isCaseSensitive = false) {
     const list = document.querySelector(`#${qId} .options-list`);
     if (!list) return;
 
@@ -309,7 +313,7 @@ window.addOptionToQuestion = function (qId, type, isCorrect = false, text = "", 
                         <input type="radio" name="correct-${qId}" class="is-correct-input cursor-pointer text-green-600 h-4 w-4" ${isCorrect ? "checked" : ""}>
                         <span class="text-[10px] font-bold uppercase">Correct</span>
                     </label>
-                    <button type="button" onclick="window.removeOption(this, '${qId}')" class="text-gray-300 hover:text-red-500 transition h-6 w-6 flex items-center justify-center"><i class="fas fa-times-circle"></i></button>
+                    <button type="button" onclick="MaterialBuilder.removeOption(this, '${qId}')" class="text-gray-300 hover:text-red-500 transition h-6 w-6 flex items-center justify-center"><i class="fas fa-times-circle"></i></button>
                 </div>
             </div>`;
     } else if (type === "checkbox") {
@@ -321,7 +325,7 @@ window.addOptionToQuestion = function (qId, type, isCorrect = false, text = "", 
                         <input type="checkbox" class="is-correct-input cursor-pointer text-green-600 rounded h-4 w-4" ${isCorrect ? "checked" : ""}>
                         <span class="text-[10px] font-bold uppercase">Correct</span>
                     </label>
-                    <button type="button" onclick="window.removeOption(this, '${qId}')" class="text-gray-300 hover:text-red-500 transition h-6 w-6 flex items-center justify-center"><i class="fas fa-times-circle"></i></button>
+                    <button type="button" onclick="MaterialBuilder.removeOption(this, '${qId}')" class="text-gray-300 hover:text-red-500 transition h-6 w-6 flex items-center justify-center"><i class="fas fa-times-circle"></i></button>
                 </div>
             </div>`;
     } else if (type === "text") {
@@ -349,67 +353,67 @@ window.addOptionToQuestion = function (qId, type, isCorrect = false, text = "", 
     }
 
     list.insertAdjacentHTML("beforeend", optHtml);
-    window.handleAutosaveTrigger();
+    MaterialBuilder.handleAutosaveTrigger();
 };
 
-window.moveCategoryUp = function(btn, event) {
+MaterialBuilder.moveCategoryUp = function(btn, event) {
     event.stopPropagation();
     const catBlock = btn.closest('.category-block');
     const prev = catBlock.previousElementSibling;
     if (prev && prev.classList.contains('category-block')) {
         prev.insertAdjacentElement('beforebegin', catBlock);
-        window.handleAutosaveTrigger();
+        MaterialBuilder.handleAutosaveTrigger();
     }
 };
 
-window.moveCategoryDown = function(btn, event) {
+MaterialBuilder.moveCategoryDown = function(btn, event) {
     event.stopPropagation();
     const catBlock = btn.closest('.category-block');
     const next = catBlock.nextElementSibling;
     if (next && next.classList.contains('category-block')) {
         next.insertAdjacentElement('afterend', catBlock);
-        window.handleAutosaveTrigger();
+        MaterialBuilder.handleAutosaveTrigger();
     }
 };
 
-window.moveQuestionUp = function(btn) {
+MaterialBuilder.moveQuestionUp = function(btn) {
     const qBlock = btn.closest('.question-block');
     const prev = qBlock.previousElementSibling;
     if (prev && prev.classList.contains('question-block')) {
         prev.insertAdjacentElement('beforebegin', qBlock);
-        window.handleAutosaveTrigger();
+        MaterialBuilder.handleAutosaveTrigger();
     }
 };
 
-window.moveQuestionDown = function(btn) {
+MaterialBuilder.moveQuestionDown = function(btn) {
     const qBlock = btn.closest('.question-block');
     const next = qBlock.nextElementSibling;
     if (next && next.classList.contains('question-block')) {
         next.insertAdjacentElement('afterend', qBlock);
-        window.handleAutosaveTrigger();
+        MaterialBuilder.handleAutosaveTrigger();
     }
 };
 
-window.updateCategoryNumbers = function() {};
+MaterialBuilder.updateCategoryNumbers = function() {};
 
-window.removeOption = function (btnElement, qId) {
+MaterialBuilder.removeOption = function (btnElement, qId) {
     btnElement.closest(".option-row").remove();
-    window.handleAutosaveTrigger();
+    MaterialBuilder.handleAutosaveTrigger();
 };
 
-window.removeElement = function (id) {
+MaterialBuilder.removeElement = function (id) {
     const el = document.getElementById(id);
     if (el) el.remove();
-    window.handleAutosaveTrigger();
+    MaterialBuilder.handleAutosaveTrigger();
 };
 
-window.toggleCategory = function (id, event) {
+MaterialBuilder.toggleCategory = function (id, event) {
     if (["INPUT", "BUTTON", "I"].includes(event.target.tagName)) return;
     const body = document.querySelector(`#${id} .category-body`);
     body.classList.toggle("hidden");
 };
 
-window.toggleQuestion = function (id, event) {
+MaterialBuilder.toggleQuestion = function (id, event) {
     if (event && event.target.closest("button")) return;
     
     const block = document.getElementById(id);
@@ -431,12 +435,12 @@ window.toggleQuestion = function (id, event) {
     }
 };
 
-window.updateCatDisplay = function (input, fallback) {
+MaterialBuilder.updateCatDisplay = function (input, fallback) {
     const title = input.closest(".category-block").querySelector(".category-display-title");
     title.innerText = input.value || fallback;
 };
 
-window.getPayload = function (status) {
+MaterialBuilder.getPayload = function (status) {
     const categories = [];
     document.querySelectorAll(".category-block").forEach((cat) => {
         const questions = [];
@@ -479,23 +483,23 @@ window.getPayload = function (status) {
     };
 };
 
-window.handleAutosaveTrigger = function () {
-    if (window.isInitializing) return; 
+MaterialBuilder.handleAutosaveTrigger = function () {
+    if (MaterialBuilder.isInitializing) return; 
     
-    window.hasChanged = true;
-    window.updateAutosaveIndicator('<i class="fas fa-pencil-alt fa-spin"></i> Typing...');
-    clearTimeout(autosaveTimer);
-    autosaveTimer = setTimeout(() => { window.autosaveToServer(); }, SYNC_DELAY);
+    MaterialBuilder.hasChanged = true;
+    MaterialBuilder.updateAutosaveIndicator('<i class="fas fa-pencil-alt fa-spin"></i> Typing...');
+    clearTimeout(MaterialBuilder.autosaveTimer);
+    MaterialBuilder.autosaveTimer = setTimeout(() => { MaterialBuilder.autosaveToServer(); }, MaterialBuilder.SYNC_DELAY);
 };
 
-window.autosaveToServer = async function () {
+MaterialBuilder.autosaveToServer = async function () {
     const wrapper = document.getElementById("material-wrapper"); 
-    if (!wrapper) return;
+    if (!wrapper) return; // Dataset Guard
 
-    const payload = window.getPayload("draft");
+    const payload = MaterialBuilder.getPayload("draft");
     const payloadString = JSON.stringify(payload);
-    if (payloadString === lastPayload) return;
-    lastPayload = payloadString;
+    if (payloadString === MaterialBuilder.lastPayload) return;
+    MaterialBuilder.lastPayload = payloadString;
 
     try {
         await fetch(wrapper.dataset.autosaveUrl, {
@@ -503,36 +507,33 @@ window.autosaveToServer = async function () {
             headers: { "Content-Type": "application/json", "X-CSRF-TOKEN": wrapper.dataset.csrf, Accept: "application/json" },
             body: payloadString,
         });
-        window.updateAutosaveIndicator('<i class="fas fa-check-circle text-green-500"></i> Synced');
+        MaterialBuilder.updateAutosaveIndicator('<i class="fas fa-check-circle text-green-500"></i> Synced');
     } catch (e) {
-        window.updateAutosaveIndicator('<i class="fas fa-wifi-slash text-amber-500"></i> Offline');
+        MaterialBuilder.updateAutosaveIndicator('<i class="fas fa-wifi-slash text-amber-500"></i> Offline');
     }
 };
 
-window.updateAutosaveIndicator = function (html) {
+MaterialBuilder.updateAutosaveIndicator = function (html) {
     const el = document.getElementById("autosave-indicator");
     if (el) el.innerHTML = html;
 };
 
-window.currentMediaUploadQId = null;
-window.selectedMediaFile = null;
-
-window.openMediaModal = function (qId) {
-    window.currentMediaUploadQId = qId;
-    window.clearSelectedMedia();
+MaterialBuilder.openMediaModal = function (qId) {
+    MaterialBuilder.currentMediaUploadQId = qId;
+    MaterialBuilder.clearSelectedMedia();
     document.getElementById("media-upload-modal").classList.remove("hidden");
 };
 
-window.closeMediaModal = function () {
+MaterialBuilder.closeMediaModal = function () {
     document.getElementById("media-upload-modal").classList.add("hidden");
-    window.currentMediaUploadQId = null;
+    MaterialBuilder.currentMediaUploadQId = null;
 };
 
-window.handleMediaFileSelect = function (input) {
+MaterialBuilder.handleMediaFileSelect = function (input) {
     if (!input.files || input.files.length === 0) return;
 
-    window.selectedMediaFile = input.files[0];
-    document.getElementById("selected-media-name").innerText = window.selectedMediaFile.name;
+    MaterialBuilder.selectedMediaFile = input.files[0];
+    document.getElementById("selected-media-name").innerText = MaterialBuilder.selectedMediaFile.name;
 
     document.getElementById("media-dropzone").classList.add("hidden");
     document.getElementById("selected-media-display").classList.remove("hidden");
@@ -541,8 +542,8 @@ window.handleMediaFileSelect = function (input) {
     document.getElementById("start-media-upload-btn").disabled = false;
 };
 
-window.clearSelectedMedia = function () {
-    window.selectedMediaFile = null;
+MaterialBuilder.clearSelectedMedia = function () {
+    MaterialBuilder.selectedMediaFile = null;
     document.getElementById("media-file-input").value = "";
 
     document.getElementById("media-dropzone").classList.remove("hidden");
@@ -552,17 +553,19 @@ window.clearSelectedMedia = function () {
     document.getElementById("start-media-upload-btn").disabled = true;
 };
 
-window.executeMediaUpload = async function () {
-    if (!window.selectedMediaFile || !window.currentMediaUploadQId) return;
+MaterialBuilder.executeMediaUpload = async function () {
+    if (!MaterialBuilder.selectedMediaFile || !MaterialBuilder.currentMediaUploadQId) return;
+
+    const wrapper = document.getElementById("material-wrapper"); 
+    if (!wrapper) return; // Dataset Guard
 
     const btn = document.getElementById("start-media-upload-btn");
     const originalHtml = btn.innerHTML;
     btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> <span>Uploading...</span>';
     btn.disabled = true;
 
-    const wrapper = document.getElementById("material-wrapper"); 
     const formData = new FormData();
-    formData.append("media_file", window.selectedMediaFile);
+    formData.append("media_file", MaterialBuilder.selectedMediaFile);
 
     try {
         const response = await fetch(wrapper.dataset.uploadUrl, {
@@ -577,13 +580,13 @@ window.executeMediaUpload = async function () {
         const data = await response.json();
 
         if (data.success) {
-            window.setMediaPreview(
-                window.currentMediaUploadQId,
+            MaterialBuilder.setMediaPreview(
+                MaterialBuilder.currentMediaUploadQId,
                 data.media_url,
                 data.media_type,
             );
-            window.closeMediaModal();
-            window.handleAutosaveTrigger();
+            MaterialBuilder.closeMediaModal();
+            MaterialBuilder.handleAutosaveTrigger();
         } else {
             alert(data.message || "Failed to upload media.");
         }
@@ -595,7 +598,7 @@ window.executeMediaUpload = async function () {
     }
 };
 
-window.setMediaPreview = function (qId, url, explicitType = null) {
+MaterialBuilder.setMediaPreview = function (qId, url, explicitType = null) {
     const block = document.getElementById(qId);
 
     const mediaInput = block.querySelector(".q-media-url") || block.querySelector(".q-image-url");
@@ -625,13 +628,13 @@ window.setMediaPreview = function (qId, url, explicitType = null) {
 
     previewDiv.innerHTML = `
         ${mediaHtml}
-        <button type="button" onclick="window.removeQuestionMedia('${qId}')" class="absolute top-2 right-2 h-8 w-8 bg-red-500/80 hover:bg-red-600 text-white rounded flex items-center justify-center backdrop-blur-sm transition z-10 shadow-sm">
+        <button type="button" onclick="MaterialBuilder.removeQuestionMedia('${qId}')" class="absolute top-2 right-2 h-8 w-8 bg-red-500/80 hover:bg-red-600 text-white rounded flex items-center justify-center backdrop-blur-sm transition z-10 shadow-sm">
             <i class="fas fa-trash text-sm"></i>
         </button>
     `;
 };
 
-window.removeQuestionMedia = function (qId) {
+MaterialBuilder.removeQuestionMedia = function (qId) {
     const block = document.getElementById(qId);
     block.querySelector(".q-media-url").value = "";
 
@@ -641,23 +644,24 @@ window.removeQuestionMedia = function (qId) {
         previewDiv.className = "hidden";
     }
 
-    window.handleAutosaveTrigger();
+    MaterialBuilder.handleAutosaveTrigger();
 };
 
-window.collectCategoriesData = function () {
-    return window.getPayload("draft").categories;
+MaterialBuilder.collectCategoriesData = function () {
+    return MaterialBuilder.getPayload("draft").categories;
 };
 
-// SAVING ROUTING LOGIC UPDATE
-window.saveCompleteMaterial = async function (btn, status) { 
-    clearTimeout(autosaveTimer);
-    lastPayload = "";
+MaterialBuilder.saveCompleteMaterial = async function (btn, status) { 
+    clearTimeout(MaterialBuilder.autosaveTimer);
+    MaterialBuilder.lastPayload = "";
 
     const wrapper = document.getElementById("material-wrapper");
-    const payload = window.getPayload(status);
+    if (!wrapper) return; // Dataset Guard
+
+    const payload = MaterialBuilder.getPayload(status);
 
     if (!payload.title) {
-        return window.showModal("warning", "Missing Information", "Please fill out the Module Title before saving.");
+        return MaterialBuilder.showModal("warning", "Missing Information", "Please fill out the Module Title before saving.");
     }
 
     btn.disabled = true;
@@ -692,52 +696,45 @@ window.saveCompleteMaterial = async function (btn, status) {
             const title = status === "published" ? "Module Published!" : "Draft Saved!";
             const msg = status === "published" ? "Your material is live and ready." : "Your progress has been safely stored.";
 
-            window.showModal("success", title, msg, () => {
-                // CHANGED: Route user to the Management page after save
-                window.goToUrl(wrapper.dataset.manageUrl); 
+            MaterialBuilder.showModal("success", title, msg, () => {
+                MaterialBuilder.goToUrl(wrapper.dataset.manageUrl); 
             });
         } else {
             throw new Error(result.message || "Failed to save");
         }
     } catch (e) {
-        window.showModal("error", "Save Failed", e.message);
-        window.resetBtn(btn, originalText);
+        MaterialBuilder.showModal("error", "Save Failed", e.message);
+        MaterialBuilder.resetBtn(btn, originalText);
     }
 };
 
-window.resetBtn = (btn, txt) => {
+MaterialBuilder.resetBtn = (btn, txt) => {
     btn.disabled = false;
     btn.innerHTML = txt;
 };
 
-window.deleteAssessmentFromBuilder = async function () {
-    // Hidden standard deletion functionality, but handled by discard 
-};
-
 window.addEventListener("beforeunload", (event) => {
-    if (lastPayload !== "") {
+    if (MaterialBuilder.lastPayload !== "") {
         event.preventDefault();
         event.returnValue = "";
     }
 });
 
-// DISCARD ROUTING LOGIC UPDATE
-window.discardChangesAndExit = function (btn) {
-    window.showModal(
+MaterialBuilder.discardChangesAndExit = function (btn) {
+    MaterialBuilder.showModal(
         "confirm",
         "Discard Unsaved Changes?",
         "Are you sure you want to discard your unsaved work and exit? This cannot be undone.",
         async () => {
             const wrapper = document.getElementById("material-wrapper");
-            if (!wrapper) return;
+            if (!wrapper) return; // Dataset Guard
 
             const backModal = document.getElementById("back-modal");
             if(backModal) backModal.classList.add("hidden");
 
-            clearTimeout(autosaveTimer);
-            lastPayload = "";
+            clearTimeout(MaterialBuilder.autosaveTimer);
+            MaterialBuilder.lastPayload = "";
 
-            // CHANGED: Check data-is-new attribute
             const isNew = wrapper.dataset.isNew === 'true'; 
 
             const originalText = btn.innerHTML;
@@ -748,9 +745,8 @@ window.discardChangesAndExit = function (btn) {
 
             try {
                 if (isNew) {
-                    await window.silentlyDeleteAndExit();
-                    // CHANGED: If it was new and discarded, send to index
-                    window.goToUrl(wrapper.dataset.redirectUrl);
+                    await MaterialBuilder.silentlyDeleteAndExit();
+                    MaterialBuilder.goToUrl(wrapper.dataset.redirectUrl);
                 } else {
                     await fetch(wrapper.dataset.autosaveUrl, {
                         method: "POST",
@@ -762,12 +758,11 @@ window.discardChangesAndExit = function (btn) {
                         body: JSON.stringify({ clear_draft: true }),
                     });
                     
-                    // CHANGED: If it was an existing material, just send them back to manage page
-                    window.goToUrl(wrapper.dataset.manageUrl); 
+                    MaterialBuilder.goToUrl(wrapper.dataset.manageUrl); 
                 }
             } catch (e) {
                 console.warn("Failed to clear drafts or delete:", e);
-                window.goToUrl(isNew ? wrapper.dataset.redirectUrl : wrapper.dataset.manageUrl); 
+                MaterialBuilder.goToUrl(isNew ? wrapper.dataset.redirectUrl : wrapper.dataset.manageUrl); 
             }
         },
     );
@@ -782,12 +777,13 @@ if (backModal) {
     });
 }
 
-// BACK BUTTON LOGIC UPDATE
-window.handleBackButton = async function(btn) {
+MaterialBuilder.handleBackButton = async function(btn) {
     const wrapper = document.getElementById("material-wrapper");
-    const isNew = wrapper.dataset.isNew === 'true'; // CHANGED: Check isNew flag
+    if (!wrapper) return; // Dataset Guard
 
-    if (window.hasChanged) {
+    const isNew = wrapper.dataset.isNew === 'true';
+
+    if (MaterialBuilder.hasChanged) {
         const backModal = document.getElementById('back-modal');
         if(backModal) backModal.classList.remove('hidden');
     } else {
@@ -795,17 +791,15 @@ window.handleBackButton = async function(btn) {
         btn.disabled = true;
 
         if (isNew) {
-            // CHANGED: untouched brand new module, delete it instantly and go to index
-            await window.silentlyDeleteAndExit();
-            window.goToUrl(wrapper.dataset.redirectUrl);
+            await MaterialBuilder.silentlyDeleteAndExit();
+            MaterialBuilder.goToUrl(wrapper.dataset.redirectUrl);
         } else {
-            // CHANGED: existing module viewed but not changed, go strictly to manage page
-            window.goToUrl(wrapper.dataset.manageUrl); 
+            MaterialBuilder.goToUrl(wrapper.dataset.manageUrl); 
         }
     }
 };
 
-window.showModal = function (type, title, message, callback = null) {
+MaterialBuilder.showModal = function (type, title, message, callback = null) {
     const modal = document.getElementById("status-modal");
     if (!modal) {
         alert(`${title}\n${message}`);
@@ -857,7 +851,7 @@ window.showModal = function (type, title, message, callback = null) {
     };
 };
 
-window.goToUrl = function(url) {
+MaterialBuilder.goToUrl = function(url) {
     if (typeof loadPartial === "function") {
         loadPartial(url);
     } else {
@@ -865,8 +859,9 @@ window.goToUrl = function(url) {
     }
 };
 
-window.silentlyDeleteAndExit = async function() {
+MaterialBuilder.silentlyDeleteAndExit = async function() {
     const wrapper = document.getElementById("material-wrapper"); 
+    if (!wrapper) return; // Dataset Guard
     try {
         await fetch(wrapper.dataset.deleteUrl, {
             method: "DELETE",
