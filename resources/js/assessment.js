@@ -47,9 +47,15 @@ AssessmentBuilder.initBuilder = function () {
             const serverDraft = JSON.parse(serverDraftEl.value);
             if (serverDraft && serverDraft.categories) {
                 existingData = serverDraft.categories;
-                if (serverDraft.title) document.getElementById("setup-title").value = serverDraft.title;
-                if (serverDraft.year_level) document.getElementById("setup-year").value = serverDraft.year_level;
-                if (serverDraft.description) document.getElementById("setup-desc").value = serverDraft.description;
+                if (serverDraft.title)
+                    document.getElementById("setup-title").value =
+                        serverDraft.title;
+                if (serverDraft.year_level)
+                    document.getElementById("setup-year").value =
+                        serverDraft.year_level;
+                if (serverDraft.description)
+                    document.getElementById("setup-desc").value =
+                        serverDraft.description;
             }
         } catch (e) {
             console.warn("Invalid server draft JSON");
@@ -60,7 +66,7 @@ AssessmentBuilder.initBuilder = function () {
         existingData.forEach((cat) => {
             AssessmentBuilder.renderExistingCategory(cat);
         });
-        AssessmentBuilder.updateCategoryNumbers(); 
+        AssessmentBuilder.updateCategoryNumbers();
     } else {
         if (document.querySelectorAll(".category-block").length === 0) {
             AssessmentBuilder.addCategory();
@@ -76,18 +82,19 @@ AssessmentBuilder.initBuilder = function () {
     AssessmentBuilder.updateAutosaveIndicator("Ready");
     setTimeout(() => {
         AssessmentBuilder.isInitializing = false;
-        AssessmentBuilder.hasChanged = false; 
+        AssessmentBuilder.hasChanged = false;
     }, 500);
 };
 
-// Render Existing Categories 
+// Render Existing Categories
 AssessmentBuilder.renderExistingCategory = function (catData) {
     AssessmentBuilder.addCategory();
     const latestCat = document.querySelector(".category-block:last-child");
 
     latestCat.querySelector(".c-title").value = catData.title || "";
     latestCat.querySelector(".c-time").value = catData.time_limit || "";
-    latestCat.querySelector(".category-display-title").innerText = catData.title || "New Section";
+    latestCat.querySelector(".category-display-title").innerText =
+        catData.title || "New Section";
 
     const qContainer = latestCat.querySelector('[id^="q-container-"]');
     qContainer.innerHTML = "";
@@ -96,31 +103,45 @@ AssessmentBuilder.renderExistingCategory = function (catData) {
         catData.questions.forEach((q) => {
             const type = q.type || "mcq";
             AssessmentBuilder.addQuestion(qContainer.id.split("-").pop(), type);
-            
-            const latestQ = qContainer.querySelector(".question-block:last-child");
-            latestQ.querySelector(".q-text").value = q.text || q.question_text || "";
 
-            const mediaUrl = q.media_url || q.image_url; 
+            const latestQ = qContainer.querySelector(
+                ".question-block:last-child",
+            );
+            latestQ.querySelector(".q-text").value =
+                q.text || q.question_text || "";
+
+            const mediaUrl = q.media_url || q.image_url;
             if (mediaUrl) {
                 AssessmentBuilder.setMediaPreview(latestQ.id, mediaUrl);
             }
-            
+
             latestQ.querySelector(".options-list").innerHTML = "";
 
             if (q.options && q.options.length > 0) {
-                const isCaseSensitive = q.is_case_sensitive == 1 || q.is_case_sensitive === true;
+                const isCaseSensitive =
+                    q.is_case_sensitive == 1 || q.is_case_sensitive === true;
                 q.options.forEach((opt) => {
                     AssessmentBuilder.addOptionToQuestion(
                         latestQ.id,
                         type,
                         opt.is_correct == 1 || opt.is_correct === true,
                         opt.text || opt.option_text || "",
-                        isCaseSensitive
+                        isCaseSensitive,
                     );
                 });
             } else if (type === "true_false") {
-                AssessmentBuilder.addOptionToQuestion(latestQ.id, "true_false", false, "True");
-                AssessmentBuilder.addOptionToQuestion(latestQ.id, "true_false", false, "False");
+                AssessmentBuilder.addOptionToQuestion(
+                    latestQ.id,
+                    "true_false",
+                    false,
+                    "True",
+                );
+                AssessmentBuilder.addOptionToQuestion(
+                    latestQ.id,
+                    "true_false",
+                    false,
+                    "False",
+                );
             }
         });
     }
@@ -250,11 +271,15 @@ AssessmentBuilder.addQuestion = function (cId, type = "mcq") {
                 
                 <div class="options-list space-y-2 mb-3"></div>
                 
-                ${(type === "mcq" || type === "checkbox") ? `
+                ${
+                    type === "mcq" || type === "checkbox"
+                        ? `
                     <button type="button" onclick="AssessmentBuilder.addOptionToQuestion('${qId}', '${type}')" class="text-[10px] font-bold text-[#a52a2a] hover:underline uppercase flex items-center">
                         <i class="fas fa-plus mr-1"></i> Add Choice
                     </button>
-                ` : ""}
+                `
+                        : ""
+                }
             </div>
         </div>`;
 
@@ -267,11 +292,22 @@ AssessmentBuilder.addQuestion = function (cId, type = "mcq") {
         AssessmentBuilder.addOptionToQuestion(qId, "text", true, "");
     } else if (type === "true_false") {
         AssessmentBuilder.addOptionToQuestion(qId, "true_false", false, "True");
-        AssessmentBuilder.addOptionToQuestion(qId, "true_false", false, "False");
+        AssessmentBuilder.addOptionToQuestion(
+            qId,
+            "true_false",
+            false,
+            "False",
+        );
     }
 };
 
-AssessmentBuilder.addOptionToQuestion = function (qId, type, isCorrect = false, text = "", isCaseSensitive = false) {
+AssessmentBuilder.addOptionToQuestion = function (
+    qId,
+    type,
+    isCorrect = false,
+    text = "",
+    isCaseSensitive = false,
+) {
     const list = document.querySelector(`#${qId} .options-list`);
     if (!list) return;
 
@@ -330,49 +366,49 @@ AssessmentBuilder.addOptionToQuestion = function (qId, type, isCorrect = false, 
     AssessmentBuilder.handleAutosaveTrigger();
 };
 
-AssessmentBuilder.moveCategoryUp = function(btn, event) {
+AssessmentBuilder.moveCategoryUp = function (btn, event) {
     event.stopPropagation();
-    const catBlock = btn.closest('.category-block');
+    const catBlock = btn.closest(".category-block");
     const prev = catBlock.previousElementSibling;
-    if (prev && prev.classList.contains('category-block')) {
-        prev.insertAdjacentElement('beforebegin', catBlock);
+    if (prev && prev.classList.contains("category-block")) {
+        prev.insertAdjacentElement("beforebegin", catBlock);
         AssessmentBuilder.updateCategoryNumbers();
         AssessmentBuilder.handleAutosaveTrigger();
     }
 };
 
-AssessmentBuilder.moveCategoryDown = function(btn, event) {
+AssessmentBuilder.moveCategoryDown = function (btn, event) {
     event.stopPropagation();
-    const catBlock = btn.closest('.category-block');
+    const catBlock = btn.closest(".category-block");
     const next = catBlock.nextElementSibling;
-    if (next && next.classList.contains('category-block')) {
-        next.insertAdjacentElement('afterend', catBlock);
+    if (next && next.classList.contains("category-block")) {
+        next.insertAdjacentElement("afterend", catBlock);
         AssessmentBuilder.updateCategoryNumbers();
         AssessmentBuilder.handleAutosaveTrigger();
     }
 };
 
-AssessmentBuilder.moveQuestionUp = function(btn) {
-    const qBlock = btn.closest('.question-block');
+AssessmentBuilder.moveQuestionUp = function (btn) {
+    const qBlock = btn.closest(".question-block");
     const prev = qBlock.previousElementSibling;
-    if (prev && prev.classList.contains('question-block')) {
-        prev.insertAdjacentElement('beforebegin', qBlock);
+    if (prev && prev.classList.contains("question-block")) {
+        prev.insertAdjacentElement("beforebegin", qBlock);
         AssessmentBuilder.handleAutosaveTrigger();
     }
 };
 
-AssessmentBuilder.moveQuestionDown = function(btn) {
-    const qBlock = btn.closest('.question-block');
+AssessmentBuilder.moveQuestionDown = function (btn) {
+    const qBlock = btn.closest(".question-block");
     const next = qBlock.nextElementSibling;
-    if (next && next.classList.contains('question-block')) {
-        next.insertAdjacentElement('afterend', qBlock);
+    if (next && next.classList.contains("question-block")) {
+        next.insertAdjacentElement("afterend", qBlock);
         AssessmentBuilder.handleAutosaveTrigger();
     }
 };
 
-AssessmentBuilder.updateCategoryNumbers = function() {
-    document.querySelectorAll('.category-block').forEach((block, index) => {
-        const numberBadge = block.querySelector('.cat-number-badge');
+AssessmentBuilder.updateCategoryNumbers = function () {
+    document.querySelectorAll(".category-block").forEach((block, index) => {
+        const numberBadge = block.querySelector(".cat-number-badge");
         if (numberBadge) {
             numberBadge.innerText = index + 1;
         }
@@ -387,9 +423,9 @@ AssessmentBuilder.removeOption = function (btnElement, qId) {
 AssessmentBuilder.removeElement = function (id) {
     const el = document.getElementById(id);
     if (el) {
-        const isCategory = el.classList.contains('category-block');
+        const isCategory = el.classList.contains("category-block");
         el.remove();
-        if (isCategory) AssessmentBuilder.updateCategoryNumbers(); 
+        if (isCategory) AssessmentBuilder.updateCategoryNumbers();
     }
     AssessmentBuilder.handleAutosaveTrigger();
 };
@@ -402,7 +438,7 @@ AssessmentBuilder.toggleCategory = function (id, event) {
 
 AssessmentBuilder.toggleQuestion = function (id, event) {
     if (event && event.target.closest("button")) return;
-    
+
     const block = document.getElementById(id);
     const body = block.querySelector(".question-body");
     const icon = block.querySelector(".q-chevron-icon i");
@@ -412,7 +448,7 @@ AssessmentBuilder.toggleQuestion = function (id, event) {
     body.classList.toggle("hidden");
     icon.classList.toggle("fa-chevron-down");
     icon.classList.toggle("fa-chevron-up");
-    
+
     if (body.classList.contains("hidden")) {
         let text = textarea.value.trim();
         preview.innerText = text ? "- " + text : "- (Empty Question)";
@@ -423,7 +459,9 @@ AssessmentBuilder.toggleQuestion = function (id, event) {
 };
 
 AssessmentBuilder.updateCatDisplay = function (input) {
-    const title = input.closest(".category-block").querySelector(".category-display-title");
+    const title = input
+        .closest(".category-block")
+        .querySelector(".category-display-title");
     title.innerText = input.value || "New Section";
 };
 
@@ -435,14 +473,25 @@ AssessmentBuilder.getPayload = function (status) {
             const options = [];
             q.querySelectorAll(".option-row").forEach((opt) => {
                 const isCorrectInput = opt.querySelector(".is-correct-input");
-                let isCorrect = (isCorrectInput.type === "radio" || isCorrectInput.type === "checkbox") ? isCorrectInput.checked : true;
-                options.push({ text: opt.querySelector(".option-input").value, is_correct: isCorrect ? 1 : 0 });
+                let isCorrect =
+                    isCorrectInput.type === "radio" ||
+                    isCorrectInput.type === "checkbox"
+                        ? isCorrectInput.checked
+                        : true;
+                options.push({
+                    text: opt.querySelector(".option-input").value,
+                    is_correct: isCorrect ? 1 : 0,
+                });
             });
             questions.push({
                 type: q.dataset.type,
                 text: q.querySelector(".q-text").value,
-                media_url: q.querySelector(".q-media-url") ? q.querySelector(".q-media-url").value : null,
-                is_case_sensitive: q.querySelector(".case-sensitive-input") ? q.querySelector(".case-sensitive-input").checked : false,
+                media_url: q.querySelector(".q-media-url")
+                    ? q.querySelector(".q-media-url").value
+                    : null,
+                is_case_sensitive: q.querySelector(".case-sensitive-input")
+                    ? q.querySelector(".case-sensitive-input").checked
+                    : false,
                 options: options,
             });
         });
@@ -463,17 +512,21 @@ AssessmentBuilder.getPayload = function (status) {
 };
 
 AssessmentBuilder.handleAutosaveTrigger = function () {
-    if (AssessmentBuilder.isInitializing) return; 
-    
+    if (AssessmentBuilder.isInitializing) return;
+
     AssessmentBuilder.hasChanged = true;
-    AssessmentBuilder.updateAutosaveIndicator('<i class="fas fa-pencil-alt fa-spin"></i> Typing...');
+    AssessmentBuilder.updateAutosaveIndicator(
+        '<i class="fas fa-pencil-alt fa-spin"></i> Typing...',
+    );
     clearTimeout(AssessmentBuilder.autosaveTimer);
-    AssessmentBuilder.autosaveTimer = setTimeout(() => { AssessmentBuilder.autosaveToServer(); }, AssessmentBuilder.SYNC_DELAY);
+    AssessmentBuilder.autosaveTimer = setTimeout(() => {
+        AssessmentBuilder.autosaveToServer();
+    }, AssessmentBuilder.SYNC_DELAY);
 };
 
 AssessmentBuilder.autosaveToServer = async function () {
     const wrapper = document.getElementById("assessment-wrapper");
-    if (!wrapper) return; // Guard 
+    if (!wrapper) return; // Guard
 
     const payload = AssessmentBuilder.getPayload("draft");
     const payloadString = JSON.stringify(payload);
@@ -483,12 +536,20 @@ AssessmentBuilder.autosaveToServer = async function () {
     try {
         await fetch(wrapper.dataset.autosaveUrl, {
             method: "POST",
-            headers: { "Content-Type": "application/json", "X-CSRF-TOKEN": wrapper.dataset.csrf, Accept: "application/json" },
+            headers: {
+                "Content-Type": "application/json",
+                "X-CSRF-TOKEN": wrapper.dataset.csrf,
+                Accept: "application/json",
+            },
             body: payloadString,
         });
-        AssessmentBuilder.updateAutosaveIndicator('<i class="fas fa-check-circle text-green-500"></i> Synced');
+        AssessmentBuilder.updateAutosaveIndicator(
+            '<i class="fas fa-check-circle text-green-500"></i> Synced',
+        );
     } catch (e) {
-        AssessmentBuilder.updateAutosaveIndicator('<i class="fas fa-wifi-slash text-amber-500"></i> Offline');
+        AssessmentBuilder.updateAutosaveIndicator(
+            '<i class="fas fa-wifi-slash text-amber-500"></i> Offline',
+        );
     }
 };
 
@@ -515,10 +576,13 @@ AssessmentBuilder.handleMediaFileSelect = function (input) {
     if (!input.files || input.files.length === 0) return;
 
     AssessmentBuilder.selectedMediaFile = input.files[0];
-    document.getElementById("selected-media-name").innerText = AssessmentBuilder.selectedMediaFile.name;
+    document.getElementById("selected-media-name").innerText =
+        AssessmentBuilder.selectedMediaFile.name;
 
     document.getElementById("media-dropzone").classList.add("hidden");
-    document.getElementById("selected-media-display").classList.remove("hidden");
+    document
+        .getElementById("selected-media-display")
+        .classList.remove("hidden");
     document.getElementById("selected-media-display").classList.add("flex");
 
     document.getElementById("start-media-upload-btn").disabled = false;
@@ -536,7 +600,11 @@ AssessmentBuilder.clearSelectedMedia = function () {
 };
 
 AssessmentBuilder.executeMediaUpload = async function () {
-    if (!AssessmentBuilder.selectedMediaFile || !AssessmentBuilder.currentMediaUploadQId) return;
+    if (
+        !AssessmentBuilder.selectedMediaFile ||
+        !AssessmentBuilder.currentMediaUploadQId
+    )
+        return;
 
     const wrapper = document.getElementById("assessment-wrapper");
     if (!wrapper) return; // Guard
@@ -544,7 +612,8 @@ AssessmentBuilder.executeMediaUpload = async function () {
     const btn = document.getElementById("start-media-upload-btn");
     if (!btn) return;
     const originalHtml = btn.innerHTML;
-    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> <span>Uploading...</span>';
+    btn.innerHTML =
+        '<i class="fas fa-spinner fa-spin"></i> <span>Uploading...</span>';
     btn.disabled = true;
 
     const formData = new FormData();
@@ -584,7 +653,9 @@ AssessmentBuilder.executeMediaUpload = async function () {
 AssessmentBuilder.setMediaPreview = function (qId, url, explicitType = null) {
     const block = document.getElementById(qId);
 
-    const mediaInput = block.querySelector(".q-media-url") || block.querySelector(".q-image-url");
+    const mediaInput =
+        block.querySelector(".q-media-url") ||
+        block.querySelector(".q-image-url");
     if (mediaInput) mediaInput.value = url;
 
     const previewDiv = document.getElementById(`preview-${qId}`);
@@ -607,7 +678,8 @@ AssessmentBuilder.setMediaPreview = function (qId, url, explicitType = null) {
         mediaHtml = `<img src="${url}" class="max-h-48 w-auto object-contain bg-white rounded-lg">`;
     }
 
-    previewDiv.className = "relative mb-4 rounded-lg overflow-hidden border border-gray-200 block w-full";
+    previewDiv.className =
+        "relative mb-4 rounded-lg overflow-hidden border border-gray-200 block w-full";
 
     previewDiv.innerHTML = `
         ${mediaHtml}
@@ -668,12 +740,18 @@ AssessmentBuilder.saveCompleteExam = async function (btn, status) {
         const result = await response.json();
 
         if (response.ok && result.success) {
-            localStorage.removeItem("assessment_draft_" + wrapper.dataset.assessmentId);
+            localStorage.removeItem(
+                "assessment_draft_" + wrapper.dataset.assessmentId,
+            );
 
-            const title = status === "published" ? "Test Published!" : "Draft Saved!";
-            const msg = status === "published" ? "Your test is live and ready for students." : "Your progress has been safely stored.";
+            const title =
+                status === "published" ? "Test Published!" : "Draft Saved!";
+            const msg =
+                status === "published"
+                    ? "Your test is live and ready for students."
+                    : "Your progress has been safely stored.";
 
-            window.showModal("success", title, msg, () => {
+            AssessmentBuilder.showModal("success", title, msg, () => {
                 window.goToUrl(wrapper.dataset.manageUrl, window.currentNavBtn);
             });
         } else {
@@ -708,10 +786,17 @@ AssessmentBuilder.deleteAssessmentFromBuilder = async function () {
                     },
                 });
                 if (response.ok) {
-                    window.goToUrl(wrapper.dataset.redirectUrl, window.currentNavBtn);
+                    window.goToUrl(
+                        wrapper.dataset.redirectUrl,
+                        window.currentNavBtn,
+                    );
                 }
             } catch (e) {
-                AssessmentBuilder.showModal("error", "Error", "Failed to discard assessment.");
+                AssessmentBuilder.showModal(
+                    "error",
+                    "Error",
+                    "Failed to discard assessment.",
+                );
             }
         },
     );
@@ -739,13 +824,16 @@ AssessmentBuilder.discardChangesAndExit = function (btn) {
             clearTimeout(AssessmentBuilder.autosaveTimer);
             AssessmentBuilder.lastPayload = "";
 
-            const isNew = wrapper.dataset.isNew === 'true';
+            const isNew = wrapper.dataset.isNew === "true";
 
             const originalText = btn.innerHTML;
-            btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Discarding...';
+            btn.innerHTML =
+                '<i class="fas fa-spinner fa-spin mr-2"></i> Discarding...';
             btn.disabled = true;
 
-            localStorage.removeItem("assessment_draft_" + wrapper.dataset.assessmentId);
+            localStorage.removeItem(
+                "assessment_draft_" + wrapper.dataset.assessmentId,
+            );
 
             try {
                 if (isNew) {
@@ -765,7 +853,7 @@ AssessmentBuilder.discardChangesAndExit = function (btn) {
                 }
             } catch (e) {
                 console.warn("Failed to clear drafts or delete:", e);
-                AssessmentBuilder.goToUrl(wrapper.dataset.redirectUrl); 
+                AssessmentBuilder.goToUrl(wrapper.dataset.redirectUrl);
             }
         },
     );
@@ -798,8 +886,10 @@ AssessmentBuilder.showModal = function (type, title, message, callback = null) {
     titleEl.innerText = title;
     msgEl.innerText = message;
 
-    iconContainer.className = "h-16 w-16 rounded-full flex items-center justify-center mx-auto mb-4 text-3xl";
-    btn.className = "w-full py-3.5 text-white font-bold rounded-xl transition active:scale-95 shadow-md";
+    iconContainer.className =
+        "h-16 w-16 rounded-full flex items-center justify-center mx-auto mb-4 text-3xl";
+    btn.className =
+        "w-full py-3.5 text-white font-bold rounded-xl transition active:scale-95 shadow-md";
     cancelBtn.classList.add("hidden");
     btn.innerText = "OK";
 
@@ -809,19 +899,35 @@ AssessmentBuilder.showModal = function (type, title, message, callback = null) {
     if (type === "success") {
         iconContainer.classList.add("bg-green-50", "text-green-500");
         iconContainer.innerHTML = '<i class="fas fa-check-circle"></i>';
-        btn.classList.add("bg-green-600", "hover:bg-green-700", "shadow-green-600/20");
+        btn.classList.add(
+            "bg-green-600",
+            "hover:bg-green-700",
+            "shadow-green-600/20",
+        );
     } else if (type === "error") {
         iconContainer.classList.add("bg-red-50", "text-red-500");
         iconContainer.innerHTML = '<i class="fas fa-times-circle"></i>';
-        btn.classList.add("bg-red-600", "hover:bg-red-700", "shadow-red-600/20");
+        btn.classList.add(
+            "bg-red-600",
+            "hover:bg-red-700",
+            "shadow-red-600/20",
+        );
     } else if (type === "warning") {
         iconContainer.classList.add("bg-amber-50", "text-amber-500");
         iconContainer.innerHTML = '<i class="fas fa-exclamation-triangle"></i>';
-        btn.classList.add("bg-amber-500", "hover:bg-amber-600", "shadow-amber-500/20");
+        btn.classList.add(
+            "bg-amber-500",
+            "hover:bg-amber-600",
+            "shadow-amber-500/20",
+        );
     } else if (type === "confirm") {
         iconContainer.classList.add("bg-red-50", "text-red-500");
         iconContainer.innerHTML = '<i class="fas fa-trash-alt"></i>';
-        btn.classList.add("bg-red-600", "hover:bg-red-700", "shadow-red-600/20");
+        btn.classList.add(
+            "bg-red-600",
+            "hover:bg-red-700",
+            "shadow-red-600/20",
+        );
         btn.innerText = "Yes, Discard";
 
         cancelBtn.classList.remove("hidden");
@@ -841,7 +947,7 @@ AssessmentBuilder.showModal = function (type, title, message, callback = null) {
 };
 window.currentNavBtn = null; // Store it globally for the modals to use
 
-window.goToUrl = function(url) {
+window.goToUrl = function (url) {
     if (typeof loadPartial === "function") {
         try {
             loadPartial(url); // Just load the page! Let the page handle its own sidebar.
@@ -853,13 +959,16 @@ window.goToUrl = function(url) {
     }
 };
 
-AssessmentBuilder.silentlyDeleteAndExit = async function() {
+AssessmentBuilder.silentlyDeleteAndExit = async function () {
     const wrapper = document.getElementById("assessment-wrapper");
     if (!wrapper) return; // Guard
     try {
         await fetch(wrapper.dataset.deleteUrl, {
             method: "DELETE",
-            headers: { "X-CSRF-TOKEN": wrapper.dataset.csrf, Accept: "application/json" },
+            headers: {
+                "X-CSRF-TOKEN": wrapper.dataset.csrf,
+                Accept: "application/json",
+            },
         });
     } catch (e) {
         console.warn("Failed to delete empty assessment");
@@ -867,24 +976,24 @@ AssessmentBuilder.silentlyDeleteAndExit = async function() {
 };
 
 // Accept the nav element directly from the HTML click
-AssessmentBuilder.handleAssessmentBackButton = async function(btn) {
+AssessmentBuilder.handleAssessmentBackButton = async function (btn) {
     const wrapper = document.getElementById("assessment-wrapper");
     if (!wrapper) return;
 
-    const isNew = wrapper.dataset.isNew === 'true';
-    const manageUrl = wrapper.dataset.manageUrl; 
-    const redirectUrl = wrapper.dataset.redirectUrl; 
+    const isNew = wrapper.dataset.isNew === "true";
+    const manageUrl = wrapper.dataset.manageUrl;
+    const redirectUrl = wrapper.dataset.redirectUrl;
 
     if (AssessmentBuilder.hasChanged) {
-        const backModal = document.getElementById('back-modal');
-        if (backModal) backModal.classList.remove('hidden');
+        const backModal = document.getElementById("back-modal");
+        if (backModal) backModal.classList.remove("hidden");
     } else {
         btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
         btn.disabled = true;
 
         if (isNew) {
             await window.silentlyDeleteAndExit();
-            window.goToUrl(redirectUrl); 
+            window.goToUrl(redirectUrl);
         } else {
             window.goToUrl(manageUrl);
         }
@@ -894,72 +1003,82 @@ AssessmentBuilder.handleAssessmentBackButton = async function(btn) {
 
 let selectedFile = null;
 
-window.openImportModal = function() {
-    window.clearSelectedFile(); 
-    document.getElementById('excel-import-modal').classList.remove('hidden');
+window.openImportModal = function () {
+    window.clearSelectedFile();
+    document.getElementById("excel-import-modal").classList.remove("hidden");
 };
 
-window.closeImportModal = function() {
-    document.getElementById('excel-import-modal').classList.add('hidden');
+window.closeImportModal = function () {
+    document.getElementById("excel-import-modal").classList.add("hidden");
 };
 
-window.handleFileSelect = function(input) {
+window.handleFileSelect = function (input) {
     if (!input.files || input.files.length === 0) return;
 
     selectedFile = input.files[0];
-    document.getElementById('selected-file-name').innerText = selectedFile.name;
-    document.getElementById('file-dropzone').classList.add('hidden');
-    document.getElementById('selected-file-display').classList.remove('hidden');
-    document.getElementById('selected-file-display').classList.add('flex'); 
-    document.getElementById('start-upload-btn').disabled = false;
+    document.getElementById("selected-file-name").innerText = selectedFile.name;
+    document.getElementById("file-dropzone").classList.add("hidden");
+    document.getElementById("selected-file-display").classList.remove("hidden");
+    document.getElementById("selected-file-display").classList.add("flex");
+    document.getElementById("start-upload-btn").disabled = false;
 };
 
-window.clearSelectedFile = function() {
+window.clearSelectedFile = function () {
     selectedFile = null;
-    document.getElementById('excel-file-input').value = '';
-    document.getElementById('file-dropzone').classList.remove('hidden');
-    document.getElementById('selected-file-display').classList.add('hidden');
-    document.getElementById('selected-file-display').classList.remove('flex');
-    document.getElementById('start-upload-btn').disabled = true;
+    document.getElementById("excel-file-input").value = "";
+    document.getElementById("file-dropzone").classList.remove("hidden");
+    document.getElementById("selected-file-display").classList.add("hidden");
+    document.getElementById("selected-file-display").classList.remove("flex");
+    document.getElementById("start-upload-btn").disabled = true;
 };
 
-window.executeExcelUpload = function() {
+window.executeExcelUpload = function () {
     if (!selectedFile) return;
 
-    let btn = document.getElementById('start-upload-btn');
+    let btn = document.getElementById("start-upload-btn");
     let originalHtml = btn.innerHTML;
 
-    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> <span>Processing...</span>';
+    btn.innerHTML =
+        '<i class="fas fa-spinner fa-spin"></i> <span>Processing...</span>';
     btn.disabled = true;
 
     let payload = window.getPayload("draft");
     let formData = new FormData();
-    formData.append('exam_file', selectedFile);
-    formData.append('_token', document.querySelector('[data-csrf]').dataset.csrf);
-    formData.append('title', payload.title);
-    formData.append('year_level', payload.year_level);
-    formData.append('description', payload.description);
-    formData.append('categories', JSON.stringify(payload.categories));
+    formData.append("exam_file", selectedFile);
+    formData.append(
+        "_token",
+        document.querySelector("[data-csrf]").dataset.csrf,
+    );
+    formData.append("title", payload.title);
+    formData.append("year_level", payload.year_level);
+    formData.append("description", payload.description);
+    formData.append("categories", JSON.stringify(payload.categories));
 
-    let wrapper = document.getElementById('assessment-wrapper');
+    let wrapper = document.getElementById("assessment-wrapper");
     let assessmentId = wrapper.dataset.assessmentId;
 
     fetch(`/dashboard/assessments/${assessmentId}/import`, {
-        method: 'POST',
-        headers: { 'Accept': 'application/json' },
-        body: formData
+        method: "POST",
+        headers: { Accept: "application/json" },
+        body: formData,
     })
-        .then(async response => {
+        .then(async (response) => {
             if (!response.ok) {
                 let errorData = await response.json().catch(() => ({}));
-                throw new Error(errorData.message || `Server error (${response.status})`);
+                throw new Error(
+                    errorData.message || `Server error (${response.status})`,
+                );
             }
             return response.json();
         })
-        .then(data => {
+        .then((data) => {
             if (data.success) {
                 window.closeImportModal();
-                window.showStatusModal('Success!', 'Your exam has been updated with the imported questions.', 'success');
+                window.showStatusModal(
+                    "Success!",
+                    "Your exam has been updated with the imported questions.",
+                    "success",
+                );
 
                 window.hasChanged = false;
                 lastPayload = "";
@@ -967,20 +1086,23 @@ window.executeExcelUpload = function() {
 
                 setTimeout(() => {
                     let buildUrl = `/dashboard/assessments/${assessmentId}/build`;
-                    if (typeof loadPartial === 'function') {
-                        loadPartial(buildUrl, document.getElementById('nav-assessment-btn'));
+                    if (typeof loadPartial === "function") {
+                        loadPartial(
+                            buildUrl,
+                            document.getElementById("nav-assessment-btn"),
+                        );
                     } else {
                         window.location.href = buildUrl;
                     }
                 }, 2000);
             } else {
-                throw new Error(data.message || 'Import failed.');
+                throw new Error(data.message || "Import failed.");
             }
         })
-        .catch(error => {
-            console.error('Upload Error:', error);
+        .catch((error) => {
+            console.error("Upload Error:", error);
             btn.innerHTML = originalHtml;
             btn.disabled = false;
-            window.showStatusModal('Import Failed', error.message, 'error');
+            window.showStatusModal("Import Failed", error.message, "error");
         });
 };
