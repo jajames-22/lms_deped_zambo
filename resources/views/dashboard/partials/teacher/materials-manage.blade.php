@@ -7,7 +7,7 @@
 
         /* Styling for the knob/handle when the checkbox is UNCHECKED */
         .toggle-container .toggle-handle {
-            transform: translateX(5px); /* Default left position */
+            transform: translateX(1px); /* Default left position */
         }
 
         /* * THE MAGIC: When the hidden checkbox (.toggle-input) is :checked, 
@@ -21,7 +21,7 @@
         * to the right (calculated based on track width minus handle width and padding)
         */
         .toggle-container .toggle-input:checked ~ .toggle-handle {
-            transform: translateX(2.2rem); /* Shifts the knob to the right side */
+            transform: translateX(2rem); /* Shifts the knob to the right side */
         }
         
         /* Optional: Ensure focus state is visible for accessibility */
@@ -44,14 +44,14 @@
         </button>
 
         <div class="flex items-center gap-4">
-            <span id="status-badge" class="px-3 py-1.5 {{ $isLive ? 'bg-teal-100 text-teal-700' : 'bg-gray-100 text-gray-700' }} text-xs font-bold rounded-lg uppercase tracking-wider flex items-center gap-2 transition-colors">
+            <span id="status-badge" class="px-3 py-1.5 {{ $isLive ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700' }} text-xs font-bold rounded-lg uppercase tracking-wider flex items-center gap-2 transition-colors">
                 <span class="relative flex h-2 w-2">
                     @if($isLive)
-                        <span id="status-ping" class="animate-ping absolute inline-flex h-full w-full rounded-full bg-teal-400 opacity-75"></span>
-                        <span id="status-dot" class="relative inline-flex rounded-full h-2 w-2 bg-teal-500"></span>
+                        <span id="status-ping" class="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                        <span id="status-dot" class="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
                     @else
-                        <span id="status-ping" class="animate-ping absolute inline-flex h-full w-full rounded-full bg-gray-400 opacity-75 hidden"></span>
-                        <span id="status-dot" class="relative inline-flex rounded-full h-2 w-2 bg-gray-500"></span>
+                        <span id="status-ping" class="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75 hidden"></span>
+                        <span id="status-dot" class="relative inline-flex rounded-full h-2 w-2 bg-amber-500"></span>
                     @endif
                 </span>
                 <span id="status-text">{{ $isLive ? 'Published' : 'Draft Mode' }}</span>
@@ -95,26 +95,45 @@
         </div>
     </div>
 
-    <div class="bg-white rounded-3xl p-8 shadow-sm border border-gray-100 mt-6 flex flex-col md:flex-row items-center justify-around gap-8">
-        <div class="text-center md:text-left flex items-center gap-6">
-            <div class="h-16 w-16 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center text-2xl mx-auto md:mx-0 shadow-sm">
-                <i class="fas fa-layer-group"></i>
+    <div class="bg-white rounded-3xl p-8 shadow-sm border border-gray-100 mt-6 flex flex-col lg:flex-row items-start lg:items-center justify-between gap-8">
+        
+        <div class="w-full lg:flex-1">
+            <h3 class="text-sm font-bold text-gray-500 uppercase tracking-widest mb-3">Module Tags</h3>
+            
+            <div id="active-tags-container" class="flex flex-wrap gap-2 mb-3">
+                </div>
+
+            <div class="relative w-full md:w-80">
+                <div class="flex items-center bg-gray-50 border border-gray-200 rounded-xl px-3 py-2.5 focus-within:ring-2 focus-within:ring-[#a52a2a]/20 focus-within:border-[#a52a2a] transition-all">
+                    <i class="fas fa-tags text-gray-400 mr-2 text-sm"></i>
+                    <input type="text" id="tag-input" placeholder="Add a tag (e.g. Science, Grade 4)..." 
+                    class="bg-transparent border-none outline-none w-full text-sm font-medium text-gray-700 placeholder-gray-400" 
+                    onkeydown="handleTagKeydown(event)" oninput="handleTagInput(event)" autocomplete="off">
+                </div>
+                
+                <div id="tag-suggestions" class="absolute z-50 w-full mt-2 bg-white border border-gray-100 rounded-xl shadow-lg hidden max-h-48 overflow-y-auto">
+                    </div>
             </div>
-            <div>
-                <p class="text-3xl font-black text-gray-900">{{ $material->lessons_count ?? 0 }}</p>
-                <p class="text-sm font-bold text-gray-500 uppercase tracking-widest mt-1">Lessons</p>
-            </div>
+            <p class="text-xs text-gray-400 mt-2">Press <kbd class="px-1.5 py-0.5 bg-gray-100 border border-gray-200 rounded text-gray-500 font-mono">Enter</kbd> to add a custom tag.</p>
         </div>
-        
-        <div class="hidden md:block w-px h-16 bg-gray-200"></div>
-        
-        <div class="text-center md:text-left flex items-center gap-6">
-            <div class="h-16 w-16 rounded-2xl bg-purple-50 text-purple-600 flex items-center justify-center text-2xl mx-auto md:mx-0 shadow-sm">
-                <i class="fas fa-cubes"></i>
+
+        <div class="flex items-center justify-center gap-8 lg:shrink-0 w-full lg:w-auto border-t lg:border-t-0 lg:border-l border-gray-100 pt-6 lg:pt-0 lg:pl-8">
+            <div class="text-center flex flex-col items-center">
+                <div class="h-14 w-14 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center text-xl shadow-sm mb-2">
+                    <i class="fas fa-layer-group"></i>
+                </div>
+                <p class="text-2xl font-black text-gray-900">{{ $material->lessons_count ?? 0 }}</p>
+                <p class="text-xs font-bold text-gray-500 uppercase tracking-widest">Lessons</p>
             </div>
-            <div>
-                <p class="text-3xl font-black text-gray-900">{{ $material->items_count ?? 0 }}</p>
-                <p class="text-sm font-bold text-gray-500 uppercase tracking-widest mt-1">Total Exam Items</p>
+            
+            <div class="w-px h-16 bg-gray-200"></div>
+            
+            <div class="text-center flex flex-col items-center">
+                <div class="h-14 w-14 rounded-2xl bg-purple-50 text-purple-600 flex items-center justify-center text-xl shadow-sm mb-2">
+                    <i class="fas fa-cubes"></i>
+                </div>
+                <p class="text-2xl font-black text-gray-900">{{ $material->items_count ?? 0 }}</p>
+                <p class="text-xs font-bold text-gray-500 uppercase tracking-widest">Items</p>
             </div>
         </div>
     </div>
@@ -297,16 +316,16 @@
                 const ping = document.getElementById('status-ping');
 
                 if (isLive) {
-                    badge.className = "px-3 py-1.5 bg-teal-100 text-teal-700 text-xs font-bold rounded-lg uppercase tracking-wider flex items-center gap-2 transition-colors";
+                    badge.className = "px-3 py-1.5 bg-green-100 text-green-700 text-xs font-bold rounded-lg uppercase tracking-wider flex items-center gap-2 transition-colors";
                     text.innerText = "Published";
-                    dot.className = "relative inline-flex rounded-full h-2 w-2 bg-teal-500";
-                    ping.className = "animate-ping absolute inline-flex h-full w-full rounded-full bg-teal-400 opacity-75";
+                    dot.className = "relative inline-flex rounded-full h-2 w-2 bg-green-500";
+                    ping.className = "animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75";
                     ping.classList.remove('hidden');
                 } else {
-                    badge.className = "px-3 py-1.5 bg-gray-100 text-gray-700 text-xs font-bold rounded-lg uppercase tracking-wider flex items-center gap-2 transition-colors";
+                    badge.className = "px-3 py-1.5 bg-amber-100 text-amber-700 text-xs font-bold rounded-lg uppercase tracking-wider flex items-center gap-2 transition-colors";
                     text.innerText = "Draft Mode";
-                    dot.className = "relative inline-flex rounded-full h-2 w-2 bg-gray-500";
-                    ping.className = "animate-ping absolute inline-flex h-full w-full rounded-full bg-gray-400 opacity-75 hidden";
+                    dot.className = "relative inline-flex rounded-full h-2 w-2 bg-amber-500";
+                    ping.className = "animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75 hidden";
                     ping.classList.add('hidden');
                 }
             } else {
@@ -737,4 +756,187 @@
             materialsBtn.classList.add('bg-[#a52a2a]/10', 'text-[#a52a2a]', 'font-medium', 'border-r-4', 'border-[#a52a2a]');
         }
     }, 50);
+  // --- Tags Autocomplete & Management Logic ---
+    const availableTags = [
+        "Science", "Earth Science", "Computer Science", "Biology", "Chemistry", "Physics",
+        "Mathematics", "Algebra", "Calculus", "Geometry",
+        "English", "Literature", "Grammar", "Filipino", "Pananaliksik",
+        "MAPEH", "Music", "Arts", "Physical Education", "Health",
+        "History", "World History", "Philippine History", "Contemporary Issues",
+        "Technology", "Programming", "Web Development", "First Aid"
+    ];
+
+    // 1. DOM Elements
+    const tagInput = document.getElementById('tag-input');
+    const suggestionsBox = document.getElementById('tag-suggestions');
+    const activeTagsContainer = document.getElementById('active-tags-container');
+
+    // 2. Initialize Tags from Database
+    let currentTags = {!! json_encode($material->tags->pluck('name') ?? []) !!}; 
+
+    // Render tags on page load
+    renderActiveTags();
+
+    // 3. Handle Keyboard Events (Enter Key)
+    window.handleTagKeydown = function(e) {
+        if (e.key === 'Enter') {
+            e.preventDefault(); // Stop form submission
+            const query = e.target.value.trim();
+            if (query !== '') {
+                addTag(query);
+            }
+        }
+    };
+
+    // 4. Handle Typing (Autocomplete Suggestions)
+    window.handleTagInput = function(e) {
+        const query = e.target.value.trim().toLowerCase();
+
+        if (query === '') {
+            suggestionsBox.classList.add('hidden');
+            return;
+        }
+
+        const matchedTags = availableTags.filter(tag => {
+            const isNotAdded = !currentTags.map(t => t.toLowerCase()).includes(tag.toLowerCase());
+            const matchesQuery = tag.toLowerCase().includes(query);
+            return isNotAdded && matchesQuery;
+        });
+
+        renderSuggestions(matchedTags, query);
+    };
+
+    // 5. Render the Suggestions Dropdown
+    function renderSuggestions(tags, query) {
+        if (tags.length === 0) {
+            suggestionsBox.classList.add('hidden');
+            return;
+        }
+
+        suggestionsBox.innerHTML = '';
+        tags.forEach(tag => {
+            const regex = new RegExp(`(${query})`, "gi");
+            const highlightedText = tag.replace(regex, "<span class='text-[#a52a2a] font-bold'>$1</span>");
+
+            const div = document.createElement('div');
+            div.className = 'px-4 py-2.5 hover:bg-gray-50 cursor-pointer text-sm text-gray-700 border-b border-gray-50 last:border-0 transition-colors';
+            div.innerHTML = highlightedText;
+            
+            div.onclick = function() {
+                addTag(tag);
+            };
+            suggestionsBox.appendChild(div);
+        });
+
+        suggestionsBox.classList.remove('hidden');
+    }
+
+    // 6. Add Tag to UI and Database
+    async function addTag(tagValue) {
+        if (currentTags.map(t => t.toLowerCase()).includes(tagValue.toLowerCase())) {
+            tagInput.value = '';
+            suggestionsBox.classList.add('hidden');
+            return;
+        }
+
+        // Instantly update UI (Optimistic rendering)
+        currentTags.push(tagValue);
+        tagInput.value = '';
+        suggestionsBox.classList.add('hidden');
+        renderActiveTags();
+
+        // Send to Backend
+        const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || '{{ csrf_token() }}';
+        try {
+            const response = await fetch('{{ route("dashboard.materials.tags.add", $material->id ?? 0) }}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': csrfToken,
+                    'Accept': 'application/json'
+                },
+                body: JSON.stringify({ tag: tagValue })
+            });
+            const data = await response.json();
+            if (!response.ok) throw new Error(data.message);
+        } catch (error) {
+            console.error('Failed to save tag:', error);
+            showSnackbar('Failed to save tag to database.', 'error');
+            // If it fails on the server, remove it from the UI to stay synced
+            currentTags = currentTags.filter(t => t !== tagValue);
+            renderActiveTags();
+        }
+    }
+
+    // 7. Remove Tag from UI and Database
+    window.removeTag = async function(tagValue) {
+        // Instantly update UI
+        currentTags = currentTags.filter(t => t !== tagValue);
+        renderActiveTags();
+
+        // Send Delete request to Backend
+        const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || '{{ csrf_token() }}';
+        try {
+            const safeTag = encodeURIComponent(tagValue);
+            let url = '{{ route("dashboard.materials.tags.remove", ["material" => $material->id ?? 0, "tag" => ":tag"]) }}';
+            url = url.replace(':tag', safeTag);
+
+            const response = await fetch(url, {
+                method: 'DELETE',
+                headers: {
+                    'X-CSRF-TOKEN': csrfToken,
+                    'Accept': 'application/json'
+                }
+            });
+            const data = await response.json();
+            if (!response.ok) throw new Error(data.message);
+        } catch (error) {
+            console.error('Failed to remove tag:', error);
+            showSnackbar('Failed to remove tag from database.', 'error');
+            // Re-add to UI if server delete failed
+            currentTags.push(tagValue);
+            renderActiveTags();
+        }
+    }
+
+    // 8. Render Active Tags in the DOM
+    function renderActiveTags() {
+        if (!activeTagsContainer) return;
+        activeTagsContainer.innerHTML = '';
+
+        if (currentTags.length === 0) {
+            activeTagsContainer.innerHTML = '<span class="text-sm text-gray-400 italic">No tags added yet.</span>';
+            return;
+        }
+
+        currentTags.forEach(tag => {
+            const tagEl = document.createElement('div');
+            tagEl.className = 'inline-flex items-center gap-1.5 px-3 py-1 bg-[#a52a2a]/10 text-[#a52a2a] border border-[#a52a2a]/20 rounded-lg text-xs font-bold transition-all';
+            
+            const spanEl = document.createElement('span');
+            spanEl.textContent = tag;
+
+            const btnEl = document.createElement('button');
+            btnEl.type = 'button';
+            btnEl.className = 'text-[#a52a2a]/60 hover:text-[#a52a2a] hover:bg-[#a52a2a]/10 rounded-full h-4 w-4 flex items-center justify-center transition-colors';
+            btnEl.innerHTML = '<i class="fas fa-times text-[10px]"></i>';
+            btnEl.onclick = () => removeTag(tag);
+
+            tagEl.appendChild(spanEl);
+            tagEl.appendChild(btnEl);
+            activeTagsContainer.appendChild(tagEl);
+        });
+    }
+
+    // 9. Close suggestions dropdown when clicking outside
+    window.onclickCloseSuggestions = function(e) {
+        if (tagInput && suggestionsBox) {
+            if (!tagInput.contains(e.target) && !suggestionsBox.contains(e.target)) {
+                suggestionsBox.classList.add('hidden');
+            }
+        }
+    };
+    
+    document.removeEventListener('click', window.onclickCloseSuggestions);
+    document.addEventListener('click', window.onclickCloseSuggestions);
 </script>
