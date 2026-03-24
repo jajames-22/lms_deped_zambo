@@ -31,7 +31,7 @@
     </style>  
 </head>
 
-<div class="space-y-6 pb-20 max-w-6xl mx-auto relative">
+<div class="space-y-6 pb-20 w-full mx-auto relative">
     @php 
         $isLive = ($assessment->status === 'published'); 
     @endphp
