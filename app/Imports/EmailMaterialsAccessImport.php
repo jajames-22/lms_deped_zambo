@@ -18,35 +18,28 @@ class EmailMaterialsAccessImport implements ToModel, WithHeadingRow
 
     public function model(array $row)
     {
-        // 1. Get the email from the row (WithHeadingRow expects the header to be 'email')
+        // Fetch the email from the row
         $email = $row['email'] ?? null;
-
-        if (!$email) {
+        if (!$email)
             return null;
-        }
 
-        // 2. Find the user associated with this email
-        $user = User::where('email', $email)->first();
-
-        // If the user doesn't exist in your database, skip this row
-        if (!$user) {
-            return null;
-        }
-
-        // 3. Check if the user is already enrolled in this specific material
+        // Check if this exact email is already in the list for this material
         $exists = Enrollment::where('materials_id', $this->materialId)
-            ->where('user_id', $user->id)
+            ->where('email', $email)
             ->exists();
 
-        if ($exists) {
+        if ($exists)
             return null;
-        }
 
-        // 4. Enroll the student
+        // Check if they already have an account in the system
+        $user = User::where('email', $email)->first();
+
+        // Save them. If they have an account -> 'enrolled'. If not -> 'pending'.
         return new Enrollment([
             'materials_id' => $this->materialId,
-            'user_id'      => $user->id,
-            'status'       => 'enrolled',
+            'user_id' => $user ? $user->id : null,
+            'email' => $email,
+            'status' => $user ? 'enrolled' : 'pending',
         ]);
     }
 }

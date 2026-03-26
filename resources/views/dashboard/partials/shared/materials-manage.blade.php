@@ -236,6 +236,9 @@
                             <th class="px-6 py-4 cursor-pointer hover:text-gray-900 select-none group" onclick="sortTable(2, 'alpha')">
                                 Student Name <i class="fas fa-sort ml-1 text-gray-300 group-hover:text-gray-500"></i>
                             </th>
+                            <th class="px-6 py-4 text-center cursor-pointer hover:text-gray-900 select-none group" onclick="sortTable(3, 'alpha')">
+                                Status <i class="fas fa-sort ml-1 text-gray-300 group-hover:text-gray-500"></i>
+                            </th>
                             <th class="px-6 py-4 text-center">Action</th>
                         </tr>
                     </thead>
@@ -246,13 +249,27 @@
                                 <input type="checkbox" class="email-checkbox w-4 h-4 text-[#a52a2a] bg-white border-gray-300 rounded focus:ring-[#a52a2a]" value="{{ $access->id }}" onclick="updateBulkDeleteBtn()">
                             </td>
                             <td class="px-6 py-4 font-mono font-medium text-gray-900 email-cell">{{ $access->email }}</td>
+                            
                             <td class="px-6 py-4 font-semibold text-gray-800 name-cell" data-value="{{ $access->student ? ($access->student->first_name . ' ' . $access->student->last_name) : 'ZZZ' }}">
-                                @if($access->student)
-                                    {{ $access->student->first_name ?? '' }} {{ $access->student->last_name ?? '' }}
+                                @if($access->user_id && $access->student)
+                                    {{ $access->student->first_name }} {{ $access->student->last_name }}
                                 @else
-                                    <span class="italic text-gray-400 text-xs">No account registered</span>
+                                    <span class="italic text-gray-400 text-xs">Pending Registration</span>
                                 @endif
                             </td>
+                            
+                            <td class="px-6 py-4 text-center status-cell" data-value="{{ $access->status }}">
+                                @if($access->status === 'enrolled')
+                                    <span class="px-2.5 py-1 bg-green-100 text-green-700 rounded-md text-[10px] font-bold uppercase tracking-wider border border-green-200">
+                                        Enrolled
+                                    </span>
+                                @else
+                                    <span class="px-2.5 py-1 bg-amber-100 text-amber-700 rounded-md text-[10px] font-bold uppercase tracking-wider border border-amber-200">
+                                        pending
+                                    </span>
+                                @endif
+                            </td>
+
                             <td class="px-6 py-4 text-center">
                                 <button type="button" onclick="window.openDeleteModal('{{ $access->id }}')" class="text-gray-400 hover:text-red-500 transition" title="Remove Access">
                                     <i class="fas fa-times-circle"></i>
