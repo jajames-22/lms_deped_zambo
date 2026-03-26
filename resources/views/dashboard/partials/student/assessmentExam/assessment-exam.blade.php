@@ -46,7 +46,7 @@
         }
     </style>
 </head>
-<body class="bg-[#a6a6a6] min-h-screen font-sans text-gray-800 relative selection:bg-[#a52a2a] selection:text-white flex flex-col">
+<body class="bg-gray-100 min-h-screen font-sans text-gray-800 relative selection:bg-[#a52a2a] selection:text-white flex flex-col">
 
     <div id="exam-start-modal" class="fixed inset-0 z-[100] flex items-center justify-center bg-[#a52a2a] backdrop-blur-xl transition-opacity duration-300 p-4">
         <div class="bg-white rounded-3xl p-8 max-w-md w-full mx-4 shadow-2xl transform transition-all text-center">
@@ -111,7 +111,7 @@
             <div class="flex-grow mb-20">
                 @foreach($currentCategory->questions as $index => $question)
                 <div class="question-card w-full" id="question-{{ $index }}" data-index="{{ $index }}">
-                        <div class="bg-white rounded-3xl border-10 p-6 shadow-card border border-gray-300 relative mb-6">
+                        <div class="bg-white rounded-3xl p-6 shadow-card border border-gray-300 relative mb-6">
                             <div class="grid grid-cols-1 md:grid-cols-2 gap-8 md:gap-12">
                                 <div class="flex flex-col">
                                     <div class="flex flex-row items-start mb-4">
