@@ -3,8 +3,6 @@
 namespace App\Http\Controllers;
 
 use App\Models\Material;
-use App\Models\Lesson;
-use App\Models\Quiz;
 use App\Models\Enrollment;
 use App\Models\User;
 use Illuminate\Http\Request;
@@ -12,10 +10,12 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
 use Maatwebsite\Excel\Facades\Excel;
-use App\Imports\LessonImport; 
+use App\Imports\LessonImport;
 use App\Models\Tag;
-use App\Imports\LrnMaterialAccessImport; 
-use App\Exports\MaterialTemplateExport; 
+use App\Imports\EmailMaterialsAccessImport;
+use App\Exports\MaterialTemplateExport;
+use Illuminate\Support\Facades\Mail;
+use App\Mail\ModuleInviteMail;
 use Exception;
 
 class MaterialsController extends Controller
@@ -154,11 +154,11 @@ class MaterialsController extends Controller
             ->get()
             ->map(function ($enrollment) {
                 $enrollment->student = $enrollment->user;
-                $enrollment->lrn = $enrollment->user ? $enrollment->user->lrn : 'N/A';
+                // CHANGED: Fetch email instead of lrn
+                $enrollment->email = $enrollment->user ? $enrollment->user->email : 'N/A';
                 return $enrollment;
             });
 
-        // UPDATED: Pointing to shared folder
         return view('dashboard.partials.shared.materials-manage', compact('material', 'whitelistedStudents'));
     }
 
@@ -184,12 +184,14 @@ class MaterialsController extends Controller
 
     public function addAccess(Request $request, $id)
     {
-        $request->validate(['lrn' => 'required|digits:12']);
+        // CHANGED: Validate email format instead of 12 digits
+        $request->validate(['email' => 'required|email']);
 
-        $student = User::where('lrn', $request->lrn)->first();
+        // CHANGED: Look up student by email
+        $student = User::where('email', $request->email)->first();
 
         if (!$student) {
-            return response()->json(['success' => false, 'message' => 'No student found with this LRN.']);
+            return response()->json(['success' => false, 'message' => 'No student found with this email address.']);
         }
 
         if (Enrollment::where('materials_id', $id)->where('user_id', $student->id)->exists()) {
@@ -218,10 +220,12 @@ class MaterialsController extends Controller
         $request->validate(['file' => 'required|mimes:xlsx,xls,csv|max:2048']);
 
         try {
-            Excel::import(new LrnMaterialAccessImport($id), $request->file('file'));
-            return response()->json(['success' => true, 'message' => 'LRN list imported successfully!']);
+            // NOTE: You will also need to update this Import class to read the 'email' column instead of 'lrn'
+            Excel::import(new EmailMaterialsAccessImport($id), $request->file('file'));
+            return response()->json(['success' => true, 'message' => 'List imported successfully!']);
         } catch (Exception $e) {
-            return response()->json(['success' => false, 'message' => 'Import failed. Check if your file has an "lrn" header.'], 500);
+            // CHANGED: Updated error message hint
+            return response()->json(['success' => false, 'message' => 'Import failed. Check if your file has an "email" header.'], 500);
         }
     }
 
@@ -275,7 +279,7 @@ class MaterialsController extends Controller
                 if ($sectionType === 'exam') {
                     foreach ($cat['questions'] ?? [] as $q) {
                         $examId = DB::table('exams')->insertGetId([
-                            'material_id' => $id, 
+                            'material_id' => $id,
                             'type' => $q['type'] ?? 'mcq',
                             'question_text' => $q['text'] ?? '',
                             'media_url' => $q['media_url'] ?? null,
@@ -475,7 +479,7 @@ class MaterialsController extends Controller
                         }
                     } else {
                         $lessonId = DB::table('lessons')->insertGetId([
-                            'materials_id' => $id, 
+                            'materials_id' => $id,
                             'title' => $cat['title'] ?? 'New Lesson',
                             'section_type' => 'lesson',
                             'time_limit' => $cat['time_limit'] ?? 0,
@@ -485,7 +489,7 @@ class MaterialsController extends Controller
 
                         foreach ($cat['questions'] ?? [] as $q) {
                             $quizId = DB::table('quizzes')->insertGetId([
-                                'lesson_id' => $lessonId, 
+                                'lesson_id' => $lessonId,
                                 'type' => $q['type'] ?? 'mcq',
                                 'question_text' => $q['text'] ?? '',
                                 'media_url' => $q['media_url'] ?? null,
@@ -551,4 +555,65 @@ class MaterialsController extends Controller
             'message' => 'Tag removed successfully'
         ]);
     }
+    public function toggleVisibility(Request $request, $id)
+    {
+        try {
+            $material = DB::table('materials')->where('id', $id)->first();
+
+            // Toggle the boolean
+            $newVisibility = !$material->is_public;
+
+            DB::table('materials')
+                ->where('id', $id)
+                ->update(['is_public' => $newVisibility, 'updated_at' => now()]);
+
+            return response()->json([
+                'success' => true,
+                'is_public' => $newVisibility,
+                'message' => 'Module is now ' . ($newVisibility ? 'Public (Open to all)' : 'Private (Restricted access)')
+            ]);
+        } catch (Exception $e) {
+            return response()->json(['success' => false, 'message' => 'Error updating visibility: ' . $e->getMessage()], 500);
+        }
+    }
+
+    public function notifyStudents($id)
+    {
+        try {
+            // We need to fetch the material details to pass to the email
+            $material = DB::table('materials')->where('id', $id)->first();
+
+            if (!$material) {
+                return response()->json(['success' => false, 'message' => 'Material not found.'], 404);
+            }
+
+            // Check how many students are enrolled
+            $enrolledStudents = Enrollment::with('user')->where('materials_id', $id)->get();
+
+            if ($enrolledStudents->isEmpty()) {
+                return response()->json(['success' => false, 'message' => 'There are no students in the access list to notify.']);
+            }
+
+            $sentCount = 0;
+
+            // Loop through the enrolled students and send the email
+            foreach ($enrolledStudents as $enrollment) {
+                if ($enrollment->user && $enrollment->user->email) {
+                    // Send the email
+                    Mail::to($enrollment->user->email)->send(new ModuleInviteMail($material, $enrollment->user));
+                    $sentCount++;
+                }
+            }
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Invitations successfully sent to ' . $sentCount . ' student(s)!'
+            ]);
+
+        } catch (Exception $e) {
+            Log::error('Email sending failed: ' . $e->getMessage());
+            return response()->json(['success' => false, 'message' => 'Failed to send notifications. Check your server mail configuration.'], 500);
+        }
+    }
 }
+

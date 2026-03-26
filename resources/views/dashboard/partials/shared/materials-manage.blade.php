@@ -118,6 +118,17 @@
         </div>
 
         <div class="flex items-center justify-center gap-8 lg:shrink-0 w-full lg:w-auto border-t lg:border-t-0 lg:border-l border-gray-100 pt-6 lg:pt-0 lg:pl-8">
+            
+            <div class="text-center flex flex-col items-center">
+                <div class="h-14 w-14 rounded-2xl bg-green-50 text-green-600 flex items-center justify-center text-xl shadow-sm mb-2">
+                    <i class="fas fa-eye"></i>
+                </div>
+                <p class="text-2xl font-black text-gray-900">{{ number_format($material->views ?? 0) }}</p>
+                <p class="text-xs font-bold text-gray-500 uppercase tracking-widest">Views</p>
+            </div>
+
+            <div class="w-px h-16 bg-gray-200"></div>
+
             <div class="text-center flex flex-col items-center">
                 <div class="h-14 w-14 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center text-xl shadow-sm mb-2">
                     <i class="fas fa-layer-group"></i>
@@ -138,99 +149,124 @@
         </div>
     </div>
 
-    <div class="bg-white rounded-3xl p-8 shadow-sm border border-gray-100 mt-8 relative">
-        <div class="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-6">
+    <div class="bg-white rounded-3xl p-8 shadow-sm border border-gray-100 mt-8 relative transition-all duration-300" id="access-management-container">
+        
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 rounded-xl mb-6 border transition-colors duration-300 {{ $material->is_public ? 'bg-green-50 border-green-200' : 'bg-gray-50 border-gray-200' }}" id="visibility-banner">
             <div>
-                <h3 class="text-xl font-bold text-gray-900">Module Access Management</h3>
-                <p class="text-sm text-gray-500 mt-1">Only students with LRNs listed below will have access to this module.</p>
+                <h4 class="font-bold text-gray-900 flex items-center gap-2">
+                    <i id="visibility-icon" class="fas {{ $material->is_public ? 'fa-globe-asia text-green-600' : 'fa-lock text-gray-500' }}"></i>
+                    <span id="visibility-title">{{ $material->is_public ? 'Public Material' : 'Private Material' }}</span>
+                </h4>
+                <p id="visibility-desc" class="text-sm mt-1 {{ $material->is_public ? 'text-green-700' : 'text-gray-500' }}">
+                    {{ $material->is_public ? 'Anyone on the platform can view this module. The access list below is currently ignored.' : 'Only the specific LRNs listed below can view this module.' }}
+                </p>
             </div>
             
-            <form id="add-lrn-form" class="flex flex-wrap gap-2 w-full md:w-auto">
-                <input type="text" id="student-lrn-input" name="lrn" placeholder="Enter Student LRN" required pattern="[0-9]+" title="Please enter numbers only"
+            <label class="toggle-container relative inline-block w-16 h-8 cursor-pointer shrink-0" title="Toggle Privacy">
+                <input type="checkbox" id="visibility-toggle" class="sr-only toggle-input" onchange="window.toggleVisibility(this)" {{ $material->is_public ? 'checked' : '' }}>
+                <span class="toggle-track absolute inset-0 bg-gray-300 rounded-full transition-colors duration-300 peer-focus-visible:ring-2 peer-focus-visible:ring-[#a52a2a]/40 shadow-inner"></span>
+                <span class="toggle-handle absolute left-1 top-1 bg-white w-6 h-6 rounded-full transition-transform duration-300 transform shadow-md shadow-black/20"></span>
+            </label>
+        </div>
+
+        <div class="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-6 transition-opacity duration-300" id="access-controls" style="opacity: {{ $material->is_public ? '0.5' : '1' }}; pointer-events: {{ $material->is_public ? 'none' : 'auto' }};">
+            <div>
+                <h3 class="text-xl font-bold text-gray-900">Access Management</h3>
+                <p class="text-sm text-gray-500 mt-1">Manage who can see this private module.</p>
+                
+                <button type="button" onclick="notifyStudents(this)" class="mt-3 px-4 py-2 bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-200 text-sm font-bold rounded-lg transition-all shadow-sm flex items-center gap-2">
+                    <i class="fas fa-paper-plane"></i> Send Email Invites
+                </button>
+            </div>
+            
+            <form id="add-email-form" class="flex flex-wrap gap-2 w-full md:w-auto">
+                <input type="email" id="student-email-input" name="email" placeholder="Enter Student Email" required
                     class="w-full md:w-64 px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#a52a2a]/20 focus:border-[#a52a2a] outline-none transition-all text-sm font-medium">
                 
-                <button type="button" onclick="submitLrn(this)" 
+                <button type="button" onclick="submitEmail(this)" 
                     class="px-5 py-2.5 bg-gray-900 text-white text-sm font-bold rounded-xl hover:bg-gray-800 transition-all shadow-sm flex items-center gap-2 whitespace-nowrap">
                     <i class="fas fa-plus"></i> Add
                 </button>
 
-                <input type="file" id="lrn-file-input" class="hidden" accept=".csv, .xlsx, .xls" onchange="importLrnList(this)">
-                <button type="button" onclick="document.getElementById('lrn-file-input').click()" 
+                <input type="file" id="email-file-input" class="hidden" accept=".csv, .xlsx, .xls" onchange="importEmailList(this)">
+                <button type="button" onclick="document.getElementById('email-file-input').click()" 
                     class="px-5 py-2.5 bg-white border border-gray-300 text-gray-700 text-sm font-bold rounded-xl hover:bg-gray-50 transition-all shadow-sm flex items-center gap-2 whitespace-nowrap">
                     <i class="fas fa-file-import"></i> Import List
                 </button>
             </form>
         </div>
 
-        <div class="flex items-center justify-between mb-4 bg-gray-50 p-3 rounded-xl border border-gray-100">
-            <div class="relative w-full md:w-72">
-                <i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"></i>
-                <input type="text" id="search-student" onkeyup="filterStudents()" placeholder="Search LRN or Name..." 
-                    class="w-full pl-10 pr-4 py-2 bg-white border border-gray-200 rounded-lg focus:ring-2 focus:ring-[#a52a2a]/20 focus:border-[#a52a2a] outline-none transition-all text-sm">
+        <div id="access-table-container" class="transition-opacity duration-300" style="opacity: {{ $material->is_public ? '0.5' : '1' }}; pointer-events: {{ $material->is_public ? 'none' : 'auto' }};">
+            <div class="flex items-center justify-between mb-4 bg-gray-50 p-3 rounded-xl border border-gray-100">
+                <div class="relative w-full md:w-72">
+                    <i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"></i>
+                    <input type="text" id="search-student" onkeyup="filterStudents()" placeholder="Search Email or Name..." 
+                        class="w-full pl-10 pr-4 py-2 bg-white border border-gray-200 rounded-lg focus:ring-2 focus:ring-[#a52a2a]/20 focus:border-[#a52a2a] outline-none transition-all text-sm">
+                </div>
+
+                <button type="button" id="bulk-delete-btn" onclick="window.openDeleteModal('bulk')" 
+                    class="hidden px-4 py-2 bg-red-50 text-red-600 border border-red-200 text-sm font-bold rounded-lg hover:bg-red-600 hover:text-white transition-all shadow-sm items-center gap-2 whitespace-nowrap">
+                    <i class="fas fa-trash-alt"></i> Delete Selected (<span id="selected-count">0</span>)
+                </button>
             </div>
 
-            <button type="button" id="bulk-delete-btn" onclick="window.openDeleteModal('bulk')" 
-                class="hidden px-4 py-2 bg-red-50 text-red-600 border border-red-200 text-sm font-bold rounded-lg hover:bg-red-600 hover:text-white transition-all shadow-sm items-center gap-2 whitespace-nowrap">
-                <i class="fas fa-trash-alt"></i> Delete Selected (<span id="selected-count">0</span>)
-            </button>
-        </div>
-
-        <div class="overflow-x-auto rounded-xl border border-gray-100">
-            <table class="w-full text-left text-sm text-gray-600" id="students-table">
-                <thead class="bg-gray-50 text-xs uppercase text-gray-500 font-bold border-b border-gray-100">
-                    <tr>
-                        <th class="px-6 py-4 w-12 text-center">
-                            <input type="checkbox" id="select-all" onclick="toggleSelectAll(this)" class="w-4 h-4 text-[#a52a2a] bg-white border-gray-300 rounded focus:ring-[#a52a2a]">
-                        </th>
-                        <th class="px-6 py-4 cursor-pointer hover:text-gray-900 select-none group" onclick="sortTable(1, 'numeric')">
-                            LRN <i class="fas fa-sort ml-1 text-gray-300 group-hover:text-gray-500"></i>
-                        </th>
-                        <th class="px-6 py-4 cursor-pointer hover:text-gray-900 select-none group" onclick="sortTable(2, 'alpha')">
-                            Student Name <i class="fas fa-sort ml-1 text-gray-300 group-hover:text-gray-500"></i>
-                        </th>
-                        <th class="px-6 py-4 text-center">Action</th>
-                    </tr>
-                </thead>
-                <tbody class="divide-y divide-gray-100" id="students-tbody">
-                @forelse($whitelistedStudents ?? [] as $access)
-                    <tr class="student-row hover:bg-gray-50/50 transition">
-                        <td class="px-6 py-4 text-center">
-                            <input type="checkbox" class="lrn-checkbox w-4 h-4 text-[#a52a2a] bg-white border-gray-300 rounded focus:ring-[#a52a2a]" value="{{ $access->id }}" onclick="updateBulkDeleteBtn()">
-                        </td>
-                        <td class="px-6 py-4 font-mono font-bold text-gray-900 lrn-cell">{{ $access->lrn }}</td>
-                        <td class="px-6 py-4 font-semibold text-gray-800 name-cell" data-value="{{ $access->student ? ($access->student->first_name . ' ' . $access->student->last_name) : 'ZZZ' }}">
-                            @if($access->student)
-                                {{ $access->student->first_name ?? '' }} {{ $access->student->last_name ?? '' }}
-                            @else
-                                <span class="italic text-gray-400 text-xs">No account registered</span>
-                            @endif
-                        </td>
-                        <td class="px-6 py-4 text-center">
-                            <button type="button" onclick="window.openDeleteModal('{{ $access->id }}')" class="text-gray-400 hover:text-red-500 transition" title="Remove Access">
-                                <i class="fas fa-times-circle"></i>
-                            </button>
-                        </td>
-                    </tr>
-                @empty
-                    <tr id="empty-state-row">
-                        <td colspan="4" class="px-6 py-12 text-center text-gray-400">
-                            <div class="flex flex-col items-center justify-center">
-                                <i class="fas fa-users-slash text-3xl mb-3 text-gray-300"></i>
-                                <p class="text-sm font-medium">No students added yet.</p>
-                                <p class="text-xs mt-1">Enter an LRN above to grant access.</p>
-                            </div>
-                        </td>
-                    </tr>
-                @endforelse
-                </tbody>
-            </table>
-        </div>
-        
-        <div id="pagination-wrapper" class="rounded-xl mt-1 hidden flex flex-col sm:flex-row items-center justify-between px-6 py-4 border-t border-gray-100 bg-gray-50/50">
-            <div class="text-sm text-gray-500 mb-3 sm:mb-0">
-                Showing <span id="page-start-info" class="font-bold text-gray-900">0</span> to <span id="page-end-info" class="font-bold text-gray-900">0</span> of <span id="page-total-info" class="font-bold text-gray-900">0</span> results
+            <div class="overflow-x-auto rounded-xl border border-gray-100">
+                <table class="w-full text-left text-sm text-gray-600" id="students-table">
+                    <thead class="bg-gray-50 text-xs uppercase text-gray-500 font-bold border-b border-gray-100">
+                        <tr>
+                            <th class="px-6 py-4 w-12 text-center">
+                                <input type="checkbox" id="select-all" onclick="toggleSelectAll(this)" class="w-4 h-4 text-[#a52a2a] bg-white border-gray-300 rounded focus:ring-[#a52a2a]">
+                            </th>
+                            <th class="px-6 py-4 cursor-pointer hover:text-gray-900 select-none group" onclick="sortTable(1, 'alpha')">
+                                Email Address <i class="fas fa-sort ml-1 text-gray-300 group-hover:text-gray-500"></i>
+                            </th>
+                            <th class="px-6 py-4 cursor-pointer hover:text-gray-900 select-none group" onclick="sortTable(2, 'alpha')">
+                                Student Name <i class="fas fa-sort ml-1 text-gray-300 group-hover:text-gray-500"></i>
+                            </th>
+                            <th class="px-6 py-4 text-center">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-100" id="students-tbody">
+                    @forelse($whitelistedStudents ?? [] as $access)
+                        <tr class="student-row hover:bg-gray-50/50 transition">
+                            <td class="px-6 py-4 text-center">
+                                <input type="checkbox" class="email-checkbox w-4 h-4 text-[#a52a2a] bg-white border-gray-300 rounded focus:ring-[#a52a2a]" value="{{ $access->id }}" onclick="updateBulkDeleteBtn()">
+                            </td>
+                            <td class="px-6 py-4 font-mono font-medium text-gray-900 email-cell">{{ $access->email }}</td>
+                            <td class="px-6 py-4 font-semibold text-gray-800 name-cell" data-value="{{ $access->student ? ($access->student->first_name . ' ' . $access->student->last_name) : 'ZZZ' }}">
+                                @if($access->student)
+                                    {{ $access->student->first_name ?? '' }} {{ $access->student->last_name ?? '' }}
+                                @else
+                                    <span class="italic text-gray-400 text-xs">No account registered</span>
+                                @endif
+                            </td>
+                            <td class="px-6 py-4 text-center">
+                                <button type="button" onclick="window.openDeleteModal('{{ $access->id }}')" class="text-gray-400 hover:text-red-500 transition" title="Remove Access">
+                                    <i class="fas fa-times-circle"></i>
+                                </button>
+                            </td>
+                        </tr>
+                    @empty
+                        <tr id="empty-state-row">
+                            <td colspan="4" class="px-6 py-12 text-center text-gray-400">
+                                <div class="flex flex-col items-center justify-center">
+                                    <i class="fas fa-users-slash text-3xl mb-3 text-gray-300"></i>
+                                    <p class="text-sm font-medium">No students added yet.</p>
+                                    <p class="text-xs mt-1">Enter an email address above to grant access.</p>
+                                </div>
+                            </td>
+                        </tr>
+                    @endforelse
+                    </tbody>
+                </table>
             </div>
-            <div class="flex items-center gap-1" id="pagination-controls"></div>
+
+            <div id="pagination-wrapper" class="rounded-xl mt-1 hidden flex flex-col sm:flex-row items-center justify-between px-6 py-4 border-t border-gray-100 bg-gray-50/50">
+                <div class="text-sm text-gray-500 mb-3 sm:mb-0">
+                    Showing <span id="page-start-info" class="font-bold text-gray-900">0</span> to <span id="page-end-info" class="font-bold text-gray-900">0</span> of <span id="page-total-info" class="font-bold text-gray-900">0</span> results
+                </div>
+                <div class="flex items-center gap-1" id="pagination-controls"></div>
+            </div>
         </div>
     </div>
 
@@ -289,6 +325,106 @@
 </div>
 
 <script>
+    // --- Visibility Toggle Logic ---
+    window.toggleVisibility = async function(checkbox) {
+        const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || '{{ csrf_token() }}';
+        checkbox.disabled = true;
+
+        try {
+            const response = await fetch('{{ route("dashboard.materials.toggle-visibility", $material->id ?? 0) }}', {
+                method: 'PATCH',
+                headers: {
+                    'X-CSRF-TOKEN': csrfToken,
+                    'Accept': 'application/json',
+                    'Content-Type': 'application/json'
+                }
+            });
+
+            const data = await response.json();
+
+            if (response.ok && data.success) {
+                showSnackbar(data.message, 'success');
+
+                const isPublic = data.is_public;
+                
+                // Update UI visually
+                const banner = document.getElementById('visibility-banner');
+                const icon = document.getElementById('visibility-icon');
+                const title = document.getElementById('visibility-title');
+                const desc = document.getElementById('visibility-desc');
+                const controls = document.getElementById('access-controls');
+                const tableContainer = document.getElementById('access-table-container');
+
+                if (isPublic) {
+                    banner.className = "flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 rounded-xl mb-6 border transition-colors duration-300 bg-green-50 border-green-200";
+                    icon.className = "fas fa-globe-asia text-green-600";
+                    title.innerText = "Public Material";
+                    desc.innerText = "Anyone on the platform can view this module. The access list below is currently ignored.";
+                    desc.className = "text-sm mt-1 text-green-700";
+                    
+                    // Dim the access controls to indicate they are inactive
+                    controls.style.opacity = '0.5';
+                    controls.style.pointerEvents = 'none';
+                    tableContainer.style.opacity = '0.5';
+                    tableContainer.style.pointerEvents = 'none';
+                } else {
+                    banner.className = "flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 rounded-xl mb-6 border transition-colors duration-300 bg-gray-50 border-gray-200";
+                    icon.className = "fas fa-lock text-gray-500";
+                    title.innerText = "Private Material";
+                    desc.innerText = "Only the specific LRNs listed below can view this module.";
+                    desc.className = "text-sm mt-1 text-gray-500";
+                    
+                    // Restore access controls
+                    controls.style.opacity = '1';
+                    controls.style.pointerEvents = 'auto';
+                    tableContainer.style.opacity = '1';
+                    tableContainer.style.pointerEvents = 'auto';
+                }
+            } else {
+                checkbox.checked = !checkbox.checked;
+                throw new Error(data.message || 'Failed to update visibility.');
+            }
+        } catch (error) {
+            console.error(error);
+            showSnackbar(error.message || 'A network error occurred.', 'error');
+        } finally {
+            checkbox.disabled = false;
+        }
+    };
+
+    // --- Send Emails Logic ---
+    window.notifyStudents = async function(btn) {
+        const originalHtml = btn.innerHTML;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Sending...';
+        btn.disabled = true;
+
+        const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || '{{ csrf_token() }}';
+
+        try {
+            const response = await fetch('{{ route("dashboard.materials.notify-students", $material->id ?? 0) }}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': csrfToken,
+                    'Accept': 'application/json'
+                }
+            });
+            
+            const data = await response.json();
+
+            if (response.ok && data.success) {
+                showSnackbar(data.message, 'success');
+            } else {
+                showSnackbar(data.message || 'Failed to send emails.', 'error');
+            }
+        } catch (error) {
+            showSnackbar('A network error occurred.', 'error');
+        } finally {
+            btn.innerHTML = originalHtml;
+            btn.disabled = false;
+        }
+    };
+
     // --- Toggle Status Logic ---
     window.toggleMaterialStatus = async function(checkbox) {
         const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || '{{ csrf_token() }}';
@@ -376,13 +512,14 @@
         applyFilterAndSort();
     }
 
-    function applyFilterAndSort() {
+function applyFilterAndSort() {
         const query = document.getElementById('search-student').value.toLowerCase();
         
         currentRows = allRows.filter(row => {
-            const lrn = row.querySelector('.lrn-cell').innerText.toLowerCase();
+            // CHANGED: Query against email-cell instead of lrn-cell
+            const email = row.querySelector('.email-cell').innerText.toLowerCase();
             const name = row.querySelector('.name-cell').innerText.toLowerCase();
-            return lrn.includes(query) || name.includes(query);
+            return email.includes(query) || name.includes(query);
         });
 
         if (sortColumnIndex !== null) {
@@ -505,7 +642,8 @@
     };
 
     window.toggleSelectAll = function(selectAllCheckbox) {
-        const checkboxes = document.querySelectorAll('.lrn-checkbox');
+        // CHANGED: Targets email-checkbox class
+        const checkboxes = document.querySelectorAll('.email-checkbox');
         checkboxes.forEach(cb => {
             if (cb.closest('tr').style.display !== 'none') {
                 cb.checked = selectAllCheckbox.checked;
@@ -515,7 +653,7 @@
     };
 
     window.updateBulkDeleteBtn = function() {
-        const selectedCount = document.querySelectorAll('.lrn-checkbox:checked').length;
+        const selectedCount = document.querySelectorAll('.email-checkbox:checked').length;
         const bulkBtn = document.getElementById('bulk-delete-btn');
         const countSpan = document.getElementById('selected-count');
         
@@ -552,13 +690,15 @@
 
     // --- API Interactions ---
     
-    window.submitLrn = async function(btn) {
-        const lrnInput = document.getElementById('student-lrn-input');
-        const lrnValue = lrnInput.value;
+    // CHANGED: submitLrn becomes submitEmail
+    window.submitEmail = async function(btn) {
+        const emailInput = document.getElementById('student-email-input');
+        const emailValue = emailInput.value.trim();
         const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || '{{ csrf_token() }}';
 
-        if (!lrnValue || isNaN(lrnValue)) {
-            showSnackbar('Please enter a valid numeric LRN.', 'error');
+        // Basic frontend email validation
+        if (!emailValue || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailValue)) {
+            showSnackbar('Please enter a valid email address.', 'error');
             return;
         }
 
@@ -574,18 +714,18 @@
                     'X-CSRF-TOKEN': csrfToken,
                     'Accept': 'application/json'
                 },
-                body: JSON.stringify({ lrn: lrnValue })
+                body: JSON.stringify({ email: emailValue }) // CHANGED payload to 'email'
             });
             const data = await response.json();
 
             if (response.ok && data.success) {
-                lrnInput.value = ''; 
+                emailInput.value = ''; 
                 showSnackbar('Student added successfully!', 'success');
                 setTimeout(refreshTableOnly, 200);
             } else if (response.status === 422) {
-                showSnackbar("Validation Error: " + data.errors.lrn[0], 'error');
+                showSnackbar("Validation Error: " + data.errors.email[0], 'error');
             } else {
-                showSnackbar(data.message || 'Failed to add LRN.', 'error');
+                showSnackbar(data.message || 'Failed to add email.', 'error');
             }
         } catch (error) {
             showSnackbar('A network error occurred.', 'error');
@@ -595,83 +735,29 @@
         }
     };
 
-    var targetsToDelete = [];
+
+    window.targetsToDelete = []; 
 
     window.openDeleteModal = function(id) {
         if (id === 'bulk') {
-            const checked = Array.from(document.querySelectorAll('.lrn-checkbox:checked'));
-            targetsToDelete = checked.map(cb => cb.value);
+            const checked = Array.from(document.querySelectorAll('.email-checkbox:checked'));
+            window.targetsToDelete = checked.map(cb => cb.value);
             
-            if (targetsToDelete.length === 0) {
+            if (window.targetsToDelete.length === 0) {
                 showSnackbar("Please select at least one student to delete.", 'error');
                 return;
             }
-            document.getElementById('delete-modal-text').innerText = `Are you sure you want to remove access for ${targetsToDelete.length} selected student(s)?`;
+            document.getElementById('delete-modal-text').innerText = `Are you sure you want to remove access for ${window.targetsToDelete.length} selected student(s)?`;
         } else {
-            targetsToDelete = [id];
+            window.targetsToDelete = [id];
             document.getElementById('delete-modal-text').innerText = "Are you sure you want to remove access for this student?";
         }
         
         document.getElementById('student-delete-modal').classList.remove('hidden');
     };
 
-    window.closeDeleteModal = function() {
-        document.getElementById('student-delete-modal').classList.add('hidden');
-        targetsToDelete = []; 
-    };
-
-    window.executeDelete = async function() {
-        if (!targetsToDelete || targetsToDelete.length === 0) return;
-
-        const btn = document.getElementById('confirm-delete-btn');
-        const originalHtml = btn.innerHTML;
-        const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || '{{ csrf_token() }}';
-
-        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Deleting...';
-        btn.disabled = true;
-
-        try {
-            let successCount = 0;
-
-            for (const id of targetsToDelete) {
-                let deleteUrl = '{{ route("dashboard.materials.access.remove", ":id") }}'.replace(':id', id);
-
-                const response = await fetch(deleteUrl, {
-                    method: 'DELETE',
-                    headers: {
-                        'X-CSRF-TOKEN': csrfToken,
-                        'Accept': 'application/json',
-                        'Content-Type': 'application/json'
-                    }
-                });
-
-                const data = await response.json();
-                
-                if (response.ok && data.success) {
-                    successCount++;
-                } else {
-                    showSnackbar("Error: " + (data.message || "Unknown error"), 'error');
-                }
-            }
-
-            window.closeDeleteModal();
-            
-            if (successCount > 0) {
-                showSnackbar(`Successfully removed ${successCount} student(s).`, 'success');
-                setTimeout(refreshTableOnly, 200);
-            }
-            
-        } catch (error) {
-            showSnackbar('A network error occurred.', 'error');
-        } finally {
-            if (btn) {
-                btn.innerHTML = originalHtml;
-                btn.disabled = false;
-            }
-        }
-    };
-
-    window.importLrnList = async function(input) {
+    // CHANGED: importLrnList becomes importEmailList
+    window.importEmailList = async function(input) {
         if (!input.files || input.files.length === 0) return;
 
         const file = input.files[0];
@@ -680,7 +766,7 @@
         
         const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || '{{ csrf_token() }}';
 
-        showSnackbar('Importing LRNs...', 'info');
+        showSnackbar('Importing Emails...', 'info');
 
         try {
             const response = await fetch('{{ route("dashboard.materials.access.import", $material->id ?? 0) }}', {
@@ -704,6 +790,78 @@
         }
     };
 
+    window.closeDeleteModal = function() {
+        document.getElementById('student-delete-modal').classList.add('hidden');
+        window.targetsToDelete = []; 
+    };
+
+    window.executeDelete = async function() {
+        if (!window.targetsToDelete || window.targetsToDelete.length === 0) return;
+
+        const btn = document.getElementById('confirm-delete-btn');
+        const originalHtml = btn.innerHTML;
+        const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || '{{ csrf_token() }}';
+
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Deleting...';
+        btn.disabled = true;
+
+        try {
+            let successCount = 0;
+
+            for (const id of window.targetsToDelete) {
+                // Using a direct path bypasses ANY Laravel URL encoding bugs!
+                let deleteUrl = `/dashboard/materials/access/${id}`;
+
+                const response = await fetch(deleteUrl, {
+                    method: 'DELETE',
+                    headers: {
+                        'X-CSRF-TOKEN': csrfToken,
+                        'Accept': 'application/json',
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                // Improved error handling to catch 500 Server Errors gracefully
+                if (!response.ok) {
+                    let errMsg = `Server Error: ${response.status}`;
+                    try {
+                        const errData = await response.json();
+                        errMsg = errData.message || errMsg;
+                    } catch(e) {
+                        console.error("Failed to parse error as JSON");
+                    }
+                    throw new Error(errMsg);
+                }
+
+                const data = await response.json();
+                
+                if (data.success) {
+                    successCount++;
+                } else {
+                    throw new Error(data.message || "Unknown error occurred.");
+                }
+            }
+
+            window.closeDeleteModal();
+            
+            if (successCount > 0) {
+                showSnackbar(`Successfully removed ${successCount} student(s).`, 'success');
+                setTimeout(refreshTableOnly, 200);
+            }
+            
+        } catch (error) {
+            console.error("Delete Exception:", error);
+            // This will now show the EXACT error (e.g. "Server Error: 500") if it fails again
+            showSnackbar(error.message || 'A network error occurred.', 'error');
+        } finally {
+            if (btn) {
+                btn.innerHTML = originalHtml;
+                btn.disabled = false;
+            }
+            window.targetsToDelete = []; // Reset after processing
+        }
+    };
+    
     // --- Material Delete Logic ---
     window.openMaterialDeleteModal = function() {
         document.getElementById('material-delete-modal').classList.remove('hidden');
@@ -756,6 +914,7 @@
             materialsBtn.classList.add('bg-[#a52a2a]/10', 'text-[#a52a2a]', 'font-medium', 'border-r-4', 'border-[#a52a2a]');
         }
     }, 50);
+
   // --- Tags Autocomplete & Management Logic ---
     const availableTags = [
         "Science", "Earth Science", "Computer Science", "Biology", "Chemistry", "Physics",
@@ -877,9 +1036,8 @@
         // Send Delete request to Backend
         const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || '{{ csrf_token() }}';
         try {
-            const safeTag = encodeURIComponent(tagValue);
-            let url = '{{ route("dashboard.materials.tags.remove", ["material" => $material->id ?? 0, "tag" => ":tag"]) }}';
-            url = url.replace(':tag', safeTag);
+            const safeTag = encodeURIComponent(tagValue);let url = '{{ route("dashboard.materials.tags.remove", ["material" => $material->id ?? 0, "tag" => "PLACEHOLDER_TAG"]) }}';
+url = url.replace('PLACEHOLDER_TAG', safeTag);
 
             const response = await fetch(url, {
                 method: 'DELETE',
