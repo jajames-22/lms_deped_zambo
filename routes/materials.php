@@ -12,7 +12,7 @@ Route::prefix('dashboard/materials')
 
         // The main index route (acts as a dispatcher)
         Route::get('/', [MaterialsController::class, 'index'])->name('index');
-        
+
         // Shared CRUD & Builder Routes
         Route::get('/create', [MaterialsController::class, 'create'])->name('create');
         Route::get('/{id}/edit', [MaterialsController::class, 'edit'])->name('edit');
@@ -34,4 +34,7 @@ Route::prefix('dashboard/materials')
         // Import/Export Routes
         Route::get('/template/download', [MaterialsController::class, 'downloadTemplate'])->name('download_template');
         Route::post('/{id}/import', [MaterialsController::class, 'importLessons'])->name('import');
+        // Visibility & Notification Routes
+        Route::patch('/{id}/toggle-visibility', [MaterialsController::class, 'toggleVisibility'])->name('toggle-visibility');
+        Route::post('/{id}/notify-students', [MaterialsController::class, 'notifyStudents'])->name('notify-students');
     });
