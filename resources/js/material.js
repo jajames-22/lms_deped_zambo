@@ -15,6 +15,7 @@ MaterialBuilder.SYNC_DELAY = 3000;
 MaterialBuilder.lastPayload = "";
 MaterialBuilder.currentMediaUploadQId = null;
 MaterialBuilder.selectedMediaFile = null;
+MaterialBuilder.activityListenersAdded = false;
 
 MaterialBuilder.initBuilder = function () {
     MaterialBuilder.isInitializing = true;
@@ -67,6 +68,16 @@ MaterialBuilder.initBuilder = function () {
             MaterialBuilder.handleAutosaveTrigger();
         }
     });
+
+    if (!MaterialBuilder.activityListenersAdded) {
+        const resetTimer = () => MaterialBuilder.resetIdleTimer();
+        window.addEventListener('mousemove', resetTimer);
+        window.addEventListener('keydown', resetTimer);
+        window.addEventListener('mousedown', resetTimer);
+        window.addEventListener('touchstart', resetTimer);
+        window.addEventListener('scroll', resetTimer, true);
+        MaterialBuilder.activityListenersAdded = true;
+    }
 
     MaterialBuilder.updateAutosaveIndicator("Ready");
     setTimeout(() => {
@@ -483,22 +494,36 @@ MaterialBuilder.getPayload = function (status) {
     };
 };
 
+
 MaterialBuilder.handleAutosaveTrigger = function () {
     if (MaterialBuilder.isInitializing) return; 
     
     MaterialBuilder.hasChanged = true;
-    MaterialBuilder.updateAutosaveIndicator('<i class="fas fa-pencil-alt fa-spin"></i> Typing...');
+    MaterialBuilder.updateAutosaveIndicator('<i class="fas fa-circle-notch text-amber-500"></i> Unsaved changes...');
+    MaterialBuilder.resetIdleTimer();
+};
+
+MaterialBuilder.resetIdleTimer = function () {
     clearTimeout(MaterialBuilder.autosaveTimer);
-    MaterialBuilder.autosaveTimer = setTimeout(() => { MaterialBuilder.autosaveToServer(); }, MaterialBuilder.SYNC_DELAY);
+    
+    if (MaterialBuilder.hasChanged && !MaterialBuilder.isInitializing) {
+        MaterialBuilder.autosaveTimer = setTimeout(() => { 
+            MaterialBuilder.autosaveToServer(); 
+        }, MaterialBuilder.SYNC_DELAY);
+    }
 };
 
 MaterialBuilder.autosaveToServer = async function () {
     const wrapper = document.getElementById("material-wrapper"); 
-    if (!wrapper) return; // Dataset Guard
+    if (!wrapper) return; 
 
     const payload = MaterialBuilder.getPayload("draft");
     const payloadString = JSON.stringify(payload);
-    if (payloadString === MaterialBuilder.lastPayload) return;
+    
+    if (payloadString === MaterialBuilder.lastPayload) {
+        MaterialBuilder.hasChanged = false; // Reset if nothing changed
+        return;
+    }
     MaterialBuilder.lastPayload = payloadString;
 
     try {
@@ -508,6 +533,7 @@ MaterialBuilder.autosaveToServer = async function () {
             body: payloadString,
         });
         MaterialBuilder.updateAutosaveIndicator('<i class="fas fa-check-circle text-green-500"></i> Synced');
+        MaterialBuilder.hasChanged = false; // Reset flag after successful sync
     } catch (e) {
         MaterialBuilder.updateAutosaveIndicator('<i class="fas fa-wifi-slash text-amber-500"></i> Offline');
     }

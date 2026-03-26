@@ -15,6 +15,8 @@ class Material extends Model
         'instructor_id',
         'status',
         'thumbnail',
+        'views',
+        'is_public',
         'draft_json'
     ];
 
