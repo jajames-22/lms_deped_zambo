@@ -27,6 +27,9 @@ class MaterialsController extends Controller
     /**
      * Admin Index: Fetches ALL materials across the entire platform.
      */
+    
+
+
     public function adminIndex()
     {
         $materials = Material::with('instructor')

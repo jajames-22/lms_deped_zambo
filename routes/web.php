@@ -85,6 +85,18 @@ Route::middleware(['auth', 'verified'])->group(function () {
     });
 
     Route::get('/get-districts/{quadrantId}', [DashboardController::class, 'getDistricts'])->name('districts.get');
+
+    Route::get('/dashboard/explore', [StudentController::class, 'explore'])
+        ->name('dashboard.explore');
+
+    // Route for the "See All" links or individual tag filtering
+    Route::get('/dashboard/explore/tags/{tag}', [StudentController::class, 'viewByTag'])
+        ->name('dashboard.explore.tag');
+
+    // Route for the Enroll/Access Material buttons
+    // This typically routes to the manage/view page of a material
+    Route::get('/dashboard/materials/{material}/view', [StudentController::class, 'viewMaterial'])
+        ->name('dashboard.materials.view');
 });
 
 /*

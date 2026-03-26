@@ -6,12 +6,58 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use App\Models\User;
 use App\Models\School;
+use App\Models\Material;
+use App\Models\Tag;
+
 
 class StudentController extends Controller
 {
     /**
      * Load the main student directory table
      */
+    public function explore()
+    {
+        $user = auth()->user();
+        // Fetch the user's school name, defaulting to 'Your School' if not found
+        $userSchoolName = $user->school->name ?? 'Your School';
+
+        // 1. Featured Material
+        $featuredMaterial = Material::where('is_public', true)
+            ->where('status', 'published')
+            ->orderBy('views', 'desc')
+            ->first();
+
+        // 2. Logic and Numbers (Filtered by tags)
+        $logicMaterials = Material::where('is_public', true)
+            ->where('status', 'published')
+            ->whereHas('tags', function($q) {
+                $q->whereIn('name', ['Mathematics', 'Programming', 'Calculus', 'Algebra']);
+            })->get();
+
+        // 3. Popular Materials (Highest views)
+        $popularMaterials = Material::where('is_public', true)
+            ->where('status', 'published')
+            ->orderBy('views', 'desc')
+            ->take(10)
+            ->get();
+
+        // 4. From Student's School: Materials created by instructors at the SAME school
+        $schoolMaterials = Material::where('is_public', true)
+            ->where('status', 'published')
+            ->whereHas('instructor', function($q) use ($user) {
+                $q->where('school_id', $user->school_id);
+            })->get();
+
+        return view('dashboard.partials.student.explore', compact(
+            'featuredMaterial', 
+            'logicMaterials', 
+            'popularMaterials', 
+            'schoolMaterials',
+            'userSchoolName'
+        ));
+    }
+
+
     public function loadStudentsPartial()
     {
         // Fetch only students and eager-load their school and district to prevent N+1 performance issues
