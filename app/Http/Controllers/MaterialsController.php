@@ -153,13 +153,35 @@ class MaterialsController extends Controller
             ->latest()
             ->get()
             ->map(function ($enrollment) {
+                // Ensure we pass the student data if it exists
                 $enrollment->student = $enrollment->user;
-                // CHANGED: Fetch email instead of lrn
-                $enrollment->email = $enrollment->user ? $enrollment->user->email : 'N/A';
                 return $enrollment;
             });
 
         return view('dashboard.partials.shared.materials-manage', compact('material', 'whitelistedStudents'));
+    }
+
+    public function addAccess(Request $request, $id)
+    {
+        $request->validate(['email' => 'required|email']);
+        $email = $request->email;
+
+        // Prevent duplicate invites
+        if (Enrollment::where('materials_id', $id)->where('email', $email)->exists()) {
+            return response()->json(['success' => false, 'message' => 'Email is already in the access list.']);
+        }
+
+        // Check if the user exists
+        $student = User::where('email', $email)->first();
+
+        Enrollment::create([
+            'materials_id' => $id,
+            'user_id' => $student ? $student->id : null,
+            'email' => $email,
+            'status' => $student ? 'enrolled' : 'pending'
+        ]);
+
+        return response()->json(['success' => true, 'message' => 'Student added successfully!']);
     }
 
     public function toggleStatus(Request $request, $id)
@@ -180,31 +202,6 @@ class MaterialsController extends Controller
         } catch (Exception $e) {
             return response()->json(['success' => false, 'message' => 'Error updating status: ' . $e->getMessage()], 500);
         }
-    }
-
-    public function addAccess(Request $request, $id)
-    {
-        // CHANGED: Validate email format instead of 12 digits
-        $request->validate(['email' => 'required|email']);
-
-        // CHANGED: Look up student by email
-        $student = User::where('email', $request->email)->first();
-
-        if (!$student) {
-            return response()->json(['success' => false, 'message' => 'No student found with this email address.']);
-        }
-
-        if (Enrollment::where('materials_id', $id)->where('user_id', $student->id)->exists()) {
-            return response()->json(['success' => false, 'message' => 'Student is already enrolled.']);
-        }
-
-        Enrollment::create([
-            'materials_id' => $id,
-            'user_id' => $student->id,
-            'status' => 'enrolled'
-        ]);
-
-        return response()->json(['success' => true, 'message' => 'Student enrolled successfully!']);
     }
 
     public function removeAccess($id)
