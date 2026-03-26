@@ -13,6 +13,7 @@ AssessmentBuilder.isInitializing = false;
 AssessmentBuilder.autosaveTimer = null;
 AssessmentBuilder.SYNC_DELAY = 3000;
 AssessmentBuilder.lastPayload = "";
+AssessmentBuilder.activityListenersAdded = false;
 
 // Initialize the Builder
 AssessmentBuilder.initBuilder = function () {
@@ -78,6 +79,16 @@ AssessmentBuilder.initBuilder = function () {
             AssessmentBuilder.handleAutosaveTrigger();
         }
     });
+
+    if (!AssessmentBuilder.activityListenersAdded) {
+        const resetTimer = () => AssessmentBuilder.resetIdleTimer();
+        window.addEventListener("mousemove", resetTimer);
+        window.addEventListener("keydown", resetTimer);
+        window.addEventListener("mousedown", resetTimer);
+        window.addEventListener("touchstart", resetTimer);
+        window.addEventListener("scroll", resetTimer, true);
+        AssessmentBuilder.activityListenersAdded = true;
+    }
 
     AssessmentBuilder.updateAutosaveIndicator("Ready");
     setTimeout(() => {
@@ -511,26 +522,41 @@ AssessmentBuilder.getPayload = function (status) {
     };
 };
 
+
 AssessmentBuilder.handleAutosaveTrigger = function () {
     if (AssessmentBuilder.isInitializing) return;
 
     AssessmentBuilder.hasChanged = true;
     AssessmentBuilder.updateAutosaveIndicator(
-        '<i class="fas fa-pencil-alt fa-spin"></i> Typing...',
+        '<i class="fas fa-circle-notch text-amber-500"></i> Unsaved changes...',
     );
-    clearTimeout(AssessmentBuilder.autosaveTimer);
-    AssessmentBuilder.autosaveTimer = setTimeout(() => {
-        AssessmentBuilder.autosaveToServer();
-    }, AssessmentBuilder.SYNC_DELAY);
+    AssessmentBuilder.resetIdleTimer();
 };
+
+// New function that delays the save until the user is fully idle
+AssessmentBuilder.resetIdleTimer = function () {
+    clearTimeout(AssessmentBuilder.autosaveTimer);
+    
+    // Only start the countdown if there are pending changes
+    if (AssessmentBuilder.hasChanged && !AssessmentBuilder.isInitializing) {
+        AssessmentBuilder.autosaveTimer = setTimeout(() => {
+            AssessmentBuilder.autosaveToServer();
+        }, AssessmentBuilder.SYNC_DELAY);
+    }
+};
+
 
 AssessmentBuilder.autosaveToServer = async function () {
     const wrapper = document.getElementById("assessment-wrapper");
-    if (!wrapper) return; // Guard
+    if (!wrapper) return; 
 
     const payload = AssessmentBuilder.getPayload("draft");
     const payloadString = JSON.stringify(payload);
-    if (payloadString === AssessmentBuilder.lastPayload) return;
+    
+    if (payloadString === AssessmentBuilder.lastPayload) {
+        AssessmentBuilder.hasChanged = false; // Reset if nothing changed
+        return;
+    }
     AssessmentBuilder.lastPayload = payloadString;
 
     try {
@@ -546,6 +572,7 @@ AssessmentBuilder.autosaveToServer = async function () {
         AssessmentBuilder.updateAutosaveIndicator(
             '<i class="fas fa-check-circle text-green-500"></i> Synced',
         );
+        AssessmentBuilder.hasChanged = false; // Reset flag after successful sync
     } catch (e) {
         AssessmentBuilder.updateAutosaveIndicator(
             '<i class="fas fa-wifi-slash text-amber-500"></i> Offline',

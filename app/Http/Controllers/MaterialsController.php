@@ -103,7 +103,8 @@ class MaterialsController extends Controller
         $lessons = [];
         $isNew = true;
 
-        return view('dashboard.partials.teacher.materials-create', compact('material', 'lessons', 'isNew'));
+        // UPDATED: Pointing to shared folder
+        return view('dashboard.partials.shared.materials-create', compact('material', 'lessons', 'isNew'));
     }
 
     public function edit($id)
@@ -131,7 +132,8 @@ class MaterialsController extends Controller
 
         $isNew = false;
 
-        return view('dashboard.partials.teacher.materials-create', compact('material', 'lessons', 'isNew'));
+        // UPDATED: Pointing to shared folder
+        return view('dashboard.partials.shared.materials-create', compact('material', 'lessons', 'isNew'));
     }
 
     public function manage($id)
@@ -156,7 +158,8 @@ class MaterialsController extends Controller
                 return $enrollment;
             });
 
-        return view('dashboard.partials.teacher.materials-manage', compact('material', 'whitelistedStudents'));
+        // UPDATED: Pointing to shared folder
+        return view('dashboard.partials.shared.materials-manage', compact('material', 'whitelistedStudents'));
     }
 
     public function toggleStatus(Request $request, $id)
