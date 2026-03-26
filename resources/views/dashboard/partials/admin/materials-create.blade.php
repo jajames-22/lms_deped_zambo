@@ -5,7 +5,7 @@
     data-builder-url="{{ isset($material) && isset($material->id) ? route('dashboard.materials.edit', $material->id) : '#' }}"
     data-manage-url="{{ isset($material) && isset($material->id) ? route('dashboard.materials.manage', $material->id) : '#' }}"
     data-delete-url="{{ isset($material) && isset($material->id) ? route('dashboard.materials.destroy', $material->id) : '#' }}"
-    data-redirect-url="{{ route('dashboard.materials.index') }}" 
+    data-redirect-url="{{ (isset($material) && isset($material->id)) ? route('dashboard.materials.manage', $material->id) : route('dashboard.materials.index') }}"
     data-csrf="{{ csrf_token() }}"
     data-upload-url="{{ route('dashboard.materials.upload_media') }}"
     class="space-y-6 pb-20 w-full max-w-5xl mx-auto">
@@ -18,7 +18,8 @@
     <div class="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
         <div class="border-b border-gray-100 p-6 flex items-center justify-between bg-gray-50/50">
             <div class="flex items-center gap-4">
-                <button type="button" onclick="MaterialBuilder.handleBackButton(this)"
+                <button type="button" 
+                    onclick="loadPartial(document.getElementById('material-wrapper').dataset.redirectUrl, document.getElementById('nav-materials-btn'))"
                     class="h-10 w-10 flex items-center justify-center rounded-xl bg-white border border-gray-200 text-gray-500 hover:text-[#a52a2a] transition shadow-sm">
                     <i class="fas fa-arrow-left"></i>
                 </button>
@@ -406,20 +407,33 @@
         modal.classList.remove('hidden');
         actionBtn.onclick = () => modal.classList.add('hidden');
     }
+</script>
 
+<script>
+    // 1. Ensure the sidebar is active while working inside the builder
     setTimeout(() => {
         const materialsBtn = document.getElementById('nav-materials-btn');
-        
         if (materialsBtn) {
-            // 1. Strip the active classes from ALL sidebar buttons and restore default styling
             document.querySelectorAll('.nav-btn').forEach(btn => {
                 btn.classList.remove('bg-[#a52a2a]/10', 'text-[#a52a2a]', 'font-medium', 'border-r-4', 'border-[#a52a2a]');
                 btn.classList.add('text-gray-600', 'hover:bg-gray-100');
             });
-
-            // 2. Apply the exact active classes to the Materials button
             materialsBtn.classList.remove('text-gray-600', 'hover:bg-gray-100');
             materialsBtn.classList.add('bg-[#a52a2a]/10', 'text-[#a52a2a]', 'font-medium', 'border-r-4', 'border-[#a52a2a]');
         }
     }, 50);
+
+    // 2. Intercept the original loadPartial function to ALWAYS enforce the Materials button
+    // when MaterialBuilder triggers an exit redirect.
+    if (typeof window.originalLoadPartial === 'undefined' && typeof window.loadPartial === 'function') {
+        window.originalLoadPartial = window.loadPartial;
+        
+        window.loadPartial = function(url, navElement) {
+            // If MaterialBuilder calls loadPartial without a nav element, force it to use the Materials button!
+            if (!navElement) {
+                navElement = document.getElementById('nav-materials-btn');
+            }
+            window.originalLoadPartial(url, navElement);
+        };
+    }
 </script>

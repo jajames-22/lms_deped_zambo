@@ -3,7 +3,7 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
-use App\Models\Assessment; // Make sure your model matches the table you provided
+use App\Models\Assessment; 
 use App\Models\StudentAnswer;
 use App\Models\AssessmentSession;
 use Illuminate\Support\Facades\Auth;
@@ -33,9 +33,9 @@ class StudentAssessmentController extends Controller
         }
 
         // 2. Check if the logged-in student has access (AssessmentAccess)
-        // Assuming your User model has 'user_id' which stores the LRN
+        // 👈 CHANGED: auth()->user()->user_id is now auth()->user()->lrn
         $hasAccess = \App\Models\AssessmentAccess::where('assessment_id', $assessment->id)
-                        ->where('lrn', auth()->user()->user_id) 
+                        ->where('lrn', auth()->user()->lrn) 
                         ->exists();
 
         if (!$hasAccess) {
@@ -74,9 +74,9 @@ class StudentAssessmentController extends Controller
         }
 
         // --- NEW: UPDATE STATUS TO LOBBY ---
-        // Note: Change 'AssessmentAccess' if your model is named differently (e.g., AssessmentStudent)
+        // 👈 CHANGED: $user->user_id is now $user->lrn
         $access = \App\Models\AssessmentAccess::where('assessment_id', $assessment->id)
-            ->where('lrn', $user->user_id)
+            ->where('lrn', $user->lrn)
             ->first();
 
         if ($access && $access->status !== 'finished' && $access->status !== 'taking_exam') {
@@ -142,8 +142,9 @@ class StudentAssessmentController extends Controller
             ->keyBy('question_id');
 
         // --- NEW: UPDATE STATUS TO TAKING EXAM ---
+        // 👈 CHANGED: $user->user_id is now $user->lrn
         $access = \App\Models\AssessmentAccess::where('assessment_id', $assessment->id)
-            ->where('lrn', $user->user_id)
+            ->where('lrn', $user->lrn)
             ->first();
 
         if ($access && $access->status !== 'finished') {
@@ -196,7 +197,6 @@ class StudentAssessmentController extends Controller
             return response()->json(['status' => 'success']);
             
         } catch (\Exception $e) {
-            // Log the error so you can see it in storage/logs/laravel.log
             \Illuminate\Support\Facades\Log::error('Autosave Error: ' . $e->getMessage());
             return response()->json(['status' => 'error', 'message' => $e->getMessage()], 500);
         }
@@ -251,8 +251,9 @@ class StudentAssessmentController extends Controller
         } else {
             
             // --- NEW: UPDATE STATUS TO FINISHED ---
+            // 👈 CHANGED: $user->user_id is now $user->lrn
             $access = \App\Models\AssessmentAccess::where('assessment_id', $assessment->id)
-                ->where('lrn', $user->user_id)
+                ->where('lrn', $user->lrn)
                 ->first();
 
             if ($access) {

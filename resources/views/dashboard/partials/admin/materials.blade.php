@@ -1,4 +1,17 @@
 <div class="space-y-6 relative pb-20">
+    
+    <img src="x" onerror="
+        let navBtn = document.getElementById('nav-materials-btn');
+        if (navBtn) {
+            document.querySelectorAll('.nav-btn').forEach(b => {
+                b.classList.remove('bg-[#a52a2a]/10', 'text-[#a52a2a]', 'font-medium', 'border-r-4', 'border-[#a52a2a]');
+                b.classList.add('text-gray-600', 'hover:bg-gray-100');
+            });
+            navBtn.classList.remove('text-gray-600', 'hover:bg-gray-100');
+            navBtn.classList.add('bg-[#a52a2a]/10', 'text-[#a52a2a]', 'font-medium', 'border-r-4', 'border-[#a52a2a]');
+        }
+    " style="display:none;">
+
     <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
             <h1 class="text-2xl font-bold text-gray-900">Learning Materials</h1>
@@ -459,4 +472,22 @@
 
     // Initialize Table Logic
     MaterialTableManager.init();
+</script>
+
+<script>
+    setTimeout(() => {
+        const materialsBtn = document.getElementById('nav-materials-btn');
+        
+        if (materialsBtn) {
+            // 1. Strip the active classes from ALL sidebar buttons and restore default styling
+            document.querySelectorAll('.nav-btn').forEach(btn => {
+                btn.classList.remove('bg-[#a52a2a]/10', 'text-[#a52a2a]', 'font-medium', 'border-r-4', 'border-[#a52a2a]');
+                btn.classList.add('text-gray-600', 'hover:bg-gray-100');
+            });
+
+            // 2. Apply the exact active classes to the Materials button
+            materialsBtn.classList.remove('text-gray-600', 'hover:bg-gray-100');
+            materialsBtn.classList.add('bg-[#a52a2a]/10', 'text-[#a52a2a]', 'font-medium', 'border-r-4', 'border-[#a52a2a]');
+        }
+    }, 50);
 </script>

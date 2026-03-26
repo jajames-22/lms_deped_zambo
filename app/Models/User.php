@@ -27,6 +27,7 @@ class User extends Authenticatable implements MustVerifyEmail
     {
         return $this->hasMany(Materials::class, 'instructor_id');
     }
+
     protected $fillable = [
         'first_name',
         'middle_name',
@@ -34,11 +35,12 @@ class User extends Authenticatable implements MustVerifyEmail
         'suffix',
         'email',
         'password',
-        'user_id',
         'school_id',
         'grade_level',
         'role',
-        'status'
+        'status',
+        'lrn',           
+        'employee_id',  
     ];
 
     /**

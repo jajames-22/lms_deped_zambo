@@ -21,6 +21,7 @@ class AssessmentAccess extends Model
     // 2. Keep the function name 'student', but point it to the User class!
     public function student()
     {
-        return $this->belongsTo(User::class, 'lrn', 'user_id');
+        // The syntax is: belongsTo(Model, foreign_key, owner_key)
+        return $this->belongsTo(User::class, 'lrn', 'lrn'); 
     }
 }
