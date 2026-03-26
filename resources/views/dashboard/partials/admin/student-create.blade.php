@@ -49,7 +49,7 @@
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
                         <label class="text-xs font-black text-gray-400 uppercase tracking-widest block mb-2">Learner Reference Number (LRN) <span class="text-red-500">*</span></label>
-                        <input type="text" name="user_id" required placeholder="12-digit LRN"
+                        <input type="text" name="lrn" required placeholder="12-digit LRN"
                             class="w-full px-4 py-3 bg-gray-50 border border-transparent focus:border-green-500 focus:bg-white rounded-xl transition-all outline-none font-mono text-green-700">
                     </div>
                     <div>

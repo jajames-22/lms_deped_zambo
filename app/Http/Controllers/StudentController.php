@@ -43,11 +43,14 @@ class StudentController extends Controller
             'middle_name' => 'nullable|string|max:255',
             'last_name' => 'required|string|max:255',
             'suffix' => 'nullable|string|max:50',
-            'user_id' => 'required|string|max:255|unique:users,user_id', // This acts as their LRN
+            
+            // 👈 CHANGED: 'user_id' is now 'lrn'
+            'lrn' => 'required|string|max:255|unique:users,lrn', 
+            
             'email' => 'required|email|max:255|unique:users,email',
             'password' => 'required|string|min:6',
             'school_id' => 'required|exists:schools,id',
-            'grade_level' => 'required|string|max:50', // Grade level is required for students!
+            'grade_level' => 'required|string|max:50', 
             'status' => 'required|in:pending,verified,suspended',
         ]);
 
@@ -84,10 +87,12 @@ class StudentController extends Controller
             'middle_name' => 'nullable|string|max:255',
             'last_name' => 'required|string|max:255',
             'suffix' => 'nullable|string|max:50',
-            // Ignore this specific user's ID so it doesn't trigger a "LRN already taken" error
-            'user_id' => 'required|string|max:255|unique:users,user_id,' . $student->id,
+            
+            // 👈 CHANGED: 'user_id' is now 'lrn'
+            'lrn' => 'required|string|max:255|unique:users,lrn,' . $student->id,
+            
             'email' => 'required|email|max:255|unique:users,email,' . $student->id,
-            'password' => 'nullable|string|min:6', // Optional: only update if they type a new one
+            'password' => 'nullable|string|min:6', 
             'school_id' => 'required|exists:schools,id',
             'grade_level' => 'required|string|max:50',
             'status' => 'required|in:pending,verified,suspended',

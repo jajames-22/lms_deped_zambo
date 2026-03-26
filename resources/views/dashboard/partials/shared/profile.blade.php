@@ -56,7 +56,7 @@
                             {{ $user->role === 'student' ? 'Learner Reference Number (LRN)' : 'Employee ID' }}
                         </p>
                         <p class="font-mono text-gray-800 font-semibold bg-gray-50 p-2.5 rounded-lg border border-gray-200">
-                            {{ $user->user_id }}
+                            {{ $user->role === 'student' ? ($user->lrn ?? 'Not provided') : ($user->employee_id ?? 'Not provided') }}
                         </p>
                     </div>
                     

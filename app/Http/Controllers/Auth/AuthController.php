@@ -26,6 +26,7 @@ class AuthController extends Controller
         $schools = School::orderBy('name')->get();
         return view('auth.register', compact('schools'));
     }
+    
     // 🔹 Handle Registration
     public function register(Request $request)
     {
@@ -35,7 +36,6 @@ class AuthController extends Controller
             'last_name' => 'required|string|max:255',
             'suffix' => 'nullable|string|max:255',
             'email' => 'required|email|unique:users',
-            'user_id' => 'required|string|max:50|unique:users,user_id',
             'password' => [
                 'required',
                 'confirmed',
@@ -52,6 +52,24 @@ class AuthController extends Controller
                 'string',
                 'max:50'
             ],
+
+            // 👈 NEW: Require LRN only if the user is a student
+            'lrn' => [
+                Rule::requiredIf($request->role === 'student'),
+                'nullable',
+                'string',
+                'max:50',
+                'unique:users,lrn'
+            ],
+
+            // 👈 NEW: Require Employee ID only if the user is a teacher
+            'employee_id' => [
+                Rule::requiredIf($request->role === 'teacher'),
+                'nullable',
+                'string',
+                'max:50',
+                'unique:users,employee_id'
+            ],
         ]);
 
         $user = User::create([
@@ -61,11 +79,15 @@ class AuthController extends Controller
             'suffix' => $validated['suffix'] ?? null,
             'email' => $validated['email'],
             'password' => bcrypt($validated['password']),
-            'user_id' => $validated['user_id'],
+            
+            // 👈 NEW: Insert into the correct column based on role
+            'lrn' => $validated['lrn'] ?? null,
+            'employee_id' => $validated['employee_id'] ?? null,
+            
             'school_id' => $validated['school_id'],
-            'grade_level' => $validated['grade_level'],
+            'grade_level' => $validated['grade_level'] ?? null,
             'role' => $validated['role'],
-            'status' => 'pending', // 👈 NEW: Set default status here
+            'status' => 'pending', 
         ]);
 
         event(new Registered($user));
@@ -73,7 +95,7 @@ class AuthController extends Controller
         // Redirect back with the flags needed to open the modal
         return back()->with([
             'show_verification_modal' => true,
-            'verify_email' => $user->email // matching your route's session variable
+            'verify_email' => $user->email 
         ]);
     }
 

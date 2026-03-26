@@ -88,7 +88,7 @@
                                             {{ $student->first_name }} {{ $student->middle_name ? substr($student->middle_name, 0, 1) . '.' : '' }} {{ $student->last_name }} {{ $student->suffix }}
                                         </p>
                                         <span class="bg-gray-100 text-gray-700 text-[10px] px-1.5 py-0.5 rounded font-mono border border-gray-200">
-                                            LRN: {{ $student->user_id }}
+                                            LRN: {{ $student->lrn }}
                                         </span>
                                     </div>
                                     <p class="text-xs text-gray-500 mt-0.5 truncate" title="{{ $student->email }}">

@@ -183,40 +183,43 @@
                             @error('role')
                                 <p class="text-red-500 text-xs mt-1 font-medium">{{ $message }}</p>
                             @enderror
-                            </div>
+                        </div>
 
-                        <!-- LRN / Teacher ID -->
-                        <div id="userIdWrapper" style="display:none;">
-                            <label id="userIdLabel" class="block text-sm font-medium text-gray-700 mb-1"></label>
-
-                            <input type="text" name="user_id" value="{{ old('user_id') }}"
-                                class="w-full px-4 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-[#a52a2a]/50 focus:border-[#a52a2a] outline-none transition-all @error('user_id') border-red-500 @enderror"
-                                placeholder="">
-
-                            @error('user_id')
+                        <div id="lrnWrapper" style="display:none;">
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Learner Reference Number (LRN)</label>
+                            <input type="text" name="lrn" value="{{ old('lrn') }}"
+                                class="w-full px-4 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-[#a52a2a]/50 focus:border-[#a52a2a] outline-none transition-all @error('lrn') border-red-500 @enderror"
+                                placeholder="Enter your 12-digit LRN">
+                            @error('lrn')
                                 <p class="text-red-500 text-xs mt-1 font-medium">{{ $message }}</p>
                             @enderror
                         </div>
 
-                        <div id="gradeLevelWrapper">
+                        <div id="employeeIdWrapper" style="display:none;">
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Teacher's ID / Employee ID</label>
+                            <input type="text" name="employee_id" value="{{ old('employee_id') }}"
+                                class="w-full px-4 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-[#a52a2a]/50 focus:border-[#a52a2a] outline-none transition-all @error('employee_id') border-red-500 @enderror"
+                                placeholder="Enter Teacher's ID">
+                            @error('employee_id')
+                                <p class="text-red-500 text-xs mt-1 font-medium">{{ $message }}</p>
+                            @enderror
+                        </div>
+
+                        <div id="gradeLevelWrapper" style="display:none;">
                             <label class="block text-sm font-medium text-gray-700 mb-1">
                                 Grade Level
                             </label>
 
                             <select name="grade_level" class="w-full px-4 py-2 rounded-lg border border-gray-300">
-
                                 <option value="">Select Grade</option>
-
                                 <option value="Kinder" {{ old('grade_level') == 'Kinder' ? 'selected' : '' }}>
                                     Kinder
                                 </option>
-
                                 @for ($i = 1; $i <= 12; $i++)
                                     <option value="Grade {{ $i }}" {{ old('grade_level') == "Grade $i" ? 'selected' : '' }}>
                                         Grade {{ $i }}
                                     </option>
                                 @endfor
-
                             </select>
 
                             @error('grade_level')
@@ -321,77 +324,46 @@
     </script>
 
     <script>
-        document.addEventListener("DOMContentLoaded", function () {
+        document.addEventListener('DOMContentLoaded', function () {
 
             // Tom Select (searchable school dropdown)
             new TomSelect("#schoolSelect", {
                 create: false,
-                sortField: {
-                    field: "text",
-                    direction: "asc"
-                }
+                sortField: { field: "text", direction: "asc" }
             });
 
+            // Elements
             const roleRadios = document.querySelectorAll('input[name="role"]');
             const gradeWrapper = document.getElementById('gradeLevelWrapper');
-
-            function toggleGradeLevel() {
-                const selectedRole = document.querySelector('input[name="role"]:checked');
-
-                if (!selectedRole || selectedRole.value === "teacher") {
-                    gradeWrapper.style.display = "none";
-                } else {
-                    gradeWrapper.style.display = "block";
-                }
-            }
-
-            toggleGradeLevel();
-
-            roleRadios.forEach(radio => {
-                radio.addEventListener("change", toggleGradeLevel);
-            });
-
-        });
-    </script>
-
-    <script>
-        document.addEventListener('DOMContentLoaded', function () {
-
-            const roleRadios = document.querySelectorAll('input[name="role"]');
-            const gradeWrapper = document.getElementById('gradeLevelWrapper');
-            const userIdWrapper = document.getElementById('userIdWrapper');
-            const userIdLabel = document.getElementById('userIdLabel');
-            const userIdInput = document.querySelector('input[name="user_id"]');
+            const lrnWrapper = document.getElementById('lrnWrapper');
+            const employeeIdWrapper = document.getElementById('employeeIdWrapper');
 
             function toggleFields() {
                 const selectedRole = document.querySelector('input[name="role"]:checked');
 
-                if (!selectedRole) {
-                    gradeWrapper.style.display = "none";
-                    userIdWrapper.style.display = "none";
-                    return;
-                }
+                // Hide all by default
+                gradeWrapper.style.display = "none";
+                lrnWrapper.style.display = "none";
+                employeeIdWrapper.style.display = "none";
 
+                if (!selectedRole) return;
+
+                // Show fields based on role
                 if (selectedRole.value === "student") {
                     gradeWrapper.style.display = "block";
-                    userIdWrapper.style.display = "block";
-                    userIdLabel.innerText = "LRN";
-                    userIdInput.placeholder = "Enter LRN";
-                }
-
-                if (selectedRole.value === "teacher") {
-                    gradeWrapper.style.display = "none";
-                    userIdWrapper.style.display = "block";
-                    userIdLabel.innerText = "Teacher's ID";
-                    userIdInput.placeholder = "Enter Teacher's ID";
+                    lrnWrapper.style.display = "block";
+                } else if (selectedRole.value === "teacher") {
+                    employeeIdWrapper.style.display = "block";
                 }
             }
 
+            // Attach listeners to radio buttons
             roleRadios.forEach(radio => {
                 radio.addEventListener('change', toggleFields);
             });
 
-            toggleFields(); // run on page load (important for old())
+            // Run once on load to catch old() input errors
+            toggleFields(); 
         });
     </script>
 </body>

@@ -381,21 +381,31 @@ class AssessmentController extends Controller
     public function addAccess(Request $request, \App\Models\Assessment $assessment)
     {
         $request->validate([
-            'lrn' => 'required|digits:12'
+            'lrn' => 'required|string|max:50' // string allows us to safely trim
         ]);
 
-        // Check if LRN is already added
-        if (AssessmentAccess::where('assessment_id', $assessment->id)->where('lrn', $request->lrn)->exists()) {
-            return response()->json(['success' => false, 'message' => 'This LRN is already on the access list.']);
+        // Clean the input to prevent hidden space bugs
+        $cleanLrn = trim($request->lrn);
+
+        // Check if LRN is already added to this specific assessment
+        if (AssessmentAccess::where('assessment_id', $assessment->id)->where('lrn', $cleanLrn)->exists()) {
+            return response()->json([
+                'success' => false, 
+                'message' => 'This LRN is already on the access list.'
+            ]);
         }
 
+        // Save the LRN directly, regardless of whether they have a registered account yet
         AssessmentAccess::create([
             'assessment_id' => $assessment->id,
-            'lrn' => $request->lrn,
+            'lrn' => $cleanLrn,
             'status' => 'offline' // Default status
         ]);
 
-        return response()->json(['success' => true, 'message' => 'Student LRN added successfully!']);
+        return response()->json([
+            'success' => true, 
+            'message' => 'Student LRN added successfully!'
+        ]);
     }
 
     // 3. ADD THIS NEW METHOD TO REMOVE LRNs
@@ -428,6 +438,4 @@ class AssessmentController extends Controller
             ], 500);
         }
     }
-
-
 }

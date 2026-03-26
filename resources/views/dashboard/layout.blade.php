@@ -241,20 +241,37 @@
                     contentArea.scrollTop = 0;
 
                     const scripts = contentArea.querySelectorAll('script');
-                        scripts.forEach(oldScript => {
-                            const newScript = document.createElement('script');
-                            Array.from(oldScript.attributes).forEach(attr => newScript.setAttribute(attr.name, attr.value));
-                            newScript.appendChild(document.createTextNode(oldScript.innerHTML));
-                            oldScript.parentNode.replaceChild(newScript, oldScript);
-                        });
+                    scripts.forEach(oldScript => {
+                        const newScript = document.createElement('script');
+                        Array.from(oldScript.attributes).forEach(attr => newScript.setAttribute(attr.name, attr.value));
+                        newScript.appendChild(document.createTextNode(oldScript.innerHTML));
+                        oldScript.parentNode.replaceChild(newScript, oldScript);
+                    });
 
+                    // 1. Strip the active state from ALL sidebar buttons securely
                     document.querySelectorAll('.nav-btn').forEach(btn => {
                         btn.classList.remove('bg-[#a52a2a]/10', 'text-[#a52a2a]', 'font-medium', 'border-r-4', 'border-[#a52a2a]');
                         btn.classList.add('text-gray-600', 'hover:bg-gray-100');
                     });
 
-                    element.classList.add('bg-[#a52a2a]/10', 'text-[#a52a2a]', 'font-medium', 'border-r-4', 'border-[#a52a2a]');
-                    element.classList.remove('text-gray-600', 'hover:bg-gray-100');
+                    // 2. Identify the correct button
+                    let targetBtn = element;
+
+                    // 3. THE MAGIC: If the button element was lost during routing, auto-detect it using the URL!
+                    if (!targetBtn || !targetBtn.classList) {
+                        if (url.includes('/materials')) targetBtn = document.getElementById('nav-materials-btn');
+                        else if (url.includes('/assessment')) targetBtn = document.getElementById('nav-assessment-btn');
+                        else if (url.includes('/schools')) targetBtn = document.getElementById('nav-schools-btn');
+                        else if (url.includes('/teachers')) targetBtn = document.getElementById('nav-teachers-btn');
+                        else if (url.includes('/students')) targetBtn = document.getElementById('nav-students-btn');
+                        else if (url.includes('/home')) targetBtn = document.querySelector('.nav-btn'); // Dashboard
+                    }
+
+                    // 4. Apply the active maroon state to the target button
+                    if (targetBtn) {
+                        targetBtn.classList.add('bg-[#a52a2a]/10', 'text-[#a52a2a]', 'font-medium', 'border-r-4', 'border-[#a52a2a]');
+                        targetBtn.classList.remove('text-gray-600', 'hover:bg-gray-100');
+                    }
 
                     if (window.innerWidth < 768 && !sidebar.classList.contains('-translate-x-full')) {
                         toggleSidebar();
