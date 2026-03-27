@@ -23,7 +23,7 @@
         
         /* Custom radio button styles */
         .option-label:has(input:checked) {
-            background-color: #fef2f2; /* red-50 */
+            background-color: #fef2f2;
             border-color: #a52a2a;
             box-shadow: 0 0 0 1px #a52a2a;
         }
@@ -44,18 +44,28 @@
         .shadow-badge {
             box-shadow: 0 10px 15px -3px rgba(165, 42, 42, 0.4);
         }
+        
+        .shadow-badge-info {
+            box-shadow: 0 10px 15px -3px rgba(37, 99, 235, 0.4);
+        }
     </style>
 </head>
 <body class="bg-gray-100 min-h-screen font-sans text-gray-800 relative selection:bg-[#a52a2a] selection:text-white flex flex-col">
 
-    <div id="exam-start-modal" class="fixed inset-0 z-[100] flex items-center justify-center bg-[#a52a2a] backdrop-blur-xl transition-opacity duration-300 p-4">
+    {{-- PHP Preparation for Real Questions vs Instructions --}}
+    @php
+        $totalRealQuestions = $currentCategory->questions->where('type', '!=', 'instruction')->count();
+        $realQuestionCounter = 0;
+    @endphp
+
+    <div id="exam-start-modal" class="fixed inset-0 z-[100] flex items-center justify-center bg-[#a52a2a]/95 backdrop-blur-xl transition-opacity duration-300 p-4">
         <div class="bg-white rounded-3xl p-8 max-w-md w-full mx-4 shadow-2xl transform transition-all text-center">
             <div class="w-20 h-20 bg-red-50 rounded-full flex items-center justify-center mx-auto mb-6 shadow-inner">
-                <i class="fas fa-file-signature text-3xl text-[#a52a2a]"></i>
+                <i id="start-modal-icon" class="fas fa-file-signature text-3xl text-[#a52a2a]"></i>
             </div>
             
             <h2 class="text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">Section {{ $assessment->categories->search(fn($cat) => $cat->id === $currentCategory->id) + 1 }}</h2>
-            <h1 class="text-2xl font-black text-gray-900 mb-6">{{ $currentCategory->title }}</h1>
+            <h1 id="start-modal-title" class="text-2xl font-black text-gray-900 mb-6">{{ $currentCategory->title }}</h1>
             
             <div class="bg-gray-50 rounded-2xl p-5 mb-8 border border-gray-100 flex items-center justify-center gap-4">
                 <div class="h-12 w-12 bg-white rounded-xl shadow-sm flex items-center justify-center">
@@ -69,10 +79,10 @@
                 </div>
             </div>
 
-            <p class="text-sm text-gray-500 mb-8 px-4 font-medium leading-relaxed">Once you click start, the timer will begin. Do not refresh or close this page.</p>
+            <p id="start-modal-desc" class="text-sm text-gray-500 mb-8 px-4 font-medium leading-relaxed">Once you click start, the timer will begin. Do not refresh or close this page.</p>
             
             <button onclick="startExam()" class="w-full py-4 bg-[#a52a2a] text-white font-black rounded-xl hover:bg-red-800 transition-all shadow-xl shadow-[#a52a2a]/30 flex items-center justify-center gap-3 group active:scale-[0.98]">
-                START SECTION <i class="fas fa-arrow-right group-hover:translate-x-1 transition-transform"></i>
+                <span id="start-btn-text">START SECTION</span> <i class="fas fa-arrow-right group-hover:translate-x-1 transition-transform"></i>
             </button>
         </div>
     </div>
@@ -84,9 +94,14 @@
                 <p class="text-sm text-gray-500 font-medium">{{ $currentCategory->title }}</p>
             </div>
 
-            <div class="flex items-center gap-4">
+            <div class="flex items-center gap-3 md:gap-4">
+                <button type="button" onclick="pauseExam(false)" id="pause-btn" class="flex items-center gap-2 text-xs md:text-sm font-bold text-amber-700 bg-amber-50 border border-amber-200 px-3 md:px-4 py-2 rounded-lg hover:bg-amber-100 transition-colors shadow-sm">
+                    <i class="fas fa-pause translate-y-[1px]"></i> 
+                    <span><span class="hidden md:inline translate-y-[-1px]">Pause </span>(<span id="pause-count-display">{{ $access->pauses_left ?? 3 }}</span>)</span>
+                </button>
+
                 <div class="hidden md:flex items-center gap-2 text-sm font-bold text-gray-500 bg-gray-100 px-4 py-2 rounded-lg">
-                    <span id="progress-text">1 / {{ count($currentCategory->questions) }}</span>
+                    <span id="progress-text">1 / {{ $totalRealQuestions }}</span>
                 </div>
 
                 <div id="timer-display" class="hidden items-center gap-2 bg-gray-900 text-white px-4 py-2 md:px-5 md:py-2.5 rounded-xl font-mono text-base md:text-lg font-bold tracking-wider shadow-sm transition-colors duration-300">
@@ -103,24 +118,37 @@
 
     <div class="h-24 md:h-28"></div>
 
-    <main class="flex-grow max-w-5xl w-full mx-auto px-4 pb-32 blur-sm transition-all duration-500 flex flex-col" id="exam-content">
+    <main class="flex-grow max-w-5xl w-full mx-auto px-4 pb-32 blur-sm transition-all duration-500 flex flex-col pointer-events-none" id="exam-content">
         <form id="assessment-form" onsubmit="submitAssessment(event)" class="flex-grow flex flex-col" action="{{ route('student.assessment.submit', $assessment->access_key) }}" method="POST">
             @csrf
             <input type="hidden" name="category_id" value="{{ $currentCategory->id }}">
             
             <div class="flex-grow mb-20">
                 @foreach($currentCategory->questions as $index => $question)
-                <div class="question-card w-full" id="question-{{ $index }}" data-index="{{ $index }}">
+                    @php
+                        $isInstruction = $question->type === 'instruction';
+                        if (!$isInstruction) {
+                            $realQuestionCounter++;
+                        }
+                    @endphp
+                    
+                    <div class="question-card w-full" id="question-{{ $index }}" data-index="{{ $index }}" data-is-question="{{ $isInstruction ? 'false' : 'true' }}" data-qnum="{{ $realQuestionCounter }}">
                         <div class="bg-white rounded-3xl p-6 shadow-card border border-gray-300 relative mb-6">
                             <div class="grid grid-cols-1 md:grid-cols-2 gap-8 md:gap-12">
                                 <div class="flex flex-col">
                                     <div class="flex flex-row items-start mb-4">
-                                        <div class="flex items-center justify-center bg-[#a52a2a] text-white rounded-2xl font-black shadow-badge w-12 h-12 aspect-square shrink-0">
-                                            {{ $index + 1 }}
-                                        </div>
-                                        <h3 class="text-base font-bold ml-4 w-full text-gray-900 mt-2 leading-none">
-                                            {{ $question->question_text }}
-                                        </h3>
+                                        
+                                        @if(!$isInstruction)
+                                            <div class="flex items-center justify-center bg-[#a52a2a] text-white rounded-2xl font-black shadow-badge w-12 h-12 aspect-square shrink-0">
+                                                {{ $realQuestionCounter }}
+                                            </div>
+                                        @else
+                                            <div class="flex items-center justify-center bg-blue-600 text-white rounded-2xl font-black shadow-badge-info w-12 h-12 aspect-square shrink-0">
+                                                <i class="fas fa-info"></i>
+                                            </div>
+                                        @endif
+
+                                        <h3 class="text-base font-bold ml-4 w-full text-gray-900 mt-1 leading-relaxed whitespace-pre-wrap">{{ $question->question_text }}</h3>
                                     </div>
                                     @if($question->media_url)
                                         <div class="rounded-2xl overflow-hidden border border-gray-100 bg-gray-50 shadow-inner flex justify-center mt-4">
@@ -140,39 +168,47 @@
                                     @endif
                                 </div>
                                 <div class="flex flex-col justify-center">
-                                    @if($question->type === 'text')
-                                        @php
-                                            $savedText = isset($existingAnswers) && isset($existingAnswers[$question->id]) 
-                                                            ? $existingAnswers[$question->id]->answer_text 
-                                                            : '';
-                                        @endphp
-                                        <div class="w-full">
-                                            <textarea name="answers[{{ $question->id }}]" rows="6" placeholder="Type your answer here..." class="w-full p-5 border-2 border-gray-300 rounded-2xl focus:ring-4 focus:ring-[#a52a2a]/20 focus:border-[#a52a2a] outline-none transition-all text-gray-700 font-medium resize-y bg-gray-50/50">{{ $savedText }}</textarea>
-                                        </div>
+                                    @if(!$isInstruction)
+                                        @if($question->type === 'text')
+                                            @php
+                                                $savedText = isset($existingAnswers) && isset($existingAnswers[$question->id]) 
+                                                                ? $existingAnswers[$question->id]->answer_text 
+                                                                : '';
+                                            @endphp
+                                            <div class="w-full">
+                                                <textarea name="answers[{{ $question->id }}]" rows="6" placeholder="Type your answer here..." class="w-full p-5 border-2 border-gray-300 rounded-2xl focus:ring-4 focus:ring-[#a52a2a]/20 focus:border-[#a52a2a] outline-none transition-all text-gray-700 font-medium resize-y bg-gray-50/50">{{ $savedText }}</textarea>
+                                            </div>
+                                        @else
+                                            @php
+                                                $savedOptions = [];
+                                                if(isset($existingAnswers) && isset($existingAnswers[$question->id]) && $existingAnswers[$question->id]->selected_options) {
+                                                    $decoded = json_decode($existingAnswers[$question->id]->selected_options, true);
+                                                    $savedOptions = is_array($decoded) ? $decoded : [];
+                                                }
+                                            @endphp
+                                            <div class="space-y-3">
+                                                @foreach($question->options as $option)
+                                                    @php
+                                                        $isChecked = in_array($option['id'], $savedOptions) ? 'checked' : '';
+                                                    @endphp
+                                                    <label class="option-label flex items-center p-3 border-2 border-gray-300 rounded-2xl cursor-pointer hover:bg-gray-50 hover:border-gray-200 transition-all group">
+                                                        <div class="relative flex items-center justify-center shrink-0">
+                                                            @if($question->type === 'checkbox')
+                                                                <input type="checkbox" name="answers[{{ $question->id }}][]" value="{{ $option['id'] }}" {{ $isChecked }} class="w-6 h-6 accent-[#a52a2a] border-gray-300 rounded focus:ring-[#a52a2a] bg-gray-50 transition-all cursor-pointer">
+                                                            @else
+                                                                <input type="radio" name="answers[{{ $question->id }}]" value="{{ $option['id'] }}" {{ $isChecked }} class="w-6 h-6 accent-[#a52a2a] border-gray-300 focus:ring-[#a52a2a] bg-gray-50 transition-all cursor-pointer">
+                                                            @endif
+                                                        </div>
+                                                        <span class="ml-4 text-gray-700 font-medium text-base md:text-lg group-hover:text-gray-900 leading-snug">{{ $option['option_text'] }}</span>
+                                                    </label>
+                                                @endforeach
+                                            </div>
+                                        @endif
                                     @else
-                                        @php
-                                            $savedOptions = [];
-                                            if(isset($existingAnswers) && isset($existingAnswers[$question->id]) && $existingAnswers[$question->id]->selected_options) {
-                                                $decoded = json_decode($existingAnswers[$question->id]->selected_options, true);
-                                                $savedOptions = is_array($decoded) ? $decoded : [];
-                                            }
-                                        @endphp
-                                        <div class="space-y-3">
-                                            @foreach($question->options as $option)
-                                                @php
-                                                    $isChecked = in_array($option['id'], $savedOptions) ? 'checked' : '';
-                                                @endphp
-                                                <label class="option-label flex items-center p-3 border-2 border-gray-300 rounded-2xl cursor-pointer hover:bg-gray-50 hover:border-gray-200 transition-all group">
-                                                    <div class="relative flex items-center justify-center shrink-0">
-                                                        @if($question->type === 'checkbox')
-                                                            <input type="checkbox" name="answers[{{ $question->id }}][]" value="{{ $option['id'] }}" {{ $isChecked }} class="w-6 h-6 accent-[#a52a2a] border-gray-300 rounded focus:ring-[#a52a2a] bg-gray-50 transition-all cursor-pointer">
-                                                        @else
-                                                            <input type="radio" name="answers[{{ $question->id }}]" value="{{ $option['id'] }}" {{ $isChecked }} class="w-6 h-6 accent-[#a52a2a] border-gray-300 focus:ring-[#a52a2a] bg-gray-50 transition-all cursor-pointer">
-                                                        @endif
-                                                    </div>
-                                                    <span class="ml-4 text-gray-700 font-medium text-base md:text-lg group-hover:text-gray-900 leading-snug">{{ $option['option_text'] }}</span>
-                                                </label>
-                                            @endforeach
+                                        {{-- Instruction Block - No Inputs Needed --}}
+                                        <div class="w-full h-full flex flex-col items-center justify-center p-8 bg-blue-50/50 border border-blue-100 rounded-2xl text-center">
+                                            <i class="fas fa-book-open text-4xl text-blue-300 mb-4"></i>
+                                            <p class="text-blue-800 font-medium text-lg leading-relaxed">Please read the instructions carefully before proceeding to the next items.</p>
                                         </div>
                                     @endif
                                 </div>
@@ -207,8 +243,8 @@
             <div class="w-20 h-20 bg-red-50 rounded-full flex items-center justify-center mx-auto mb-6 shadow-inner">
                 <i class="fas fa-hourglass-end text-3xl text-red-500 animate-pulse"></i>
             </div>
-            <h3 class="text-2xl font-black text-gray-900 mb-2">Time's Up!</h3>
-            <p class="text-gray-500 mb-6 font-medium">Your time for this section has expired. Submitting automatically...</p>
+            <h3 id="time-up-title" class="text-2xl font-black text-gray-900 mb-2">Time's Up!</h3>
+            <p id="time-up-desc" class="text-gray-500 mb-6 font-medium">Your time for this section has expired. Submitting automatically...</p>
             <div class="flex justify-center">
                 <i class="fas fa-spinner fa-spin text-[#a52a2a] text-4xl"></i>
             </div>
@@ -243,9 +279,17 @@
         let totalSeconds = (isTimed && savedSeconds !== null) ? savedSeconds : (timeLimitMinutes * 60);
         let timerInterval;
 
+        // --- Database Pause Tracking Logic ---
+        let pausesLeft = {{ $access->pauses_left ?? 3 }}; // Loaded directly from DB now!
+        document.getElementById('pause-count-display').innerText = pausesLeft;
+        
+        let examStarted = false;
+        let isPaused = false;
+
         // --- Navigation Variables ---
         let currentIndex = 0;
-        const totalQuestions = {{ count($currentCategory->questions) }};
+        const totalCards = {{ count($currentCategory->questions) }};
+        const totalRealQuestions = {{ $totalRealQuestions }};
         const questions = document.querySelectorAll('.question-card');
         const prevBtn = document.getElementById('prev-btn');
         const nextBtn = document.getElementById('next-btn');
@@ -277,10 +321,14 @@
             } else {
                 formData.append('time_remaining', 0);
             }
+            
+            // Append pauses_left to save it to the DB instantly
+            formData.append('pauses_left', pausesLeft);
 
             fetch("{{ route('student.assessment.autosave', $assessment->access_key) }}", {
                 method: 'POST',
                 body: formData,
+                keepalive: true,
                 headers: {
                     'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
                     'Accept': 'application/json'
@@ -302,18 +350,92 @@
         setInterval(triggerAutoSave, 15000);
 
         // ==========================================
-        // EXAM MECHANICS & NAVIGATION
+        // EXAM MECHANICS, PAUSE & NAVIGATION
         // ==========================================
+
+        const disableFocusTracking = false;
+
+        // 1. Tab Switching Detection
+        document.addEventListener("visibilitychange", () => {
+            if (disableFocusTracking) return;
+
+            if (document.hidden && examStarted && !isPaused) {
+                pauseExam(true);
+            }
+        });
+
+        // 2. Clicking outside browser (Blur) Detection
+        window.addEventListener("blur", () => {
+            if (disableFocusTracking) return;
+
+            if (examStarted && !isPaused) {
+                pauseExam(true);
+            }
+        });
+
+        function pauseExam(isAuto = false) {
+            if (!examStarted || isPaused) return;
+
+            if (pausesLeft <= 0) {
+                // Automatically submit if they tab out / blur with 0 pauses
+                handleZeroPausesSubmit(isAuto);
+                return;
+            }
+
+            pausesLeft--;
+            document.getElementById('pause-count-display').innerText = pausesLeft;
+
+            isPaused = true;
+            clearInterval(timerInterval);
+            
+            // Instantly save the new pause count to the database!
+            triggerAutoSave();
+
+            // Lock the exam background
+            const examContent = document.getElementById('exam-content');
+            examContent.classList.add('blur-sm');
+            examContent.style.pointerEvents = 'none';
+
+            // Setup Modal for Resume State
+            const modal = document.getElementById('exam-start-modal');
+            const title = document.getElementById('start-modal-title');
+            const desc = document.getElementById('start-modal-desc');
+            const btnText = document.getElementById('start-btn-text');
+            const icon = document.getElementById('start-modal-icon');
+
+            modal.classList.remove('hidden', 'opacity-0', 'pointer-events-none');
+
+            if (isAuto) {
+                title.innerText = "Warning: Focus Lost!";
+                title.classList.add('text-red-600');
+                icon.className = 'fas fa-exclamation-triangle text-3xl text-red-600';
+            } else {
+                title.innerText = "Exam Paused";
+                title.classList.remove('text-red-600');
+                icon.className = 'fas fa-pause-circle text-3xl text-[#a52a2a]';
+            }
+
+            desc.innerHTML = `You have <b>${pausesLeft}</b> pauses remaining for the entire exam. <br><br> If you run out of pauses and switch tabs or click outside the browser, your exam will automatically submit.`;
+            btnText.innerText = "RESUME EXAM";
+        }
+
         function startExam() {
             const modal = document.getElementById('exam-start-modal');
             modal.classList.add('opacity-0', 'pointer-events-none');
             setTimeout(() => modal.classList.add('hidden'), 300);
             
-            document.getElementById('exam-content').classList.remove('blur-sm');
+            const examContent = document.getElementById('exam-content');
+            examContent.classList.remove('blur-sm');
+            examContent.style.pointerEvents = 'auto';
 
-            if (questions.length > 0) {
-                questions[0].classList.add('active');
-                updateProgress();
+            examStarted = true;
+            isPaused = false;
+
+            if (!document.querySelector('.question-card.active')) {
+                if (questions.length > 0) {
+                    questions[0].classList.add('active');
+                    updateProgress();
+                }
             }
 
             if (isTimed) {
@@ -322,6 +444,7 @@
                 timerDisplay.classList.add('flex');
                 updateTimerDisplay();
                 
+                clearInterval(timerInterval);
                 if (totalSeconds > 0) {
                     timerInterval = setInterval(tickTimer, 1000);
                 } else {
@@ -335,7 +458,7 @@
             currentIndex += direction;
             
             if (currentIndex < 0) currentIndex = 0;
-            if (currentIndex >= totalQuestions) currentIndex = totalQuestions - 1;
+            if (currentIndex >= totalCards) currentIndex = totalCards - 1;
 
             questions[currentIndex].classList.add('active');
             
@@ -347,7 +470,7 @@
         function updateNavigationUI() {
             prevBtn.disabled = currentIndex === 0;
 
-            if (currentIndex === totalQuestions - 1) {
+            if (currentIndex === totalCards - 1) {
                 nextBtn.classList.add('hidden');
                 submitBtn.classList.remove('hidden');
             } else {
@@ -357,9 +480,17 @@
         }
 
         function updateProgress() {
-            progressText.innerText = `${currentIndex + 1} / ${totalQuestions}`;
-            const percentage = ((currentIndex + 1) / totalQuestions) * 100;
-            progressBar.style.width = `${percentage}%`;
+            const currentCard = questions[currentIndex];
+            const isQ = currentCard.getAttribute('data-is-question') === 'true';
+            
+            if (isQ) {
+                let displayNum = currentCard.getAttribute('data-qnum');
+                progressText.innerText = `${displayNum} / ${totalRealQuestions}`;
+                const percentage = (displayNum / totalRealQuestions) * 100;
+                progressBar.style.width = `${percentage}%`;
+            } else {
+                progressText.innerText = `Instruction`;
+            }
         }
 
         function tickTimer() {
@@ -388,22 +519,41 @@
             document.getElementById('time-remaining').innerText = `${formattedMinutes}:${formattedSeconds}`;
         }
 
-        // --- NEW MODAL LOGIC FOR SUBMITTING ---
+        // ==========================================
+        // SUBMISSION & ZERO-PAUSE LOGIC
+        // ==========================================
+
+        function handleZeroPausesSubmit(isAuto) {
+            clearInterval(timerInterval);
+            triggerAutoSave();
+            
+            const timeUpModal = document.getElementById('time-up-modal');
+            if (isAuto) {
+                document.getElementById('time-up-title').innerText = "Exam Terminated";
+                document.getElementById('time-up-title').classList.add('text-red-600');
+                document.getElementById('time-up-desc').innerText = "You lost focus on the browser with 0 pauses remaining. Your exam is submitting automatically...";
+            }
+            
+            timeUpModal.classList.remove('hidden');
+            submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Submitting...';
+            submitBtn.disabled = true;
+            
+            setTimeout(() => {
+                form.submit();
+            }, 3000);
+        }
 
         function handleTimeUp() {
             clearInterval(timerInterval);
             document.getElementById('time-remaining').innerText = "00:00";
-            
             triggerAutoSave();
             
-            // Show custom Time's Up blocking modal instead of alert
             const timeUpModal = document.getElementById('time-up-modal');
             timeUpModal.classList.remove('hidden');
             
             submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Submitting...';
             submitBtn.disabled = true;
             
-            // Force submission after 2.5 seconds so user reads the message
             setTimeout(() => {
                 form.submit();
             }, 2500);
@@ -416,6 +566,9 @@
             
             let answeredCount = 0;
             questions.forEach(q => {
+                // Ignore instruction cards in the unanswered verification!
+                if (q.getAttribute('data-is-question') !== 'true') return;
+
                 const checkedInputs = q.querySelectorAll('input[type="radio"]:checked, input[type="checkbox"]:checked');
                 const textArea = q.querySelector('textarea');
                 
@@ -431,8 +584,8 @@
             let iconClass = "fas fa-check-circle text-3xl text-[#a52a2a]";
             let iconBg = "bg-red-50";
 
-            if (answeredCount < totalQuestions) {
-                confirmMessage = `You have only answered <span class="font-black text-[#a52a2a]">${answeredCount}</span> out of <span class="font-black text-gray-900">${totalQuestions}</span> questions. Are you sure you want to submit?`;
+            if (answeredCount < totalRealQuestions) {
+                confirmMessage = `You have only answered <span class="font-black text-[#a52a2a]">${answeredCount}</span> out of <span class="font-black text-gray-900">${totalRealQuestions}</span> questions. Are you sure you want to submit?`;
                 iconClass = "fas fa-exclamation-triangle text-3xl text-amber-500";
                 iconBg = "bg-amber-50";
             }
@@ -458,8 +611,7 @@
             submitBtn.disabled = true;
             
             triggerAutoSave();
-            
-            form.submit(); // Actually submit the form
+            form.submit(); 
         }
     </script>
 </body>

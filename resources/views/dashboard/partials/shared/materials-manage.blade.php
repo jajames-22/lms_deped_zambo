@@ -946,7 +946,7 @@ function applyFilterAndSort() {
     }, 50);
 
   // --- Tags Autocomplete & Management Logic ---
-    const availableTags = [
+    var availableTags = [
         "Science", "Earth Science", "Computer Science", "Biology", "Chemistry", "Physics",
         "Mathematics", "Algebra", "Calculus", "Geometry",
         "English", "Literature", "Grammar", "Filipino", "Pananaliksik",
@@ -956,15 +956,20 @@ function applyFilterAndSort() {
     ];
 
     // 1. DOM Elements
-    const tagInput = document.getElementById('tag-input');
-    const suggestionsBox = document.getElementById('tag-suggestions');
-    const activeTagsContainer = document.getElementById('active-tags-container');
+    var tagInput = document.getElementById('tag-input');
+    var suggestionsBox = document.getElementById('tag-suggestions');
+    var activeTagsContainer = document.getElementById('active-tags-container');
 
     // 2. Initialize Tags from Database
-    let currentTags = {!! json_encode($material->tags->pluck('name') ?? []) !!}; 
+    var currentTags = {!! json_encode($material->tags->pluck('name') ?? []) !!}; 
 
-    // Render tags on page load
-    renderActiveTags();
+    // Render tags on page load (slight delay ensures dynamic DOM is fully injected)
+    setTimeout(() => {
+        tagInput = document.getElementById('tag-input');
+        suggestionsBox = document.getElementById('tag-suggestions');
+        activeTagsContainer = document.getElementById('active-tags-container');
+        renderActiveTags();
+    }, 50);
 
     // 3. Handle Keyboard Events (Enter Key)
     window.handleTagKeydown = function(e) {
@@ -996,7 +1001,7 @@ function applyFilterAndSort() {
     };
 
     // 5. Render the Suggestions Dropdown
-    function renderSuggestions(tags, query) {
+    window.renderSuggestions = function(tags, query) {
         if (tags.length === 0) {
             suggestionsBox.classList.add('hidden');
             return;
@@ -1021,7 +1026,7 @@ function applyFilterAndSort() {
     }
 
     // 6. Add Tag to UI and Database
-    async function addTag(tagValue) {
+    window.addTag = async function(tagValue) {
         if (currentTags.map(t => t.toLowerCase()).includes(tagValue.toLowerCase())) {
             tagInput.value = '';
             suggestionsBox.classList.add('hidden');
@@ -1066,8 +1071,9 @@ function applyFilterAndSort() {
         // Send Delete request to Backend
         const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || '{{ csrf_token() }}';
         try {
-            const safeTag = encodeURIComponent(tagValue);let url = '{{ route("dashboard.materials.tags.remove", ["material" => $material->id ?? 0, "tag" => "PLACEHOLDER_TAG"]) }}';
-url = url.replace('PLACEHOLDER_TAG', safeTag);
+            const safeTag = encodeURIComponent(tagValue);
+            let url = '{{ route("dashboard.materials.tags.remove", ["material" => $material->id ?? 0, "tag" => "PLACEHOLDER_TAG"]) }}';
+            url = url.replace('PLACEHOLDER_TAG', safeTag);
 
             const response = await fetch(url, {
                 method: 'DELETE',
@@ -1088,7 +1094,7 @@ url = url.replace('PLACEHOLDER_TAG', safeTag);
     }
 
     // 8. Render Active Tags in the DOM
-    function renderActiveTags() {
+    window.renderActiveTags = function() {
         if (!activeTagsContainer) return;
         activeTagsContainer.innerHTML = '';
 

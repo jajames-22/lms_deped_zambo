@@ -152,8 +152,9 @@ class StudentAssessmentController extends Controller
         }
         // -----------------------------------------
 
+        // 👈 ADD 'access' to compact() here
         return view('dashboard.partials.student.assessmentExam.assessment-exam', 
-            compact('assessment', 'currentCategory', 'session', 'existingAnswers')
+            compact('assessment', 'currentCategory', 'session', 'existingAnswers', 'access')
         );
     }
 
@@ -191,6 +192,17 @@ class StudentAssessmentController extends Controller
                             'answer_text' => $answerText,
                         ]
                     );
+                }
+            }
+
+            // 3. 👈 ADD THIS: Save the pauses left to the database
+            if ($request->has('pauses_left')) {
+                $access = \App\Models\AssessmentAccess::where('assessment_id', $assessment->id)
+                    ->where('lrn', $user->lrn)
+                    ->first();
+
+                if ($access) {
+                    $access->update(['pauses_left' => (int) $request->input('pauses_left')]);
                 }
             }
 
@@ -283,11 +295,28 @@ class StudentAssessmentController extends Controller
 
         $score = 0;
         $totalQuestions = 0;
-        $detailedResults = [];
+        
+        // --- CHANGED: Group results by category ---
+        $detailedResultsByCategory = []; 
 
         // 3. Loop through every question to grade it
         foreach ($assessment->categories as $category) {
+            $categoryData = [
+                'title' => $category->title,
+                'items' => []
+            ];
+
             foreach ($category->questions as $question) {
+                
+                // --- CHANGED: Handle Instructions (Skip Grading entirely) ---
+                if ($question->type === 'instruction') {
+                    $categoryData['items'][] = (object) [
+                        'is_instruction' => true,
+                        'question' => $question,
+                    ];
+                    continue; // Skip the rest of the grading loop
+                }
+
                 $totalQuestions++;
                 $studentAnswer = $studentAnswers->get($question->id);
 
@@ -307,17 +336,9 @@ class StudentAssessmentController extends Controller
                         return trim($option->option_text) !== '';
                     });
 
-                    // If there is at least one valid, non-empty correct answer provided by the admin:
                     if ($correctOptions->isNotEmpty()) {
-                        // ---------------------------------------------------------
-                        // AUTO-GRADED SHORT ANSWER
-                        // ---------------------------------------------------------
                         $isPending = false;
-                        
-                        // Combine acceptable answers for the UI (e.g., "Color OR Colour")
                         $correctAnswerText = $correctOptions->pluck('option_text')->implode(' OR ');
-                        
-                        // Check if case sensitive (Defaults to false if the column doesn't exist yet)
                         $isCaseSensitive = $question->is_case_sensitive ?? false;
 
                         if ($studentAnswerText !== '') {
@@ -325,32 +346,17 @@ class StudentAssessmentController extends Controller
                                 $expectedAnswer = trim($option->option_text);
                                 
                                 if ($isCaseSensitive) {
-                                    // Exact match required
-                                    if ($studentAnswerText === $expectedAnswer) {
-                                        $isCorrect = true;
-                                        break;
-                                    }
+                                    if ($studentAnswerText === $expectedAnswer) { $isCorrect = true; break; }
                                 } else {
-                                    // Case-insensitive match (converts both to lowercase)
-                                    if (strtolower($studentAnswerText) === strtolower($expectedAnswer)) {
-                                        $isCorrect = true;
-                                        break;
-                                    }
+                                    if (strtolower($studentAnswerText) === strtolower($expectedAnswer)) { $isCorrect = true; break; }
                                 }
                             }
-
-                            if ($isCorrect) {
-                                $score++;
-                            }
+                            if ($isCorrect) $score++;
                         }
-                        
                         $studentAnswerText = $displayStudentAnswer;
 
                     } else {
-                        // ---------------------------------------------------------
-                        // TRUE ESSAY (Pending Manual Grading)
-                        // ---------------------------------------------------------
-                        // Triggered if the admin left the correct answer completely blank
+                        // True Essay (Pending Manual Grading)
                         $isPending = true; 
                         $studentAnswerText = $displayStudentAnswer;
                         $correctAnswerText = 'Pending manual grading by instructor.';
@@ -365,12 +371,9 @@ class StudentAssessmentController extends Controller
 
                     if ($studentAnswer && $studentAnswer->selected_options) {
                         $selectedIds = json_decode($studentAnswer->selected_options, true) ?? [];
-                        
-                        // Map the student's selected IDs to actual text for the UI
                         $selectedOptionsText = $question->options->whereIn('id', $selectedIds)->pluck('option_text')->implode(', ');
                         $studentAnswerText = $selectedOptionsText ?: 'Unknown selection';
 
-                        // GRADING LOGIC: The student's array of IDs must perfectly match the correct array of IDs
                         if (count($selectedIds) === count($correctOptionIds) && empty(array_diff($selectedIds, $correctOptionIds))) {
                             $isCorrect = true;
                             $score++;
@@ -380,8 +383,9 @@ class StudentAssessmentController extends Controller
                     }
                 }
 
-                // 4. Bundle the data into an object for the Blade view
-                $detailedResults[] = (object) [
+                // 4. Bundle the data into the category
+                $categoryData['items'][] = (object) [
+                    'is_instruction' => false,
                     'question' => $question,
                     'is_correct' => $isCorrect,
                     'is_pending' => $isPending,
@@ -389,11 +393,14 @@ class StudentAssessmentController extends Controller
                     'correct_answer_text' => $correctAnswerText,
                 ];
             }
+
+            // Add the compiled category to the main array
+            $detailedResultsByCategory[] = (object) $categoryData;
         }
 
         // 5. Return the view
         return view('dashboard.partials.student.assessmentExam.assessment-result', compact(
-            'assessment', 'score', 'totalQuestions', 'detailedResults'
+            'assessment', 'score', 'totalQuestions', 'detailedResultsByCategory'
         ));
     }
 }

@@ -9,7 +9,7 @@
 </head>
 <body class="bg-gray-50 font-sans text-gray-900 min-h-screen flex flex-col items-center py-12 md:py-20 px-4">
 
-    <div class="max-w-3xl w-full mb-6">
+    <div class="max-w-4xl w-full mb-6">
         <a href="{{ url('/dashboard') }}" 
            class="inline-flex items-center text-gray-500 hover:text-[#a52a2a] font-bold transition-colors group">
             <i class="fas fa-arrow-left mr-2 group-hover:-translate-x-1 transition-transform"></i>
@@ -17,7 +17,7 @@
         </a>
     </div>
     
-    <div class="max-w-3xl w-full bg-white rounded-3xl shadow-xl border border-gray-100 overflow-hidden h-fit">
+    <div class="max-w-4xl w-full bg-white rounded-3xl shadow-xl border border-gray-100 overflow-hidden h-fit">
         
         <div class="bg-[#a52a2a] p-8 text-center relative overflow-hidden">
             <div class="absolute -top-10 -right-10 w-32 h-32 bg-white/10 rounded-full blur-2xl"></div>
@@ -65,46 +65,74 @@
                     </div>
                 </div>
 
-                @if(isset($detailedResults) && count($detailedResults) > 0)
+                @if(isset($detailedResultsByCategory) && count($detailedResultsByCategory) > 0)
                     <div class="pt-4 border-t border-gray-100">
                         <h3 class="text-sm font-bold text-gray-900 uppercase tracking-widest mb-6">Detailed Breakdown</h3>
                         
-                        <div class="space-y-6">
-                            @foreach($detailedResults as $index => $result)
-                                <div class="bg-white rounded-2xl p-5 border shadow-sm {{ $result->is_correct ? 'border-green-200' : ($result->is_pending ? 'border-amber-200' : 'border-red-200') }}">
+                        <div class="space-y-4">
+                            {{-- Iterate over the categories (Sections) --}}
+                            @foreach($detailedResultsByCategory as $catIndex => $category)
+                                <div class="border border-gray-200 rounded-2xl bg-white overflow-hidden shadow-sm">
                                     
-                                    <div class="flex items-start gap-3 mb-4">
-                                        <div class="flex items-center justify-center bg-gray-100 text-gray-600 rounded-lg font-black w-8 h-8 shrink-0 text-sm">
-                                            {{ $index + 1 }}
-                                        </div>
-                                        <h4 class="text-base font-bold text-gray-900 mt-1 leading-snug">
-                                            {{ $result->question->question_text }}
-                                        </h4>
-                                    </div>
+                                    {{-- Accordion Header --}}
+                                    <button type="button" onclick="toggleAccordion('cat-{{ $catIndex }}')" class="w-full px-6 py-4 flex items-center justify-between bg-gray-50 hover:bg-gray-100 transition-colors">
+                                        <h3 class="font-bold text-gray-900 text-lg">Section {{ $catIndex + 1 }}: {{ $category->title }}</h3>
+                                        <i id="icon-cat-{{ $catIndex }}" class="fas fa-chevron-down text-gray-400 transition-transform duration-300"></i>
+                                    </button>
 
-                                    <div class="ml-11 space-y-3">
+                                    {{-- Accordion Body --}}
+                                    <div id="content-cat-{{ $catIndex }}" class="hidden px-6 py-6 border-t border-gray-200 space-y-6">
+                                        @php $itemCounter = 1; @endphp
                                         
-                                        <div class="bg-gray-50 p-3 rounded-xl border border-gray-100">
-                                            <p class="text-[10px] font-bold uppercase tracking-wider mb-1 {{ $result->is_correct ? 'text-green-600' : ($result->is_pending ? 'text-amber-600' : 'text-red-600') }}">
-                                                @if($result->is_correct)
-                                                    <i class="fas fa-check-circle mr-1"></i> Your Answer
-                                                @elseif($result->is_pending)
-                                                    <i class="fas fa-hourglass-half mr-1"></i> Your Answer (Pending Grading)
-                                                @else
-                                                    <i class="fas fa-times-circle mr-1"></i> Your Answer
-                                                @endif
-                                            </p>
-                                            <p class="text-gray-800 text-sm font-medium whitespace-pre-wrap">{{ $result->student_answer_text ?? 'No answer provided' }}</p>
-                                        </div>
+                                        @foreach($category->items as $result)
+                                            @if($result->is_instruction)
+                                                {{-- Instruction Block --}}
+                                                <div class="bg-blue-50/50 border border-blue-100 rounded-xl p-5 mb-4">
+                                                    <div class="flex items-center gap-2 mb-2">
+                                                        <i class="fas fa-info-circle text-blue-500"></i>
+                                                        <span class="text-xs font-bold text-blue-600 uppercase tracking-widest">Instruction</span>
+                                                    </div>
+                                                    <p class="text-gray-800 text-sm font-medium whitespace-pre-wrap leading-relaxed">{{ $result->question->question_text }}</p>
+                                                </div>
+                                            @else
+                                                {{-- Actual Question Block --}}
+                                                <div class="bg-white rounded-2xl p-5 border shadow-sm {{ $result->is_correct ? 'border-green-200' : ($result->is_pending ? 'border-amber-200' : 'border-red-200') }}">
+                                                    
+                                                    <div class="flex items-start gap-3 mb-4">
+                                                        <div class="flex items-center justify-center bg-gray-100 text-gray-600 rounded-lg font-black w-8 h-8 shrink-0 text-sm">
+                                                            {{ $itemCounter++ }}
+                                                        </div>
+                                                        <h4 class="text-base font-bold text-gray-900 mt-1 leading-snug whitespace-pre-wrap">{{ $result->question->question_text }}</h4>
+                                                    </div>
 
-                                        @if(!$result->is_correct && !$result->is_pending)
-                                            <div class="bg-green-50 p-3 rounded-xl border border-green-100">
-                                                <p class="text-[10px] font-bold uppercase tracking-wider mb-1 text-green-700">
-                                                    <i class="fas fa-check text-green-500 mr-1"></i> Correct Answer
-                                                </p>
-                                                <p class="text-gray-800 text-sm font-medium">{{ $result->correct_answer_text }}</p>
-                                            </div>
-                                        @endif
+                                                    <div class="ml-11 space-y-3">
+                                                        
+                                                        <div class="bg-gray-50 p-3 rounded-xl border border-gray-100">
+                                                            <p class="text-[10px] font-bold uppercase tracking-wider mb-1 {{ $result->is_correct ? 'text-green-600' : ($result->is_pending ? 'text-amber-600' : 'text-red-600') }}">
+                                                                @if($result->is_correct)
+                                                                    <i class="fas fa-check-circle mr-1"></i> Your Answer
+                                                                @elseif($result->is_pending)
+                                                                    <i class="fas fa-hourglass-half mr-1"></i> Your Answer (Pending Grading)
+                                                                @else
+                                                                    <i class="fas fa-times-circle mr-1"></i> Your Answer
+                                                                @endif
+                                                            </p>
+                                                            <p class="text-gray-800 text-sm font-medium whitespace-pre-wrap">{{ $result->student_answer_text ?? 'No answer provided' }}</p>
+                                                        </div>
+
+                                                        @if(!$result->is_correct && !$result->is_pending)
+                                                            <div class="bg-green-50 p-3 rounded-xl border border-green-100">
+                                                                <p class="text-[10px] font-bold uppercase tracking-wider mb-1 text-green-700">
+                                                                    <i class="fas fa-check text-green-500 mr-1"></i> Correct Answer
+                                                                </p>
+                                                                <p class="text-gray-800 text-sm font-medium">{{ $result->correct_answer_text }}</p>
+                                                            </div>
+                                                        @endif
+                                                        
+                                                    </div>
+                                                </div>
+                                            @endif
+                                        @endforeach
                                         
                                     </div>
                                 </div>
@@ -118,7 +146,7 @@
                     <div class="w-12 h-12 bg-blue-100 text-blue-500 rounded-full flex items-center justify-center mx-auto mb-3 text-xl">
                         <i class="fas fa-lock"></i>
                     </div>
-                    <h4 class="font-bold text-blue-900 text-lg mb-1">Results are Hidden</h4>
+                    <h4 class="font-bold text-blue-900 text-lg mb-1">Results are recorded</h4>
                     <p class="text-sm text-blue-700 max-w-sm mx-auto">
                         The instructor has chosen to hide the detailed results and scores for this assessment until further notice.
                     </p>
@@ -135,5 +163,20 @@
         </div>
     </div>
 
+    {{-- Javascript for the Dropdown Accordions --}}
+    <script>
+        function toggleAccordion(id) {
+            const content = document.getElementById('content-' + id);
+            const icon = document.getElementById('icon-' + id);
+
+            if (content.classList.contains('hidden')) {
+                content.classList.remove('hidden');
+                icon.classList.add('rotate-180');
+            } else {
+                content.classList.add('hidden');
+                icon.classList.remove('rotate-180');
+            }
+        }
+    </script>
 </body>
 </html>

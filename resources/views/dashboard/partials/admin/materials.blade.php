@@ -1,17 +1,5 @@
 <div class="space-y-6 relative pb-20">
     
-    <img src="x" onerror="
-        let navBtn = document.getElementById('nav-materials-btn');
-        if (navBtn) {
-            document.querySelectorAll('.nav-btn').forEach(b => {
-                b.classList.remove('bg-[#a52a2a]/10', 'text-[#a52a2a]', 'font-medium', 'border-r-4', 'border-[#a52a2a]');
-                b.classList.add('text-gray-600', 'hover:bg-gray-100');
-            });
-            navBtn.classList.remove('text-gray-600', 'hover:bg-gray-100');
-            navBtn.classList.add('bg-[#a52a2a]/10', 'text-[#a52a2a]', 'font-medium', 'border-r-4', 'border-[#a52a2a]');
-        }
-    " style="display:none;">
-
     <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
             <h1 class="text-2xl font-bold text-gray-900">Learning Materials</h1>
@@ -25,24 +13,20 @@
         </button>
     </div>
 
-    <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        <div class="bg-white border border-gray-100 p-2 rounded-2xl shadow-sm flex items-center justify-center lg:justify-start lg:col-span-1 overflow-x-auto">
-            <div class="flex items-center space-x-1 bg-gray-50 p-1 rounded-xl w-full">
-                <button onclick="MaterialTableManager.filterStatus('all', this)"
-                    class="material-tab w-full px-4 py-2.5 text-xs font-bold rounded-lg transition-all bg-white text-[#a52a2a] shadow-sm border border-gray-100">All</button>
-                <button onclick="MaterialTableManager.filterStatus('published', this)"
-                    class="material-tab w-full px-4 py-2.5 text-xs font-bold rounded-lg transition-all text-gray-500 hover:text-gray-700">Published</button>
-                <button onclick="MaterialTableManager.filterStatus('draft', this)"
-                    class="material-tab w-full px-4 py-2.5 text-xs font-bold rounded-lg transition-all text-gray-500 hover:text-gray-700">Drafts</button>
-            </div>
+    <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+        <div class="flex items-center space-x-1 bg-gray-200/50 p-1 rounded-xl w-fit shrink-0">
+            <button onclick="MaterialTableManager.filterStatus('all', this)"
+                class="material-tab px-6 py-2 text-sm font-bold rounded-lg transition-all bg-white text-[#a52a2a] shadow-sm">All</button>
+            <button onclick="MaterialTableManager.filterStatus('published', this)"
+                class="material-tab px-6 py-2 text-sm font-bold rounded-lg transition-all text-gray-500 hover:text-gray-700">Published</button>
+            <button onclick="MaterialTableManager.filterStatus('draft', this)"
+                class="material-tab px-6 py-2 text-sm font-bold rounded-lg transition-all text-gray-500 hover:text-gray-700">Drafts</button>
         </div>
 
-        <div class="bg-white border border-gray-100 p-2 rounded-2xl shadow-sm flex items-center lg:col-span-2">
-            <div class="relative w-full">
-                <i class="fas fa-search absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400"></i>
-                <input type="text" id="materialSearchInput" placeholder="Search materials by title or description..."
-                    class="w-full pl-11 pr-4 py-2.5 bg-gray-50 border border-transparent focus:border-[#a52a2a] focus:bg-white rounded-xl outline-none transition-all text-sm text-gray-700">
-            </div>
+        <div class="relative w-full max-w-md">
+            <i class="fas fa-search absolute left-4 top-1/2 -translate-y-1/2 text-gray-400"></i>
+            <input type="text" id="materialSearchInput" placeholder="Search materials by title or description..."
+                class="w-full pl-11 pr-4 py-2.5 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#a52a2a]/20 focus:border-[#a52a2a] outline-none transition-all shadow-sm">
         </div>
     </div>
 
@@ -212,12 +196,12 @@
 
             // Update Tab UI
             document.querySelectorAll('.material-tab').forEach(tab => {
-                tab.classList.remove('bg-white', 'text-[#a52a2a]', 'shadow-sm', 'border', 'border-gray-100');
+                tab.classList.remove('bg-white', 'text-[#a52a2a]', 'shadow-sm' );
                 tab.classList.add('text-gray-500', 'hover:text-gray-700');
             });
 
             btnElement.classList.remove('text-gray-500', 'hover:text-gray-700');
-            btnElement.classList.add('bg-white', 'text-[#a52a2a]', 'shadow-sm', 'border', 'border-gray-100');
+            btnElement.classList.add('bg-white', 'text-[#a52a2a]', 'shadow-sm');
 
             this.applyFilters();
         },
