@@ -1018,8 +1018,8 @@
         }
     }, 50);
 
-    // --- Tags Autocomplete & Management Logic ---
-    const availableTags = [
+  // --- Tags Autocomplete & Management Logic ---
+    var availableTags = [
         "Science", "Earth Science", "Computer Science", "Biology", "Chemistry", "Physics",
         "Mathematics", "Algebra", "Calculus", "Geometry",
         "English", "Literature", "Grammar", "Filipino", "Pananaliksik",
@@ -1028,13 +1028,21 @@
         "Technology", "Programming", "Web Development", "First Aid"
     ];
 
-    const tagInput = document.getElementById('tag-input');
-    const suggestionsBox = document.getElementById('tag-suggestions');
-    const activeTagsContainer = document.getElementById('active-tags-container');
+    // 1. DOM Elements
+    var tagInput = document.getElementById('tag-input');
+    var suggestionsBox = document.getElementById('tag-suggestions');
+    var activeTagsContainer = document.getElementById('active-tags-container');
 
-    let currentTags = {!! json_encode(optional($material->tags)->pluck('name') ?? []) !!};
+    // 2. Initialize Tags from Database
+    var currentTags = {!! json_encode($material->tags->pluck('name') ?? []) !!}; 
 
-    renderActiveTags();
+    // Render tags on page load (slight delay ensures dynamic DOM is fully injected)
+    setTimeout(() => {
+        tagInput = document.getElementById('tag-input');
+        suggestionsBox = document.getElementById('tag-suggestions');
+        activeTagsContainer = document.getElementById('active-tags-container');
+        renderActiveTags();
+    }, 50);
 
     window.handleTagKeydown = function (e) {
         if (e.key === 'Enter') {
@@ -1063,7 +1071,8 @@
         renderSuggestions(matchedTags, query);
     };
 
-    function renderSuggestions(tags, query) {
+    // 5. Render the Suggestions Dropdown
+    window.renderSuggestions = function(tags, query) {
         if (tags.length === 0) {
             suggestionsBox.classList.add('hidden');
             return;
@@ -1087,7 +1096,8 @@
         suggestionsBox.classList.remove('hidden');
     }
 
-    async function addTag(tagValue) {
+    // 6. Add Tag to UI and Database
+    window.addTag = async function(tagValue) {
         if (currentTags.map(t => t.toLowerCase()).includes(tagValue.toLowerCase())) {
             tagInput.value = '';
             suggestionsBox.classList.add('hidden');
@@ -1147,7 +1157,8 @@
         }
     }
 
-    function renderActiveTags() {
+    // 8. Render Active Tags in the DOM
+    window.renderActiveTags = function() {
         if (!activeTagsContainer) return;
         activeTagsContainer.innerHTML = '';
 

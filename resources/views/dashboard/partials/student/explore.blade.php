@@ -38,7 +38,7 @@
     @endif
 
     {{-- 2. CATEGORY: LOGIC AND NUMBERS (Mathematics/Programming Tags) --}}
-    <section>
+    <section class="mb-0">
         <div class="flex items-center justify-between mb-6 px-2">
             <div>
                 <h2 class="text-2xl font-bold text-gray-900 tracking-tight">You might like: Logic and Numbers</h2>
@@ -46,16 +46,20 @@
             </div>
             <a href="#" class="text-xs font-bold text-[#a52a2a] uppercase tracking-widest hover:underline">See All</a>
         </div>
-        <div class="flex overflow-x-auto no-scrollbar gap-6 pb-4 snap-x px-2">
+        <div class="flex overflow-x-auto no-scrollbar gap-6 pb-6 snap-x px-2">
             @forelse($logicMaterials as $material)
-                <div class="w-72 flex-none snap-start group bg-white border border-gray-200 hover:border-[#a52a2a]/30 rounded-xl overflow-hidden shadow-sm hover:shadow-xl transition-all flex flex-col cursor-pointer"
-                     onclick="loadPartial('{{ route('dashboard.materials.manage', $material->id) }}', document.getElementById('nav-materials-btn'))">
+                <div class="w-72 flex-none snap-start group bg-white border border-gray-200 hover:border-[#a52a2a]/30 rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-all duration-300 flex flex-col cursor-pointer"
+                    onclick="loadPartial('{{ route('dashboard.materials.manage', $material->id) }}', document.getElementById('nav-materials-btn'))">
                     <div class="relative w-full aspect-[4/3] overflow-hidden">
-                        <img src="{{ $material->thumbnail ? asset('storage/' . $material->thumbnail) : 'https://images.unsplash.com/photo-1509228468518-180dd4864904?q=80&w=400' }}" class="w-full h-full object-cover group-hover:scale-110 transition-duration-500">
-                        <div class="absolute inset-0 bg-black/20 group-hover:bg-black/40 transition-colors"></div>
+                        {{-- FIX: Changed 'transition-duration-500' to 'transition-transform duration-500' --}}
+                        <img src="{{ $material->thumbnail ? asset('storage/' . $material->thumbnail) : 'https://images.unsplash.com/photo-1509228468518-180dd4864904?q=80&w=400' }}" 
+                            class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500">
+                        
+                        {{-- FIX: Added 'duration-500' here so the overlay fades in at the exact same speed as the image zoom --}}
+                        <div class="absolute inset-0 bg-black/20 group-hover:bg-black/40 transition-colors duration-500"></div>
                     </div>
                     <div class="p-5">
-                        <h3 class="font-bold text-gray-900 line-clamp-1 group-hover:text-[#a52a2a] transition-colors">{{ $material->title }}</h3>
+                        <h3 class="font-bold text-gray-900 line-clamp-1 group-hover:text-[#a52a2a] transition-colors duration-300">{{ $material->title }}</h3>
                         <p class="text-xs text-gray-500 mt-2 line-clamp-2">{{ $material->description }}</p>
                     </div>
                 </div>
@@ -70,14 +74,14 @@
         <div class="flex items-center justify-between mb-6 px-2">
             <h2 class="text-2xl font-bold text-gray-900 tracking-tight">Popular Materials</h2>
         </div>
-        <div class="flex overflow-x-auto no-scrollbar gap-10 pb-4 px-2">
+        <div class="flex overflow-x-auto no-scrollbar pb-4 px-2">
             @foreach($popularMaterials as $index => $material)
             <div class="flex-none flex items-center gap-4 group cursor-pointer"
                  onclick="loadPartial('{{ route('dashboard.materials.manage', $material->id) }}', document.getElementById('nav-materials-btn'))">
                 <span class="text-7xl md:text-8xl font-black text-gray-200 group-hover:text-[#a52a2a]/20 transition-colors italic leading-none">
                     {{ $index + 1 }}
                 </span>
-                <div class="w-48 h-64 rounded-xl overflow-hidden shadow-lg relative">
+                <div class="h-64 rounded-xl overflow-hidden -translate-x-6 shadow-lg relative">
                     <img src="{{ $material->thumbnail ? asset('storage/' . $material->thumbnail) : 'https://images.unsplash.com/photo-1517694712202-14dd9538aa97?q=80&w=300' }}" 
                          class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500">
                     <div class="absolute inset-0 bg-gradient-to-t from-black/90 via-transparent to-transparent p-4 flex flex-col justify-end">

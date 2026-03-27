@@ -11,28 +11,21 @@ class EnsureStudentHasAccess
 {
     public function handle(Request $request, Closure $next)
     {
-        // 1. Get the access_key from the URL (e.g., /lobby/XKWPO0)
-        $accessKey = $request->route('access_key');
+        $access_key = $request->route('access_key');
+        $assessment = \App\Models\Assessment::where('access_key', $access_key)->first();
 
-        // 2. Find the assessment
-        $assessment = Assessment::where('access_key', $accessKey)
-                        ->where('status', 'published')
-                        ->first();
-
-        if (!$assessment) {
-            return redirect()->route('student.dashboard')->with('error', 'Assessment not found.');
-        }
-
-        // 3. Check authorization (using user_id as the LRN)
-        $hasAccess = AssessmentAccess::where('assessment_id', $assessment->id)
-                        ->where('lrn', auth()->user()->user_id) 
+        if ($assessment) {
+            // 👈 MAKE SURE THIS IS CHECKING 'lrn' AND NOT 'user_id'!
+            $hasAccess = \App\Models\AssessmentAccess::where('assessment_id', $assessment->id)
+                        ->where('lrn', auth()->user()->lrn)
                         ->exists();
 
-        if (!$hasAccess) {
-            return redirect()->route('student.dashboard')->with('error', 'Access Denied: You are not on the authorized list.');
+            if ($hasAccess) {
+                return $next($request);
+            }
         }
 
-        // If they pass, allow them to proceed
-        return $next($request);
+        // This is the redirect that was bouncing you back!
+        return redirect('/dashboard')->withErrors(['assessment_code' => 'You are not authorized for this exam.']);
     }
 }

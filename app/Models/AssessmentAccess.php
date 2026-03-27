@@ -10,7 +10,8 @@ class AssessmentAccess extends Model
     protected $fillable = [
         'assessment_id', 
         'lrn', 
-        'status'
+        'status',
+        'pauses_left',
     ];
 
     public function assessment()
