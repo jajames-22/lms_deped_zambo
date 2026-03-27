@@ -15,7 +15,8 @@ use App\Models\Tag;
 use App\Imports\EmailMaterialsAccessImport;
 use App\Exports\MaterialTemplateExport;
 use Illuminate\Support\Facades\Mail;
-use App\Mail\ModuleInviteMail;
+use App\Mail\MaterialInvitationMail;
+use App\Models\MaterialAccess;
 use Exception;
 
 class MaterialsController extends Controller
@@ -27,7 +28,7 @@ class MaterialsController extends Controller
     /**
      * Admin Index: Fetches ALL materials across the entire platform.
      */
-    
+
 
 
     public function adminIndex()
@@ -144,47 +145,51 @@ class MaterialsController extends Controller
         $material = Material::findOrFail($id);
 
         $material->lessons_count = DB::table('lessons')
-            ->where('materials_id', $id)
+            ->where('materials_id', $id) // Note: Make sure your DB column is actually materials_id here and not material_id
             ->where('section_type', 'lesson')
             ->count();
 
         $examIds = DB::table('exams')->where('material_id', $id)->pluck('id');
         $material->items_count = DB::table('exams')->whereIn('id', $examIds)->count();
 
-        $whitelistedStudents = Enrollment::with('user')
-            ->where('materials_id', $material->id)
-            ->latest()
-            ->get()
-            ->map(function ($enrollment) {
-                // Ensure we pass the student data if it exists
-                $enrollment->student = $enrollment->user;
-                return $enrollment;
-            });
+        // THE FIX: Query the new MaterialAccess table instead of Enrollment
+        $whitelistedStudents = \App\Models\MaterialAccess::with('student')
+        ->where('material_id', $material->id)
+        ->latest()
+        ->get();
 
         return view('dashboard.partials.shared.materials-manage', compact('material', 'whitelistedStudents'));
     }
 
-    public function addAccess(Request $request, $id)
+
+   public function addAccess(Request $request, $id)
     {
         $request->validate(['email' => 'required|email']);
         $email = $request->email;
 
-        // Prevent duplicate invites
-        if (Enrollment::where('materials_id', $id)->where('email', $email)->exists()) {
+        // Prevent duplicate invites by checking the NEW MaterialAccess table
+        if (MaterialAccess::where('material_id', $id)->where('email', $email)->exists()) {
             return response()->json(['success' => false, 'message' => 'Email is already in the access list.']);
         }
 
-        // Check if the user exists
-        $student = User::where('email', $email)->first();
-
-        Enrollment::create([
-            'materials_id' => $id,
-            'user_id' => $student ? $student->id : null,
+        // Create the record in the new material_accesses table
+        // As you requested, it always defaults to 'pending'
+        MaterialAccess::create([
+            'material_id' => $id,
             'email' => $email,
-            'status' => $student ? 'enrolled' : 'pending'
+            'status' => 'pending'
         ]);
 
         return response()->json(['success' => true, 'message' => 'Student added successfully!']);
+    }
+
+    public function removeAccess($id)
+    {
+        // Delete from the NEW MaterialAccess table
+        $access = MaterialAccess::findOrFail($id);
+        $access->delete();
+
+        return response()->json(['success' => true, 'message' => 'Student access revoked.']);
     }
 
     public function toggleStatus(Request $request, $id)
@@ -205,14 +210,6 @@ class MaterialsController extends Controller
         } catch (Exception $e) {
             return response()->json(['success' => false, 'message' => 'Error updating status: ' . $e->getMessage()], 500);
         }
-    }
-
-    public function removeAccess($id)
-    {
-        $access = Enrollment::findOrFail($id);
-        $access->delete();
-
-        return response()->json(['success' => true, 'message' => 'Student access revoked.']);
     }
 
     public function importAccess(Request $request, $id)
@@ -577,43 +574,62 @@ class MaterialsController extends Controller
         }
     }
 
-    public function notifyStudents($id)
+    public function sendIndividualInvite(Request $request, $accessId)
     {
         try {
-            // We need to fetch the material details to pass to the email
-            $material = DB::table('materials')->where('id', $id)->first();
+            $access = MaterialAccess::with('material')->findOrFail($accessId);
 
-            if (!$material) {
-                return response()->json(['success' => false, 'message' => 'Material not found.'], 404);
-            }
+            // Send the Email
+            Mail::to($access->email)->send(new MaterialInvitationMail($access->material, $access->email));
 
-            // Check how many students are enrolled
-            $enrolledStudents = Enrollment::with('user')->where('materials_id', $id)->get();
-
-            if ($enrolledStudents->isEmpty()) {
-                return response()->json(['success' => false, 'message' => 'There are no students in the access list to notify.']);
-            }
-
-            $sentCount = 0;
-
-            // Loop through the enrolled students and send the email
-            foreach ($enrolledStudents as $enrollment) {
-                if ($enrollment->user && $enrollment->user->email) {
-                    // Send the email
-                    Mail::to($enrollment->user->email)->send(new ModuleInviteMail($material, $enrollment->user));
-                    $sentCount++;
-                }
-            }
+            // Update the status to 'invited'
+            $access->update(['status' => 'invited']);
 
             return response()->json([
                 'success' => true,
-                'message' => 'Invitations successfully sent to ' . $sentCount . ' student(s)!'
+                'message' => 'Invitation sent successfully.'
             ]);
 
-        } catch (Exception $e) {
-            Log::error('Email sending failed: ' . $e->getMessage());
-            return response()->json(['success' => false, 'message' => 'Failed to send notifications. Check your server mail configuration.'], 500);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to send invite: ' . $e->getMessage()
+            ], 500);
         }
     }
+
+    /**
+     * Bulk send invitations to all pending/invited students.
+     */
+   public function notifyStudents(Request $request, $id)
+{
+    try {
+        $material = Material::findOrFail($id);
+
+        // Targeted students: those who are 'pending' or have already been 'invited'
+        $targets = MaterialAccess::where('material_id', $material->id)
+            ->whereIn('status', ['pending', 'invited'])
+            ->get();
+
+        if ($targets->isEmpty()) {
+            return response()->json(['success' => false, 'message' => 'No students to invite.']);
+        }
+
+        foreach ($targets as $access) {
+            Mail::to($access->email)->send(new MaterialInvitationMail($material, $access->email));
+            
+            // This ensures their status moves to 'invited', 
+            // which triggers the "Send Again" text in your Blade file.
+            $access->update(['status' => 'invited']);
+        }
+
+        return response()->json([
+            'success' => true, 
+            'message' => "Successfully sent invitations to {$targets->count()} student(s)."
+        ]);
+    } catch (\Exception $e) {
+        return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
+    }
+}
 }
 

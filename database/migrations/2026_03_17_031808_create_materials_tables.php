@@ -57,26 +57,10 @@ return new class extends Migration
             $table->foreign('quiz_id')->references('id')->on('quizzes')->onDelete('cascade');
         });
 
-        // 5. Enrollments Table (Upgraded from Material Access)
-        Schema::create('enrollments', function (Blueprint $table) {
-            $table->id();
-            $table->unsignedBigInteger('materials_id');
-            $table->unsignedBigInteger('user_id'); // Strictly linking to the User/Student
-            $table->string('status')->default('enrolled'); // e.g., enrolled, completed, dropped
-            $table->timestamps();
-
-            // Enforce relational integrity
-            $table->foreign('materials_id')->references('id')->on('materials')->onDelete('cascade');
-            $table->foreign('user_id')->references('id')->on('users')->onDelete('cascade');
-            
-            // Prevent a user from being enrolled in the exact same material twice
-            $table->unique(['materials_id', 'user_id']); 
-        });
     }
 
     public function down()
     {
-        Schema::dropIfExists('enrollments');
         Schema::dropIfExists('quiz_options');
         Schema::dropIfExists('quizzes');
         Schema::dropIfExists('lessons');
