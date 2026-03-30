@@ -2,8 +2,23 @@
 
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\MaterialsController;
+use App\Http\Controllers\StudentEnrollmentController;
 use App\Http\Middleware\CheckRole;
 
+// ==========================================
+// STUDENT ROUTE (Must be outside the dashboard prefix/middleware)
+// ==========================================
+Route::get('/materials/{material}/enroll/{email}', [StudentEnrollmentController::class, 'acceptInvitation'])
+    ->name('student.materials.enroll')
+    ->middleware(['signed', 'auth']);
+    
+Route::get('/dashboard/student/materials/{id}', [App\Http\Controllers\StudentEnrollmentController::class, 'show'])
+    ->name('student.materials.show')
+    ->middleware(['auth']);
+
+// ==========================================
+// TEACHER / ADMIN ROUTES
+// ==========================================
 Route::prefix('dashboard/materials')
     ->name('dashboard.materials.')
     // Apply auth and role middleware to the entire group
@@ -34,7 +49,11 @@ Route::prefix('dashboard/materials')
         // Import/Export Routes
         Route::get('/template/download', [MaterialsController::class, 'downloadTemplate'])->name('download_template');
         Route::post('/{id}/import', [MaterialsController::class, 'importLessons'])->name('import');
+
         // Visibility & Notification Routes
         Route::patch('/{id}/toggle-visibility', [MaterialsController::class, 'toggleVisibility'])->name('toggle-visibility');
         Route::post('/{id}/notify-students', [MaterialsController::class, 'notifyStudents'])->name('notify-students');
+        Route::post('/access/{id}/invite', [MaterialsController::class, 'sendIndividualInvite'])->name('access.invite');
+
+
     });

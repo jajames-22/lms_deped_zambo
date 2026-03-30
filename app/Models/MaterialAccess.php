@@ -11,7 +11,7 @@ class MaterialAccess extends Model
 
     protected $fillable = [
         'material_id',
-        'lrn',
+        'email',
         'status'
     ];
 
@@ -23,6 +23,6 @@ class MaterialAccess extends Model
     // Link this to whatever User/Student model uses the LRN
     public function student()
     {
-        return $this->belongsTo(User::class, 'lrn', 'lrn'); // Assuming 'lrn' column exists on the User model
+        return $this->belongsTo(User::class, 'email', 'email');
     }
 }

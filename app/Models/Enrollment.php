@@ -11,8 +11,7 @@ class Enrollment extends Model
 
     protected $fillable = [
         'user_id',
-        'materials_id',
-        'email',
+        'material_id',
         'status'
     ];
 
@@ -25,6 +24,6 @@ class Enrollment extends Model
     // Changed from 'materials' to 'material' since it belongs to ONE material
     public function material()
     {
-        return $this->belongsTo(Material::class, 'materials_id');
+        return $this->belongsTo(Material::class, 'material_id');
     }
 }
