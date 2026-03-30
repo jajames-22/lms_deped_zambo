@@ -5,6 +5,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>LMS Dashboard - DepEd Zamboanga</title>
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+
     @vite(['resources/css/app.css', 'resources/js/app.js'])
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
@@ -28,6 +30,21 @@
 
         ::-webkit-scrollbar-thumb:hover {
             background: #a52a2a;
+        }
+
+        @keyframes floatIn {
+            0% {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            100% {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .animate-float-in {
+            animation: floatIn 0.2s ease-out forwards;
         }
     </style>
 </head>
@@ -222,6 +239,9 @@
         }
 
         function loadPartial(url, element) {
+            // Remove the animation class so we can trigger it again
+            contentArea.classList.remove('animate-float-in');
+            
             contentArea.innerHTML = '<div class="flex justify-center items-center h-full"><i class="fas fa-circle-notch fa-spin text-3xl text-[#a52a2a]"></i></div>';
 
             fetch(url, {
@@ -229,55 +249,55 @@
                     'X-Requested-With': 'XMLHttpRequest'
                 }
             })
-                .then(async response => {
-                    if (!response.ok) {
-                        contentArea.innerHTML = `<div class="p-6 bg-red-50 text-red-700"><b>Error ${response.status}:</b> Check your browser console or Laravel logs.</div>`;
-                        throw new Error('Server returned an error');
-                    }
-                    return response.text();
-                })
-                .then(html => {
-                    contentArea.innerHTML = html;
-                    contentArea.scrollTop = 0;
+            .then(async response => {
+                if (!response.ok) {
+                    contentArea.innerHTML = `<div class="p-6 bg-red-50 text-red-700"><b>Error ${response.status}:</b> Check your browser console or Laravel logs.</div>`;
+                    throw new Error('Server returned an error');
+                }
+                return response.text();
+            })
+            .then(html => {
+                contentArea.innerHTML = html;
+                contentArea.scrollTop = 0;
 
-                    const scripts = contentArea.querySelectorAll('script');
-                    scripts.forEach(oldScript => {
-                        const newScript = document.createElement('script');
-                        Array.from(oldScript.attributes).forEach(attr => newScript.setAttribute(attr.name, attr.value));
-                        newScript.appendChild(document.createTextNode(oldScript.innerHTML));
-                        oldScript.parentNode.replaceChild(newScript, oldScript);
-                    });
+                // --- ADD THIS LINE TO TRIGGER ANIMATION ---
+                contentArea.classList.add('animate-float-in');
 
-                    // 1. Strip the active state from ALL sidebar buttons securely
-                    document.querySelectorAll('.nav-btn').forEach(btn => {
-                        btn.classList.remove('bg-[#a52a2a]/10', 'text-[#a52a2a]', 'font-medium', 'border-r-4', 'border-[#a52a2a]');
-                        btn.classList.add('text-gray-600', 'hover:bg-gray-100');
-                    });
+                const scripts = contentArea.querySelectorAll('script');
+                scripts.forEach(oldScript => {
+                    const newScript = document.createElement('script');
+                    Array.from(oldScript.attributes).forEach(attr => newScript.setAttribute(attr.name, attr.value));
+                    newScript.appendChild(document.createTextNode(oldScript.innerHTML));
+                    oldScript.parentNode.replaceChild(newScript, oldScript);
+                });
 
-                    // 2. Identify the correct button
-                    let targetBtn = element;
+                // (Rest of your sidebar button logic stays the same...)
+                document.querySelectorAll('.nav-btn').forEach(btn => {
+                    btn.classList.remove('bg-[#a52a2a]/10', 'text-[#a52a2a]', 'font-medium', 'border-r-4', 'border-[#a52a2a]');
+                    btn.classList.add('text-gray-600', 'hover:bg-gray-100');
+                });
 
-                    // 3. THE MAGIC: If the button element was lost during routing, auto-detect it using the URL!
-                    if (!targetBtn || !targetBtn.classList) {
-                        if (url.includes('/materials')) targetBtn = document.getElementById('nav-materials-btn');
-                        else if (url.includes('/assessment')) targetBtn = document.getElementById('nav-assessment-btn');
-                        else if (url.includes('/schools')) targetBtn = document.getElementById('nav-schools-btn');
-                        else if (url.includes('/teachers')) targetBtn = document.getElementById('nav-teachers-btn');
-                        else if (url.includes('/students')) targetBtn = document.getElementById('nav-students-btn');
-                        else if (url.includes('/home')) targetBtn = document.querySelector('.nav-btn'); // Dashboard
-                    }
+                let targetBtn = element;
+                if (!targetBtn || !targetBtn.classList) {
+                    if (url.includes('/materials')) targetBtn = document.getElementById('nav-materials-btn');
+                    else if (url.includes('/assessment')) targetBtn = document.getElementById('nav-assessment-btn');
+                    else if (url.includes('/explore-layout')) targetBtn = document.getElementById('nav-explore-layout-btn');
+                    else if (url.includes('/schools')) targetBtn = document.getElementById('nav-schools-btn');
+                    else if (url.includes('/teachers')) targetBtn = document.getElementById('nav-teachers-btn');
+                    else if (url.includes('/students')) targetBtn = document.getElementById('nav-students-btn');
+                    else if (url.includes('/home')) targetBtn = document.querySelector('.nav-btn');
+                }
 
-                    // 4. Apply the active maroon state to the target button
-                    if (targetBtn) {
-                        targetBtn.classList.add('bg-[#a52a2a]/10', 'text-[#a52a2a]', 'font-medium', 'border-r-4', 'border-[#a52a2a]');
-                        targetBtn.classList.remove('text-gray-600', 'hover:bg-gray-100');
-                    }
+                if (targetBtn) {
+                    targetBtn.classList.add('bg-[#a52a2a]/10', 'text-[#a52a2a]', 'font-medium', 'border-r-4', 'border-[#a52a2a]');
+                    targetBtn.classList.remove('text-gray-600', 'hover:bg-gray-100');
+                }
 
-                    if (window.innerWidth < 768 && !sidebar.classList.contains('-translate-x-full')) {
-                        toggleSidebar();
-                    }
-                })
-                .catch(err => console.error("Fetch failed entirely:", err));
+                if (window.innerWidth < 768 && !sidebar.classList.contains('-translate-x-full')) {
+                    toggleSidebar();
+                }
+            })
+            .catch(err => console.error("Fetch failed entirely:", err));
         }
 
         window.onload = () => {

@@ -12,62 +12,146 @@
 
 <div class="max-w-7xl mx-auto space-y-12 pb-24">
     
-    {{-- 1. FEATURED BANNER (Most Viewed Public Material) --}}
-    @if($featuredMaterial)
-    <div class="relative w-full h-80 md:h-[450px] rounded-2xl overflow-hidden shadow-2xl group cursor-pointer"
-         onclick="loadPartial('{{ route('dashboard.materials.manage', $featuredMaterial->id) }}', document.getElementById('nav-materials-btn'))">
-        <div class="absolute inset-0 bg-gradient-to-r from-black via-black/60 to-transparent z-10"></div>
-        <img src="{{ $featuredMaterial->thumbnail ? asset('storage/' . $featuredMaterial->thumbnail) : 'https://images.unsplash.com/photo-1532094349884-543bc11b234d?q=80&w=1000' }}" 
-             class="absolute inset-0 w-full h-full object-cover opacity-60 group-hover:scale-105 transition-transform duration-1000">
-        
-        <div class="absolute inset-0 z-20 flex flex-col justify-end p-8 md:p-16 w-full md:w-3/4">
-            <span class="px-3 py-1 bg-[#a52a2a] text-white text-[10px] font-black uppercase tracking-[0.2em] rounded-md w-max mb-4">Trending Now</span>
-            <h1 class="text-4xl md:text-6xl font-black text-white mb-4 leading-none">{{ $featuredMaterial->title }}</h1>
-            <p class="text-gray-300 text-sm md:text-lg mb-8 line-clamp-2 max-w-2xl">{{ $featuredMaterial->description }}</p>
+    {{-- 1. FEATURED BANNER CAROUSEL (Admin Selected) --}}
+    @if($featuredMaterials->isNotEmpty())
+        <div class="relative w-full h-80 md:h-[450px] rounded-2xl overflow-hidden shadow-2xl group" id="featured-carousel">
             
-            <div class="flex items-center gap-4">
-                <button class="bg-white text-black hover:bg-gray-200 font-bold py-3 px-8 rounded-lg transition-all flex items-center gap-2">
-                    <i class="fas fa-play"></i> Start Learning
-                </button>
-                <button class="bg-white/10 hover:bg-white/20 text-white font-bold py-3 px-6 rounded-lg backdrop-blur-md transition-all border border-white/20">
-                    View Details
-                </button>
+            {{-- Carousel Track --}}
+            <div class="flex transition-transform duration-700 ease-in-out h-full w-full" id="carousel-track">
+                @foreach($featuredMaterials as $index => $material)
+                    <div class="w-full h-full flex-shrink-0 relative cursor-pointer"
+                         onclick="loadPartial('{{ route('dashboard.materials.view', $material->id) }}', document.getElementById('nav-materials-btn'))">
+                        
+                        <div class="absolute inset-0 bg-gradient-to-r from-black via-black/70 to-transparent z-10"></div>
+                        <img src="{{ $material->thumbnail ? asset('storage/' . $material->thumbnail) : 'https://images.unsplash.com/photo-1532094349884-543bc11b234d?q=80&w=1000' }}" 
+                             class="absolute inset-0 w-full h-full object-cover opacity-50">
+                        
+                        <div class="absolute inset-0 z-20 flex flex-col justify-end p-8 md:p-16 w-full md:w-3/4">
+                            <span class="px-3 py-1 bg-[#a52a2a] text-white text-[10px] font-black uppercase tracking-[0.2em] rounded-md w-max mb-4 shadow-md">Featured</span>
+                            <h1 class="text-4xl md:text-5xl lg:text-6xl font-black text-white mb-2 leading-tight drop-shadow-lg line-clamp-2">{{ $material->title }}</h1>
+                            
+                            {{-- INSTRUCTOR ICON --}}
+                            <p class="text-white/90 font-bold text-xs md:text-sm uppercase tracking-widest mb-4 flex items-center gap-1.5 drop-shadow-md">
+                                <i class="fas fa-chalkboard-user"></i> {{ $material->instructor->first_name ?? 'Instructor' }} {{ $material->instructor->last_name ?? '' }}
+                            </p>
+
+                            <p class="text-gray-200 text-sm md:text-lg mb-8 line-clamp-2 max-w-2xl drop-shadow-md">{{ $material->description }}</p>
+                            
+                            <div class="flex items-center gap-4">
+                                <button class="bg-white text-black hover:bg-gray-200 font-bold py-3 px-8 rounded-lg transition-all flex items-center gap-2 shadow-xl">
+                                    <i class="fas fa-play"></i> Start Learning
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                @endforeach
             </div>
+
+            {{-- Controls (Only show if there is more than 1 featured item) --}}
+            @if($featuredMaterials->count() > 1)
+                {{-- Arrows --}}
+                <button onclick="moveCarousel(-1)" class="absolute left-4 top-1/2 -translate-y-1/2 z-30 w-12 h-12 flex items-center justify-center bg-black/40 hover:bg-[#a52a2a] text-white rounded-full backdrop-blur-md transition-all opacity-0 group-hover:opacity-100 shadow-lg">
+                    <i class="fas fa-chevron-left"></i>
+                </button>
+                <button onclick="moveCarousel(1)" class="absolute right-4 top-1/2 -translate-y-1/2 z-30 w-12 h-12 flex items-center justify-center bg-black/40 hover:bg-[#a52a2a] text-white rounded-full backdrop-blur-md transition-all opacity-0 group-hover:opacity-100 shadow-lg">
+                    <i class="fas fa-chevron-right"></i>
+                </button>
+
+                {{-- Dots --}}
+                <div class="absolute bottom-6 left-1/2 -translate-x-1/2 z-30 flex gap-2">
+                    @foreach($featuredMaterials as $index => $material)
+                        <button onclick="goToSlide({{ $index }})" class="carousel-dot h-2.5 rounded-full transition-all duration-300 {{ $index === 0 ? 'bg-[#a52a2a] w-8' : 'bg-white/50 hover:bg-white w-2.5' }}"></button>
+                    @endforeach
+                </div>
+
+                {{-- Javascript strictly for the carousel --}}
+                <script>
+                    let currentSlide = 0;
+                    const totalSlides = {{ $featuredMaterials->count() }};
+                    const track = document.getElementById('carousel-track');
+                    const dots = document.querySelectorAll('.carousel-dot');
+                    let carouselInterval;
+
+                    function updateCarousel() {
+                        track.style.transform = `translateX(-${currentSlide * 100}%)`;
+                        dots.forEach((dot, index) => {
+                            if (index === currentSlide) {
+                                dot.classList.remove('bg-white/50', 'w-2.5');
+                                dot.classList.add('bg-[#a52a2a]', 'w-8');
+                            } else {
+                                dot.classList.remove('bg-[#a52a2a]', 'w-8');
+                                dot.classList.add('bg-white/50', 'w-2.5');
+                            }
+                        });
+                    }
+
+                    function moveCarousel(direction) {
+                        currentSlide = (currentSlide + direction + totalSlides) % totalSlides;
+                        updateCarousel();
+                        resetInterval();
+                    }
+
+                    function goToSlide(index) {
+                        currentSlide = index;
+                        updateCarousel();
+                        resetInterval();
+                    }
+
+                    function startInterval() {
+                        // Auto-slide every 5 seconds
+                        carouselInterval = setInterval(() => { moveCarousel(1); }, 5000); 
+                    }
+
+                    function resetInterval() {
+                        clearInterval(carouselInterval);
+                        startInterval();
+                    }
+
+                    startInterval();
+                </script>
+            @endif
         </div>
-    </div>
     @endif
 
-    {{-- 2. CATEGORY: LOGIC AND NUMBERS (Mathematics/Programming Tags) --}}
-    <section class="mb-0">
-        <div class="flex items-center justify-between mb-6 px-2">
-            <div>
-                <h2 class="text-2xl font-bold text-gray-900 tracking-tight">You might like: Logic and Numbers</h2>
-                <p class="text-sm text-gray-500">Explore Mathematics and Technology modules</p>
-            </div>
-            <a href="#" class="text-xs font-bold text-[#a52a2a] uppercase tracking-widest hover:underline">See All</a>
-        </div>
-        <div class="flex overflow-x-auto no-scrollbar gap-6 pb-6 snap-x px-2">
-            @forelse($logicMaterials as $material)
-                <div class="w-72 flex-none snap-start group bg-white border border-gray-200 hover:border-[#a52a2a]/30 rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-all duration-300 flex flex-col cursor-pointer"
-                    onclick="loadPartial('{{ route('dashboard.materials.manage', $material->id) }}', document.getElementById('nav-materials-btn'))">
-                    <div class="relative w-full aspect-[4/3] overflow-hidden">
-                        {{-- FIX: Changed 'transition-duration-500' to 'transition-transform duration-500' --}}
-                        <img src="{{ $material->thumbnail ? asset('storage/' . $material->thumbnail) : 'https://images.unsplash.com/photo-1509228468518-180dd4864904?q=80&w=400' }}" 
-                            class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500">
-                        
-                        {{-- FIX: Added 'duration-500' here so the overlay fades in at the exact same speed as the image zoom --}}
-                        <div class="absolute inset-0 bg-black/20 group-hover:bg-black/40 transition-colors duration-500"></div>
+    {{-- 2. DYNAMIC SECTIONS (Admin Controlled Categories) --}}
+    @foreach($dynamicSections as $section)
+        @if($section->materials->isNotEmpty())
+            <section class="mb-0">
+                <div class="flex items-center justify-between mb-6 px-2">
+                    <div>
+                        <h2 class="text-2xl font-bold text-gray-900 tracking-tight">{{ $section->title }}</h2>
+                        @if($section->subtitle)
+                            <p class="text-sm text-gray-500">{{ $section->subtitle }}</p>
+                        @endif
                     </div>
-                    <div class="p-5">
-                        <h3 class="font-bold text-gray-900 line-clamp-1 group-hover:text-[#a52a2a] transition-colors duration-300">{{ $material->title }}</h3>
-                        <p class="text-xs text-gray-500 mt-2 line-clamp-2">{{ $material->description }}</p>
-                    </div>
+                    <a href="{{ route('dashboard.explore.tag', $section->tag_name) }}" class="text-xs font-bold text-[#a52a2a] uppercase tracking-widest hover:underline">See All</a>
                 </div>
-            @empty
-                <p class="text-gray-400 italic text-sm px-2">No materials found in this category.</p>
-            @endforelse
-        </div>
-    </section>
+
+                <div class="flex overflow-x-auto no-scrollbar gap-6 pb-6 snap-x px-2">
+                    @foreach($section->materials as $material)
+                        <div class="w-72 flex-none snap-start group bg-white border border-gray-200 hover:border-[#a52a2a]/30 rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-all duration-300 flex flex-col cursor-pointer"
+                             onclick="loadPartial('{{ route('dashboard.materials.view', $material->id) }}', document.getElementById('nav-materials-btn'))">
+                            <div class="relative w-full aspect-[4/3] overflow-hidden">
+                                <img src="{{ $material->thumbnail ? asset('storage/' . $material->thumbnail) : 'https://images.unsplash.com/photo-1509228468518-180dd4864904?q=80&w=400' }}" 
+                                     class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500">
+                                <div class="absolute inset-0 bg-black/20 group-hover:bg-black/40 transition-colors duration-500"></div>
+                            </div>
+                            <div class="p-5">
+                                <h3 class="font-bold text-gray-900 line-clamp-1 group-hover:text-[#a52a2a] transition-colors duration-300">{{ $material->title }}</h3>
+                                
+                                {{-- INSTRUCTOR ICON --}}
+                                <p class="text-[10px] text-[#a52a2a] font-bold uppercase tracking-wider mt-1.5 truncate flex items-center gap-1.5">
+                                    <i class="fas fa-chalkboard-user"></i> {{ $material->instructor->first_name ?? 'Instructor' }} {{ $material->instructor->last_name ?? '' }}
+                                </p>
+
+                                <p class="text-xs text-gray-500 mt-2 line-clamp-2">{{ $material->description }}</p>
+                            </div>
+                        </div>
+                    @endforeach
+                </div>
+            </section>
+        @endif
+    @endforeach
 
     {{-- 3. CATEGORY: POPULAR MATERIALS (Ranked by Views) --}}
     <section class="py-4">
@@ -77,7 +161,7 @@
         <div class="flex overflow-x-auto no-scrollbar pb-4 px-2">
             @foreach($popularMaterials as $index => $material)
             <div class="flex-none flex items-center gap-4 group cursor-pointer"
-                 onclick="loadPartial('{{ route('dashboard.materials.manage', $material->id) }}', document.getElementById('nav-materials-btn'))">
+                 onclick="loadPartial('{{ route('dashboard.materials.view', $material->id) }}', document.getElementById('nav-materials-btn'))">
                 <span class="text-7xl md:text-8xl font-black text-gray-200 group-hover:text-[#a52a2a]/20 transition-colors italic leading-none">
                     {{ $index + 1 }}
                 </span>
@@ -86,7 +170,13 @@
                          class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500">
                     <div class="absolute inset-0 bg-gradient-to-t from-black/90 via-transparent to-transparent p-4 flex flex-col justify-end">
                         <p class="text-white font-bold text-sm leading-tight line-clamp-2">{{ $material->title }}</p>
-                        <p class="text-gray-400 text-[10px] mt-1">{{ number_format($material->views) }} views</p>
+                        
+                        {{-- INSTRUCTOR ICON --}}
+                        <p class="text-gray-300 text-[10px] font-medium mt-1.5 truncate flex items-center gap-1.5">
+                            <i class="fas fa-chalkboard-user text-gray-400"></i> {{ $material->instructor->first_name ?? 'Instructor' }} {{ $material->instructor->last_name ?? '' }}
+                        </p>
+
+                        <p class="text-gray-400 text-[10px] mt-1"><i class="fas fa-eye mr-1"></i>{{ number_format($material->views) }} views</p>
                     </div>
                 </div>
             </div>
@@ -101,13 +191,12 @@
                 <h2 class="text-2xl font-bold text-gray-900 tracking-tight">From {{ auth()->user()->school->name ?? 'Your School' }}</h2>
                 <p class="text-sm text-gray-500 mt-1">Materials created by instructors at your institution</p>
             </div>
-            <a href="#" class="text-sm font-bold text-[#a52a2a] hover:underline uppercase tracking-wider">See All</a>
         </div>
         
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 px-2">
             @forelse($schoolMaterials as $material)
                 <div class="flex items-start gap-4 p-4 rounded-2xl hover:bg-white hover:shadow-xl border border-transparent hover:border-gray-100 transition-all cursor-pointer group bg-gray-50/50"
-                     onclick="loadPartial('{{ route('dashboard.materials.manage', $material->id) }}', document.getElementById('nav-materials-btn'))">
+                     onclick="loadPartial('{{ route('dashboard.materials.view', $material->id) }}', document.getElementById('nav-materials-btn'))">
                     <div class="h-24 w-24 flex-none rounded-xl bg-gray-200 overflow-hidden relative shadow-sm">
                         <img src="{{ $material->thumbnail ? asset('storage/' . $material->thumbnail) : 'https://images.unsplash.com/photo-1497633762265-9d179a990aa6?q=80&w=200' }}" 
                              class="w-full h-full object-cover group-hover:scale-110 transition-transform">
@@ -116,9 +205,12 @@
                         <h3 class="font-bold text-gray-900 text-base leading-tight truncate group-hover:text-[#a52a2a] transition mb-1">
                             {{ $material->title }}
                         </h3>
-                        <p class="text-xs text-gray-500 font-medium truncate mb-2">
-                            By {{ $material->instructor->first_name }} {{ $material->instructor->last_name }}
+                        
+                        {{-- INSTRUCTOR ICON --}}
+                        <p class="text-xs text-gray-500 font-medium truncate mb-2 flex items-center gap-1.5">
+                            <i class="fas fa-chalkboard-user text-gray-400"></i> {{ $material->instructor->first_name }} {{ $material->instructor->last_name }}
                         </p>
+                        
                         <div class="flex items-center gap-3">
                             <span class="text-[10px] bg-[#a52a2a]/10 text-[#a52a2a] px-2 py-0.5 rounded font-bold uppercase">
                                 {{ $material->tags->first()->name ?? 'General' }}

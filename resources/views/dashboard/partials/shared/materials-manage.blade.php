@@ -946,7 +946,7 @@ function applyFilterAndSort() {
     }, 50);
 
   // --- Tags Autocomplete & Management Logic ---
-    var availableTags = [
+    window.availableTags = [
         "Science", "Earth Science", "Computer Science", "Biology", "Chemistry", "Physics",
         "Mathematics", "Algebra", "Calculus", "Geometry",
         "English", "Literature", "Grammar", "Filipino", "Pananaliksik",
@@ -955,29 +955,18 @@ function applyFilterAndSort() {
         "Technology", "Programming", "Web Development", "First Aid"
     ];
 
-    // 1. DOM Elements
-    var tagInput = document.getElementById('tag-input');
-    var suggestionsBox = document.getElementById('tag-suggestions');
-    var activeTagsContainer = document.getElementById('active-tags-container');
+    window.currentTags = {!! json_encode($material->tags->pluck('name') ?? []) !!}; 
 
-    // 2. Initialize Tags from Database
-    var currentTags = {!! json_encode($material->tags->pluck('name') ?? []) !!}; 
-
-    // Render tags on page load (slight delay ensures dynamic DOM is fully injected)
-    setTimeout(() => {
-        tagInput = document.getElementById('tag-input');
-        suggestionsBox = document.getElementById('tag-suggestions');
-        activeTagsContainer = document.getElementById('active-tags-container');
-        renderActiveTags();
-    }, 50);
+    // 2. Render tags on page load
+    setTimeout(() => { window.renderActiveTags(); }, 50);
 
     // 3. Handle Keyboard Events (Enter Key)
     window.handleTagKeydown = function(e) {
         if (e.key === 'Enter') {
-            e.preventDefault(); // Stop form submission
+            e.preventDefault(); 
             const query = e.target.value.trim();
             if (query !== '') {
-                addTag(query);
+                window.addTag(query);
             }
         }
     };
@@ -985,23 +974,27 @@ function applyFilterAndSort() {
     // 4. Handle Typing (Autocomplete Suggestions)
     window.handleTagInput = function(e) {
         const query = e.target.value.trim().toLowerCase();
+        const suggestionsBox = document.getElementById('tag-suggestions');
 
         if (query === '') {
-            suggestionsBox.classList.add('hidden');
+            if(suggestionsBox) suggestionsBox.classList.add('hidden');
             return;
         }
 
-        const matchedTags = availableTags.filter(tag => {
-            const isNotAdded = !currentTags.map(t => t.toLowerCase()).includes(tag.toLowerCase());
+        const matchedTags = window.availableTags.filter(tag => {
+            const isNotAdded = !window.currentTags.map(t => t.toLowerCase()).includes(tag.toLowerCase());
             const matchesQuery = tag.toLowerCase().includes(query);
             return isNotAdded && matchesQuery;
         });
 
-        renderSuggestions(matchedTags, query);
+        window.renderSuggestions(matchedTags, query);
     };
 
     // 5. Render the Suggestions Dropdown
     window.renderSuggestions = function(tags, query) {
+        const suggestionsBox = document.getElementById('tag-suggestions');
+        if (!suggestionsBox) return;
+
         if (tags.length === 0) {
             suggestionsBox.classList.add('hidden');
             return;
@@ -1017,7 +1010,7 @@ function applyFilterAndSort() {
             div.innerHTML = highlightedText;
             
             div.onclick = function() {
-                addTag(tag);
+                window.addTag(tag);
             };
             suggestionsBox.appendChild(div);
         });
@@ -1027,17 +1020,20 @@ function applyFilterAndSort() {
 
     // 6. Add Tag to UI and Database
     window.addTag = async function(tagValue) {
-        if (currentTags.map(t => t.toLowerCase()).includes(tagValue.toLowerCase())) {
-            tagInput.value = '';
-            suggestionsBox.classList.add('hidden');
+        const tagInput = document.getElementById('tag-input');
+        const suggestionsBox = document.getElementById('tag-suggestions');
+
+        if (window.currentTags.map(t => t.toLowerCase()).includes(tagValue.toLowerCase())) {
+            if(tagInput) tagInput.value = '';
+            if(suggestionsBox) suggestionsBox.classList.add('hidden');
             return;
         }
 
         // Instantly update UI (Optimistic rendering)
-        currentTags.push(tagValue);
-        tagInput.value = '';
-        suggestionsBox.classList.add('hidden');
-        renderActiveTags();
+        window.currentTags.push(tagValue);
+        if(tagInput) tagInput.value = '';
+        if(suggestionsBox) suggestionsBox.classList.add('hidden');
+        window.renderActiveTags();
 
         // Send to Backend
         const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || '{{ csrf_token() }}';
@@ -1057,16 +1053,16 @@ function applyFilterAndSort() {
             console.error('Failed to save tag:', error);
             showSnackbar('Failed to save tag to database.', 'error');
             // If it fails on the server, remove it from the UI to stay synced
-            currentTags = currentTags.filter(t => t !== tagValue);
-            renderActiveTags();
+            window.currentTags = window.currentTags.filter(t => t !== tagValue);
+            window.renderActiveTags();
         }
     }
 
     // 7. Remove Tag from UI and Database
     window.removeTag = async function(tagValue) {
         // Instantly update UI
-        currentTags = currentTags.filter(t => t !== tagValue);
-        renderActiveTags();
+        window.currentTags = window.currentTags.filter(t => t !== tagValue);
+        window.renderActiveTags();
 
         // Send Delete request to Backend
         const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || '{{ csrf_token() }}';
@@ -1088,22 +1084,24 @@ function applyFilterAndSort() {
             console.error('Failed to remove tag:', error);
             showSnackbar('Failed to remove tag from database.', 'error');
             // Re-add to UI if server delete failed
-            currentTags.push(tagValue);
-            renderActiveTags();
+            window.currentTags.push(tagValue);
+            window.renderActiveTags();
         }
     }
 
     // 8. Render Active Tags in the DOM
     window.renderActiveTags = function() {
+        const activeTagsContainer = document.getElementById('active-tags-container');
         if (!activeTagsContainer) return;
+        
         activeTagsContainer.innerHTML = '';
 
-        if (currentTags.length === 0) {
+        if (window.currentTags.length === 0) {
             activeTagsContainer.innerHTML = '<span class="text-sm text-gray-400 italic">No tags added yet.</span>';
             return;
         }
 
-        currentTags.forEach(tag => {
+        window.currentTags.forEach(tag => {
             const tagEl = document.createElement('div');
             tagEl.className = 'inline-flex items-center gap-1.5 px-3 py-1 bg-[#a52a2a]/10 text-[#a52a2a] border border-[#a52a2a]/20 rounded-lg text-xs font-bold transition-all';
             
@@ -1114,7 +1112,7 @@ function applyFilterAndSort() {
             btnEl.type = 'button';
             btnEl.className = 'text-[#a52a2a]/60 hover:text-[#a52a2a] hover:bg-[#a52a2a]/10 rounded-full h-4 w-4 flex items-center justify-center transition-colors';
             btnEl.innerHTML = '<i class="fas fa-times text-[10px]"></i>';
-            btnEl.onclick = () => removeTag(tag);
+            btnEl.onclick = () => window.removeTag(tag);
 
             tagEl.appendChild(spanEl);
             tagEl.appendChild(btnEl);
@@ -1124,6 +1122,9 @@ function applyFilterAndSort() {
 
     // 9. Close suggestions dropdown when clicking outside
     window.onclickCloseSuggestions = function(e) {
+        const tagInput = document.getElementById('tag-input');
+        const suggestionsBox = document.getElementById('tag-suggestions');
+        
         if (tagInput && suggestionsBox) {
             if (!tagInput.contains(e.target) && !suggestionsBox.contains(e.target)) {
                 suggestionsBox.classList.add('hidden');
@@ -1133,6 +1134,5 @@ function applyFilterAndSort() {
     
     document.removeEventListener('click', window.onclickCloseSuggestions);
     document.addEventListener('click', window.onclickCloseSuggestions);
-
     
 </script>

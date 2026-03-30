@@ -17,7 +17,13 @@ class Material extends Model
         'thumbnail',
         'views',
         'is_public',
-        'draft_json'
+        'draft_json',
+        'is_featured'
+    ];
+
+    protected $casts = [
+        'is_public' => 'boolean',
+        'is_featured' => 'boolean', 
     ];
 
     public function instructor()

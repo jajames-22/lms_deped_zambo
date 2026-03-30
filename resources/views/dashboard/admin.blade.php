@@ -1,8 +1,6 @@
 @extends('dashboard.layout')
 
 @section('sidebar_nav')
-    
-
     <button onclick="loadPartial('{{ url('/dashboard/home') }}', this)"
         class="nav-btn w-full flex items-center px-4 py-3 text-gray-600 hover:bg-gray-100 transition group">
         <i class="fas fa-th-large w-5 mr-3 group-hover:text-[#a52a2a] transition-colors"></i>
@@ -19,6 +17,13 @@
         class="nav-btn w-full flex items-center px-4 py-3 text-gray-600 hover:bg-gray-100 transition group">
         <i class="fas fa-clipboard w-5 mr-3 group-hover:text-[#a52a2a] transition-colors"></i>
         <span class="group-hover:text-[#a52a2a] transition-colors">Assessment</span> 
+    </button>
+
+    {{-- NEW: Explore Layout Button --}}
+    <button id="nav-explore-layout-btn" onclick="loadPartial('{{ url('/dashboard/explore-layout') }}', this)"
+        class="nav-btn w-full flex items-center px-4 py-3 text-gray-600 hover:bg-gray-100 transition group">
+        <i class="fas fa-layer-group w-5 mr-3 group-hover:text-[#a52a2a] transition-colors"></i>
+        <span class="group-hover:text-[#a52a2a] transition-colors">Explore Layout</span> 
     </button>
 
     <button id="nav-schools-btn" class="nav-btn w-full flex items-center px-4 py-3 text-gray-600 ..." 

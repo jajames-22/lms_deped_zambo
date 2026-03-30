@@ -8,6 +8,7 @@ use App\Http\Controllers\StudentAssessmentController;
 use App\Http\Controllers\AssessmentController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\MaterialsController;
+use App\Http\Controllers\ExploreLayoutController;
 
 // Note: Ensure you import these if you haven't already!
 // use App\Http\Controllers\CourseController;
@@ -81,6 +82,18 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
         Route::post('/dashboard/materials/{material}/tags', [MaterialsController::class, 'addTag'])->name('dashboard.materials.tags.add');
         Route::delete('/dashboard/materials/{material}/tags/{tag}', [MaterialsController::class, 'removeTag'])->name('dashboard.materials.tags.remove');
+
+        // Admin Explore Layout Management
+        Route::get('/explore-layout', [ExploreLayoutController::class, 'index'])->name('dashboard.explore-layout');
+        Route::post('/explore-layout', [ExploreLayoutController::class, 'store'])->name('dashboard.explore-layout.store');
+        Route::put('/explore-layout/{section}', [ExploreLayoutController::class, 'update'])->name('dashboard.explore-layout.update');
+        Route::delete('/explore-layout/{section}', [ExploreLayoutController::class, 'destroy'])->name('dashboard.explore-layout.destroy');
+        Route::patch('/explore-layout/{section}/toggle', [ExploreLayoutController::class, 'toggleActive'])->name('dashboard.explore-layout.toggle');
+        Route::post('/explore-layout/reorder', [ExploreLayoutController::class, 'reorder'])->name('dashboard.explore-layout.reorder');
+
+        Route::get('/explore-layout/search-materials',[ExploreLayoutController::class, 'searchMaterials'])->name('dashboard.explore-layout.search');
+
+        Route::patch('/materials/{material}/toggle-featured', [MaterialsController::class, 'toggleFeatured'])->name('dashboard.materials.toggle-featured');
 
     });
 

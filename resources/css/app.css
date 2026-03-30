@@ -1,5 +1,10 @@
 @import 'tailwindcss';
 
+@theme {
+    /* This sets Manrope as the primary font, with standard fallbacks just in case */
+    --font-sans: 'Manrope', ui-sans-serif, system-ui, sans-serif;
+}
+
 /* --- MANROPE FONT FACES --- */
 /* Regular (400) */
 @font-face {

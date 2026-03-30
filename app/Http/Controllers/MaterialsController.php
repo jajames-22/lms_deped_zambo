@@ -615,5 +615,18 @@ class MaterialsController extends Controller
             return response()->json(['success' => false, 'message' => 'Failed to send notifications. Check your server mail configuration.'], 500);
         }
     }
+
+    public function toggleFeatured(\App\Models\Material $material)
+    {
+        $material->update([
+            'is_featured' => !$material->is_featured
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'is_featured' => $material->is_featured,
+            'message' => $material->is_featured ? 'Material added to featured carousel!' : 'Material removed from featured carousel.'
+        ]);
+    }
 }
 

@@ -8,6 +8,7 @@ use App\Models\User;
 use App\Models\School;
 use App\Models\Material;
 use App\Models\Tag;
+use App\Models\ExplorePageSection;
 
 
 class StudentController extends Controller
@@ -15,47 +16,6 @@ class StudentController extends Controller
     /**
      * Load the main student directory table
      */
-    public function explore()
-    {
-        $user = auth()->user();
-        // Fetch the user's school name, defaulting to 'Your School' if not found
-        $userSchoolName = $user->school->name ?? 'Your School';
-
-        // 1. Featured Material
-        $featuredMaterial = Material::where('is_public', true)
-            ->where('status', 'published')
-            ->orderBy('views', 'desc')
-            ->first();
-
-        // 2. Logic and Numbers (Filtered by tags)
-        $logicMaterials = Material::where('is_public', true)
-            ->where('status', 'published')
-            ->whereHas('tags', function($q) {
-                $q->whereIn('name', ['Mathematics', 'Programming', 'Calculus', 'Algebra']);
-            })->get();
-
-        // 3. Popular Materials (Highest views)
-        $popularMaterials = Material::where('is_public', true)
-            ->where('status', 'published')
-            ->orderBy('views', 'desc')
-            ->take(10)
-            ->get();
-
-        // 4. From Student's School: Materials created by instructors at the SAME school
-        $schoolMaterials = Material::where('is_public', true)
-            ->where('status', 'published')
-            ->whereHas('instructor', function($q) use ($user) {
-                $q->where('school_id', $user->school_id);
-            })->get();
-
-        return view('dashboard.partials.student.explore', compact(
-            'featuredMaterial', 
-            'logicMaterials', 
-            'popularMaterials', 
-            'schoolMaterials',
-            'userSchoolName'
-        ));
-    }
 
 
     public function loadStudentsPartial()
@@ -167,4 +127,59 @@ class StudentController extends Controller
 
         return response()->json(['success' => 'Student account deleted successfully!']);
     }
+
+    public function explore()
+    {
+        // 1. Keep your existing logic for the Hero Banner and Popular rankings
+        // Fetch all materials the admin has explicitly marked as featured
+        $featuredMaterials = Material::with('instructor')
+            ->where('is_featured', true)
+            ->where('status', 'published')
+            ->where('is_public', true)
+            ->latest()
+            ->get();
+
+        $popularMaterials = Material::with('instructor')->where('is_public', true)->orderBy('views', 'desc')->take(10)->get();
+
+        // 2. Fetch Dynamic Sections and their associated materials
+        $dynamicSections = ExplorePageSection::where('is_active', true)
+            ->orderBy('order', 'asc')
+            ->get()
+            ->map(function ($section) {
+                
+                // Decode the JSON array of tags (fallback to array if it was the old string format)
+                $tagsArray = json_decode($section->tag_name, true);
+                if (!is_array($tagsArray)) $tagsArray = [$section->tag_name];
+
+                $section->materials = Material::with('instructor')
+                    ->whereHas('tags', function($q) use ($tagsArray) {
+                        $q->whereIn('name', $tagsArray); // <-- CHANGED to whereIn
+                    })
+                    ->where('status', 'published')
+                    ->where('is_public', true)
+                    ->take(10)
+                    ->get();
+                
+                return $section;
+            });
+
+        // 3. Keep School-specific logic
+        $schoolMaterials = Material::whereHas('instructor', function ($query) {
+            $query->where('school_id', auth()->user()->school_id);
+        })
+        ->where('status', 'published')
+        ->where('is_public', true)
+        ->inRandomOrder()
+        ->take(6)
+        ->get();
+
+        return view('dashboard.partials.student.explore', compact(
+            'featuredMaterials', 
+            'popularMaterials', 
+            'dynamicSections', 
+            'schoolMaterials'
+        ));
+    }
+
+    
 }
