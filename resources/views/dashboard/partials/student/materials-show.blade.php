@@ -61,7 +61,8 @@
                         <p class="text-xs font-bold text-gray-900 leading-tight">{{ auth()->user()->first_name }}
                             {{ auth()->user()->last_name }}</p>
                         <p class="text-[9px] text-[#a52a2a] uppercase font-black tracking-widest">
-                            {{ auth()->user()->role ?? 'Student' }}</p>
+                            {{ auth()->user()->role ?? 'Student' }}
+                        </p>
                     </div>
                     <img class="h-8 w-8 rounded-full border-2 border-[#a52a2a]/20"
                         src="https://ui-avatars.com/api/?name={{ urlencode(auth()->user()->first_name . '+' . auth()->user()->last_name) }}&background=a52a2a&color=fff"
@@ -108,9 +109,11 @@
                     </div>
 
                     <h1 class="text-3xl md:text-4xl lg:text-5xl font-black text-gray-900 mb-4 leading-tight">
-                        {{ $material->title }}</h1>
+                        {{ $material->title }}
+                    </h1>
                     <p class="text-gray-600 text-sm md:text-base leading-relaxed mb-6 line-clamp-4">
-                        {{ $material->description }}</p>
+                        {{ $material->description }}
+                    </p>
 
                     <div class="flex flex-wrap items-center gap-6 py-4 border-y border-gray-100 mt-auto mb-6">
                         <div class="flex items-center gap-3">
@@ -121,7 +124,8 @@
                                 <p class="text-[10px] text-gray-400 font-bold uppercase tracking-wider">Instructor</p>
                                 <p class="text-sm font-bold text-gray-900">
                                     {{ $material->instructor->first_name ?? 'Unknown' }}
-                                    {{ $material->instructor->last_name ?? '' }}</p>
+                                    {{ $material->instructor->last_name ?? '' }}
+                                </p>
                             </div>
                         </div>
 
@@ -180,8 +184,10 @@
                             {{ $index + 1 }}
                         </div>
                         <div class="flex-1 min-w-0 pt-1.5">
-                            <h4 class="lesson-title font-bold text-gray-900 {{ $isEnrolled ? 'group-hover:text-[#a52a2a]' : '' }} transition-colors text-lg">
-                                {{ $lesson->title }}</h4>
+                            <h4
+                                class="font-bold text-gray-900 {{ $isEnrolled ? 'group-hover:text-[#a52a2a]' : '' }} transition-colors text-lg">
+                                {{ $lesson->title }}
+                            </h4>
                             <div class="flex flex-wrap items-center gap-4 mt-1">
                                 <p class="text-xs text-gray-500 font-medium flex items-center gap-1.5 uppercase tracking-wider">
                                     <i class="fas fa-book-open text-gray-400"></i> {{ ucfirst($lesson->section_type) }}
@@ -212,6 +218,34 @@
 
             </div>
         </main>
+
+        {{-- Replace the <form> wrapper with just this button --}}
+            <div class="flex justify-center md:justify-start mt-4">
+                <button onclick="completeModule({{ $material->id }}, this)"
+                    class="px-8 py-4 bg-green-600 text-white font-bold rounded-xl hover:bg-green-700 transition shadow-lg shadow-green-600/20 flex items-center justify-center gap-2">
+                    <i class="fas fa-check-circle text-xl"></i> Mark Module as Complete
+                </button>
+            </div>
+    </div>
+
+    {{-- Drop Course Modal --}}
+    <div id="dropCourseModal" class="fixed inset-0 z-[9999] hidden opacity-0 transition-opacity duration-300 flex items-center justify-center p-4">
+        <div class="absolute inset-0 bg-gray-900/60" onclick="closeDropModal()"></div>
+        <div class="bg-white rounded-3xl w-full max-w-sm shadow-2xl overflow-hidden transform scale-95 transition-all duration-300 text-center p-6 relative z-10" id="dropCourseBox">
+            <div class="w-16 h-16 bg-red-50 text-red-500 rounded-full flex items-center justify-center mx-auto mb-4 text-3xl">
+                <i class="fas fa-exclamation-triangle"></i>
+            </div>
+            <h3 class="text-xl font-black text-gray-900 mb-2">Drop Course?</h3>
+            <p class="text-sm text-gray-500 mb-6">Are you sure you want to drop this course? All your progress and completed lessons will be permanently lost.</p>
+            <div class="flex gap-3">
+                <button type="button" onclick="closeDropModal()" class="w-full py-3 bg-gray-100 text-gray-700 font-bold rounded-xl hover:bg-gray-200 transition">
+                    Cancel
+                </button>
+                <button type="button" id="confirm-drop-btn" onclick="executeDrop()" disabled class="w-full py-3 bg-red-600 text-white font-bold rounded-xl hover:bg-red-700 transition disabled:opacity-50 disabled:cursor-not-allowed">
+                    Drop (<span id="drop-timer">5</span>s)
+                </button>
+            </div>
+        </div>
     </div>
 
     {{-- Drop Course Modal --}}
@@ -489,6 +523,41 @@
                 }
             } catch (error) {
                 showStandaloneAlert('A network error occurred.', 'error');
+                btn.innerHTML = originalHtml;
+                btn.disabled = false;
+            }
+        }
+
+        async function completeModule(materialId, btn) {
+            btn.disabled = true;
+            const originalHtml = btn.innerHTML;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin text-lg"></i> Processing...';
+
+            try {
+                const response = await fetch(`{{ url('/dashboard/student/materials') }}/${materialId}/complete`, {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+                        'Accept': 'application/json'
+                    }
+                });
+
+                const data = await response.json();
+
+                if (response.ok && data.success) {
+                    // 1. Tell the dashboard memory to load the ENROLLED page when they eventually click "Return"
+                    sessionStorage.setItem('lastActiveTab', '{{ route('student.enrolled.index') }}');
+                    sessionStorage.setItem('lastActiveBtn', 'nav-enrolled-btn');
+
+                    // 2. Redirect DIRECTLY to the standalone celebration page
+                    window.location.href = data.redirect_url;
+                } else {
+                    showStandaloneAlert(data.message || 'Failed to mark as complete.', 'error');
+                    btn.innerHTML = originalHtml;
+                    btn.disabled = false;
+                }
+            } catch (error) {
+                showStandaloneAlert('A network error occurred. Please try again.', 'error');
                 btn.innerHTML = originalHtml;
                 btn.disabled = false;
             }

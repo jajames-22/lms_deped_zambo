@@ -12,13 +12,19 @@ class Enrollment extends Model
     protected $fillable = [
         'user_id',
         'material_id',
-        'status'
+        'status',
+        'completed_at'
+        
+    ];
+
+    protected $casts = [
+        'completed_at' => 'datetime',
     ];
 
     // A student belongs to a user account
     public function user()
     {
-        return $this->belongsTo(User::class);
+        return $this->belongsTo(User::class, 'user_id');
     }
 
     // Changed from 'materials' to 'material' since it belongs to ONE material
