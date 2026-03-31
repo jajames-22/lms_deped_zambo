@@ -75,7 +75,8 @@
                     <div class="text-right hidden sm:block">
                         <p class="text-xs font-bold text-gray-900 leading-tight">{{ auth()->user()->first_name }}</p>
                         <p class="text-[9px] text-[#a52a2a] uppercase font-black tracking-widest">
-                            {{ auth()->user()->role ?? 'Student' }}</p>
+                            {{ auth()->user()->role ?? 'Student' }}
+                        </p>
                     </div>
                     <img class="h-8 w-8 rounded-full border-2 border-[#a52a2a]/20"
                         src="https://ui-avatars.com/api/?name={{ urlencode(auth()->user()->first_name . '+' . auth()->user()->last_name) }}&background=a52a2a&color=fff"
@@ -130,9 +131,11 @@
                     </div>
 
                     <h1 class="text-3xl md:text-4xl lg:text-5xl font-black text-gray-900 mb-4 leading-tight">
-                        {{ $material->title }}</h1>
+                        {{ $material->title }}
+                    </h1>
                     <p class="text-gray-600 text-sm md:text-base leading-relaxed mb-6 line-clamp-4">
-                        {{ $material->description }}</p>
+                        {{ $material->description }}
+                    </p>
 
                     <div class="flex flex-wrap items-center gap-6 py-4 border-y border-gray-100 mt-auto mb-6">
                         <div class="flex items-center gap-3">
@@ -144,7 +147,8 @@
                                 <p class="text-[10px] text-gray-400 font-bold uppercase tracking-wider">Instructor</p>
                                 <p class="text-sm font-bold text-gray-900">
                                     {{ $material->instructor->first_name ?? 'Unknown' }}
-                                    {{ $material->instructor->last_name ?? '' }}</p>
+                                    {{ $material->instructor->last_name ?? '' }}
+                                </p>
                             </div>
                         </div>
 
@@ -188,7 +192,8 @@
                         <div class="flex-1 min-w-0 pt-1.5">
                             <h4
                                 class="font-bold text-gray-900 {{ $isEnrolled ? 'group-hover:text-[#a52a2a]' : '' }} transition-colors text-lg">
-                                {{ $lesson->title }}</h4>
+                                {{ $lesson->title }}
+                            </h4>
                             <div class="flex flex-wrap items-center gap-4 mt-1">
                                 <p
                                     class="text-xs text-gray-500 font-medium flex items-center gap-1.5 uppercase tracking-wider">
@@ -222,6 +227,14 @@
 
             </div>
         </main>
+
+        {{-- Replace the <form> wrapper with just this button --}}
+            <div class="flex justify-center md:justify-start mt-4">
+                <button onclick="completeModule({{ $material->id }}, this)"
+                    class="px-8 py-4 bg-green-600 text-white font-bold rounded-xl hover:bg-green-700 transition shadow-lg shadow-green-600/20 flex items-center justify-center gap-2">
+                    <i class="fas fa-check-circle text-xl"></i> Mark Module as Complete
+                </button>
+            </div>
     </div>
 
     {{-- Standalone Alert Modal --}}
@@ -337,6 +350,41 @@
                 }
             } catch (error) {
                 showStandaloneAlert('A network error occurred. Please check your connection.', 'error');
+                btn.innerHTML = originalHtml;
+                btn.disabled = false;
+            }
+        }
+
+        async function completeModule(materialId, btn) {
+            btn.disabled = true;
+            const originalHtml = btn.innerHTML;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin text-lg"></i> Processing...';
+
+            try {
+                const response = await fetch(`{{ url('/dashboard/student/materials') }}/${materialId}/complete`, {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+                        'Accept': 'application/json'
+                    }
+                });
+
+                const data = await response.json();
+
+                if (response.ok && data.success) {
+                    // 1. Tell the dashboard memory to load the ENROLLED page when they eventually click "Return"
+                    sessionStorage.setItem('lastActiveTab', '{{ route('student.enrolled.index') }}');
+                    sessionStorage.setItem('lastActiveBtn', 'nav-enrolled-btn');
+
+                    // 2. Redirect DIRECTLY to the standalone celebration page
+                    window.location.href = data.redirect_url;
+                } else {
+                    showStandaloneAlert(data.message || 'Failed to mark as complete.', 'error');
+                    btn.innerHTML = originalHtml;
+                    btn.disabled = false;
+                }
+            } catch (error) {
+                showStandaloneAlert('A network error occurred. Please try again.', 'error');
                 btn.innerHTML = originalHtml;
                 btn.disabled = false;
             }

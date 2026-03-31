@@ -116,23 +116,27 @@
                     <p class="text-gray-500 text-sm mb-6">Enter the access code provided by your instructor to instantly enroll.</p>
                     
        {{-- After (Standard Form) --}}
-<form action="{{ route('student.enroll.code') }}" method="POST" class="space-y-4">
-    @csrf
-    <input type="text" name="access_code" placeholder="e.g. A1B2C3" required
-           class="w-full px-5 py-4 bg-gray-50 border border-gray-200 rounded-xl outline-none font-mono uppercase text-lg text-center tracking-[0.3em]">
-    
-    <button type="submit" 
-            class="w-full py-4 bg-[#a52a2a] text-white font-bold rounded-xl hover:bg-red-900 transition-all shadow-md flex items-center justify-center gap-2">
-        <i class="fas fa-arrow-right-to-bracket"></i> Enroll Now
-    </button>
-</form>
+{{-- AJAX inputs with Inline Error Handling --}}
+        <div class="space-y-4">
+            <div>
+                <input type="text" id="join-code-input" placeholder="e.g. A1B2C3" maxlength="10"
+                       class="w-full px-5 py-4 bg-gray-50 border border-gray-200 rounded-xl outline-none font-mono uppercase text-lg text-center tracking-[0.3em] transition-colors focus:border-[#a52a2a] focus:ring-2 focus:ring-[#a52a2a]/20">
+                
+                {{-- NEW: Hidden Error Message Container --}}
+                <p id="join-code-error" class="text-sm text-red-500 text-center font-bold mt-2 hidden"></p>
+            </div>
+            
+            <button type="button" id="submit-join-btn" onclick="submitJoinCode()"
+                    class="w-full py-4 bg-[#a52a2a] text-white font-bold rounded-xl hover:bg-red-900 transition-all shadow-md flex items-center justify-center gap-2">
+                <i class="fas fa-arrow-right-to-bracket"></i> Enroll Now
+            </button>
+        </div>
 
                 </div>
             </div>
         </div>
     </div>
 </div>
-
 <script>
     function openJoinModal() {
         document.getElementById('join-code-modal').classList.remove('hidden');
@@ -141,7 +145,15 @@
 
     function closeJoinModal() {
         document.getElementById('join-code-modal').classList.add('hidden');
-        document.getElementById('join-code-input').value = '';
+        
+        // Reset the input and error messages when closing
+        const input = document.getElementById('join-code-input');
+        const errorMsg = document.getElementById('join-code-error');
+        
+        input.value = '';
+        input.classList.remove('border-red-500', 'bg-red-50');
+        errorMsg.classList.add('hidden');
+        errorMsg.innerText = '';
     }
 
     document.getElementById('join-code-input').addEventListener('keypress', function(e) {
@@ -151,12 +163,20 @@
     async function submitJoinCode() {
         const input = document.getElementById('join-code-input');
         const btn = document.getElementById('submit-join-btn');
+        const errorMsg = document.getElementById('join-code-error');
         const code = input.value.trim().toUpperCase();
         const originalHtml = btn.innerHTML;
         
+        // 1. Reset previous errors before checking again
+        errorMsg.classList.add('hidden');
+        input.classList.remove('border-red-500', 'bg-red-50');
+        
+        // 2. Front-end validation (empty code)
         if(!code) {
-            if (typeof showSnackbar === 'function') showSnackbar('Please enter an access code.', 'error');
-            else alert('Please enter an access code.');
+            errorMsg.innerText = 'Please enter an access code.';
+            errorMsg.classList.remove('hidden');
+            input.classList.add('border-red-500', 'bg-red-50'); // Turns the box red
+            input.focus();
             return;
         }
 
@@ -177,6 +197,7 @@
             const data = await response.json();
             
             if(response.ok && data.success) {
+                // Success: Close modal and redirect
                 closeJoinModal();
                 if (typeof showSnackbar === 'function') showSnackbar('Successfully enrolled! Loading...', 'success');
                 
@@ -189,13 +210,17 @@
                 }, 1000);
                 
             } else {
-                if (typeof showSnackbar === 'function') showSnackbar(data.message || 'Invalid code.', 'error');
-                else alert(data.message || 'Invalid code.');
+                // Error: Show message directly below the input
+                errorMsg.innerText = data.message || 'Invalid code.';
+                errorMsg.classList.remove('hidden');
+                input.classList.add('border-red-500', 'bg-red-50');
+                input.focus();
             }
         } catch (error) {
             console.error(error);
-            if (typeof showSnackbar === 'function') showSnackbar('A network error occurred.', 'error');
-            else alert('A network error occurred.');
+            // Show network error directly below the input
+            errorMsg.innerText = 'A network error occurred. Please check your connection.';
+            errorMsg.classList.remove('hidden');
         } finally {
             btn.innerHTML = originalHtml;
             btn.disabled = false;

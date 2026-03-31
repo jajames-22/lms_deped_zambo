@@ -8,6 +8,10 @@ use App\Models\Enrollment;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
+use Barryvdh\DomPDF\Facade\Pdf;
+use Illuminate\Support\Facades\URL;
+use SimpleSoftwareIO\QrCode\Facades\QrCode;
+
 
 class StudentEnrollmentController extends Controller
 {
@@ -23,7 +27,7 @@ class StudentEnrollmentController extends Controller
         // Pass the $enrollments variable to your blade file
         return view('dashboard.partials.student.enrolled', compact('enrollments'));
     }
-    
+
     public function acceptInvitation(Request $request, Material $material, $email)
     {
         // 1. Security check: Ensure the logged-in user is the one invited
@@ -54,7 +58,7 @@ class StudentEnrollmentController extends Controller
         return redirect()->route('student.materials.show', $material->id)
             ->with('success', 'Successfully enrolled!');
     }
-    
+
 
     public function enrollWithCode(Request $request)
     {
@@ -67,9 +71,9 @@ class StudentEnrollmentController extends Controller
             ->where('is_public', false) // Ensures codes only work for private materials
             ->first();
 
+        // If it's a public module OR invalid code, this triggers the error
         if (!$material) {
-            // Since this was previously AJAX, we'll redirect back with an error message
-            return redirect()->back()->with('error', 'Invalid or expired access code.');
+            return response()->json(['success' => false, 'message' => 'Invalid or expired access code.']);
         }
 
         // 2. Check if already enrolled
@@ -78,8 +82,10 @@ class StudentEnrollmentController extends Controller
             ->exists();
 
         if ($alreadyEnrolled) {
-            return redirect()->route('student.materials.show', $material->id)
-                             ->with('info', 'You are already enrolled in this module.');
+            return response()->json([
+                'success' => true,
+                'redirect_url' => route('student.materials.show', $material->id)
+            ]);
         }
 
         // 3. Create Enrollment record
@@ -98,11 +104,11 @@ class StudentEnrollmentController extends Controller
             'status' => 'enrolled'
         ]);
 
-        // THE FIX: Use a hard redirect just like acceptInvitation
-        return redirect()->route('student.materials.show', $material->id)
-                         ->with('success', 'Successfully enrolled!');
+        return response()->json([
+            'success' => true,
+            'redirect_url' => route('student.materials.show', $material->id)
+        ]);
     }
-    
     public function show($id)
     {
         $material = Material::findOrFail($id);
@@ -123,5 +129,84 @@ class StudentEnrollmentController extends Controller
 
         // FIX: Return the view instead of redirecting!
         return view('dashboard.partials.student.materials-show', compact('material', 'lessons', 'exams', 'isEnrolled'));
+    }
+    public function markAsCompleted($id)
+    {
+        $enrollment = Enrollment::where('material_id', $id)
+            ->where('user_id', Auth::id())
+            ->firstOrFail();
+
+        if ($enrollment->status !== 'completed') {
+            $enrollment->update([
+                'status' => 'completed',
+                'completed_at' => now(),
+            ]);
+        }
+
+        // Generate a cryptographically signed URL
+        $signedUrl = URL::signedRoute('student.materials.achieved', ['enrollment_id' => $enrollment->id]);
+
+        return response()->json([
+            'success' => true,
+            'redirect_url' => $signedUrl
+        ]);
+    }
+
+    // 2. UPDATE THIS METHOD
+    public function downloadCertificate($enrollment_id)
+    {
+        // Find the specific enrollment directly
+        $enrollment = Enrollment::with(['material.instructor', 'user'])
+            ->findOrFail($enrollment_id);
+
+        if ($enrollment->status !== 'completed') {
+            abort(403, 'This certificate is not valid or incomplete.');
+        }
+
+        // Generate the encrypted URL for the QR Code
+        $signedUrl = \Illuminate\Support\Facades\URL::signedRoute('student.materials.achieved', ['enrollment_id' => $enrollment->id]);
+        $qrCode = base64_encode(\SimpleSoftwareIO\QrCode\Facades\QrCode::format('svg')->size(100)->generate($signedUrl));
+
+        $data = [
+            'studentName' => $enrollment->user->first_name . ' ' . $enrollment->user->last_name,
+            'courseName' => $enrollment->material->title,
+            'instructorName' => $enrollment->material->instructor->first_name . ' ' . $enrollment->material->instructor->last_name,
+            'date' => $enrollment->completed_at ? $enrollment->completed_at->format('F j, Y') : $enrollment->updated_at->format('F j, Y'),
+            'certificateId' => 'CERT-' . str_pad($enrollment->id, 6, '0', STR_PAD_LEFT),
+            'qrCode' => $qrCode
+        ];
+
+        $pdf = Pdf::loadView('dashboard.partials.student.certificate-template', $data)
+            ->setPaper('a4', 'landscape');
+
+        return $pdf->download('Certificate_of_Completion_' . str_replace(' ', '_', $data['courseName']) . '.pdf');
+    }
+
+
+    public function completionPage($enrollment_id)
+    {
+        // Find the specific enrollment directly
+        $enrollment = Enrollment::with(['material.instructor', 'user'])
+            ->findOrFail($enrollment_id);
+
+        // Ensure it is actually completed
+        if ($enrollment->status !== 'completed') {
+            abort(403, 'This certificate is not valid or incomplete.');
+        }
+
+        return view('dashboard.partials.student.certificate-achieved', compact('enrollment'));
+    }
+
+    public function myCertificates()
+    {
+        // Fetch only the completed enrollments for the logged-in student
+        $completedEnrollments = Enrollment::with(['material.instructor'])
+            ->where('user_id', Auth::id())
+            ->where('status', 'completed')
+            ->latest('updated_at') // Sorts by most recently completed
+            ->get();
+
+        // Pass the data to the certificates blade file
+        return view('dashboard.partials.student.certificates', compact('completedEnrollments'));
     }
 }
