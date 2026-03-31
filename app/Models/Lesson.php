@@ -20,8 +20,8 @@ class Lesson extends Model
         return $this->belongsTo(Material::class, 'material_id');
     }
 
-    public function quizzes()
+    public function contents()
     {
-        return $this->hasMany(Quiz::class);
+        return $this->hasMany(LessonContent::class);
     }
 }

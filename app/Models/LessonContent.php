@@ -5,7 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
-class Quiz extends Model
+class LessonContent extends Model
 {
     use HasFactory;
 
@@ -17,13 +17,13 @@ class Quiz extends Model
         'is_case_sensitive'
     ];
 
+    public function options()
+    {
+        return $this->hasMany(QuizOption::class, 'quiz_id'); 
+    }
+
     public function lesson()
     {
         return $this->belongsTo(Lesson::class);
-    }
-
-    public function options()
-    {
-        return $this->hasMany(QuizOption::class);
     }
 }

@@ -96,7 +96,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::patch('/materials/{material}/toggle-featured', [MaterialsController::class, 'toggleFeatured'])->name('dashboard.materials.toggle-featured');
 
         Route::get('/materials/{material}/show', [MaterialsController::class, 'show'])->name('dashboard.materials.show');
-
+        Route::post('/materials/{material}/enroll', [MaterialsController::class, 'enroll'])->name('materials.enroll');
+        Route::get('/materials/{material}/study', [MaterialsController::class, 'study'])->name('dashboard.materials.study');
+        Route::post('/materials/{material}/unenroll', [MaterialsController::class, 'unenroll'])->name('dashboard.materials.unenroll');
     });
 
     Route::get('/get-districts/{quadrantId}', [DashboardController::class, 'getDistricts'])->name('districts.get');

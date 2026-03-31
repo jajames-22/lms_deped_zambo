@@ -11,7 +11,7 @@
     {{-- ADDED ID: nav-explore-btn --}}
     <button id="nav-explore-btn" onclick="loadPartial('{{ url('/dashboard/explore') }}', this)"
         class="nav-btn w-full flex items-center px-4 py-3 text-gray-600 hover:bg-gray-100 transition group transition-all">
-        <i class="fas fa-search w-5 mr-3 group-hover:text-[#a52a2a] transition-colors"></i>
+        <i class="fas fa-compass w-5 mr-3 group-hover:text-[#a52a2a] transition-colors"></i>
         <span class="group-hover:text-[#a52a2a] transition-colors">Explore</span> 
     </button>
 

@@ -14,28 +14,14 @@
     <style>
         /* Slide in from right to left */
         @keyframes slideInRight {
-            from {
-                transform: translateX(100%);
-                opacity: 0;
-            }
-
-            to {
-                transform: translateX(0);
-                opacity: 1;
-            }
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
         }
 
         /* Slide out from left to right */
         @keyframes slideOutRight {
-            from {
-                transform: translateX(0);
-                opacity: 1;
-            }
-
-            to {
-                transform: translateX(100%);
-                opacity: 0;
-            }
+            from { transform: translateX(0); opacity: 1; }
+            to { transform: translateX(100%); opacity: 0; }
         }
 
         .animate-slide-in {
@@ -48,32 +34,32 @@
     </style>
 </head>
 
-<body
-    class="bg-gray-50 font-sans text-gray-900 min-h-screen overflow-x-hidden selection:bg-[#a52a2a] selection:text-white">
+<body class="bg-gray-50 font-sans text-gray-900 min-h-screen overflow-x-hidden selection:bg-[#a52a2a] selection:text-white">
 
     {{-- WRAPPER FOR ANIMATION --}}
     <div id="page-wrapper" class="min-h-screen flex flex-col animate-slide-in">
 
         {{-- CLEAN HEADER --}}
         <header class="bg-white border-b border-gray-200 sticky top-0 z-50 shadow-sm">
-            <div class="max-w-6xl mx-auto px-4 md:px-8 h-16 flex items-center justify-between">
+            <div class="max-w-6xl mx-auto px-4 md:px-8 h-16 flex items-center justify-between relative">
 
                 {{-- NATIVE BROWSER BACK BUTTON --}}
                 <button onclick="navigateBack()"
-                    class="flex items-center text-gray-500 hover:text-[#a52a2a] font-bold transition-colors group px-2 py-1 rounded-lg hover:bg-red-50">
+                    class="flex items-center text-gray-500 hover:text-[#a52a2a] font-bold transition-colors group px-2 py-1 rounded-lg hover:bg-red-50 relative z-10">
                     <i class="fas fa-arrow-left mr-2 group-hover:-translate-x-1 transition-transform"></i>
                     <span class="hidden sm:inline">Back</span>
                 </button>
 
-                {{-- Center Title (Hidden on very small screens) --}}
-                <div class="font-black text-gray-900 text-lg truncate px-4 hidden md:block max-w-xl">
+                {{-- Center Title (Perfectly centered) --}}
+                <div class="absolute left-1/2 -translate-x-1/2 font-black text-gray-900 text-lg truncate px-4 hidden md:block max-w-lg lg:max-w-2xl text-center">
                     {{ $material->title }}
                 </div>
 
                 {{-- User Profile Snippet --}}
-                <div class="flex items-center gap-3 bg-gray-50 px-3 py-1.5 rounded-full border border-gray-100">
+                <div class="flex items-center gap-3 relative z-10">
                     <div class="text-right hidden sm:block">
-                        <p class="text-xs font-bold text-gray-900 leading-tight">{{ auth()->user()->first_name }}</p>
+                        <p class="text-xs font-bold text-gray-900 leading-tight">{{ auth()->user()->first_name }}
+                            {{ auth()->user()->last_name }}</p>
                         <p class="text-[9px] text-[#a52a2a] uppercase font-black tracking-widest">
                             {{ auth()->user()->role ?? 'Student' }}</p>
                     </div>
@@ -88,25 +74,19 @@
         <main class="flex-1 max-w-5xl mx-auto w-full py-8 px-4 sm:px-6 lg:px-8 pb-24">
 
             {{-- Hero Section: Side-by-Side Layout --}}
-            <div
-                class="bg-white rounded-3xl shadow-sm border border-gray-100 p-6 md:p-8 mb-10 flex flex-col md:flex-row gap-8 lg:gap-12">
+            <div class="bg-white rounded-3xl shadow-sm border border-gray-100 p-6 md:p-8 mb-10 flex flex-col md:flex-row gap-8 lg:gap-12">
 
                 {{-- LEFT: Strict 4:3 Thumbnail --}}
                 <div class="w-full md:w-1/2 lg:w-5/12 shrink-0">
-                    <div
-                        class="w-full aspect-[4/3] rounded-2xl overflow-hidden shadow-md bg-gray-100 relative border border-gray-200">
+                    <div class="w-full aspect-[4/3] rounded-2xl overflow-hidden shadow-md bg-gray-100 relative border border-gray-200">
                         <img src="{{ $material->thumbnail ? asset('storage/' . $material->thumbnail) : 'https://images.unsplash.com/photo-1517694712202-14dd9538aa97?q=80&w=800' }}"
                             class="w-full h-full object-cover">
 
                         <div class="absolute top-4 left-4">
                             @if($material->is_public)
-                                <span
-                                    class="px-3 py-1 bg-white/90 backdrop-blur text-green-700 text-[10px] font-black uppercase tracking-wider rounded-lg shadow-sm">Public
-                                    Module</span>
+                                <span class="px-3 py-1 bg-white/90 backdrop-blur text-green-700 text-[10px] font-black uppercase tracking-wider rounded-lg shadow-sm">Public Module</span>
                             @else
-                                <span
-                                    class="px-3 py-1 bg-gray-900/90 backdrop-blur text-white text-[10px] font-black uppercase tracking-wider rounded-lg shadow-sm"><i
-                                        class="fas fa-lock mr-1"></i> Private</span>
+                                <span class="px-3 py-1 bg-gray-900/90 backdrop-blur text-white text-[10px] font-black uppercase tracking-wider rounded-lg shadow-sm"><i class="fas fa-lock mr-1"></i> Private</span>
                             @endif
                         </div>
                     </div>
@@ -117,13 +97,11 @@
 
                     <div class="flex flex-wrap gap-2 mb-4">
                         @forelse($material->tags as $tag)
-                            <span
-                                class="px-3 py-1 bg-[#a52a2a]/10 text-[#a52a2a] border border-[#a52a2a]/20 text-[10px] font-black uppercase tracking-wider rounded-md">
+                            <span class="px-3 py-1 bg-[#a52a2a]/10 text-[#a52a2a] border border-[#a52a2a]/20 text-[10px] font-black uppercase tracking-wider rounded-md">
                                 {{ $tag->name }}
                             </span>
                         @empty
-                            <span
-                                class="px-3 py-1 bg-gray-100 text-gray-500 border border-gray-200 text-[10px] font-black uppercase tracking-wider rounded-md">
+                            <span class="px-3 py-1 bg-gray-100 text-gray-500 border border-gray-200 text-[10px] font-black uppercase tracking-wider rounded-md">
                                 General
                             </span>
                         @endforelse
@@ -136,8 +114,7 @@
 
                     <div class="flex flex-wrap items-center gap-6 py-4 border-y border-gray-100 mt-auto mb-6">
                         <div class="flex items-center gap-3">
-                            <div
-                                class="h-10 w-10 rounded-full bg-gray-50 flex items-center justify-center text-gray-400 text-lg border border-gray-200 shadow-sm shrink-0">
+                            <div class="h-10 w-10 rounded-full bg-gray-50 flex items-center justify-center text-gray-400 text-lg border border-gray-200 shadow-sm shrink-0">
                                 <i class="fas fa-user"></i>
                             </div>
                             <div>
@@ -152,26 +129,45 @@
 
                         <div>
                             <p class="text-[10px] text-gray-400 font-bold uppercase tracking-wider">Total Views</p>
-                            <p class="text-sm font-bold text-gray-900"><i
-                                    class="fas fa-eye text-[#a52a2a] mr-1.5"></i>{{ number_format($material->views) }}
-                            </p>
+                            <p class="text-sm font-bold text-gray-900"><i class="fas fa-eye text-[#a52a2a] mr-1.5"></i>{{ number_format($material->views) }}</p>
                         </div>
                     </div>
 
-                    <div>
-                        @if($isEnrolled)
-                            <button
-                                class="w-full sm:w-auto px-8 py-3.5 bg-green-600 text-white font-bold rounded-xl shadow-lg shadow-green-600/20 flex items-center justify-center gap-2 cursor-default">
-                                <i class="fas fa-check-circle text-lg"></i> Enrolled
-                            </button>
-                        @else
-                            <button onclick="enrollInMaterial({{ $material->id }}, this)"
-                                class="w-full sm:w-auto px-8 py-3.5 bg-[#a52a2a] text-white font-bold rounded-xl hover:bg-red-800 transition shadow-lg shadow-[#a52a2a]/20 flex items-center justify-center gap-2">
-                                <i class="fas fa-user-plus text-lg"></i> Enroll Now
-                            </button>
-                        @endif
+                    {{-- DYNAMIC ACTION BUTTONS --}}
+                    <div id="action-buttons-container" class="flex flex-wrap items-center gap-3">
+                        
+                        {{-- Enroll Button (Hidden if already enrolled) --}}
+                        <button id="enroll-btn" onclick="enrollInMaterial({{ $material->id }}, this)" class="{{ $isEnrolled ? 'hidden' : 'flex' }} w-full sm:w-auto px-8 py-3.5 bg-[#a52a2a] text-white font-bold rounded-xl hover:bg-red-800 transition shadow-lg shadow-[#a52a2a]/20 items-center justify-center gap-2">
+                            <i class="fas fa-user-plus text-lg"></i> Enroll Now
+                        </button>
+
+                        {{-- Unenroll Button (Hidden if NOT enrolled) --}}
+                        <button id="unenroll-btn" onclick="openDropModal({{ $material->id }})" class="{{ $isEnrolled ? 'flex' : 'hidden' }} w-full sm:w-auto px-6 py-3.5 bg-green-50 text-green-700 border border-green-200 font-bold rounded-xl hover:bg-green-100 transition items-center justify-center gap-2 cursor-pointer shadow-sm">
+                            <i class="fas fa-check-circle text-lg"></i>
+                            <span>Enrolled</span>
+                        </button>
+
+                        {{-- Study Now Button (Hidden if NOT enrolled) --}}
+                        <button id="study-now-btn" onclick="startStudying()" class="{{ $isEnrolled ? 'flex' : 'hidden' }} flex-1 sm:flex-none px-8 py-3.5 bg-green-600 text-white font-bold rounded-xl hover:bg-green-700 transition shadow-lg shadow-green-600/20 items-center justify-center gap-2">
+                            <i class="fas fa-play-circle text-lg"></i> Study Now
+                        </button>
                     </div>
                 </div>
+            </div>
+
+            {{-- PROGRESS BAR (Hidden if not enrolled) --}}
+            <div id="progress-container" class="{{ $isEnrolled ? 'block' : 'hidden' }} mb-8 bg-white p-6 md:p-8 rounded-3xl shadow-sm border border-gray-100">
+                <div class="flex items-end justify-between mb-3">
+                    <div>
+                        <h4 class="font-bold text-gray-900 text-lg">Your Progress</h4>
+                        <p class="text-xs text-gray-500">Complete all lessons to finish the module</p>
+                    </div>
+                    <span class="text-xl font-black text-green-600">0%</span>
+                </div>
+                <div class="w-full bg-gray-100 rounded-full h-3 overflow-hidden">
+                    <div class="bg-green-500 h-3 rounded-full transition-all duration-1000 ease-out" style="width: 0%"></div>
+                </div>
+                <p class="text-xs text-gray-400 mt-3 font-bold uppercase tracking-wider text-right">0 of {{ $material->lessons->count() }} lessons completed</p>
             </div>
 
             {{-- Course Content / Lessons List --}}
@@ -179,24 +175,19 @@
             <div class="bg-white rounded-3xl shadow-sm border border-gray-100 p-2 md:p-4">
 
                 @forelse($material->lessons as $index => $lesson)
-                    <div
-                        class="p-4 rounded-2xl transition-colors border border-transparent flex items-start gap-4 group {{ $isEnrolled ? 'hover:bg-gray-50 hover:border-gray-100 cursor-pointer' : 'opacity-70 cursor-not-allowed' }}">
-                        <div
-                            class="h-10 w-10 shrink-0 rounded-xl bg-gray-100 text-gray-400 font-black flex items-center justify-center {{ $isEnrolled ? 'group-hover:bg-[#a52a2a]/10 group-hover:text-[#a52a2a]' : '' }} transition-colors">
+                    <div class="lesson-item p-4 rounded-2xl transition-colors border border-transparent flex items-start gap-4 group {{ $isEnrolled ? 'hover:bg-gray-50 hover:border-gray-100 cursor-pointer' : 'opacity-70 cursor-not-allowed' }}">
+                        <div class="lesson-number h-10 w-10 shrink-0 rounded-xl bg-gray-100 text-gray-400 font-black flex items-center justify-center {{ $isEnrolled ? 'group-hover:bg-[#a52a2a]/10 group-hover:text-[#a52a2a]' : '' }} transition-colors">
                             {{ $index + 1 }}
                         </div>
                         <div class="flex-1 min-w-0 pt-1.5">
-                            <h4
-                                class="font-bold text-gray-900 {{ $isEnrolled ? 'group-hover:text-[#a52a2a]' : '' }} transition-colors text-lg">
+                            <h4 class="lesson-title font-bold text-gray-900 {{ $isEnrolled ? 'group-hover:text-[#a52a2a]' : '' }} transition-colors text-lg">
                                 {{ $lesson->title }}</h4>
                             <div class="flex flex-wrap items-center gap-4 mt-1">
-                                <p
-                                    class="text-xs text-gray-500 font-medium flex items-center gap-1.5 uppercase tracking-wider">
+                                <p class="text-xs text-gray-500 font-medium flex items-center gap-1.5 uppercase tracking-wider">
                                     <i class="fas fa-book-open text-gray-400"></i> {{ ucfirst($lesson->section_type) }}
                                 </p>
                                 @if($lesson->time_limit)
-                                    <p
-                                        class="text-xs text-gray-500 font-medium flex items-center gap-1.5 uppercase tracking-wider">
+                                    <p class="text-xs text-gray-500 font-medium flex items-center gap-1.5 uppercase tracking-wider">
                                         <i class="far fa-clock text-gray-400"></i> {{ $lesson->time_limit }} mins
                                     </p>
                                 @endif
@@ -204,16 +195,15 @@
                         </div>
                         <div class="pt-3 pl-4">
                             @if($isEnrolled)
-                                <i class="fas fa-chevron-right text-gray-300 group-hover:text-[#a52a2a] transition-colors"></i>
+                                <i class="lesson-status-icon fas fa-chevron-right text-gray-300 group-hover:text-[#a52a2a] transition-colors"></i>
                             @else
-                                <i class="fas fa-lock text-gray-300 tooltip" title="Enroll to unlock"></i>
+                                <i class="lesson-status-icon fas fa-lock text-gray-300 tooltip" title="Enroll to unlock"></i>
                             @endif
                         </div>
                     </div>
                 @empty
                     <div class="p-12 text-center">
-                        <div
-                            class="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-4 border border-gray-100">
+                        <div class="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-4 border border-gray-100">
                             <i class="fas fa-folder-open text-2xl text-gray-400"></i>
                         </div>
                         <p class="text-gray-500 font-medium">The instructor hasn't added any lessons to this module yet.</p>
@@ -224,20 +214,36 @@
         </main>
     </div>
 
+    {{-- Drop Course Modal --}}
+    <div id="dropCourseModal" class="fixed inset-0 z-[9999] hidden opacity-0 transition-opacity duration-300 flex items-center justify-center p-4">
+        <div class="absolute inset-0 bg-gray-900/60" onclick="closeDropModal()"></div>
+        <div class="bg-white rounded-3xl w-full max-w-sm shadow-2xl overflow-hidden transform scale-95 transition-all duration-300 text-center p-6 relative z-10" id="dropCourseBox">
+            <div class="w-16 h-16 bg-red-50 text-red-500 rounded-full flex items-center justify-center mx-auto mb-4 text-3xl">
+                <i class="fas fa-exclamation-triangle"></i>
+            </div>
+            <h3 class="text-xl font-black text-gray-900 mb-2">Drop Course?</h3>
+            <p class="text-sm text-gray-500 mb-6">Are you sure you want to drop this course? All your progress and completed lessons will be permanently lost.</p>
+            <div class="flex gap-3">
+                <button type="button" onclick="closeDropModal()" class="w-full py-3 bg-gray-100 text-gray-700 font-bold rounded-xl hover:bg-gray-200 transition">
+                    Cancel
+                </button>
+                <button type="button" id="confirm-drop-btn" onclick="executeDrop()" disabled class="w-full py-3 bg-red-600 text-white font-bold rounded-xl hover:bg-red-700 transition disabled:opacity-50 disabled:cursor-not-allowed">
+                    Drop (<span id="drop-timer">5</span>s)
+                </button>
+            </div>
+        </div>
+    </div>
+
     {{-- Standalone Alert Modal --}}
-    <div id="standaloneAlertModal"
-        class="fixed inset-0 z-[9999] hidden opacity-0 transition-opacity duration-300 flex items-center justify-center p-4">
+    <div id="standaloneAlertModal" class="fixed inset-0 z-[9999] hidden opacity-0 transition-opacity duration-300 flex items-center justify-center p-4">
         <div class="absolute inset-0 bg-gray-900/60" onclick="closeStandaloneAlert()"></div>
-        <div class="bg-white rounded-3xl w-full max-w-sm shadow-2xl overflow-hidden transform scale-95 transition-all duration-300 text-center p-6 relative z-10"
-            id="standaloneAlertBox">
-            <div id="standaloneAlertIconContainer"
-                class="w-16 h-16 rounded-full mx-auto mb-4 flex items-center justify-center text-3xl">
+        <div class="bg-white rounded-3xl w-full max-w-sm shadow-2xl overflow-hidden transform scale-95 transition-all duration-300 text-center p-6 relative z-10" id="standaloneAlertBox">
+            <div id="standaloneAlertIconContainer" class="w-16 h-16 rounded-full mx-auto mb-4 flex items-center justify-center text-3xl">
                 <i id="standaloneAlertIcon" class="fas fa-info"></i>
             </div>
             <h3 id="standaloneAlertTitle" class="text-xl font-black text-gray-900 mb-2">Notice</h3>
             <p id="standaloneAlertMessage" class="text-sm text-gray-500 mb-6"></p>
-            <button type="button" onclick="closeStandaloneAlert()"
-                class="w-full px-4 py-3 bg-gray-100 text-gray-700 font-bold rounded-xl hover:bg-gray-200 transition">
+            <button type="button" onclick="closeStandaloneAlert()" class="w-full px-4 py-3 bg-gray-100 text-gray-700 font-bold rounded-xl hover:bg-gray-200 transition">
                 Okay
             </button>
         </div>
@@ -252,15 +258,22 @@
             wrapper.classList.remove('animate-slide-in');
             wrapper.classList.add('animate-slide-out');
 
-            // 2. Secretly tell the dashboard's memory to open the Enrolled tab next
-            sessionStorage.setItem('lastActiveTab', '{{ route('student.enrolled.index') }}');
-            sessionStorage.setItem('lastActiveBtn', 'nav-enrolled-btn');
-
-            // 3. Do a clean redirect back to the main dashboard
+            // 2. Explicitly redirect back to the main dashboard layout
             setTimeout(() => {
                 window.location.href = "{{ url('/dashboard') }}";
-            }, 300);
+            }, 300); // 300ms matches the CSS animation duration
         }
+
+        // Study Now Logic
+        function startStudying() {
+            const btn = event.currentTarget || document.getElementById('study-now-btn');
+            if (btn) {
+                btn.disabled = true;
+                btn.innerHTML = '<i class="fas fa-spinner fa-spin text-lg mr-2"></i> Loading...';
+            }
+            window.location.href = '{{ route("dashboard.materials.study", $material->id) }}';
+        }
+
         // Alert Modal Logic
         function showStandaloneAlert(message, type) {
             const modal = document.getElementById('standaloneAlertModal');
@@ -294,20 +307,135 @@
         function closeStandaloneAlert() {
             const modal = document.getElementById('standaloneAlertModal');
             const box = document.getElementById('standaloneAlertBox');
-
             box.classList.remove('scale-100');
             box.classList.add('scale-95');
             modal.classList.remove('opacity-100');
             modal.classList.add('opacity-0');
-
             setTimeout(() => { modal.classList.add('hidden'); }, 300);
+        }
+
+        // Drop Modal Logic
+        let dropTimerInterval;
+        let materialToDrop = null;
+
+        function openDropModal(materialId) {
+            materialToDrop = materialId;
+            const modal = document.getElementById('dropCourseModal');
+            const box = document.getElementById('dropCourseBox');
+            const confirmBtn = document.getElementById('confirm-drop-btn');
+            
+            // Reset button and timer state
+            confirmBtn.disabled = true;
+            confirmBtn.innerHTML = 'Drop (<span id="drop-timer">5</span>s)';
+            let timeLeft = 5;
+
+            modal.classList.remove('hidden');
+            setTimeout(() => {
+                modal.classList.remove('opacity-0');
+                modal.classList.add('opacity-100');
+                box.classList.remove('scale-95');
+                box.classList.add('scale-100');
+            }, 10);
+
+            clearInterval(dropTimerInterval);
+            dropTimerInterval = setInterval(() => {
+                timeLeft--;
+                const span = document.getElementById('drop-timer');
+                if (span) span.innerText = timeLeft;
+                
+                if (timeLeft <= 0) {
+                    clearInterval(dropTimerInterval);
+                    confirmBtn.disabled = false;
+                    confirmBtn.innerHTML = 'Yes, Drop Course';
+                }
+            }, 1000);
+        }
+
+        function closeDropModal() {
+            clearInterval(dropTimerInterval);
+            materialToDrop = null;
+            const modal = document.getElementById('dropCourseModal');
+            const box = document.getElementById('dropCourseBox');
+            
+            box.classList.remove('scale-100');
+            box.classList.add('scale-95');
+            modal.classList.remove('opacity-100');
+            modal.classList.add('opacity-0');
+            setTimeout(() => { modal.classList.add('hidden'); }, 300);
+        }
+
+        async function executeDrop() {
+            if (!materialToDrop) return;
+            
+            const confirmBtn = document.getElementById('confirm-drop-btn');
+            const originalHtml = confirmBtn.innerHTML;
+            confirmBtn.disabled = true;
+            confirmBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Dropping...';
+
+            try {
+                const response = await fetch(`{{ url('/dashboard/materials') }}/${materialToDrop}/unenroll`, {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+                        'Accept': 'application/json'
+                    }
+                });
+
+                const data = await response.json();
+
+                if (response.ok && data.success) {
+                    closeDropModal();
+                    showStandaloneAlert('Course dropped successfully.', 'success');
+                    
+                    // --- DOM Reversion: Re-lock everything instantly instead of refreshing ---
+                    
+                    const enrollBtn = document.getElementById('enroll-btn');
+                    const unenrollBtn = document.getElementById('unenroll-btn');
+                    const studyBtn = document.getElementById('study-now-btn');
+                    
+                    // Button Swap
+                    enrollBtn.classList.replace('hidden', 'flex');
+                    unenrollBtn.classList.replace('flex', 'hidden');
+                    studyBtn.classList.replace('flex', 'hidden');
+                    
+                    // Hide Progress Bar
+                    document.getElementById('progress-container')?.classList.replace('block', 'hidden');
+
+                    // Visually Lock Lessons
+                    document.querySelectorAll('.lesson-item').forEach(item => {
+                        item.classList.add('opacity-70', 'cursor-not-allowed');
+                        item.classList.remove('hover:bg-gray-50', 'hover:border-gray-100', 'cursor-pointer');
+                        
+                        const icon = item.querySelector('.lesson-status-icon');
+                        if (icon) {
+                            icon.className = 'fas fa-lock text-gray-300 tooltip lesson-status-icon';
+                            icon.title = "Enroll to unlock";
+                        }
+                        
+                        const numberBadge = item.querySelector('.lesson-number');
+                        if(numberBadge) numberBadge.classList.remove('group-hover:bg-[#a52a2a]/10', 'group-hover:text-[#a52a2a]');
+                        
+                        const titleText = item.querySelector('.lesson-title');
+                        if(titleText) titleText.classList.remove('group-hover:text-[#a52a2a]');
+                    });
+
+                } else {
+                    showStandaloneAlert(data.message || 'Failed to drop course.', 'error');
+                    confirmBtn.innerHTML = originalHtml;
+                    confirmBtn.disabled = false;
+                }
+            } catch (error) {
+                showStandaloneAlert('A network error occurred.', 'error');
+                confirmBtn.innerHTML = originalHtml;
+                confirmBtn.disabled = false;
+            }
         }
 
         // Enrollment Logic
         async function enrollInMaterial(materialId, btn) {
             btn.disabled = true;
             const originalHtml = btn.innerHTML;
-            btn.innerHTML = '<i class="fas fa-spinner fa-spin text-lg"></i> Enrolling...';
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin text-lg mr-2"></i> Enrolling...';
 
             try {
                 const response = await fetch(`{{ url('/dashboard/materials') }}/${materialId}/enroll`, {
@@ -321,22 +449,46 @@
                 const data = await response.json();
 
                 if (response.ok && data.success) {
-                    btn.className = "w-full sm:w-auto px-8 py-3.5 bg-green-600 text-white font-bold rounded-xl flex items-center justify-center gap-2 cursor-default";
-                    btn.innerHTML = '<i class="fas fa-check-circle text-lg"></i> Enrolled';
-                    btn.onclick = null;
+                    // Instantly swap buttons
+                    const unenrollBtn = document.getElementById('unenroll-btn');
+                    const studyBtn = document.getElementById('study-now-btn');
+                    
+                    btn.classList.replace('flex', 'hidden');
+                    unenrollBtn.classList.replace('hidden', 'flex');
+                    studyBtn.classList.replace('hidden', 'flex');
 
-                    showStandaloneAlert('Successfully enrolled! The page will now refresh to unlock your lessons.', 'success');
+                    // Reveal Progress Bar
+                    document.getElementById('progress-container')?.classList.replace('hidden', 'block');
 
-                    setTimeout(() => {
-                        window.location.reload();
-                    }, 2000);
+                    // Unlock lessons visually
+                    document.querySelectorAll('.lesson-item').forEach(item => {
+                        item.classList.remove('opacity-70', 'cursor-not-allowed');
+                        item.classList.add('hover:bg-gray-50', 'hover:border-gray-100', 'cursor-pointer');
+                        const icon = item.querySelector('.lesson-status-icon');
+                        if (icon) {
+                            icon.className = 'fas fa-chevron-right text-gray-300 group-hover:text-[#a52a2a] transition-colors lesson-status-icon';
+                            icon.removeAttribute('title');
+                        }
+                        
+                        const numberBadge = item.querySelector('.lesson-number');
+                        if(numberBadge) numberBadge.classList.add('group-hover:bg-[#a52a2a]/10', 'group-hover:text-[#a52a2a]');
+                        
+                        const titleText = item.querySelector('.lesson-title');
+                        if(titleText) titleText.classList.add('group-hover:text-[#a52a2a]');
+                    });
+
+                    // Reset enroll button back to normal
+                    btn.innerHTML = originalHtml;
+                    btn.disabled = false;
+
+                    showStandaloneAlert('Successfully enrolled!', 'success');
                 } else {
                     showStandaloneAlert(data.message || 'Failed to enroll.', 'error');
                     btn.innerHTML = originalHtml;
                     btn.disabled = false;
                 }
             } catch (error) {
-                showStandaloneAlert('A network error occurred. Please check your connection.', 'error');
+                showStandaloneAlert('A network error occurred.', 'error');
                 btn.innerHTML = originalHtml;
                 btn.disabled = false;
             }

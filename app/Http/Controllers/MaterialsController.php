@@ -17,6 +17,7 @@ use App\Exports\MaterialTemplateExport;
 use Illuminate\Support\Facades\Mail;
 use App\Mail\MaterialInvitationMail;
 use App\Models\MaterialAccess;
+use App\Models\LessonContent;
 use Exception;
 
 class MaterialsController extends Controller
@@ -123,7 +124,8 @@ class MaterialsController extends Controller
             ->where('material_id', $id)
             ->get()
             ->map(function ($lesson) {
-                $lesson->questions = DB::table('quizzes')
+                // FIX: Changed 'quizzes' to 'lesson_contents'
+                $lesson->questions = DB::table('lesson_contents')
                     ->where('lesson_id', $lesson->id)
                     ->get()
                     ->map(function ($quiz) {
@@ -271,13 +273,15 @@ class MaterialsController extends Controller
             // 1. CLEANUP OLD LESSONS AND QUIZZES
             $existingLessons = DB::table('lessons')->where('material_id', $id)->pluck('id');
             if ($existingLessons->isNotEmpty()) {
-                $existingQuizzes = DB::table('quizzes')->whereIn('lesson_id', $existingLessons)->pluck('id');
+                // FIX: Changed 'quizzes' to 'lesson_contents'
+                $existingQuizzes = DB::table('lesson_contents')->whereIn('lesson_id', $existingLessons)->pluck('id');
 
                 if ($existingQuizzes->isNotEmpty()) {
                     DB::table('quiz_options')->whereIn('quiz_id', $existingQuizzes)->delete();
                 }
 
-                DB::table('quizzes')->whereIn('lesson_id', $existingLessons)->delete();
+                // FIX: Changed 'quizzes' to 'lesson_contents'
+                DB::table('lesson_contents')->whereIn('lesson_id', $existingLessons)->delete();
                 DB::table('lessons')->where('material_id', $id)->delete();
             }
 
@@ -326,7 +330,8 @@ class MaterialsController extends Controller
                     ]);
 
                     foreach ($cat['questions'] ?? [] as $q) {
-                        $quizId = DB::table('quizzes')->insertGetId([
+                        // FIX: Changed 'quizzes' to 'lesson_contents'
+                        $quizId = DB::table('lesson_contents')->insertGetId([
                             'lesson_id' => $lessonId,
                             'type' => $q['type'] ?? 'mcq',
                             'question_text' => $q['text'] ?? '',
@@ -427,13 +432,15 @@ class MaterialsController extends Controller
             $lessonIds = DB::table('lessons')->where('material_id', $id)->pluck('id');
 
             if ($lessonIds->isNotEmpty()) {
-                $quizIds = DB::table('quizzes')->whereIn('lesson_id', $lessonIds)->pluck('id');
+                // FIX: Changed 'quizzes' to 'lesson_contents'
+                $quizIds = DB::table('lesson_contents')->whereIn('lesson_id', $lessonIds)->pluck('id');
 
                 if ($quizIds->isNotEmpty()) {
                     DB::table('quiz_options')->whereIn('quiz_id', $quizIds)->delete();
                 }
 
-                DB::table('quizzes')->whereIn('lesson_id', $lessonIds)->delete();
+                // FIX: Changed 'quizzes' to 'lesson_contents'
+                DB::table('lesson_contents')->whereIn('lesson_id', $lessonIds)->delete();
                 DB::table('lessons')->where('material_id', $id)->delete();
             }
 
@@ -700,6 +707,118 @@ class MaterialsController extends Controller
         }
 
         return view('dashboard.partials.student.materials-show', compact('material', 'isEnrolled'));
+    }
+
+    public function enroll(Request $request, Material $material)
+    {
+        $user = auth()->user();
+
+        // Security check: Make sure only students can enroll
+        if ($user->role !== 'student') {
+            return response()->json([
+                'success' => false,
+                'message' => 'Only students can enroll in materials.'
+            ], 403);
+        }
+
+        // 1. Check Private Material Access
+        if (!$material->is_public) {
+            $access = MaterialAccess::where('material_id', $material->id)
+                        ->where('email', $user->email)
+                        ->first();
+
+            if (!$access) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'You do not have permission to enroll in this private material.'
+                ], 403);
+            }
+
+            // Update their invitation status to enrolled
+            if ($access->status !== 'enrolled') {
+                $access->update(['status' => 'enrolled']);
+            }
+        }
+
+        // 2. Check for Duplicate Enrollment
+        $alreadyEnrolled = Enrollment::where('material_id', $material->id)
+                            ->where('user_id', $user->id)
+                            ->exists();
+
+        if ($alreadyEnrolled) {
+            return response()->json([
+                'success' => false,
+                'message' => 'You are already enrolled in this material.'
+            ]);
+        }
+
+        // 3. Create the New Enrollment
+        Enrollment::create([
+            'material_id' => $material->id,
+            'user_id' => $user->id,
+            'status' => 'in_progress' // Setting the default status based on your schema
+        ]);
+
+        // Return a success JSON response to trigger the frontend animation
+        return response()->json([
+            'success' => true,
+            'message' => 'Successfully enrolled!'
+        ]);
+    }
+
+    public function study(Material $material)
+    {
+        $user = auth()->user();
+
+        // 1. Security Check: Make sure they are actually enrolled!
+        $isEnrolled = \App\Models\Enrollment::where('material_id', $material->id)
+                            ->where('user_id', $user->id)
+                            ->exists();
+
+        if (!$isEnrolled && $user->role === 'student') {
+            abort(403, 'You must enroll in this material before studying.');
+        }
+
+        // 2. Load the lessons so the student can read them
+        $material->load(['lessons' => function($query) {
+            $query->orderBy('created_at', 'asc'); 
+        }]);
+
+        $material->load(['lessons.contents.options']);
+
+        // 3. Return your study view (you will need to create this blade file)
+        return view('dashboard.partials.student.materials-study', compact('material'));
+    }
+
+    public function unenroll(Request $request, Material $material)
+    {
+        $user = auth()->user();
+
+        // 1. Find and delete the enrollment record
+        $enrollment = \App\Models\Enrollment::where('material_id', $material->id)
+                            ->where('user_id', $user->id)
+                            ->first();
+
+        if ($enrollment) {
+            $enrollment->delete();
+        }
+
+        // 2. If it's a private material, revert their access status back to pending/invited
+        if (!$material->is_public) {
+            $access = \App\Models\MaterialAccess::where('material_id', $material->id)
+                        ->where('email', $user->email)
+                        ->first();
+
+            if ($access && $access->status === 'enrolled') {
+                // Change it back to 'pending' so they can re-enroll later if they want
+                $access->update(['status' => 'pending']); 
+            }
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Successfully dropped the course.'
+        ]);
     }
 }
 

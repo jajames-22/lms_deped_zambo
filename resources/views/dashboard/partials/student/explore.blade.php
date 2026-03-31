@@ -101,13 +101,8 @@
                         window.resetInterval();
                     }
 
-<<<<<<< HEAD
-                    function startInterval() {
-                        carouselInterval = setInterval(() => { moveCarousel(1); }, 5000); 
-=======
                     window.startInterval = function() {
                         window.carouselInterval = setInterval(() => { window.moveCarousel(1); }, 5000); 
->>>>>>> f480a1c4ad42f11d29854b2207a8045dc8c2b6ae
                     }
 
                     window.resetInterval = function() {
