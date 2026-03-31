@@ -155,15 +155,15 @@ class MaterialsController extends Controller
 
         // THE FIX: Query the new MaterialAccess table instead of Enrollment
         $whitelistedStudents = \App\Models\MaterialAccess::with('student')
-        ->where('material_id', $material->id)
-        ->latest()
-        ->get();
+            ->where('material_id', $material->id)
+            ->latest()
+            ->get();
 
         return view('dashboard.partials.shared.materials-manage', compact('material', 'whitelistedStudents'));
     }
 
 
-   public function addAccess(Request $request, $id)
+    public function addAccess(Request $request, $id)
     {
         $request->validate(['email' => 'required|email']);
         $email = $request->email;
@@ -186,13 +186,31 @@ class MaterialsController extends Controller
 
     public function removeAccess($id)
     {
-        // Delete from the NEW MaterialAccess table
-        $access = MaterialAccess::findOrFail($id);
-        $access->delete();
+        DB::beginTransaction();
+        try {
+            // 1. Find the specific access record being revoked
+            $access = MaterialAccess::findOrFail($id);
 
-        return response()->json(['success' => true, 'message' => 'Student access revoked.']);
+            // 2. If the student has already registered an account and enrolled,
+            // delete their enrollment record to remove them from the class and clear progress.
+            if ($access->student_id) {
+                Enrollment::where('material_id', $access->material_id)
+                    ->where('user_id', $access->student_id)
+                    ->delete();
+            }
+
+            // 3. Delete from the MaterialAccess table (the VIP list)
+            $access->delete();
+
+            DB::commit();
+            return response()->json(['success' => true, 'message' => 'Student access and enrollment revoked successfully.']);
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json(['success' => false, 'message' => 'Error revoking access: ' . $e->getMessage()], 500);
+        }
     }
-
+    
     public function toggleStatus(Request $request, $id)
     {
         try {
@@ -602,7 +620,7 @@ class MaterialsController extends Controller
     /**
      * Bulk send invitations to all pending/invited students.
      */
-   public function notifyStudents(Request $request, $id)
+    public function notifyStudents(Request $request, $id)
     {
         try {
             $material = Material::findOrFail($id);
@@ -618,14 +636,14 @@ class MaterialsController extends Controller
 
             foreach ($targets as $access) {
                 Mail::to($access->email)->send(new MaterialInvitationMail($material, $access->email));
-                
+
                 // This ensures their status moves to 'invited', 
                 // which triggers the "Send Again" text in your Blade file.
                 $access->update(['status' => 'invited']);
             }
 
             return response()->json([
-                'success' => true, 
+                'success' => true,
                 'message' => "Successfully sent invitations to {$targets->count()} student(s)."
             ]);
         } catch (\Exception $e) {
@@ -651,9 +669,9 @@ class MaterialsController extends Controller
         // 1. Security Check: If private, verify the student is on the access list
         if (!$material->is_public && auth()->user()->role === 'student') {
             $hasAccess = MaterialAccess::where('material_id', $material->id)
-                            ->where('email', auth()->user()->email)
-                            ->exists();
-                            
+                ->where('email', auth()->user()->email)
+                ->exists();
+
             if (!$hasAccess) {
                 // If they aren't on the list, block them completely
                 abort(403, 'You do not have permission to view this private material.');
@@ -665,11 +683,11 @@ class MaterialsController extends Controller
 
         // 3. Eager load the relationships we need to display on the page
         $material->load([
-            'instructor', 
-            'tags', 
-            'lessons' => function($query) {
+            'instructor',
+            'tags',
+            'lessons' => function ($query) {
                 // Assuming you'll want lessons listed in order
-                $query->orderBy('created_at', 'asc'); 
+                $query->orderBy('created_at', 'asc');
             }
         ]);
 
@@ -677,8 +695,8 @@ class MaterialsController extends Controller
         $isEnrolled = false;
         if (auth()->user()->role === 'student') {
             $isEnrolled = Enrollment::where('material_id', $material->id)
-                            ->where('user_id', auth()->id())
-                            ->exists();
+                ->where('user_id', auth()->id())
+                ->exists();
         }
 
         return view('dashboard.partials.student.materials-show', compact('material', 'isEnrolled'));

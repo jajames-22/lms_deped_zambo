@@ -11,6 +11,19 @@ use Illuminate\Support\Facades\Auth;
 
 class StudentEnrollmentController extends Controller
 {
+    public function index()
+    {
+        // Fetch all enrollments for the logged-in student
+        // We eager-load 'material', 'material.instructor', and 'material.tags' for better performance
+        $enrollments = Enrollment::with(['material.instructor', 'material.tags'])
+            ->where('user_id', Auth::id())
+            ->latest()
+            ->get();
+
+        // Pass the $enrollments variable to your blade file
+        return view('dashboard.partials.student.enrolled', compact('enrollments'));
+    }
+    
     public function acceptInvitation(Request $request, Material $material, $email)
     {
         // 1. Security check: Ensure the logged-in user is the one invited
@@ -34,13 +47,14 @@ class StudentEnrollmentController extends Controller
         // 4. Update the material access status and assign the student's ID
         $access->update([
             'status' => 'enrolled',
-            'student_id' => auth()->id() // FIXED: Grabs the currently logged-in student's ID
+            'student_id' => auth()->id()
         ]);
 
-        return redirect('/dashboard')
-            ->with('autoLoad', route('student.materials.show', $material->id))
+        // THE FIX: Do a hard redirect straight to the full-page module URL
+        return redirect()->route('student.materials.show', $material->id)
             ->with('success', 'Successfully enrolled!');
     }
+    
 
     public function enrollWithCode(Request $request)
     {
@@ -54,7 +68,8 @@ class StudentEnrollmentController extends Controller
             ->first();
 
         if (!$material) {
-            return response()->json(['success' => false, 'message' => 'Invalid or expired access code.']);
+            // Since this was previously AJAX, we'll redirect back with an error message
+            return redirect()->back()->with('error', 'Invalid or expired access code.');
         }
 
         // 2. Check if already enrolled
@@ -63,7 +78,8 @@ class StudentEnrollmentController extends Controller
             ->exists();
 
         if ($alreadyEnrolled) {
-            return response()->json(['success' => false, 'message' => 'You are already enrolled in this module.']);
+            return redirect()->route('student.materials.show', $material->id)
+                             ->with('info', 'You are already enrolled in this module.');
         }
 
         // 3. Create Enrollment record
@@ -73,23 +89,20 @@ class StudentEnrollmentController extends Controller
             'status' => 'in_progress'
         ]);
 
-        // 4. (Optional) If you want to keep the MaterialAccess table synced for records:
-        
+        // 4. Keep the MaterialAccess table synced
         MaterialAccess::updateOrCreate([
             'material_id' => $material->id,
             'email' => Auth::user()->email,
         ], [
             'student_id' => Auth::id(),
             'status' => 'enrolled'
-        ]);    
-
-        return response()->json([
-            'success' => true,
-            'message' => 'Successfully enrolled!',
-            'redirect_url' => route('student.materials.show', $material->id)
         ]);
-    }
 
+        // THE FIX: Use a hard redirect just like acceptInvitation
+        return redirect()->route('student.materials.show', $material->id)
+                         ->with('success', 'Successfully enrolled!');
+    }
+    
     public function show($id)
     {
         $material = Material::findOrFail($id);
@@ -108,7 +121,7 @@ class StudentEnrollmentController extends Controller
         $lessons = DB::table('lessons')->where('material_id', $id)->get();
         $exams = DB::table('exams')->where('material_id', $id)->get();
 
-        // This returns the NAKED partial (the skeleton)
+        // FIX: Return the view instead of redirecting!
         return view('dashboard.partials.student.materials-show', compact('material', 'lessons', 'exams', 'isEnrolled'));
     }
 }

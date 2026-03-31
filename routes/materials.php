@@ -20,6 +20,9 @@ Route::post('/student/enroll-code', [StudentEnrollmentController::class, 'enroll
     ->name('student.enroll.code')
     ->middleware(['auth']);
 
+Route::get('/dashboard/enrolled', [App\Http\Controllers\StudentEnrollmentController::class, 'index'])
+    ->name('student.enrolled.index')
+    ->middleware(['auth']);
 
 // ==========================================
 // TEACHER / ADMIN ROUTES

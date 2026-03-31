@@ -26,4 +26,5 @@ class Enrollment extends Model
     {
         return $this->belongsTo(Material::class, 'material_id');
     }
+    
 }
