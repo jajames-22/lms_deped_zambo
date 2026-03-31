@@ -219,13 +219,6 @@
             </div>
         </main>
 
-        {{-- Replace the <form> wrapper with just this button --}}
-            <div class="flex justify-center md:justify-start mt-4">
-                <button onclick="completeModule({{ $material->id }}, this)"
-                    class="px-8 py-4 bg-green-600 text-white font-bold rounded-xl hover:bg-green-700 transition shadow-lg shadow-green-600/20 flex items-center justify-center gap-2">
-                    <i class="fas fa-check-circle text-xl"></i> Mark Module as Complete
-                </button>
-            </div>
     </div>
 
     {{-- Drop Course Modal --}}
