@@ -95,6 +95,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
         Route::patch('/materials/{material}/toggle-featured', [MaterialsController::class, 'toggleFeatured'])->name('dashboard.materials.toggle-featured');
 
+        Route::get('/materials/{material}/show', [MaterialsController::class, 'show'])->name('dashboard.materials.show');
+
     });
 
     Route::get('/get-districts/{quadrantId}', [DashboardController::class, 'getDistricts'])->name('districts.get');

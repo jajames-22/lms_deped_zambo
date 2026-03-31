@@ -299,6 +299,7 @@
         </button>
     </div>
 
+    {{-- FIXED: Modals and Snackbars will be automatically moved to the body to prevent layout clipping --}}
     <div id="assessment-delete-modal" class="fixed inset-0 z-[100] hidden h-full">
         <div class="absolute inset-0 bg-gray-900/60 backdrop-blur-sm" onclick="window.closeAssessmentDeleteModal()"></div>
         <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-sm p-6">
@@ -348,7 +349,29 @@
     </div>
 </div>
 <script>
-    
+    // ==========================================
+    // DOM PREPARATION (Fixes Modal & Snackbar Trapping)
+    // ==========================================
+    setTimeout(() => {
+        ['assessment-delete-modal', 'student-delete-modal', 'custom-snackbar'].forEach(id => {
+            const newEl = document.getElementById(id);
+            if (newEl && newEl.parentElement !== document.body) {
+                // Clean up any orphan elements from previous visits to prevent duplicates
+                const oldEl = document.body.querySelector('body > #' + id);
+                if (oldEl) oldEl.remove();
+                
+                // Move the element to the body so it breaks out of the transformed container
+                document.body.appendChild(newEl);
+            }
+        });
+    }, 50);
+
+    // Optional: Lock background scrolling when modals are open
+    window.toggleBodyScroll = function(disable) {
+        if (disable) document.body.classList.add('overflow-hidden');
+        else document.body.classList.remove('overflow-hidden');
+    };
+
     // --- Toggle Status Logic ---
     window.toggleAssessmentStatus = async function(checkbox) {
         const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || '{{ csrf_token() }}';
@@ -437,7 +460,7 @@
     };
 
     // --- Snackbar Logic ---
-    var snackbarTimeout; // Changed to var
+    var snackbarTimeout; 
     
     window.showSnackbar = function(message, type = 'error') {
         const snackbar = document.getElementById('custom-snackbar');
@@ -469,7 +492,6 @@
     };
 
     // --- State and Pagination Management ---
-    // Changed let/const to var to prevent redeclaration errors in loadPartial router
     var allRows = [];
     var currentRows = [];
     var currentPage = 1;
@@ -483,7 +505,6 @@
         initializeTableData();
     }, 50);
 
-    // Grabs the rows from the DOM and applies current filters/sorts/pagination
     function initializeTableData() {
         allRows = Array.from(document.querySelectorAll("#students-tbody .student-row"));
         applyFilterAndSort();
@@ -492,14 +513,12 @@
     function applyFilterAndSort() {
         const query = document.getElementById('search-student').value.toLowerCase();
         
-        // Filter rows
         currentRows = allRows.filter(row => {
             const lrn = row.querySelector('.lrn-cell').innerText.toLowerCase();
             const name = row.querySelector('.name-cell').innerText.toLowerCase();
             return lrn.includes(query) || name.includes(query);
         });
 
-        // Sort rows if a column header was clicked
         if (sortColumnIndex !== null) {
             currentRows.sort((a, b) => {
                 let valA = a.cells[sortColumnIndex].getAttribute('data-value') || a.cells[sortColumnIndex].innerText.trim();
@@ -521,10 +540,8 @@
         const emptyState = document.getElementById("empty-state-row");
         const paginationWrapper = document.getElementById("pagination-wrapper");
 
-        // Hide all rows initially
         allRows.forEach(row => row.style.display = 'none');
 
-        // Check if there's no data
         if (currentRows.length === 0) {
             if (emptyState) emptyState.style.display = '';
             paginationWrapper.classList.remove('flex', 'sm:flex-row');
@@ -532,7 +549,6 @@
             return;
         }
 
-        // We have data, display it
         if (emptyState) emptyState.style.display = 'none';
         paginationWrapper.classList.remove('hidden');
         paginationWrapper.classList.add('flex', 'sm:flex-row');
@@ -544,20 +560,17 @@
         const startIdx = (currentPage - 1) * pageSize;
         const endIdx = Math.min(startIdx + pageSize, currentRows.length);
 
-        // Show rows for current page and re-append to enforce sorted DOM order natively
         for (let i = startIdx; i < endIdx; i++) {
             currentRows[i].style.display = '';
             tbody.appendChild(currentRows[i]);
         }
 
-        // Update visual information
         document.getElementById('page-start-info').innerText = startIdx + 1;
         document.getElementById('page-end-info').innerText = endIdx;
         document.getElementById('page-total-info').innerText = currentRows.length;
 
         renderPaginationUI(totalPages);
 
-        // Ensure state resets accurately across pages
         document.getElementById('select-all').checked = false;
         updateBulkDeleteBtn();
     }
@@ -585,7 +598,6 @@
 
         controls.appendChild(createPageBtn('<i class="fas fa-chevron-left text-xs"></i>', currentPage - 1, currentPage === 1));
 
-        // Logic for 1 2 3 ... Last
         let startP = Math.max(1, currentPage - 1);
         let endP = Math.min(totalPages, currentPage + 1);
 
@@ -610,7 +622,7 @@
     }
 
     window.filterStudents = function() {
-        currentPage = 1; // reset to page 1 on search
+        currentPage = 1; 
         applyFilterAndSort();
     };
 
@@ -625,12 +637,10 @@
             sortType = type;
         }
 
-        // Reset all icons visually
         const table = document.getElementById("students-table");
         const headers = table.querySelectorAll('th i.fa-sort, th i.fa-sort-up, th i.fa-sort-down');
         headers.forEach(icon => icon.className = 'fas fa-sort ml-1 text-gray-300 group-hover:text-gray-500');
         
-        // Set active icon
         const clickedHeaderIcon = table.querySelectorAll('th')[columnIndex].querySelector('i');
         if (clickedHeaderIcon) {
             clickedHeaderIcon.className = sortIsAscending ? 'fas fa-sort-up ml-1 text-[#a52a2a]' : 'fas fa-sort-down ml-1 text-[#a52a2a]';
@@ -642,7 +652,6 @@
     window.toggleSelectAll = function(selectAllCheckbox) {
         const checkboxes = document.querySelectorAll('.lrn-checkbox');
         checkboxes.forEach(cb => {
-            // Only toggle currently visible checkboxes
             if (cb.closest('tr').style.display !== 'none') {
                 cb.checked = selectAllCheckbox.checked;
             }
@@ -667,7 +676,6 @@
         }
     };
 
-
     // --- Access Key Logic ---
     window.copyAccessKey = function(key, btnElement) {
         navigator.clipboard.writeText(key).then(() => {
@@ -684,7 +692,6 @@
     // --- Dynamic Table Refreshing ---
     async function refreshTableOnly() {
         try {
-            // Added ?_t= timestamp to act as a cache-buster so the browser doesn't load a stale layout
             const baseUrl = '{{ route("dashboard.assessments.manage", $assessment->id) }}';
             const fetchUrl = baseUrl + (baseUrl.includes('?') ? '&' : '?') + '_t=' + new Date().getTime();
 
@@ -693,17 +700,12 @@
             });
             const htmlText = await response.text();
             
-            // Parse the returned HTML
             const parser = new DOMParser();
             const doc = parser.parseFromString(htmlText, 'text/html');
             
-            // Extract the new tbody content
             const newTbody = doc.querySelector('#students-tbody');
             if (newTbody) {
-                // Completely swap out the old table data with the newly parsed data
                 document.getElementById('students-tbody').innerHTML = newTbody.innerHTML;
-                
-                // Re-initialize the array and pagination with the fresh DOM nodes
                 initializeTableData();
             }
         } catch (error) {
@@ -711,7 +713,6 @@
             showSnackbar('Failed to update table visually. Please refresh.', 'error');
         }
     }
-
 
     // --- API Calls ---
     window.submitLrn = async function(btn) {
@@ -757,7 +758,7 @@
         }
     };
 
-    var targetsToDelete = []; // Changed let to var here as well
+    var targetsToDelete = []; 
 
     window.openDeleteModal = function(id) {
         if (id === 'bulk') {
@@ -775,11 +776,13 @@
         }
         
         document.getElementById('student-delete-modal').classList.remove('hidden');
+        window.toggleBodyScroll(true);
     };
 
     window.closeDeleteModal = function() {
         document.getElementById('student-delete-modal').classList.add('hidden');
         targetsToDelete = []; 
+        window.toggleBodyScroll(false);
     };
 
     window.executeDelete = async function() {
@@ -863,17 +866,19 @@
         } catch (error) {
             showSnackbar('A network error occurred during import.', 'error');
         } finally {
-            input.value = ''; // Reset file input
+            input.value = ''; 
         }
     };
 
     // --- Assessment Delete Logic ---
     window.openAssessmentDeleteModal = function() {
         document.getElementById('assessment-delete-modal').classList.remove('hidden');
+        window.toggleBodyScroll(true);
     };
 
     window.closeAssessmentDeleteModal = function() {
         document.getElementById('assessment-delete-modal').classList.add('hidden');
+        window.toggleBodyScroll(false);
     };
 
     window.executeAssessmentDelete = async function() {
@@ -894,12 +899,10 @@
                 }
             });
 
-            // Handle both JSON and redirect scenarios based on your Laravel backend configuration
             if (response.ok) {
                 window.closeAssessmentDeleteModal();
                 showSnackbar('Assessment deleted successfully.', 'success');
                 
-                // Route user back to the assessments list
                 setTimeout(() => {
                     loadPartial('{{ url("/dashboard/assessment") }}', document.getElementById('nav-assessment-btn'));
                 }, 1000);
@@ -923,15 +926,13 @@
         const assessmentBtn = document.getElementById('nav-assessment-btn');
         
         if (assessmentBtn) {
-            // 1. Strip the active classes from ALL sidebar buttons and restore default text
             document.querySelectorAll('.nav-btn').forEach(btn => {
                 btn.classList.remove('bg-[#a52a2a]/10', 'text-[#a52a2a]', 'font-medium', 'border-r-4', 'border-[#a52a2a]');
                 btn.classList.add('text-gray-600', 'hover:bg-gray-100');
             });
 
-            // 2. Apply the exact active classes to the Assessment button
             assessmentBtn.classList.remove('text-gray-600', 'hover:bg-gray-100');
             assessmentBtn.classList.add('bg-[#a52a2a]/10', 'text-[#a52a2a]', 'font-medium', 'border-r-4', 'border-[#a52a2a]');
         }
-    }, 50); // 50ms delay ensures the DOM is ready
+    }, 50);
 </script>

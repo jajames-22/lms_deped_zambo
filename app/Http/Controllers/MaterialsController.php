@@ -602,35 +602,35 @@ class MaterialsController extends Controller
      * Bulk send invitations to all pending/invited students.
      */
    public function notifyStudents(Request $request, $id)
-{
-    try {
-        $material = Material::findOrFail($id);
+    {
+        try {
+            $material = Material::findOrFail($id);
 
-        // Targeted students: those who are 'pending' or have already been 'invited'
-        $targets = MaterialAccess::where('material_id', $material->id)
-            ->whereIn('status', ['pending', 'invited'])
-            ->get();
+            // Targeted students: those who are 'pending' or have already been 'invited'
+            $targets = MaterialAccess::where('material_id', $material->id)
+                ->whereIn('status', ['pending', 'invited'])
+                ->get();
 
-        if ($targets->isEmpty()) {
-            return response()->json(['success' => false, 'message' => 'No students to invite.']);
+            if ($targets->isEmpty()) {
+                return response()->json(['success' => false, 'message' => 'No students to invite.']);
+            }
+
+            foreach ($targets as $access) {
+                Mail::to($access->email)->send(new MaterialInvitationMail($material, $access->email));
+                
+                // This ensures their status moves to 'invited', 
+                // which triggers the "Send Again" text in your Blade file.
+                $access->update(['status' => 'invited']);
+            }
+
+            return response()->json([
+                'success' => true, 
+                'message' => "Successfully sent invitations to {$targets->count()} student(s)."
+            ]);
+        } catch (\Exception $e) {
+            return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
         }
-
-        foreach ($targets as $access) {
-            Mail::to($access->email)->send(new MaterialInvitationMail($material, $access->email));
-            
-            // This ensures their status moves to 'invited', 
-            // which triggers the "Send Again" text in your Blade file.
-            $access->update(['status' => 'invited']);
-        }
-
-        return response()->json([
-            'success' => true, 
-            'message' => "Successfully sent invitations to {$targets->count()} student(s)."
-        ]);
-    } catch (\Exception $e) {
-        return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
     }
-}
 
     public function toggleFeatured(\App\Models\Material $material)
     {
@@ -643,6 +643,44 @@ class MaterialsController extends Controller
             'is_featured' => $material->is_featured,
             'message' => $material->is_featured ? 'Material added to featured carousel!' : 'Material removed from featured carousel.'
         ]);
+    }
+
+    public function show(Material $material)
+    {
+        // 1. Security Check: If private, verify the student is on the access list
+        if (!$material->is_public && auth()->user()->role === 'student') {
+            $hasAccess = MaterialAccess::where('material_id', $material->id)
+                            ->where('email', auth()->user()->email)
+                            ->exists();
+                            
+            if (!$hasAccess) {
+                // If they aren't on the list, block them completely
+                abort(403, 'You do not have permission to view this private material.');
+            }
+        }
+
+        // 2. Increment the view counter every time the page is opened
+        $material->increment('views');
+
+        // 3. Eager load the relationships we need to display on the page
+        $material->load([
+            'instructor', 
+            'tags', 
+            'lessons' => function($query) {
+                // Assuming you'll want lessons listed in order
+                $query->orderBy('created_at', 'asc'); 
+            }
+        ]);
+
+        // 4. Check if the current user is already enrolled using the Enrollment table
+        $isEnrolled = false;
+        if (auth()->user()->role === 'student') {
+            $isEnrolled = Enrollment::where('material_id', $material->id)
+                            ->where('user_id', auth()->id())
+                            ->exists();
+        }
+
+        return view('dashboard.partials.student.materials-show', compact('material', 'isEnrolled'));
     }
 }
 

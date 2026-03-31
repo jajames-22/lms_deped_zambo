@@ -20,13 +20,13 @@
         <div class="relative mb-6 z-20">
             <div class="relative flex items-center bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 focus-within:border-[#a52a2a] focus-within:ring-2 focus-within:ring-[#a52a2a]/20 transition-all">
                 <i class="fas fa-search text-gray-400 mr-3"></i>
-                <input type="text" id="material-search" oninput="debounceSearch(this.value)" placeholder="Search material by title or instructor name..." class="w-full bg-transparent border-none outline-none text-sm text-gray-900">
+                <input type="text" id="material-search" oninput="window.debounceSearch(this.value)" placeholder="Search material by title or instructor name..." class="w-full bg-transparent border-none outline-none text-sm text-gray-900">
                 <i id="search-spinner" class="fas fa-spinner fa-spin text-[#a52a2a] hidden ml-3"></i>
             </div>
             
             {{-- Search Results Dropdown --}}
             <div id="search-results" class="absolute top-full left-0 right-0 mt-2 bg-white border border-gray-100 rounded-xl shadow-xl hidden max-h-80 overflow-y-auto overflow-x-hidden">
-                </div>
+            </div>
         </div>
 
         {{-- Current Featured List --}}
@@ -39,7 +39,7 @@
                         <p class="text-sm font-bold text-gray-900 truncate">{{ $material->title }}</p>
                         <p class="text-[10px] text-gray-500 truncate">By {{ $material->instructor->first_name ?? 'Instructor' }} {{ $material->instructor->last_name ?? '' }}</p>
                     </div>
-                    <button onclick="toggleFeaturedManager({{ $material->id }}, this)" class="absolute -top-2 -right-2 w-6 h-6 bg-red-100 text-red-600 hover:bg-red-600 hover:text-white rounded-full flex items-center justify-center shadow-sm transition-colors tooltip" title="Remove from featured">
+                    <button type="button" onclick="window.toggleFeaturedManager({{ $material->id }}, this)" class="absolute -top-2 -right-2 w-6 h-6 bg-red-100 text-red-600 hover:bg-red-600 hover:text-white rounded-full flex items-center justify-center shadow-sm transition-colors tooltip" title="Remove from featured">
                         <i class="fas fa-times text-xs"></i>
                     </button>
                 </div>
@@ -58,7 +58,7 @@
                 <h3 class="text-lg font-bold text-gray-900">Active Sections</h3>
                 <p class="text-xs text-gray-500">Drag to reorder. These pull materials based on tags.</p>
             </div>
-            <button onclick="openSectionModal('add')" class="px-4 py-2 text-sm bg-gray-900 text-white font-bold rounded-lg hover:bg-gray-800 transition-all flex items-center gap-2">
+            <button type="button" onclick="window.openSectionModal('add')" class="px-4 py-2 text-sm bg-gray-900 text-white font-bold rounded-lg hover:bg-gray-800 transition-all flex items-center gap-2">
                 <i class="fas fa-plus"></i> Add Section
             </button>
         </div>
@@ -90,17 +90,17 @@
 
                     <div class="flex items-center gap-4 shrink-0 border-t sm:border-t-0 pt-3 sm:pt-0 mt-3 sm:mt-0 border-gray-200">
                         <label class="relative inline-flex items-center cursor-pointer" title="Toggle Visibility">
-                            <input type="checkbox" class="sr-only peer" onchange="toggleSectionStatus('{{ $section->id }}', this)" {{ $section->is_active ? 'checked' : '' }}>
+                            <input type="checkbox" class="sr-only peer" onchange="window.toggleSectionStatus('{{ $section->id }}', this)" {{ $section->is_active ? 'checked' : '' }}>
                             <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-green-500"></div>
                         </label>
 
                         <div class="w-px h-8 bg-gray-200 hidden sm:block"></div>
 
-                        <button type="button" onclick="openSectionModal('edit', {{ json_encode($section) }})" class="w-8 h-8 rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100 flex items-center justify-center transition-colors tooltip" title="Edit">
+                        <button type="button" onclick="window.openSectionModal('edit', {{ json_encode($section) }})" class="w-8 h-8 rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100 flex items-center justify-center transition-colors tooltip" title="Edit">
                             <i class="fas fa-pen text-sm"></i>
                         </button>
                         
-                        <button type="button" onclick="confirmDeleteSection('{{ $section->id }}')" class="w-8 h-8 rounded-lg bg-red-50 text-red-600 hover:bg-red-100 flex items-center justify-center transition-colors tooltip" title="Delete">
+                        <button type="button" onclick="window.confirmDeleteSection('{{ $section->id }}')" class="w-8 h-8 rounded-lg bg-red-50 text-red-600 hover:bg-red-100 flex items-center justify-center transition-colors tooltip" title="Delete">
                             <i class="fas fa-trash-alt text-sm"></i>
                         </button>
                     </div>
@@ -114,17 +114,18 @@
     </div>
 </div>
 
-{{-- Add/Edit Section Modal --}}
-<div id="sectionModal" class="fixed inset-0 z-[100] hidden flex items-center justify-center bg-gray-900/60 backdrop-blur-sm p-4">
-    <div class="bg-white rounded-3xl w-full max-w-md shadow-2xl overflow-hidden transform scale-95 transition-all duration-300" id="sectionModalBox">
+{{-- Add/Edit Section Modal (WITH FADE TRANSITION) --}}
+<div id="sectionModal" class="fixed inset-0 z-[9999] hidden opacity-0 transition-opacity duration-300 flex items-center justify-center p-4" style="position: fixed;">
+    <div class="absolute inset-0 bg-gray-900/60" onclick="window.closeSectionModal()"></div>
+    <div class="bg-white rounded-3xl w-full max-w-md shadow-2xl overflow-hidden transform scale-95 transition-all duration-300 relative z-10" id="sectionModalBox">
         <div class="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
             <h3 id="modalTitle" class="text-xl font-black text-gray-900">Add Section</h3>
-            <button type="button" onclick="closeSectionModal()" class="text-gray-400 hover:text-gray-700 transition">
+            <button type="button" onclick="window.closeSectionModal()" class="text-gray-400 hover:text-gray-700 transition">
                 <i class="fas fa-times text-lg"></i>
             </button>
         </div>
         
-        <form id="sectionForm" onsubmit="saveSection(event)" class="p-6 space-y-4">
+        <form id="sectionForm" onsubmit="window.saveSection(event)" class="p-6 space-y-4">
             @csrf
             <input type="hidden" id="section_id" name="id">
             <input type="hidden" id="section_tag_name" name="tag_name">
@@ -146,14 +147,14 @@
                 
                 <div class="w-full min-h-[50px] bg-gray-50 border border-gray-200 rounded-xl p-2 focus-within:ring-2 focus-within:ring-[#a52a2a]/20 focus-within:border-[#a52a2a] transition-all flex flex-wrap gap-2 items-center cursor-text" onclick="document.getElementById('tag-input-field').focus()">
                     <div id="active-tags-container" class="flex flex-wrap gap-2"></div>
-                    <input type="text" id="tag-input-field" placeholder="Type a tag & press Enter..." class="flex-1 bg-transparent border-none outline-none text-sm min-w-[150px] p-1">
+                    <input type="text" id="tag-input-field" placeholder="Type a tag & press Enter..." class="flex-1 bg-transparent border-none outline-none text-sm min-w-[150px] p-1" onkeydown="window.handleExploreTagKeydown(event)">
                 </div>
                 
                 <div class="mt-3">
                     <p class="text-[10px] text-gray-400 font-bold uppercase mb-2">Or click to add:</p>
                     <div class="flex flex-wrap gap-1.5 max-h-32 overflow-y-auto no-scrollbar p-1">
                         @foreach($availableTags as $tag)
-                            <button type="button" onclick="addCustomTag('{{ $tag }}')" class="px-2 py-1 bg-white border border-gray-200 rounded text-xs text-gray-600 hover:border-[#a52a2a] hover:text-[#a52a2a] transition-colors">
+                            <button type="button" onclick="window.addExploreTag('{{ $tag }}')" class="px-2 py-1 bg-white border border-gray-200 rounded text-xs text-gray-600 hover:border-[#a52a2a] hover:text-[#a52a2a] transition-colors">
                                 {{ $tag }}
                             </button>
                         @endforeach
@@ -162,7 +163,7 @@
             </div>
 
             <div class="pt-4 flex gap-3">
-                <button type="button" onclick="closeSectionModal()" class="flex-1 px-4 py-3 bg-gray-100 text-gray-700 font-bold rounded-xl hover:bg-gray-200 transition">Cancel</button>
+                <button type="button" onclick="window.closeSectionModal()" class="flex-1 px-4 py-3 bg-gray-100 text-gray-700 font-bold rounded-xl hover:bg-gray-200 transition">Cancel</button>
                 <button type="submit" id="saveSectionBtn" class="flex-1 px-4 py-3 bg-[#a52a2a] text-white font-bold rounded-xl shadow-lg hover:bg-red-800 transition flex items-center justify-center gap-2">
                     <i class="fas fa-save"></i> Save Section
                 </button>
@@ -171,15 +172,16 @@
     </div>
 </div>
 
-{{-- NEW: Custom Alert Modal --}}
-<div id="alertModal" class="fixed inset-0 z-[200] hidden flex items-center justify-center bg-gray-900/60 backdrop-blur-sm p-4">
-    <div class="bg-white rounded-3xl w-full max-w-sm shadow-2xl overflow-hidden transform scale-95 transition-all duration-300 text-center p-6" id="alertModalBox">
+{{-- Custom Alert Modal (WITH FADE TRANSITION) --}}
+<div id="alertModal" class="fixed inset-0 z-[9999] hidden opacity-0 transition-opacity duration-300 flex items-center justify-center p-4" style="position: fixed;">
+    <div class="absolute inset-0 bg-gray-900/60" onclick="window.closeAlertModal()"></div>
+    <div class="bg-white rounded-3xl w-full max-w-sm shadow-2xl overflow-hidden transform scale-95 transition-all duration-300 text-center p-6 relative z-10" id="alertModalBox">
         <div id="alertIconContainer" class="w-16 h-16 rounded-full mx-auto mb-4 flex items-center justify-center text-3xl">
             <i id="alertIcon" class="fas fa-info"></i>
         </div>
         <h3 id="alertTitle" class="text-xl font-black text-gray-900 mb-2">Notice</h3>
         <p id="alertMessage" class="text-sm text-gray-500 mb-6"></p>
-        <button onclick="closeAlertModal()" class="w-full px-4 py-3 bg-gray-100 text-gray-700 font-bold rounded-xl hover:bg-gray-200 transition">
+        <button type="button" onclick="window.closeAlertModal()" class="w-full px-4 py-3 bg-gray-100 text-gray-700 font-bold rounded-xl hover:bg-gray-200 transition">
             Okay
         </button>
     </div>
@@ -187,15 +189,47 @@
 
 <script>
     // ==========================================
-    // ALERT MODAL LOGIC (Replaces alert)
+    // DOM PREPARATION (Fixes Modal Trapping)
     // ==========================================
-    function showCustomAlert(message, type) {
+    setTimeout(() => {
+        const sectionModal = document.getElementById('sectionModal');
+        const alertModal = document.getElementById('alertModal');
+        // Moving modals to the end of the <body> ensures they break out of any partial containers
+        if(sectionModal && sectionModal.parentElement !== document.body) document.body.appendChild(sectionModal);
+        if(alertModal && alertModal.parentElement !== document.body) document.body.appendChild(alertModal);
+    }, 50);
+
+    // ==========================================
+    // BODY SCROLL LOCKING
+    // ==========================================
+    window.toggleBodyScroll = function(disable) {
+        if (disable) {
+            document.body.classList.add('overflow-hidden');
+        } else {
+            // Check if ANY modal is still open before re-enabling scroll
+            const sectionModal = document.getElementById('sectionModal');
+            const alertModal = document.getElementById('alertModal');
+            const isSectionOpen = sectionModal && !sectionModal.classList.contains('hidden');
+            const isAlertOpen = alertModal && !alertModal.classList.contains('hidden');
+            
+            if (!isSectionOpen && !isAlertOpen) {
+                document.body.classList.remove('overflow-hidden');
+            }
+        }
+    };
+
+    // ==========================================
+    // ALERT MODAL LOGIC (WITH FADE TRANSITION)
+    // ==========================================
+    window.showCustomAlert = function(message, type) {
         const modal = document.getElementById('alertModal');
         const box = document.getElementById('alertModalBox');
         const iconContainer = document.getElementById('alertIconContainer');
         const icon = document.getElementById('alertIcon');
         const title = document.getElementById('alertTitle');
         const msg = document.getElementById('alertMessage');
+
+        if(!modal) return;
 
         msg.innerText = message;
 
@@ -209,39 +243,59 @@
             icon.className = 'fas fa-exclamation-circle';
         }
 
+        window.toggleBodyScroll(true); // Lock background
         modal.classList.remove('hidden');
+        
+        // ADDED: Fade in the background and scale up the box
         setTimeout(() => {
+            modal.classList.remove('opacity-0');
+            modal.classList.add('opacity-100');
             box.classList.remove('scale-95');
             box.classList.add('scale-100');
         }, 10);
-    }
+    };
 
-    function closeAlertModal() {
+    window.closeAlertModal = function() {
         const modal = document.getElementById('alertModal');
         const box = document.getElementById('alertModalBox');
-        box.classList.remove('scale-100');
-        box.classList.add('scale-95');
-        setTimeout(() => modal.classList.add('hidden'), 300);
-    }
+        
+        // ADDED: Fade out the background and scale down the box
+        if(box) {
+            box.classList.remove('scale-100');
+            box.classList.add('scale-95');
+        }
+        if(modal) {
+            modal.classList.remove('opacity-100');
+            modal.classList.add('opacity-0');
+        }
+        
+        // Wait 300ms for the fade to finish, then hide it completely
+        setTimeout(() => { 
+            if(modal) modal.classList.add('hidden'); 
+            window.toggleBodyScroll(false); // Unlock background
+        }, 300);
+    };
 
     // ==========================================
     // FEATURED MATERIALS MANAGER
     // ==========================================
-    let searchTimeout;
+    window.exploreSearchTimeout = null;
 
-    function debounceSearch(query) {
-        clearTimeout(searchTimeout);
+    window.debounceSearch = function(query) {
+        clearTimeout(window.exploreSearchTimeout);
         const resultsBox = document.getElementById('search-results');
         const spinner = document.getElementById('search-spinner');
+
+        if (!resultsBox) return;
 
         if (query.trim().length < 2) {
             resultsBox.classList.add('hidden');
             return;
         }
 
-        spinner.classList.remove('hidden');
+        if(spinner) spinner.classList.remove('hidden');
         
-        searchTimeout = setTimeout(async () => {
+        window.exploreSearchTimeout = setTimeout(async () => {
             try {
                 const response = await fetch(`{{ url('/dashboard/explore-layout/search-materials') }}?q=${encodeURIComponent(query)}`, {
                     headers: { 'X-Requested-With': 'XMLHttpRequest' }
@@ -266,7 +320,7 @@
                                         <p class="text-[10px] text-gray-500 truncate">By ${name}</p>
                                     </div>
                                 </div>
-                                <button onclick="toggleFeaturedManager(${mat.id}, this)" class="px-3 py-1.5 bg-gray-900 text-white text-xs font-bold rounded-lg hover:bg-[#a52a2a] transition-colors shrink-0">
+                                <button type="button" onclick="window.toggleFeaturedManager(${mat.id}, this)" class="px-3 py-1.5 bg-gray-900 text-white text-xs font-bold rounded-lg hover:bg-[#a52a2a] transition-colors shrink-0">
                                     Add
                                 </button>
                             </div>
@@ -277,25 +331,24 @@
             } catch (error) {
                 console.error("Search failed", error);
             } finally {
-                spinner.classList.add('hidden');
+                if(spinner) spinner.classList.add('hidden');
             }
-        }, 400); // 400ms debounce
-    }
+        }, 400); 
+    };
 
-    // Close search dropdown if clicked outside
     document.addEventListener('click', (e) => {
-        if (!e.target.closest('.relative.z-20')) {
-            document.getElementById('search-results').classList.add('hidden');
+        const resultsBox = document.getElementById('search-results');
+        if (resultsBox && !e.target.closest('.relative.z-20')) {
+            resultsBox.classList.add('hidden');
         }
     });
 
-    async function toggleFeaturedManager(materialId, btn) {
+    window.toggleFeaturedManager = async function(materialId, btn) {
         btn.disabled = true;
         const originalHtml = btn.innerHTML;
         btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
 
         try {
-            // UPDATED: Forced absolute URL to prevent 404s
             const response = await fetch(`{{ url('/dashboard/materials') }}/${materialId}/toggle-featured`, {
                 method: 'PATCH',
                 headers: {
@@ -303,86 +356,81 @@
                     'Accept': 'application/json'
                 }
             });
-            
-            if (!response.ok) {
-                // If it fails, log the actual server error to the console for easy debugging
-                const text = await response.text();
-                console.error("Server Error Response:", text);
-                throw new Error("Server returned an error. Did you add the route in web.php and the method in MaterialsController?");
-            }
-
             const data = await response.json();
             
-            if (data.success) {
-                showCustomAlert(data.message, 'success');
-                refreshCurrentPartial(); // Reload the UI to reflect changes
+            if (response.ok && data.success) {
+                window.showCustomAlert(data.message, 'success');
+                window.refreshCurrentExplorePartial(); 
             } else {
-                showCustomAlert('Failed to update featured status.', 'error');
+                window.showCustomAlert('Failed to update featured status.', 'error');
                 btn.innerHTML = originalHtml;
                 btn.disabled = false;
             }
         } catch (error) {
-            console.error(error);
-            showCustomAlert('Failed to toggle featured status. Press F12 and check the Console tab for the exact error.', 'error');
+            window.showCustomAlert('Failed to toggle featured status.', 'error');
             btn.innerHTML = originalHtml;
             btn.disabled = false;
         }
-    }
+    };
 
     // ==========================================
     // MULTI-TAG MANAGER
     // ==========================================
-    let currentTags = [];
-    const tagInput = document.getElementById('tag-input-field');
-    const tagsContainer = document.getElementById('active-tags-container');
-    const hiddenTagInput = document.getElementById('section_tag_name');
+    window.exploreTags = [];
+    
+    window.renderExploreTags = function() {
+        const container = document.getElementById('active-tags-container');
+        const hiddenInput = document.getElementById('section_tag_name');
+        if (!container || !hiddenInput) return;
 
-    function renderTags() {
-        tagsContainer.innerHTML = '';
-        currentTags.forEach(tag => {
-            tagsContainer.innerHTML += `
+        container.innerHTML = '';
+        window.exploreTags.forEach(tag => {
+            container.innerHTML += `
                 <span class="px-2 py-1 bg-[#a52a2a] text-white rounded text-xs font-bold flex items-center gap-1 shadow-sm transition-transform hover:scale-105">
                     ${tag}
-                    <i class="fas fa-times cursor-pointer ml-1 hover:text-red-300" onclick="removeCustomTag('${tag}')"></i>
+                    <i class="fas fa-times cursor-pointer ml-1 hover:text-red-300" onclick="window.removeExploreTag('${tag}')"></i>
                 </span>
             `;
         });
-        hiddenTagInput.value = JSON.stringify(currentTags); // Save to hidden input
-    }
+        hiddenInput.value = JSON.stringify(window.exploreTags); 
+    };
 
-    function addCustomTag(tag) {
+    window.addExploreTag = function(tag) {
         const cleanTag = tag.trim();
-        if (cleanTag && !currentTags.includes(cleanTag)) {
-            currentTags.push(cleanTag);
-            renderTags();
+        if (cleanTag && !window.exploreTags.includes(cleanTag)) {
+            window.exploreTags.push(cleanTag);
+            window.renderExploreTags();
         }
-        tagInput.value = '';
-    }
+        const tagInput = document.getElementById('tag-input-field');
+        if(tagInput) tagInput.value = '';
+    };
 
-    function removeCustomTag(tag) {
-        currentTags = currentTags.filter(t => t !== tag);
-        renderTags();
-    }
+    window.removeExploreTag = function(tag) {
+        window.exploreTags = window.exploreTags.filter(t => t !== tag);
+        window.renderExploreTags();
+    };
 
-    tagInput.addEventListener('keydown', function(e) {
+    window.handleExploreTagKeydown = function(e) {
         if (e.key === 'Enter' || e.key === ',') {
             e.preventDefault();
-            addCustomTag(this.value);
+            window.addExploreTag(e.target.value);
         }
-    });
+    };
 
     // ==========================================
-    // SECTIONS MODAL & LOGIC
+    // SECTIONS MODAL LOGIC (WITH FADE TRANSITION)
     // ==========================================
-    let currentMode = 'add';
+    window.exploreModalMode = 'add';
 
-    function openSectionModal(mode, data = null) {
-        currentMode = mode;
+    window.openSectionModal = function(mode, data = null) {
+        window.exploreModalMode = mode;
         const modal = document.getElementById('sectionModal');
         const box = document.getElementById('sectionModalBox');
         
-        document.getElementById('sectionForm').reset();
-        currentTags = [];
+        const form = document.getElementById('sectionForm');
+        if(form) form.reset();
+        
+        window.exploreTags = [];
 
         if (mode === 'edit' && data) {
             document.getElementById('modalTitle').innerText = 'Edit Section';
@@ -391,45 +439,62 @@
             document.getElementById('section_subtitle').value = data.subtitle || '';
             
             try {
-                // Parse the JSON array, or fallback to single string
                 let parsed = JSON.parse(data.tag_name);
-                currentTags = Array.isArray(parsed) ? parsed : [data.tag_name];
+                window.exploreTags = Array.isArray(parsed) ? parsed : [data.tag_name];
             } catch(e) {
-                currentTags = [data.tag_name];
+                window.exploreTags = [data.tag_name];
             }
         } else {
             document.getElementById('modalTitle').innerText = 'Add New Section';
             document.getElementById('section_id').value = '';
         }
 
-        renderTags(); // Draw the tags
+        window.renderExploreTags(); 
 
+        window.toggleBodyScroll(true); // Lock background
         modal.classList.remove('hidden');
+        
+        // ADDED: Fade in the background and scale up the box
         setTimeout(() => {
+            modal.classList.remove('opacity-0');
+            modal.classList.add('opacity-100');
             box.classList.remove('scale-95');
             box.classList.add('scale-100');
         }, 10);
-    }
+    };
 
-    function closeSectionModal() {
+    window.closeSectionModal = function() {
         const modal = document.getElementById('sectionModal');
         const box = document.getElementById('sectionModalBox');
-        box.classList.remove('scale-100');
-        box.classList.add('scale-95');
-        setTimeout(() => modal.classList.add('hidden'), 300);
-    }
+        
+        // ADDED: Fade out the background and scale down the box
+        if(box) {
+            box.classList.remove('scale-100');
+            box.classList.add('scale-95');
+        }
+        if(modal) {
+            modal.classList.remove('opacity-100');
+            modal.classList.add('opacity-0');
+        }
+        
+        // Wait 300ms for the fade to finish, then hide it completely
+        setTimeout(() => { 
+            if(modal) modal.classList.add('hidden'); 
+            window.toggleBodyScroll(false); // Unlock background
+        }, 300);
+    };
 
-    async function saveSection(e) {
+    window.saveSection = async function(e) {
         e.preventDefault();
         
-        // --- NEW: Catch any leftover text in the input box before saving! ---
-        if (tagInput.value.trim() !== '') {
-            addCustomTag(tagInput.value);
+        // Final safety check: Catch any text typed but not entered
+        const tagInput = document.getElementById('tag-input-field');
+        if (tagInput && tagInput.value.trim() !== '') {
+            window.addExploreTag(tagInput.value);
         }
 
-        // Now check if they actually have tags
-        if(currentTags.length === 0) {
-            showCustomAlert('Please add at least one tag.', 'error');
+        if(window.exploreTags.length === 0) {
+            window.showCustomAlert('Please add at least one tag.', 'error');
             return;
         }
 
@@ -440,8 +505,8 @@
         btn.disabled = true;
 
         const id = document.getElementById('section_id').value;
-        const url = currentMode === 'add' ? '{{ route("dashboard.explore-layout.store") }}' : `/dashboard/explore-layout/${id}`;
-        const method = currentMode === 'add' ? 'POST' : 'PUT';
+        const url = window.exploreModalMode === 'add' ? '{{ route("dashboard.explore-layout.store") }}' : `/dashboard/explore-layout/${id}`;
+        const method = window.exploreModalMode === 'add' ? 'POST' : 'PUT';
         
         const formData = new FormData(form);
         const jsonData = Object.fromEntries(formData.entries());
@@ -460,22 +525,21 @@
             const data = await response.json();
             
             if (response.ok && data.success) {
-                closeSectionModal();
-                showCustomAlert(data.message, 'success');
-                refreshCurrentPartial();
+                window.closeSectionModal();
+                window.showCustomAlert(data.message, 'success');
+                window.refreshCurrentExplorePartial();
             } else {
-                showCustomAlert(data.message || 'Validation failed.', 'error');
+                window.showCustomAlert(data.message || 'Validation failed.', 'error');
             }
         } catch (error) {
-            showCustomAlert('Network error occurred.', 'error');
+            window.showCustomAlert('Network error occurred.', 'error');
         } finally {
             btn.innerHTML = originalHtml;
             btn.disabled = false;
         }
-    }
+    };
 
-    // --- Toggle Visibility ---
-    async function toggleSectionStatus(id, checkbox) {
+    window.toggleSectionStatus = async function(id, checkbox) {
         checkbox.disabled = true;
         try {
             const response = await fetch(`{{ url('/dashboard/explore-layout') }}/${id}/toggle`, {
@@ -487,21 +551,20 @@
             });
             const data = await response.json();
             if (response.ok && data.success) {
-                showCustomAlert(data.message, 'success');
+                window.showCustomAlert(data.message, 'success');
             } else {
                 checkbox.checked = !checkbox.checked;
-                showCustomAlert('Failed to update status.', 'error');
+                window.showCustomAlert('Failed to update status.', 'error');
             }
         } catch (error) {
             checkbox.checked = !checkbox.checked;
-            showCustomAlert('Network error occurred.', 'error');
+            window.showCustomAlert('Network error occurred.', 'error');
         } finally {
             checkbox.disabled = false;
         }
-    }
+    };
 
-    // --- Delete Section ---
-    async function confirmDeleteSection(id) {
+    window.confirmDeleteSection = async function(id) {
         if (!confirm('Are you sure you want to delete this section? This will only remove it from the explore page, not the materials themselves.')) return;
         try {
             const response = await fetch(`{{ url('/dashboard/explore-layout') }}/${id}`, {
@@ -513,33 +576,36 @@
             });
             const data = await response.json();
             if (response.ok && data.success) {
-                showCustomAlert(data.message, 'success');
-                refreshCurrentPartial();
+                window.showCustomAlert(data.message, 'success');
+                window.refreshCurrentExplorePartial();
             } else {
-                showCustomAlert('Failed to delete section.', 'error');
+                window.showCustomAlert('Failed to delete section.', 'error');
             }
         } catch (error) {
-            showCustomAlert('Network error occurred.', 'error');
+            window.showCustomAlert('Network error occurred.', 'error');
         }
-    }
+    };
 
-    // --- Drag and Drop Logic ---
-    let draggedItem = null;
-    function initDragAndDrop() {
+    // ==========================================
+    // DRAG AND DROP
+    // ==========================================
+    window.draggedSectionItem = null;
+    
+    window.initSectionDragAndDrop = function() {
         const list = document.getElementById('sections-list');
         if (!list) return;
 
         list.querySelectorAll('.section-item').forEach(item => {
             item.addEventListener('dragstart', function(e) {
-                draggedItem = item;
+                window.draggedSectionItem = item;
                 setTimeout(() => item.classList.add('opacity-50', 'border-[#a52a2a]'), 0);
             });
 
             item.addEventListener('dragend', function() {
                 setTimeout(() => {
-                    draggedItem.classList.remove('opacity-50', 'border-[#a52a2a]');
-                    draggedItem = null;
-                    saveNewOrder();
+                    if(window.draggedSectionItem) window.draggedSectionItem.classList.remove('opacity-50', 'border-[#a52a2a]');
+                    window.draggedSectionItem = null;
+                    window.saveNewSectionOrder();
                 }, 0);
             });
 
@@ -565,21 +631,23 @@
                 e.preventDefault();
                 item.style['border-bottom'] = '';
                 item.style['border-top'] = '';
-                if (item !== draggedItem) {
+                if (item !== window.draggedSectionItem && window.draggedSectionItem) {
                     const bounding = item.getBoundingClientRect();
                     const offset = bounding.y + (bounding.height / 2);
                     if (e.clientY - offset > 0) {
-                        item.parentNode.insertBefore(draggedItem, item.nextSibling);
+                        item.parentNode.insertBefore(window.draggedSectionItem, item.nextSibling);
                     } else {
-                        item.parentNode.insertBefore(draggedItem, item);
+                        item.parentNode.insertBefore(window.draggedSectionItem, item);
                     }
                 }
             });
         });
-    }
+    };
 
-    async function saveNewOrder() {
+    window.saveNewSectionOrder = async function() {
         const list = document.getElementById('sections-list');
+        if(!list) return;
+        
         const orderedIds = Array.from(list.querySelectorAll('.section-item')).map(item => item.getAttribute('data-id'));
         try {
             await fetch('{{ route("dashboard.explore-layout.reorder") }}', {
@@ -594,11 +662,13 @@
         } catch (error) {
             console.error('Failed to save order.');
         }
-    }
+    };
 
-    function refreshCurrentPartial() {
+    window.refreshCurrentExplorePartial = function() {
+        // Also remove overflow hidden class in case the modal forces a reload while still open
+        document.body.classList.remove('overflow-hidden');
         loadPartial('{{ url("/dashboard/explore-layout") }}', document.getElementById('nav-explore-layout-btn'));
-    }
+    };
 
-    setTimeout(initDragAndDrop, 100);
+    setTimeout(window.initSectionDragAndDrop, 100);
 </script>
