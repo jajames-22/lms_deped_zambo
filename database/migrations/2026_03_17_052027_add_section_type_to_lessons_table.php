@@ -10,7 +10,7 @@ return new class extends Migration
     {
         Schema::table('lessons', function (Blueprint $table) {
             // Adds the column to define if the block is a 'lesson' or 'exam'
-            $table->string('section_type')->default('lesson')->after('materials_id');
+            $table->string('section_type')->default('lesson')->after('material_id');
         });
     }
 

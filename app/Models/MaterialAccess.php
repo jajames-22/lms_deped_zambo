@@ -12,6 +12,7 @@ class MaterialAccess extends Model
     protected $fillable = [
         'material_id',
         'email',
+        'student_id',
         'status'
     ];
 

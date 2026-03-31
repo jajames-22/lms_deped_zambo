@@ -1,7 +1,7 @@
 <?php
 
 namespace App\Http\Controllers;
-
+use Illuminate\Support\Str;
 use App\Models\Material;
 use App\Models\Enrollment;
 use App\Models\User;
@@ -99,6 +99,7 @@ class MaterialsController extends Controller
             'description' => '',
             'instructor_id' => Auth::id(),
             'status' => 'draft',
+            'access_code' => strtoupper(Str::random(6)),
             'created_at' => now(),
             'updated_at' => now(),
         ]);
@@ -119,7 +120,7 @@ class MaterialsController extends Controller
             abort(404, 'Material not found');
 
         $lessons = DB::table('lessons')
-            ->where('materials_id', $id)
+            ->where('material_id', $id)
             ->get()
             ->map(function ($lesson) {
                 $lesson->questions = DB::table('quizzes')
@@ -145,7 +146,7 @@ class MaterialsController extends Controller
         $material = Material::findOrFail($id);
 
         $material->lessons_count = DB::table('lessons')
-            ->where('materials_id', $id) // Note: Make sure your DB column is actually materials_id here and not material_id
+            ->where('material_id', $id) // Note: Make sure your DB column is actually material_id here and not material_id
             ->where('section_type', 'lesson')
             ->count();
 
@@ -250,7 +251,7 @@ class MaterialsController extends Controller
             $categories = $categories ?? [];
 
             // 1. CLEANUP OLD LESSONS AND QUIZZES
-            $existingLessons = DB::table('lessons')->where('materials_id', $id)->pluck('id');
+            $existingLessons = DB::table('lessons')->where('material_id', $id)->pluck('id');
             if ($existingLessons->isNotEmpty()) {
                 $existingQuizzes = DB::table('quizzes')->whereIn('lesson_id', $existingLessons)->pluck('id');
 
@@ -259,7 +260,7 @@ class MaterialsController extends Controller
                 }
 
                 DB::table('quizzes')->whereIn('lesson_id', $existingLessons)->delete();
-                DB::table('lessons')->where('materials_id', $id)->delete();
+                DB::table('lessons')->where('material_id', $id)->delete();
             }
 
             // 2. CLEANUP OLD EXAMS
@@ -298,7 +299,7 @@ class MaterialsController extends Controller
                     }
                 } else {
                     $lessonId = DB::table('lessons')->insertGetId([
-                        'materials_id' => $id,
+                        'material_id' => $id,
                         'section_type' => 'lesson',
                         'title' => $cat['title'] ?? 'New Lesson',
                         'time_limit' => $cat['time_limit'] ?? 0,
@@ -405,7 +406,7 @@ class MaterialsController extends Controller
     public function destroy($id)
     {
         try {
-            $lessonIds = DB::table('lessons')->where('materials_id', $id)->pluck('id');
+            $lessonIds = DB::table('lessons')->where('material_id', $id)->pluck('id');
 
             if ($lessonIds->isNotEmpty()) {
                 $quizIds = DB::table('quizzes')->whereIn('lesson_id', $lessonIds)->pluck('id');
@@ -415,10 +416,10 @@ class MaterialsController extends Controller
                 }
 
                 DB::table('quizzes')->whereIn('lesson_id', $lessonIds)->delete();
-                DB::table('lessons')->where('materials_id', $id)->delete();
+                DB::table('lessons')->where('material_id', $id)->delete();
             }
 
-            DB::table('enrollments')->where('materials_id', $id)->delete();
+            DB::table('enrollments')->where('material_id', $id)->delete();
             DB::table('materials')->where('id', $id)->delete();
 
             return response()->json(['success' => true]);
@@ -476,7 +477,7 @@ class MaterialsController extends Controller
                         }
                     } else {
                         $lessonId = DB::table('lessons')->insertGetId([
-                            'materials_id' => $id,
+                            'material_id' => $id,
                             'title' => $cat['title'] ?? 'New Lesson',
                             'section_type' => 'lesson',
                             'time_limit' => $cat['time_limit'] ?? 0,

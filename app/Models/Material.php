@@ -33,13 +33,13 @@ class Material extends Model
 
     public function lessons()
     {
-        return $this->hasMany(Lesson::class, 'materials_id');
+        return $this->hasMany(Lesson::class, 'material_id');
     }
 
     // Replaced accesses() with enrollments()
     public function enrollments()
     {
-        return $this->hasMany(Enrollment::class, 'materials_id');
+        return $this->hasMany(Enrollment::class, 'material_id');
     }
 
     public function tags()

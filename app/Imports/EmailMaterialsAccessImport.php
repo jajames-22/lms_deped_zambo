@@ -24,7 +24,7 @@ class EmailMaterialsAccessImport implements ToModel, WithHeadingRow
             return null;
 
         // Check if this exact email is already in the list for this material
-        $exists = Enrollment::where('materials_id', $this->materialId)
+        $exists = Enrollment::where('material_id', $this->materialId)
             ->where('email', $email)
             ->exists();
 
@@ -36,7 +36,7 @@ class EmailMaterialsAccessImport implements ToModel, WithHeadingRow
 
         // Save them. If they have an account -> 'enrolled'. If not -> 'pending'.
         return new Enrollment([
-            'materials_id' => $this->materialId,
+            'material_id' => $this->materialId,
             'user_id' => $user ? $user->id : null,
             'email' => $email,
             'status' => $user ? 'enrolled' : 'pending',

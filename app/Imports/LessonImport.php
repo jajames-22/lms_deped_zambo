@@ -48,13 +48,13 @@ class LessonImport implements ToCollection, WithHeadingRow
 
                 // 4. Create or Update the Section Container
                 $lesson = DB::table('lessons')
-                    ->where('materials_id', $this->materialId)
+                    ->where('material_id', $this->materialId)
                     ->where('title', $sectionTitle)
                     ->first();
 
                 if (!$lesson) {
                     $lessonId = DB::table('lessons')->insertGetId([
-                        'materials_id' => $this->materialId,
+                        'material_id' => $this->materialId,
                         'section_type' => $sectionType, // Save as Red Exam or Blue Lesson
                         'title' => $sectionTitle,
                         'time_limit' => $row['time_limit'] ?? 0,

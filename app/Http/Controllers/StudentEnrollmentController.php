@@ -25,8 +25,8 @@ class StudentEnrollmentController extends Controller
 
         // 3. Create Enrollment record (tracking progress)
         Enrollment::firstOrCreate([
-            'material_id' => $material->id, 
-            'user_id'     => auth()->id(),
+            'material_id' => $material->id,
+            'user_id' => auth()->id(),
         ], [
             'status' => 'in_progress'
         ]);
@@ -40,6 +40,54 @@ class StudentEnrollmentController extends Controller
         return redirect('/dashboard')
             ->with('autoLoad', route('student.materials.show', $material->id))
             ->with('success', 'Successfully enrolled!');
+    }
+
+    public function enrollWithCode(Request $request)
+    {
+        $request->validate([
+            'access_code' => 'required|string|max:10'
+        ]);
+
+        // 1. Find the private material matching the code
+        $material = Material::where('access_code', strtoupper($request->access_code))
+            ->where('is_public', false) // Ensures codes only work for private materials
+            ->first();
+
+        if (!$material) {
+            return response()->json(['success' => false, 'message' => 'Invalid or expired access code.']);
+        }
+
+        // 2. Check if already enrolled
+        $alreadyEnrolled = Enrollment::where('material_id', $material->id)
+            ->where('user_id', Auth::id())
+            ->exists();
+
+        if ($alreadyEnrolled) {
+            return response()->json(['success' => false, 'message' => 'You are already enrolled in this module.']);
+        }
+
+        // 3. Create Enrollment record
+        Enrollment::create([
+            'material_id' => $material->id,
+            'user_id' => Auth::id(),
+            'status' => 'in_progress'
+        ]);
+
+        // 4. (Optional) If you want to keep the MaterialAccess table synced for records:
+        
+        MaterialAccess::updateOrCreate([
+            'material_id' => $material->id,
+            'email' => Auth::user()->email,
+        ], [
+            'student_id' => Auth::id(),
+            'status' => 'enrolled'
+        ]);    
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Successfully enrolled!',
+            'redirect_url' => route('student.materials.show', $material->id)
+        ]);
     }
 
     public function show($id)
@@ -57,7 +105,7 @@ class StudentEnrollmentController extends Controller
             abort(403, 'You are not enrolled in this module.');
         }
 
-        $lessons = DB::table('lessons')->where('materials_id', $id)->get();
+        $lessons = DB::table('lessons')->where('material_id', $id)->get();
         $exams = DB::table('exams')->where('material_id', $id)->get();
 
         // This returns the NAKED partial (the skeleton)

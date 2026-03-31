@@ -21,7 +21,6 @@
         }
     </style>
 </head>
-
 <div class="space-y-6 pb-20 max-w-6xl mx-auto relative">
 
     <img src="x" onerror="
@@ -62,14 +61,13 @@
                 <span id="status-text">{{ $isLive ? 'Published' : 'Draft Mode' }}</span>
             </span>
 
-            <label class="toggle-container relative inline-block w-16 h-8 cursor-pointer"
-                title="Toggle Material Status">
-                <input type="checkbox" id="material-status-toggle" class="sr-only toggle-input"
+            {{-- Pure Tailwind Toggle --}}
+            <label class="relative inline-flex items-center cursor-pointer" title="Toggle Material Status">
+                <input type="checkbox" id="material-status-toggle" class="sr-only peer"
                     onchange="window.toggleMaterialStatus(this)" {{ $isLive ? 'checked' : '' }}>
-                <span
-                    class="toggle-track absolute inset-0 bg-gray-300 rounded-full transition-colors duration-300 peer-focus-visible:ring-2 peer-focus-visible:ring-[#a52a2a]/40 shadow-inner"></span>
-                <span
-                    class="toggle-handle absolute left-1 top-1 bg-white w-6 h-6 rounded-full transition-transform duration-300 transform shadow-md shadow-black/20"></span>
+                <div
+                    class="w-16 h-8 bg-gray-300 rounded-full peer peer-focus:ring-2 peer-focus:ring-[#a52a2a]/40 peer-checked:after:translate-x-8 after:content-[''] after:absolute after:top-1 after:left-1 after:bg-white after:rounded-full after:h-6 after:w-6 after:transition-all after:shadow-md peer-checked:bg-[#26da65] shadow-inner transition-colors">
+                </div>
             </label>
         </div>
     </div>
@@ -183,15 +181,27 @@
                 </p>
             </div>
 
-            <label class="toggle-container relative inline-block w-16 h-8 cursor-pointer shrink-0"
-                title="Toggle Privacy">
-                <input type="checkbox" id="visibility-toggle" class="sr-only toggle-input"
-                    onchange="window.toggleVisibility(this)" {{ $material->is_public ? 'checked' : '' }}>
-                <span
-                    class="toggle-track absolute inset-0 bg-gray-300 rounded-full transition-colors duration-300 peer-focus-visible:ring-2 peer-focus-visible:ring-[#a52a2a]/40 shadow-inner"></span>
-                <span
-                    class="toggle-handle absolute left-1 top-1 bg-white w-6 h-6 rounded-full transition-transform duration-300 transform shadow-md shadow-black/20"></span>
-            </label>
+            <div class="flex items-center gap-4 mt-2 sm:mt-0">
+                <div id="access-code-display"
+                    class="inline-flex items-center gap-3 bg-white px-4 py-2 rounded-lg border border-gray-200 shadow-sm transition-all duration-300 {{ $material->is_public ? 'opacity-50 pointer-events-none' : '' }}">
+                    <span class="text-xs font-bold text-gray-500 uppercase tracking-widest">Class Code:</span>
+                    <span
+                        class="font-mono text-lg font-black text-[#a52a2a] tracking-widest">{{ $material->access_code ?? 'N/A' }}</span>
+                    <button onclick="copyAccessCode('{{ $material->access_code }}')"
+                        class="text-gray-400 hover:text-[#a52a2a] transition-colors" title="Copy Code">
+                        <i class="fas fa-copy"></i>
+                    </button>
+                </div>
+
+                {{-- Pure Tailwind Toggle --}}
+                <label class="relative inline-flex items-center cursor-pointer shrink-0" title="Toggle Privacy">
+                    <input type="checkbox" id="visibility-toggle" class="sr-only peer"
+                        onchange="window.toggleVisibility(this)" {{ $material->is_public ? 'checked' : '' }}>
+                    <div
+                        class="w-16 h-8 bg-gray-300 rounded-full peer peer-focus:ring-2 peer-focus:ring-[#a52a2a]/40 peer-checked:after:translate-x-8 after:content-[''] after:absolute after:top-1 after:left-1 after:bg-white after:rounded-full after:h-6 after:w-6 after:transition-all after:shadow-md peer-checked:bg-[#26da65] shadow-inner transition-colors">
+                    </div>
+                </label>
+            </div>
         </div>
 
         <div id="access-management-content"
@@ -256,9 +266,10 @@
                                     Email Address <i
                                         class="fas fa-sort ml-1 text-gray-300 group-hover:text-gray-500"></i>
                                 </th>
-                                <th class="px-6 py-4 cursor-pointer group hover:bg-gray-100 transition" 
+                                <th class="px-6 py-4 cursor-pointer group hover:bg-gray-100 transition"
                                     onclick="window.sortTable(2, 'alpha')">
-                                    Student Name <i class="fas fa-sort ml-1 text-gray-300 group-hover:text-gray-500"></i>
+                                    Student Name <i
+                                        class="fas fa-sort ml-1 text-gray-300 group-hover:text-gray-500"></i>
                                 </th>
                                 <th class="px-6 py-4 text-center cursor-pointer group hover:bg-gray-100 transition"
                                     onclick="window.sortTable(3, 'alpha')">
@@ -276,7 +287,9 @@
                                             value="{{ $access->id }}" onchange="window.updateBulkDeleteBtn()">
                                     </td>
                                     <td class="px-6 py-4 font-medium text-gray-900 email-cell">{{ $access->email }}</td>
-                                    <td class="px-6 py-4 name-cell">{{ $access->student->name ?? 'Unregistered' }}</td>
+                                    <td class="px-6 py-4 name-cell {{ $access->student ? 'text-gray-800' : '' }}">
+                                        {{ $access->student ? $access->student->first_name . ' ' . $access->student->last_name : 'Unregistered' }}
+                                    </td>
                                     <td class="px-6 py-4 text-center status-cell">
                                         @if($access->status === 'enrolled')
                                             <span
@@ -335,6 +348,7 @@
             </div>
         </div>
     </div>
+
     <div class="bg-red-50 rounded-3xl p-6 border border-red-100 mt-8">
         <h3 class="text-red-800 font-bold mb-2">Danger Zone</h3>
         <p class="text-sm text-red-600 mb-4">Deleting this module will permanently remove it and all associated content.
@@ -345,6 +359,7 @@
         </button>
     </div>
 
+    {{-- Modals remain unchanged --}}
     <div id="material-delete-modal" class="fixed inset-0 z-[100] hidden h-full">
         <div class="absolute inset-0 bg-gray-900/60 backdrop-blur-sm" onclick="window.closeMaterialDeleteModal()"></div>
         <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-sm p-6">
@@ -406,7 +421,6 @@
         const btnTextEl = btn.querySelector('.btn-text');
         const originalHtml = btn.innerHTML;
 
-        // UI Feedback: Loading
         btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Sending...';
         btn.disabled = true;
 
@@ -427,10 +441,8 @@
             if (response.ok && data.success) {
                 showSnackbar('Invitation sent successfully!', 'success');
 
-                // Change button text to "Send Again"
                 btn.innerHTML = '<i class="fas fa-paper-plane"></i> <span class="btn-text">Send Again</span>';
 
-                // Update the status badge to "INVITED" and change color
                 const container = btn.closest('div');
                 const badge = container.querySelector('.status-badge');
                 if (badge) {
@@ -476,6 +488,7 @@
                 const title = document.getElementById('visibility-title');
                 const desc = document.getElementById('visibility-desc');
                 const contentWrapper = document.getElementById('access-management-content');
+                const accessCodeDisplay = document.getElementById('access-code-display');
 
                 if (isPublic) {
                     banner.className = "flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 rounded-xl border transition-colors duration-300 bg-green-50 border-green-200 mb-0";
@@ -486,6 +499,8 @@
 
                     contentWrapper.classList.remove('max-h-[2000px]', 'opacity-100');
                     contentWrapper.classList.add('max-h-0', 'opacity-0');
+
+                    if (accessCodeDisplay) accessCodeDisplay.classList.add('opacity-50', 'pointer-events-none');
                 } else {
                     banner.className = "flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 rounded-xl border transition-colors duration-300 bg-gray-50 border-gray-200 mb-6";
                     icon.className = "fas fa-lock text-gray-500";
@@ -495,6 +510,8 @@
 
                     contentWrapper.classList.remove('max-h-0', 'opacity-0');
                     contentWrapper.classList.add('max-h-[2000px]', 'opacity-100');
+
+                    if (accessCodeDisplay) accessCodeDisplay.classList.remove('opacity-50', 'pointer-events-none');
                 }
             } else {
                 checkbox.checked = !checkbox.checked;
@@ -503,6 +520,7 @@
         } catch (error) {
             console.error(error);
             showSnackbar(error.message || 'A network error occurred.', 'error');
+            checkbox.checked = !checkbox.checked;
         } finally {
             checkbox.disabled = false;
         }
@@ -587,6 +605,7 @@
         } catch (error) {
             console.error(error);
             showSnackbar(error.message || 'A network error occurred.', 'error');
+            checkbox.checked = !checkbox.checked;
         } finally {
             checkbox.disabled = false;
         }
@@ -1018,7 +1037,7 @@
         }
     }, 50);
 
-  // --- Tags Autocomplete & Management Logic ---
+    // --- Tags Autocomplete & Management Logic ---
     window.availableTags = [
         "Science", "Earth Science", "Computer Science", "Biology", "Chemistry", "Physics",
         "Mathematics", "Algebra", "Calculus", "Geometry",
@@ -1028,14 +1047,13 @@
         "Technology", "Programming", "Web Development", "First Aid"
     ];
 
-    window.currentTags = {!! json_encode($material->tags->pluck('name') ?? []) !!}; 
+    window.currentTags = {!! json_encode($material->tags ? $material->tags->pluck('name') : []) !!};
 
-    // 2. Render tags on page load
     setTimeout(() => { window.renderActiveTags(); }, 50);
 
     window.handleTagKeydown = function (e) {
         if (e.key === 'Enter') {
-            e.preventDefault(); 
+            e.preventDefault();
             const query = e.target.value.trim();
             if (query !== '') {
                 window.addTag(query);
@@ -1048,7 +1066,7 @@
         const suggestionsBox = document.getElementById('tag-suggestions');
 
         if (query === '') {
-            if(suggestionsBox) suggestionsBox.classList.add('hidden');
+            if (suggestionsBox) suggestionsBox.classList.add('hidden');
             return;
         }
 
@@ -1061,8 +1079,7 @@
         window.renderSuggestions(matchedTags, query);
     };
 
-    // 5. Render the Suggestions Dropdown
-    window.renderSuggestions = function(tags, query) {
+    window.renderSuggestions = function (tags, query) {
         const suggestionsBox = document.getElementById('tag-suggestions');
         if (!suggestionsBox) return;
 
@@ -1079,8 +1096,8 @@
             const div = document.createElement('div');
             div.className = 'px-4 py-2.5 hover:bg-gray-50 cursor-pointer text-sm text-gray-700 border-b border-gray-50 last:border-0 transition-colors';
             div.innerHTML = highlightedText;
-            
-            div.onclick = function() {
+
+            div.onclick = function () {
                 window.addTag(tag);
             };
             suggestionsBox.appendChild(div);
@@ -1089,21 +1106,19 @@
         suggestionsBox.classList.remove('hidden');
     }
 
-    // 6. Add Tag to UI and Database
-    window.addTag = async function(tagValue) {
+    window.addTag = async function (tagValue) {
         const tagInput = document.getElementById('tag-input');
         const suggestionsBox = document.getElementById('tag-suggestions');
 
         if (window.currentTags.map(t => t.toLowerCase()).includes(tagValue.toLowerCase())) {
-            if(tagInput) tagInput.value = '';
-            if(suggestionsBox) suggestionsBox.classList.add('hidden');
+            if (tagInput) tagInput.value = '';
+            if (suggestionsBox) suggestionsBox.classList.add('hidden');
             return;
         }
 
-        // Instantly update UI (Optimistic rendering)
         window.currentTags.push(tagValue);
-        if(tagInput) tagInput.value = '';
-        if(suggestionsBox) suggestionsBox.classList.add('hidden');
+        if (tagInput) tagInput.value = '';
+        if (suggestionsBox) suggestionsBox.classList.add('hidden');
         window.renderActiveTags();
 
         const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || '{{ csrf_token() }}';
@@ -1122,15 +1137,12 @@
         } catch (error) {
             console.error('Failed to save tag:', error);
             showSnackbar('Failed to save tag to database.', 'error');
-            // If it fails on the server, remove it from the UI to stay synced
             window.currentTags = window.currentTags.filter(t => t !== tagValue);
             window.renderActiveTags();
         }
     }
 
-    // 7. Remove Tag from UI and Database
-    window.removeTag = async function(tagValue) {
-        // Instantly update UI
+    window.removeTag = async function (tagValue) {
         window.currentTags = window.currentTags.filter(t => t !== tagValue);
         window.renderActiveTags();
 
@@ -1152,17 +1164,15 @@
         } catch (error) {
             console.error('Failed to remove tag:', error);
             showSnackbar('Failed to remove tag from database.', 'error');
-            // Re-add to UI if server delete failed
             window.currentTags.push(tagValue);
             window.renderActiveTags();
         }
     }
 
-    // 8. Render Active Tags in the DOM
-    window.renderActiveTags = function() {
+    window.renderActiveTags = function () {
         const activeTagsContainer = document.getElementById('active-tags-container');
         if (!activeTagsContainer) return;
-        
+
         activeTagsContainer.innerHTML = '';
 
         if (window.currentTags.length === 0) {
@@ -1189,11 +1199,10 @@
         });
     }
 
-    // 9. Close suggestions dropdown when clicking outside
-    window.onclickCloseSuggestions = function(e) {
+    window.onclickCloseSuggestions = function (e) {
         const tagInput = document.getElementById('tag-input');
         const suggestionsBox = document.getElementById('tag-suggestions');
-        
+
         if (tagInput && suggestionsBox) {
             if (!tagInput.contains(e.target) && !suggestionsBox.contains(e.target)) {
                 suggestionsBox.classList.add('hidden');
@@ -1203,5 +1212,14 @@
 
     document.removeEventListener('click', window.onclickCloseSuggestions);
     document.addEventListener('click', window.onclickCloseSuggestions);
-    
+
+    window.copyAccessCode = function (code) {
+        if (!code || code === 'N/A') return;
+        navigator.clipboard.writeText(code).then(() => {
+            showSnackbar('Access code copied to clipboard!', 'success');
+        }).catch(err => {
+            showSnackbar('Failed to copy code.', 'error');
+        });
+    };
+
 </script>

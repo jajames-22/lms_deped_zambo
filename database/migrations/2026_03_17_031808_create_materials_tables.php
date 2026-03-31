@@ -25,12 +25,12 @@ return new class extends Migration
         // 2. Lessons Table
         Schema::create('lessons', function (Blueprint $table) {
             $table->id();
-            $table->unsignedBigInteger('materials_id'); 
+            $table->unsignedBigInteger('material_id'); 
             $table->string('title');
             $table->integer('time_limit')->default(0);
             $table->timestamps();
 
-            $table->foreign('materials_id')->references('id')->on('materials')->onDelete('cascade');
+            $table->foreign('material_id')->references('id')->on('materials')->onDelete('cascade');
         });
 
         // 3. Quizzes Table

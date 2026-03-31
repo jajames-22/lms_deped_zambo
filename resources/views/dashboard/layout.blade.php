@@ -37,9 +37,10 @@
                 opacity: 0;
                 transform: translateY(20px);
             }
+
             100% {
                 opacity: 1;
-                transform: translateY(0);
+                transform: none;
             }
         }
 
@@ -52,7 +53,8 @@
 <body class="bg-gray-50 font-sans text-gray-900 h-screen overflow-hidden">
 
     <div class="flex h-full">
-        <div id="sidebarBackdrop" class="fixed inset-0 bg-black/50 z-40 opacity-0 pointer-events-none md:hidden transition-opacity duration-300"
+        <div id="sidebarBackdrop"
+            class="fixed inset-0 bg-black/50 z-40 opacity-0 pointer-events-none md:hidden transition-opacity duration-300"
             onclick="toggleSidebar()"></div>
 
         <aside id="sidebar"
@@ -108,9 +110,11 @@
 
                         <div class="text-right hidden sm:block">
                             <p class="text-sm font-semibold">{{ auth()->user()->first_name }}
-                                {{ auth()->user()->last_name }}</p>
+                                {{ auth()->user()->last_name }}
+                            </p>
                             <p class="text-[10px] text-gray-500 uppercase">
-                                {{ ucfirst(auth()->user()->role ?? 'Student') }}</p>
+                                {{ ucfirst(auth()->user()->role ?? 'Student') }}
+                            </p>
                         </div>
                         <img class="h-9 w-9 rounded-full border-2 border-[#a52a2a]/20"
                             src="https://ui-avatars.com/api/?name={{ urlencode(auth()->user()->first_name . '+' . auth()->user()->last_name) }}&background=a52a2a&color=fff"
@@ -126,7 +130,7 @@
     <div id="logoutModal" class="fixed inset-0 z-[60] opacity-0 pointer-events-none transition-opacity duration-300">
         <div class="absolute inset-0 bg-gray-900/60" onclick="toggleLogoutModal()"></div>
         <div class="relative flex items-center justify-center min-h-screen p-4">
-            
+
             <div id="logoutModalBox"
                 class="bg-white rounded-2xl shadow-2xl max-w-sm w-full p-6 text-center transform scale-95 transition-all duration-300 border border-gray-100">
                 <div
@@ -153,7 +157,7 @@
         </div>
     </div>
 
-   @stack('scripts')
+    @stack('scripts')
 
     <script>
         function previewSchoolLogo(event) {
@@ -171,7 +175,7 @@
                 }
 
                 const reader = new FileReader();
-                reader.onload = function(e) {
+                reader.onload = function (e) {
                     previewContainer.style.backgroundImage = `url('${e.target.result}')`;
                     placeholderContent.classList.add('hidden');
                     previewContainer.classList.remove('border-dashed');
@@ -223,7 +227,7 @@
                 // Fade in container
                 logoutModal.classList.remove('opacity-0', 'pointer-events-none');
                 logoutModal.classList.add('opacity-100');
-                
+
                 // Scale in the box
                 logoutModalBox.classList.remove('scale-95');
                 logoutModalBox.classList.add('scale-100');
@@ -231,7 +235,7 @@
                 // Fade out container
                 logoutModal.classList.add('opacity-0', 'pointer-events-none');
                 logoutModal.classList.remove('opacity-100');
-                
+
                 // Scale out the box
                 logoutModalBox.classList.remove('scale-100');
                 logoutModalBox.classList.add('scale-95');
@@ -241,7 +245,7 @@
         function loadPartial(url, element) {
             // Remove the animation class so we can trigger it again
             contentArea.classList.remove('animate-float-in');
-            
+
             contentArea.innerHTML = '<div class="flex justify-center items-center h-full"><i class="fas fa-circle-notch fa-spin text-3xl text-[#a52a2a]"></i></div>';
 
             fetch(url, {
@@ -249,55 +253,62 @@
                     'X-Requested-With': 'XMLHttpRequest'
                 }
             })
-            .then(async response => {
-                if (!response.ok) {
-                    contentArea.innerHTML = `<div class="p-6 bg-red-50 text-red-700"><b>Error ${response.status}:</b> Check your browser console or Laravel logs.</div>`;
-                    throw new Error('Server returned an error');
-                }
-                return response.text();
-            })
-            .then(html => {
-                contentArea.innerHTML = html;
-                contentArea.scrollTop = 0;
+                .then(async response => {
+                    if (!response.ok) {
+                        contentArea.innerHTML = `<div class="p-6 bg-red-50 text-red-700"><b>Error ${response.status}:</b> Check your browser console or Laravel logs.</div>`;
+                        throw new Error('Server returned an error');
+                    }
+                    return response.text();
+                })
+                .then(html => {
+                    contentArea.innerHTML = html;
+                    contentArea.scrollTop = 0;
 
-                // --- ADD THIS LINE TO TRIGGER ANIMATION ---
-                contentArea.classList.add('animate-float-in');
+                    // --- ADD THIS LINE TO TRIGGER ANIMATION ---
+                    contentArea.classList.add('animate-float-in');
 
-                const scripts = contentArea.querySelectorAll('script');
-                scripts.forEach(oldScript => {
-                    const newScript = document.createElement('script');
-                    Array.from(oldScript.attributes).forEach(attr => newScript.setAttribute(attr.name, attr.value));
-                    newScript.appendChild(document.createTextNode(oldScript.innerHTML));
-                    oldScript.parentNode.replaceChild(newScript, oldScript);
-                });
+                    // Listen for the animation to finish, then remove the class
+                    contentArea.addEventListener('animationend', function handler() {
+                        contentArea.classList.remove('animate-float-in');
+                        contentArea.removeEventListener('animationend', handler); // Clean up the listener
+                    });
+                    // -------------------------------
 
-                // (Rest of your sidebar button logic stays the same...)
-                document.querySelectorAll('.nav-btn').forEach(btn => {
-                    btn.classList.remove('bg-[#a52a2a]/10', 'text-[#a52a2a]', 'font-medium', 'border-r-4', 'border-[#a52a2a]');
-                    btn.classList.add('text-gray-600', 'hover:bg-gray-100');
-                });
+                    const scripts = contentArea.querySelectorAll('script');
+                    scripts.forEach(oldScript => {
+                        const newScript = document.createElement('script');
+                        Array.from(oldScript.attributes).forEach(attr => newScript.setAttribute(attr.name, attr.value));
+                        newScript.appendChild(document.createTextNode(oldScript.innerHTML));
+                        oldScript.parentNode.replaceChild(newScript, oldScript);
+                    });
+                    
+                    // (Rest of your sidebar button logic stays the same...)
+                    document.querySelectorAll('.nav-btn').forEach(btn => {
+                        btn.classList.remove('bg-[#a52a2a]/10', 'text-[#a52a2a]', 'font-medium', 'border-r-4', 'border-[#a52a2a]');
+                        btn.classList.add('text-gray-600', 'hover:bg-gray-100');
+                    });
 
-                let targetBtn = element;
-                if (!targetBtn || !targetBtn.classList) {
-                    if (url.includes('/materials')) targetBtn = document.getElementById('nav-materials-btn');
-                    else if (url.includes('/assessment')) targetBtn = document.getElementById('nav-assessment-btn');
-                    else if (url.includes('/explore-layout')) targetBtn = document.getElementById('nav-explore-layout-btn');
-                    else if (url.includes('/schools')) targetBtn = document.getElementById('nav-schools-btn');
-                    else if (url.includes('/teachers')) targetBtn = document.getElementById('nav-teachers-btn');
-                    else if (url.includes('/students')) targetBtn = document.getElementById('nav-students-btn');
-                    else if (url.includes('/home')) targetBtn = document.querySelector('.nav-btn');
-                }
+                    let targetBtn = element;
+                    if (!targetBtn || !targetBtn.classList) {
+                        if (url.includes('/materials')) targetBtn = document.getElementById('nav-materials-btn');
+                        else if (url.includes('/assessment')) targetBtn = document.getElementById('nav-assessment-btn');
+                        else if (url.includes('/explore-layout')) targetBtn = document.getElementById('nav-explore-layout-btn');
+                        else if (url.includes('/schools')) targetBtn = document.getElementById('nav-schools-btn');
+                        else if (url.includes('/teachers')) targetBtn = document.getElementById('nav-teachers-btn');
+                        else if (url.includes('/students')) targetBtn = document.getElementById('nav-students-btn');
+                        else if (url.includes('/home')) targetBtn = document.querySelector('.nav-btn');
+                    }
 
-                if (targetBtn) {
-                    targetBtn.classList.add('bg-[#a52a2a]/10', 'text-[#a52a2a]', 'font-medium', 'border-r-4', 'border-[#a52a2a]');
-                    targetBtn.classList.remove('text-gray-600', 'hover:bg-gray-100');
-                }
+                    if (targetBtn) {
+                        targetBtn.classList.add('bg-[#a52a2a]/10', 'text-[#a52a2a]', 'font-medium', 'border-r-4', 'border-[#a52a2a]');
+                        targetBtn.classList.remove('text-gray-600', 'hover:bg-gray-100');
+                    }
 
-                if (window.innerWidth < 768 && !sidebar.classList.contains('-translate-x-full')) {
-                    toggleSidebar();
-                }
-            })
-            .catch(err => console.error("Fetch failed entirely:", err));
+                    if (window.innerWidth < 768 && !sidebar.classList.contains('-translate-x-full')) {
+                        toggleSidebar();
+                    }
+                })
+                .catch(err => console.error("Fetch failed entirely:", err));
         }
 
         window.onload = () => {
@@ -308,7 +319,7 @@
         window.onclick = function (event) {
             if (event.target == logoutModal.firstElementChild) toggleLogoutModal();
         }
-    </script>   
+    </script>
 </body>
 
 </html>

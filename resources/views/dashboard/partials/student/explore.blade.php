@@ -10,8 +10,15 @@
     }
 </style>
 
-<div class="max-w-7xl mx-auto space-y-12 pb-24">
+<div class="max-w-7xl mx-auto space-y-12 pb-24 relative">
     
+    {{-- TOP ACTION BAR: Join with Code --}}
+    <div class="flex justify-end px-2 pt-4 -mb-6">
+        <button onclick="openJoinModal()" class="px-6 py-2.5 bg-white border border-gray-200 text-gray-700 font-bold rounded-xl hover:bg-gray-50 hover:text-[#a52a2a] hover:border-[#a52a2a]/30 transition-all shadow-sm flex items-center gap-2 group z-10 relative">
+            <i class="fas fa-key text-[#a52a2a] group-hover:-rotate-12 transition-transform"></i> Have an Access Code?
+        </button>
+    </div>
+
     {{-- 1. FEATURED BANNER CAROUSEL (Admin Selected) --}}
     @if($featuredMaterials->isNotEmpty())
         <div class="relative w-full h-80 md:h-[450px] rounded-2xl overflow-hidden shadow-2xl group" id="featured-carousel">
@@ -98,7 +105,6 @@
                     }
 
                     function startInterval() {
-                        // Auto-slide every 5 seconds
                         carouselInterval = setInterval(() => { moveCarousel(1); }, 5000); 
                     }
 
@@ -226,4 +232,130 @@
             @endforelse
         </div>
     </section>
+
+    {{-- MODAL: JOIN WITH ACCESS CODE --}}
+    <div id="join-code-modal" class="fixed inset-0 z-[100] hidden h-full">
+        <div class="absolute inset-0 bg-gray-900/60 backdrop-blur-sm" onclick="closeJoinModal()"></div>
+        <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-md p-6">
+            <div class="bg-white rounded-2xl shadow-2xl overflow-hidden border border-gray-100 p-8 relative">
+                
+                {{-- Decorative background element --}}
+                <div class="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-[#a52a2a]/10 to-transparent rounded-bl-full pointer-events-none"></div>
+                
+                <div class="relative z-10">
+                    <div class="flex justify-between items-start mb-4">
+                        <div class="h-14 w-14 bg-red-50 text-[#a52a2a] border border-red-100 rounded-2xl flex items-center justify-center text-2xl shadow-sm mb-4">
+                            <i class="fas fa-unlock-keyhole"></i>
+                        </div>
+                        <button onclick="closeJoinModal()" class="text-gray-400 hover:text-[#a52a2a] bg-gray-50 hover:bg-red-50 h-8 w-8 rounded-full flex items-center justify-center transition-colors">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                    
+                    <h3 class="text-2xl font-black text-gray-900 mb-2">Join a Module</h3>
+                    <p class="text-gray-500 text-sm mb-6">Enter the access code provided by your instructor to instantly enroll in their private module.</p>
+                    
+                    <div class="space-y-4">
+                        <div>
+                            <input type="text" id="join-code-input" placeholder="e.g. A1B2C3" maxlength="10"
+                                class="w-full px-5 py-4 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#a52a2a]/20 focus:border-[#a52a2a] focus:bg-white outline-none font-mono uppercase text-lg text-center tracking-[0.3em] transition-all placeholder:tracking-normal placeholder:font-sans">
+                        </div>
+                        <button id="submit-join-btn" onclick="submitJoinCode()" 
+                            class="w-full py-4 bg-[#a52a2a] text-white font-bold rounded-xl hover:bg-red-900 transition-all shadow-md active:scale-[0.98] flex items-center justify-center gap-2">
+                            <i class="fas fa-arrow-right-to-bracket"></i> Enroll Now
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
+
+{{-- MODAL JAVASCRIPT --}}
+<script>
+    function openJoinModal() {
+        document.getElementById('join-code-modal').classList.remove('hidden');
+        // Auto-focus the input after a slight delay for the modal to render
+        setTimeout(() => { document.getElementById('join-code-input').focus(); }, 100);
+    }
+
+    function closeJoinModal() {
+        document.getElementById('join-code-modal').classList.add('hidden');
+        document.getElementById('join-code-input').value = '';
+    }
+
+    // Optional: Allow pressing 'Enter' to submit
+    document.getElementById('join-code-input').addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') {
+            submitJoinCode();
+        }
+    });
+
+    async function submitJoinCode() {
+        const input = document.getElementById('join-code-input');
+        const btn = document.getElementById('submit-join-btn');
+        const code = input.value.trim().toUpperCase();
+        const originalHtml = btn.innerHTML;
+        
+        if(!code) {
+            if (typeof showSnackbar === 'function') {
+                showSnackbar('Please enter an access code.', 'error');
+            } else {
+                alert('Please enter an access code.');
+            }
+            return;
+        }
+
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Verifying...';
+        btn.disabled = true;
+
+        try {
+            // NOTE: Make sure your web.php routes point '/student/enroll-code' to your new controller method
+            const response = await fetch('/student/enroll-code', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || '',
+                    'Accept': 'application/json'
+                },
+                body: JSON.stringify({ access_code: code })
+            });
+            
+            const data = await response.json();
+            
+            if(response.ok && data.success) {
+                closeJoinModal();
+                
+                if (typeof showSnackbar === 'function') {
+                    showSnackbar('Successfully enrolled! Loading module...', 'success');
+                }
+                
+                // If you are using your SPA-like loadPartial function:
+                setTimeout(() => {
+                    if (typeof loadPartial === 'function' && document.getElementById('nav-materials-btn')) {
+                        loadPartial(data.redirect_url, document.getElementById('nav-materials-btn'));
+                    } else {
+                        window.location.href = data.redirect_url;
+                    }
+                }, 1000);
+                
+            } else {
+                if (typeof showSnackbar === 'function') {
+                    showSnackbar(data.message || 'Invalid or expired access code.', 'error');
+                } else {
+                    alert(data.message || 'Invalid or expired access code.');
+                }
+            }
+        } catch (error) {
+            console.error(error);
+            if (typeof showSnackbar === 'function') {
+                showSnackbar('A network error occurred. Please try again.', 'error');
+            } else {
+                alert('A network error occurred. Please try again.');
+            }
+        } finally {
+            btn.innerHTML = originalHtml;
+            btn.disabled = false;
+        }
+    }
+</script>

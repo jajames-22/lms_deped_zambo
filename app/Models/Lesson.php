@@ -10,14 +10,14 @@ class Lesson extends Model
     use HasFactory;
 
     protected $fillable = [
-        'materials_id',
+        'material_id',
         'title',
         'time_limit'
     ];
 
     public function material()
     {
-        return $this->belongsTo(Material::class, 'materials_id');
+        return $this->belongsTo(Material::class, 'material_id');
     }
 
     public function quizzes()
