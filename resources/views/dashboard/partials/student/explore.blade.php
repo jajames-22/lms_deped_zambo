@@ -27,22 +27,22 @@
             <div class="flex transition-transform duration-700 ease-in-out h-full w-full" id="carousel-track">
                 @foreach($featuredMaterials as $index => $material)
                     <div class="w-full h-full flex-shrink-0 relative cursor-pointer"
-                         onclick="loadPartial('{{ route('dashboard.materials.view', $material->id) }}', document.getElementById('nav-materials-btn'))">
+                         onclick="window.location.href = '{{ route('dashboard.materials.show', $material->id) }}';">
                         
-                        <div class="absolute inset-0 bg-gradient-to-r from-black via-black/70 to-transparent z-10"></div>
+                        <div class="absolute inset-0 bg-gradient-to-r from-black/80 via-black/40 to-transparent z-10"></div>
                         <img src="{{ $material->thumbnail ? asset('storage/' . $material->thumbnail) : 'https://images.unsplash.com/photo-1532094349884-543bc11b234d?q=80&w=1000' }}" 
-                             class="absolute inset-0 w-full h-full object-cover opacity-50">
+                             class="absolute inset-0 w-full h-full object-cover opacity-80">
                         
                         <div class="absolute inset-0 z-20 flex flex-col justify-end p-8 md:p-16 w-full md:w-3/4">
                             <span class="px-3 py-1 bg-[#a52a2a] text-white text-[10px] font-black uppercase tracking-[0.2em] rounded-md w-max mb-4 shadow-md">Featured</span>
                             <h1 class="text-4xl md:text-5xl lg:text-6xl font-black text-white mb-2 leading-tight drop-shadow-lg line-clamp-2">{{ $material->title }}</h1>
                             
                             {{-- INSTRUCTOR ICON --}}
-                            <p class="text-white/90 font-bold text-xs md:text-sm uppercase tracking-widest mb-4 flex items-center gap-1.5 drop-shadow-md">
+                            <p class="text-white font-bold text-xs md:text-sm uppercase tracking-widest mb-4 flex items-center gap-1.5 drop-shadow-md">
                                 <i class="fas fa-chalkboard-user"></i> {{ $material->instructor->first_name ?? 'Instructor' }} {{ $material->instructor->last_name ?? '' }}
                             </p>
 
-                            <p class="text-gray-200 text-sm md:text-lg mb-8 line-clamp-2 max-w-2xl drop-shadow-md">{{ $material->description }}</p>
+                            <p class="text-gray-100 text-sm md:text-lg mb-8 line-clamp-2 max-w-2xl drop-shadow-md">{{ $material->description }}</p>
                             
                             <div class="flex items-center gap-4">
                                 <button class="bg-white text-black hover:bg-gray-200 font-bold py-3 px-8 rounded-lg transition-all flex items-center gap-2 shadow-xl">
@@ -57,32 +57,37 @@
             {{-- Controls (Only show if there is more than 1 featured item) --}}
             @if($featuredMaterials->count() > 1)
                 {{-- Arrows --}}
-                <button onclick="moveCarousel(-1)" class="absolute left-4 top-1/2 -translate-y-1/2 z-30 w-12 h-12 flex items-center justify-center bg-black/40 hover:bg-[#a52a2a] text-white rounded-full backdrop-blur-md transition-all opacity-0 group-hover:opacity-100 shadow-lg">
+                <button onclick="window.moveCarousel(-1)" class="absolute left-4 top-1/2 -translate-y-1/2 z-30 w-12 h-12 flex items-center justify-center bg-black/40 hover:bg-[#a52a2a] text-white rounded-full backdrop-blur-md transition-all opacity-0 group-hover:opacity-100 shadow-lg">
                     <i class="fas fa-chevron-left"></i>
                 </button>
-                <button onclick="moveCarousel(1)" class="absolute right-4 top-1/2 -translate-y-1/2 z-30 w-12 h-12 flex items-center justify-center bg-black/40 hover:bg-[#a52a2a] text-white rounded-full backdrop-blur-md transition-all opacity-0 group-hover:opacity-100 shadow-lg">
+                <button onclick="window.moveCarousel(1)" class="absolute right-4 top-1/2 -translate-y-1/2 z-30 w-12 h-12 flex items-center justify-center bg-black/40 hover:bg-[#a52a2a] text-white rounded-full backdrop-blur-md transition-all opacity-0 group-hover:opacity-100 shadow-lg">
                     <i class="fas fa-chevron-right"></i>
                 </button>
 
                 {{-- Dots --}}
                 <div class="absolute bottom-6 left-1/2 -translate-x-1/2 z-30 flex gap-2">
                     @foreach($featuredMaterials as $index => $material)
-                        <button onclick="goToSlide({{ $index }})" class="carousel-dot h-2.5 rounded-full transition-all duration-300 {{ $index === 0 ? 'bg-[#a52a2a] w-8' : 'bg-white/50 hover:bg-white w-2.5' }}"></button>
+                        <button onclick="window.goToSlide({{ $index }})" class="carousel-dot h-2.5 rounded-full transition-all duration-300 {{ $index === 0 ? 'bg-[#a52a2a] w-8' : 'bg-white/50 hover:bg-white w-2.5' }}"></button>
                     @endforeach
                 </div>
 
-                {{-- Javascript strictly for the carousel --}}
+                {{-- AJAX-Proof Javascript for Carousel --}}
                 <script>
-                    let currentSlide = 0;
-                    const totalSlides = {{ $featuredMaterials->count() }};
-                    const track = document.getElementById('carousel-track');
-                    const dots = document.querySelectorAll('.carousel-dot');
-                    let carouselInterval;
+                    window.currentSlide = 0;
+                    window.totalSlides = {{ $featuredMaterials->count() }};
+                    
+                    // Clear interval if it already exists from a previous page visit
+                    if (window.carouselInterval) clearInterval(window.carouselInterval);
 
-                    function updateCarousel() {
-                        track.style.transform = `translateX(-${currentSlide * 100}%)`;
+                    window.updateCarousel = function() {
+                        const track = document.getElementById('carousel-track');
+                        const dots = document.querySelectorAll('.carousel-dot');
+                        
+                        if (!track) return; // Safety check
+                        
+                        track.style.transform = `translateX(-${window.currentSlide * 100}%)`;
                         dots.forEach((dot, index) => {
-                            if (index === currentSlide) {
+                            if (index === window.currentSlide) {
                                 dot.classList.remove('bg-white/50', 'w-2.5');
                                 dot.classList.add('bg-[#a52a2a]', 'w-8');
                             } else {
@@ -92,28 +97,32 @@
                         });
                     }
 
-                    function moveCarousel(direction) {
-                        currentSlide = (currentSlide + direction + totalSlides) % totalSlides;
-                        updateCarousel();
-                        resetInterval();
+                    window.moveCarousel = function(direction) {
+                        window.currentSlide = (window.currentSlide + direction + window.totalSlides) % window.totalSlides;
+                        window.updateCarousel();
+                        window.resetInterval();
                     }
 
-                    function goToSlide(index) {
-                        currentSlide = index;
-                        updateCarousel();
-                        resetInterval();
+                    window.goToSlide = function(index) {
+                        window.currentSlide = index;
+                        window.updateCarousel();
+                        window.resetInterval();
                     }
 
-                    function startInterval() {
-                        carouselInterval = setInterval(() => { moveCarousel(1); }, 5000); 
+                    window.startInterval = function() {
+                        window.carouselInterval = setInterval(() => { window.moveCarousel(1); }, 5000); 
                     }
 
-                    function resetInterval() {
-                        clearInterval(carouselInterval);
-                        startInterval();
+                    window.resetInterval = function() {
+                        clearInterval(window.carouselInterval);
+                        window.startInterval();
                     }
 
-                    startInterval();
+                    // Initialize the carousel
+                    setTimeout(() => {
+                        window.updateCarousel();
+                        window.startInterval();
+                    }, 50);
                 </script>
             @endif
         </div>
@@ -130,13 +139,13 @@
                             <p class="text-sm text-gray-500">{{ $section->subtitle }}</p>
                         @endif
                     </div>
-                    <a href="{{ route('dashboard.explore.tag', $section->tag_name) }}" class="text-xs font-bold text-[#a52a2a] uppercase tracking-widest hover:underline">See All</a>
+                    <a href="{{ route('dashboard.explore.tag', json_decode($section->tag_name)[0] ?? $section->tag_name) }}" class="text-xs font-bold text-[#a52a2a] uppercase tracking-widest hover:underline">See All</a>
                 </div>
 
                 <div class="flex overflow-x-auto no-scrollbar gap-6 pb-6 snap-x px-2">
                     @foreach($section->materials as $material)
                         <div class="w-72 flex-none snap-start group bg-white border border-gray-200 hover:border-[#a52a2a]/30 rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-all duration-300 flex flex-col cursor-pointer"
-                             onclick="loadPartial('{{ route('dashboard.materials.view', $material->id) }}', document.getElementById('nav-materials-btn'))">
+                             onclick="window.location.href = '{{ route('dashboard.materials.show', $material->id) }}';">
                             <div class="relative w-full aspect-[4/3] overflow-hidden">
                                 <img src="{{ $material->thumbnail ? asset('storage/' . $material->thumbnail) : 'https://images.unsplash.com/photo-1509228468518-180dd4864904?q=80&w=400' }}" 
                                      class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500">
@@ -167,7 +176,7 @@
         <div class="flex overflow-x-auto no-scrollbar pb-4 px-2">
             @foreach($popularMaterials as $index => $material)
             <div class="flex-none flex items-center gap-4 group cursor-pointer"
-                 onclick="loadPartial('{{ route('dashboard.materials.view', $material->id) }}', document.getElementById('nav-materials-btn'))">
+                 onclick="window.location.href = '{{ route('dashboard.materials.show', $material->id) }}';">
                 <span class="text-7xl md:text-8xl font-black text-gray-200 group-hover:text-[#a52a2a]/20 transition-colors italic leading-none">
                     {{ $index + 1 }}
                 </span>
@@ -202,7 +211,7 @@
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 px-2">
             @forelse($schoolMaterials as $material)
                 <div class="flex items-start gap-4 p-4 rounded-2xl hover:bg-white hover:shadow-xl border border-transparent hover:border-gray-100 transition-all cursor-pointer group bg-gray-50/50"
-                     onclick="loadPartial('{{ route('dashboard.materials.view', $material->id) }}', document.getElementById('nav-materials-btn'))">
+                     onclick="window.location.href = '{{ route('dashboard.materials.show', $material->id) }}';">
                     <div class="h-24 w-24 flex-none rounded-xl bg-gray-200 overflow-hidden relative shadow-sm">
                         <img src="{{ $material->thumbnail ? asset('storage/' . $material->thumbnail) : 'https://images.unsplash.com/photo-1497633762265-9d179a990aa6?q=80&w=200' }}" 
                              class="w-full h-full object-cover group-hover:scale-110 transition-transform">

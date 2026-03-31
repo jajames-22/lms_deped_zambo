@@ -147,8 +147,7 @@
                     </button>
                     <form method="POST" action="{{ route('logout') }}" class="flex-1">
                         @csrf
-                        <button type="submit"
-                            class="w-full px-4 py-2.5 bg-[#a52a2a] text-white font-semibold rounded-xl hover:opacity-90 transition shadow-lg shadow-[#a52a2a]/30 text-sm">
+                        <button type="submit" onclick="sessionStorage.clear();" class="w-full px-4 py-2.5 bg-[#a52a2a] text-white font-semibold rounded-xl hover:opacity-90 transition shadow-lg shadow-[#a52a2a]/30 text-sm">
                             Yes, Logout
                         </button>
                     </form>
@@ -157,55 +156,13 @@
         </div>
     </div>
 
-    @stack('scripts')
-
-    <script>
-        function previewSchoolLogo(event) {
-            const input = event.target;
-            const file = input.files[0];
-            const previewContainer = document.getElementById('logo-preview-container');
-            const placeholderContent = document.getElementById('logo-placeholder-content');
-            const removeBtn = document.getElementById('remove-logo-btn');
-
-            if (file) {
-                if (!file.type.match('image.*')) {
-                    alert('Please select a valid image file (PNG or JPG).');
-                    input.value = '';
-                    return;
-                }
-
-                const reader = new FileReader();
-                reader.onload = function (e) {
-                    previewContainer.style.backgroundImage = `url('${e.target.result}')`;
-                    placeholderContent.classList.add('hidden');
-                    previewContainer.classList.remove('border-dashed');
-                    previewContainer.classList.add('border-solid', 'border-[#a52a2a]', 'shadow-md');
-                    removeBtn.classList.remove('hidden');
-                }
-                reader.readAsDataURL(file);
-            }
-        }
-
-        function removeSchoolLogo() {
-            const input = document.querySelector('input[name="school_logo"]');
-            const previewContainer = document.getElementById('logo-preview-container');
-            const placeholderContent = document.getElementById('logo-placeholder-content');
-            const removeBtn = document.getElementById('remove-logo-btn');
-
-            input.value = '';
-            previewContainer.style.backgroundImage = 'none';
-            placeholderContent.classList.remove('hidden');
-            previewContainer.classList.add('border-dashed');
-            previewContainer.classList.remove('border-solid', 'border-[#a52a2a]', 'shadow-md');
-            removeBtn.classList.add('hidden');
-        }
-    </script>
+   @stack('scripts')
 
     <script>
         const sidebar = document.getElementById('sidebar');
         const backdrop = document.getElementById('sidebarBackdrop');
         const logoutModal = document.getElementById('logoutModal');
-        const logoutModalBox = document.getElementById('logoutModalBox'); // Target the inner box
+        const logoutModalBox = document.getElementById('logoutModalBox'); 
         const contentArea = document.getElementById('content-area');
 
         function toggleSidebar() {
@@ -224,28 +181,25 @@
         function toggleLogoutModal() {
             const isClosed = logoutModal.classList.contains('opacity-0');
             if (isClosed) {
-                // Fade in container
                 logoutModal.classList.remove('opacity-0', 'pointer-events-none');
                 logoutModal.classList.add('opacity-100');
-
-                // Scale in the box
+                
                 logoutModalBox.classList.remove('scale-95');
                 logoutModalBox.classList.add('scale-100');
             } else {
-                // Fade out container
                 logoutModal.classList.add('opacity-0', 'pointer-events-none');
                 logoutModal.classList.remove('opacity-100');
-
-                // Scale out the box
+                
                 logoutModalBox.classList.remove('scale-100');
                 logoutModalBox.classList.add('scale-95');
             }
         }
 
         function loadPartial(url, element) {
-            // Remove the animation class so we can trigger it again
-            contentArea.classList.remove('animate-float-in');
+            sessionStorage.setItem('lastActiveTab', url);
+            if (element && element.id) sessionStorage.setItem('lastActiveBtn', element.id);
 
+            contentArea.classList.remove('animate-float-in');
             contentArea.innerHTML = '<div class="flex justify-center items-center h-full"><i class="fas fa-circle-notch fa-spin text-3xl text-[#a52a2a]"></i></div>';
 
             fetch(url, {
@@ -253,43 +207,46 @@
                     'X-Requested-With': 'XMLHttpRequest'
                 }
             })
-                .then(async response => {
-                    if (!response.ok) {
-                        contentArea.innerHTML = `<div class="p-6 bg-red-50 text-red-700"><b>Error ${response.status}:</b> Check your browser console or Laravel logs.</div>`;
-                        throw new Error('Server returned an error');
-                    }
-                    return response.text();
-                })
-                .then(html => {
-                    contentArea.innerHTML = html;
-                    contentArea.scrollTop = 0;
+            .then(async response => {
+                if (!response.ok) {
+                    contentArea.innerHTML = `<div class="p-6 bg-red-50 text-red-700"><b>Error ${response.status}:</b> Check your browser console or Laravel logs.</div>`;
+                    throw new Error('Server returned an error');
+                }
+                return response.text();
+            })
+            .then(html => {
+                contentArea.innerHTML = html;
+                contentArea.scrollTop = 0;
+                contentArea.classList.add('animate-float-in');
 
-                    // --- ADD THIS LINE TO TRIGGER ANIMATION ---
-                    contentArea.classList.add('animate-float-in');
+                // SAFER SCRIPT INJECTION (Fixes Carousel issues)
+                const scripts = contentArea.querySelectorAll('script');
+                scripts.forEach(oldScript => {
+                    const newScript = document.createElement('script');
+                    Array.from(oldScript.attributes).forEach(attr => newScript.setAttribute(attr.name, attr.value));
+                    newScript.text = oldScript.textContent; // Uses textContent instead of innerHTML to prevent string parsing bugs
+                    oldScript.parentNode.replaceChild(newScript, oldScript);
+                });
 
-                    // Listen for the animation to finish, then remove the class
-                    contentArea.addEventListener('animationend', function handler() {
-                        contentArea.classList.remove('animate-float-in');
-                        contentArea.removeEventListener('animationend', handler); // Clean up the listener
-                    });
-                    // -------------------------------
+                // Clear previous active states
+                document.querySelectorAll('.nav-btn').forEach(btn => {
+                    btn.classList.remove('bg-[#a52a2a]/10', 'text-[#a52a2a]', 'font-bold', 'border-r-4', 'border-[#a52a2a]');
+                    btn.classList.add('text-gray-600', 'hover:bg-gray-100');
+                });
 
-                    const scripts = contentArea.querySelectorAll('script');
-                    scripts.forEach(oldScript => {
-                        const newScript = document.createElement('script');
-                        Array.from(oldScript.attributes).forEach(attr => newScript.setAttribute(attr.name, attr.value));
-                        newScript.appendChild(document.createTextNode(oldScript.innerHTML));
-                        oldScript.parentNode.replaceChild(newScript, oldScript);
-                    });
+                // UPDATED INTELLIGENT ROUTE DETECTION (Fixes Sidebar disappearing)
+                let targetBtn = element;
+                if (!targetBtn || !targetBtn.classList) {
                     
-                    // (Rest of your sidebar button logic stays the same...)
-                    document.querySelectorAll('.nav-btn').forEach(btn => {
-                        btn.classList.remove('bg-[#a52a2a]/10', 'text-[#a52a2a]', 'font-medium', 'border-r-4', 'border-[#a52a2a]');
-                        btn.classList.add('text-gray-600', 'hover:bg-gray-100');
-                    });
-
-                    let targetBtn = element;
-                    if (!targetBtn || !targetBtn.classList) {
+                    const roleIsStudent = document.getElementById('nav-explore-btn') !== null;
+                    
+                    if (roleIsStudent) {
+                        // Student Fallbacks
+                        if (url.includes('/explore') || url.includes('/materials')) targetBtn = document.getElementById('nav-explore-btn');
+                        else if (url.includes('/enrolled')) targetBtn = document.getElementById('nav-enrolled-btn');
+                        else if (url.includes('/home')) targetBtn = document.getElementById('nav-student-home-btn') || document.querySelector('.nav-btn');
+                    } else {
+                        // Admin Fallbacks
                         if (url.includes('/materials')) targetBtn = document.getElementById('nav-materials-btn');
                         else if (url.includes('/assessment')) targetBtn = document.getElementById('nav-assessment-btn');
                         else if (url.includes('/explore-layout')) targetBtn = document.getElementById('nav-explore-layout-btn');
@@ -298,11 +255,13 @@
                         else if (url.includes('/students')) targetBtn = document.getElementById('nav-students-btn');
                         else if (url.includes('/home')) targetBtn = document.querySelector('.nav-btn');
                     }
+                }
 
-                    if (targetBtn) {
-                        targetBtn.classList.add('bg-[#a52a2a]/10', 'text-[#a52a2a]', 'font-medium', 'border-r-4', 'border-[#a52a2a]');
-                        targetBtn.classList.remove('text-gray-600', 'hover:bg-gray-100');
-                    }
+                // Apply active state safely
+                if (targetBtn) {
+                    targetBtn.classList.add('bg-[#a52a2a]/10', 'text-[#a52a2a]', 'font-bold', 'border-r-4', 'border-[#a52a2a]');
+                    targetBtn.classList.remove('text-gray-600', 'hover:bg-gray-100');
+                }
 
                     if (window.innerWidth < 768 && !sidebar.classList.contains('-translate-x-full')) {
                         toggleSidebar();
@@ -312,8 +271,18 @@
         }
 
         window.onload = () => {
-            const dashboardBtn = document.querySelector('.nav-btn');
-            loadPartial('{{ url("/dashboard/home") }}', dashboardBtn);
+            const savedUrl = sessionStorage.getItem('lastActiveTab');
+            const savedBtnId = sessionStorage.getItem('lastActiveBtn');
+            
+            if (savedUrl) {
+                // If memory exists, load what they were last looking at (Explore, Enrolled, etc.)
+                const targetBtn = document.getElementById(savedBtnId) || document.querySelector('.nav-btn');
+                loadPartial(savedUrl, targetBtn);
+            } else {
+                // Default to home if no memory exists
+                const dashboardBtn = document.querySelector('.nav-btn');
+                loadPartial('{{ url("/dashboard/home") }}', dashboardBtn);
+            }
         };
 
         window.onclick = function (event) {
