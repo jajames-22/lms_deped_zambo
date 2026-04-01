@@ -25,6 +25,7 @@ class Exam extends Model
 
     public function options()
     {
-        return $this->hasMany(ExamOption::class, 'id');
+        // Links to the 'exam_options' table using 'exam_id'
+        return $this->hasMany(ExamOption::class, 'exam_id');
     }
 }
