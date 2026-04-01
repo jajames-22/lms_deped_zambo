@@ -867,7 +867,7 @@ class MaterialsController extends Controller
     {
         $user = auth()->user();
 
-        // 1. Security Check: Make sure they are actually enrolled!
+        // Security Check...
         $isEnrolled = \App\Models\Enrollment::where('material_id', $material->id)
             ->where('user_id', $user->id)
             ->exists();
@@ -876,16 +876,17 @@ class MaterialsController extends Controller
             abort(403, 'You must enroll in this material before studying.');
         }
 
-        // 2. Load the lessons so the student can read them
+        // LOAD LESSONS, CONTENTS, AND EXAMS!
         $material->load([
+            
             'lessons' => function ($query) {
-                $query->orderBy('sort_order', 'asc');
-            }
+                    $query->orderBy('sort_order', 'asc');
+                }
+        ,
+            'lessons.contents.options', 
+            'exams.options' // <--- This is the magic key for the exam!
         ]);
 
-        $material->load(['lessons.contents.options']);
-
-        // 3. Return your study view (you will need to create this blade file)
         return view('dashboard.partials.student.materials-study', compact('material'));
     }
 
@@ -895,8 +896,8 @@ class MaterialsController extends Controller
 
         // 1. Find and delete the enrollment record
         $enrollment = \App\Models\Enrollment::where('material_id', $material->id)
-            ->where('user_id', $user->id)
-            ->first();
+                            ->where('user_id', $user->id)
+                            ->first();
 
         if ($enrollment) {
             $enrollment->delete();
