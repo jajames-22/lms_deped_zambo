@@ -120,6 +120,7 @@ class MaterialsController extends Controller
         if (!$material)
             abort(404, 'Material not found');
 
+        // 1. Fetch Lessons
         $lessons = DB::table('lessons')
             ->where('material_id', $id)
             ->get()
@@ -129,13 +130,37 @@ class MaterialsController extends Controller
                     ->where('lesson_id', $lesson->id)
                     ->get()
                     ->map(function ($quiz) {
-                        $quiz->options = DB::table('quiz_options')
-                            ->where('quiz_id', $quiz->id)
-                            ->get();
-                        return $quiz;
-                    });
+                    $quiz->options = DB::table('quiz_options')
+                        ->where('quiz_id', $quiz->id)
+                        ->get();
+                    return $quiz;
+                });
                 return $lesson;
             });
+
+        // 2. Fetch Exams (NEW FIX)
+        $examQuestions = DB::table('exams')
+            ->where('material_id', $id)
+            ->get()
+            ->map(function ($exam) {
+                $exam->options = DB::table('exam_options')
+                    ->where('exam_id', $exam->id)
+                    ->get();
+                return $exam;
+            });
+
+        // 3. Package the exam questions into a section block for the frontend builder
+        if ($examQuestions->isNotEmpty()) {
+            $examSection = (object) [
+                'id' => 'exam-section-' . $id,
+                'title' => 'Final Exam',
+                'section_type' => 'exam',
+                'questions' => $examQuestions
+            ];
+
+            // Append the exam section to the end of the lessons collection
+            $lessons->push($examSection);
+        }
 
         $isNew = false;
 
@@ -212,7 +237,7 @@ class MaterialsController extends Controller
             return response()->json(['success' => false, 'message' => 'Error revoking access: ' . $e->getMessage()], 500);
         }
     }
-    
+
     public function toggleStatus(Request $request, $id)
     {
         try {
@@ -724,8 +749,8 @@ class MaterialsController extends Controller
         // 1. Check Private Material Access
         if (!$material->is_public) {
             $access = MaterialAccess::where('material_id', $material->id)
-                        ->where('email', $user->email)
-                        ->first();
+                ->where('email', $user->email)
+                ->first();
 
             if (!$access) {
                 return response()->json([
@@ -742,8 +767,8 @@ class MaterialsController extends Controller
 
         // 2. Check for Duplicate Enrollment
         $alreadyEnrolled = Enrollment::where('material_id', $material->id)
-                            ->where('user_id', $user->id)
-                            ->exists();
+            ->where('user_id', $user->id)
+            ->exists();
 
         if ($alreadyEnrolled) {
             return response()->json([
@@ -772,8 +797,8 @@ class MaterialsController extends Controller
 
         // Security Check...
         $isEnrolled = \App\Models\Enrollment::where('material_id', $material->id)
-                            ->where('user_id', $user->id)
-                            ->exists();
+            ->where('user_id', $user->id)
+            ->exists();
 
         if (!$isEnrolled && $user->role === 'student') {
             abort(403, 'You must enroll in this material before studying.');
@@ -781,9 +806,11 @@ class MaterialsController extends Controller
 
         // LOAD LESSONS, CONTENTS, AND EXAMS!
         $material->load([
-            'lessons' => function($query) {
-                $query->orderBy('created_at', 'asc'); 
-            },
+            
+            'lessons' => function ($query) {
+                    $query->orderBy('created_at', 'asc');
+                }
+        ,
             'lessons.contents.options', 
             'exams.options' // <--- This is the magic key for the exam!
         ]);
@@ -796,7 +823,7 @@ class MaterialsController extends Controller
         $user = auth()->user();
 
         // 1. Find and delete the enrollment record
-        $enrollment = Enrollment::where('material_id', $material->id)
+        $enrollment = \App\Models\Enrollment::where('material_id', $material->id)
                             ->where('user_id', $user->id)
                             ->first();
 
@@ -807,12 +834,12 @@ class MaterialsController extends Controller
         // 2. If it's a private material, revert their access status back to pending/invited
         if (!$material->is_public) {
             $access = \App\Models\MaterialAccess::where('material_id', $material->id)
-                        ->where('email', $user->email)
-                        ->first();
+                ->where('email', $user->email)
+                ->first();
 
             if ($access && $access->status === 'enrolled') {
                 // Change it back to 'pending' so they can re-enroll later if they want
-                $access->update(['status' => 'pending']); 
+                $access->update(['status' => 'pending']);
             }
         }
 
