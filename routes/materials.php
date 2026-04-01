@@ -40,6 +40,11 @@ Route::get('/certificate/verify/{enrollment_id}', [App\Http\Controllers\StudentE
 Route::get('/certificate/download/{enrollment_id}', [App\Http\Controllers\StudentEnrollmentController::class, 'downloadCertificate'])
     ->name('student.certificate.download')
     ->middleware(['signed']); // Only allows downloads from signed links
+
+// Route to preview the PDF template directly in the browser as HTML
+Route::get('/certificate/preview/{enrollment_id}', [App\Http\Controllers\StudentEnrollmentController::class, 'previewCertificateTemplate'])
+    ->name('student.certificate.preview')
+    ->middleware(['auth']); // Requires you to be logged in to view it
 // ==========================================
 // TEACHER / ADMIN ROUTES
 // ==========================================
