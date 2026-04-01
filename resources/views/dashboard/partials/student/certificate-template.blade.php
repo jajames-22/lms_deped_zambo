@@ -1,137 +1,170 @@
 <!DOCTYPE html>
 <html>
-
 <head>
     <title>Certificate of Completion</title>
     <style>
-        body {
-            font-family: 'Helvetica', 'Arial', sans-serif;
+        /* Force A4 Landscape and kill all default margins */
+        @page {
             margin: 0;
-            padding: 0;
-            background-color: #f8f9fa;
+            size: A4 landscape;
         }
 
-        .certificate-container {
-            border: 15px solid #a52a2a;
-            /* Your LMS brand color */
-            padding: 40px;
+        html, body {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            background-color: #ffffff;
+            font-family: 'Georgia', 'Times New Roman', serif;
+        }
+
+        /* Using a table as the main wrapper is the most stable way 
+           to prevent domPDF from clipping the bottom content. */
+        .main-wrapper {
+            width: 100%;
+            height: 100%;
+            padding: 30px;
+            box-sizing: border-box;
+        }
+
+        .outer-border {
+            border: 12px solid #a52a2a; /* LMS Brand Color */
+            height: 100%;
+            width: 100%;
+            padding: 10px;
+            box-sizing: border-box;
+        }
+
+        .inner-border {
+            border: 2px solid #d3a625; /* Gold Accent */
+            height: 100%;
+            width: 100%;
             text-align: center;
-            background-color: white;
-            height: 90%;
-            margin: 20px;
+            box-sizing: border-box;
+            padding: 40px 20px;
+            position: relative; /* Allows QR/Footer to anchor */
         }
 
         .header {
-            font-size: 40px;
+            font-size: 44px;
             font-weight: bold;
             color: #a52a2a;
-            margin-bottom: 10px;
+            margin-bottom: 5px;
             text-transform: uppercase;
         }
 
         .sub-header {
             font-size: 20px;
             color: #555;
-            margin-bottom: 40px;
+            font-style: italic;
+            margin-bottom: 30px;
         }
 
         .student-name {
-            font-size: 45px;
+            font-family: 'Helvetica', 'Arial', sans-serif;
+            font-size: 42px;
             font-weight: bold;
             color: #222;
-            border-bottom: 2px solid #ccc;
+            border-bottom: 2px solid #a52a2a;
             display: inline-block;
             padding-bottom: 5px;
-            margin-bottom: 30px;
+            margin-bottom: 25px;
             width: 70%;
         }
 
-        .course-name {
-            font-size: 30px;
-            color: #a52a2a;
-            font-weight: bold;
-            margin: 20px 0;
+        .course-label {
+            font-size: 18px;
+            color: #555;
+            margin-bottom: 15px;
         }
 
-        .footer {
-            margin-top: 60px;
+        .course-name {
+            font-size: 28px;
+            color: #a52a2a;
+            font-weight: bold;
+            line-height: 1.2;
+            margin-bottom: 50px;
+        }
+
+        /* The Footer Table */
+        .footer-table {
             width: 100%;
+            margin-top: 20px;
+            border-collapse: collapse;
+        }
+
+        .footer-td {
+            width: 33.3%;
+            text-align: center;
+            vertical-align: bottom;
+        }
+
+        .signature-text {
+            font-family: 'Helvetica', 'Arial', sans-serif;
+            font-size: 15px;
+            font-weight: bold;
+            margin-bottom: 4px;
         }
 
         .signature-line {
             border-top: 1px solid #000;
-            width: 250px;
-            display: inline-block;
-            margin-top: 40px;
+            width: 80%;
+            margin: 0 auto;
             padding-top: 5px;
-            font-size: 16px;
+            font-size: 11px;
+            color: #666;
+            text-transform: uppercase;
+        }
+
+        .qr-code {
+            width: 80px;
+            height: 80px;
         }
 
         .cert-id {
-            position: absolute;
-            bottom: 30px;
-            right: 40px;
-            font-size: 12px;
-            color: #888;
+            margin-top: 20px;
+            font-size: 10px;
+            color: #999;
+            font-family: 'Helvetica', 'Arial', sans-serif;
+            text-align: right;
+            padding-right: 20px;
         }
     </style>
 </head>
-
 <body>
-    <div class="certificate-container">
-        <div class="header">Certificate of Completion</div>
-        <div class="sub-header">This is proudly presented to</div>
+    <div class="main-wrapper">
+        <div class="outer-border">
+            <div class="inner-border">
+                
+                <div class="header">Certificate of Completion</div>
+                <div class="sub-header">This is proudly presented to</div>
 
-        <div class="student-name">{{ $studentName }}</div>
+                <div class="student-name">{{ $studentName }}</div>
 
-        <div class="sub-header">for successfully completing the learning module</div>
+                <div class="course-label">for successfully completing the learning module</div>
 
-        <div class="course-name">"{{ $courseName }}"</div>
+                <div class="course-name">"{{ $courseName }}"</div>
 
-        <div class="footer">
-            <table style="width: 100%; text-align: center;">
-                <tr>
-                    <td>
-                        <div class="signature-line">
-                            <strong>{{ $instructorName }}</strong><br>
-                            Instructor
-                        </div>
-                    </td>
-                    <td>
-                        <div class="signature-line">
-                            <strong>{{ $date }}</strong><br>
-                            Date of Completion
-                        </div>
-                    </td>
-                </tr>
-            </table>
+                <table class="footer-table">
+                    <tr>
+                        <td class="footer-td">
+                            <div class="signature-text">{{ $instructorName }}</div>
+                            <div class="signature-line">Instructor</div>
+                        </td>
+                        <td class="footer-td">
+                            <img src="data:image/svg+xml;base64,{{ $qrCode }}" class="qr-code">
+                            <div style="font-size: 9px; color: #888; margin-top: 5px;">SCAN TO VERIFY</div>
+                        </td>
+                        <td class="footer-td">
+                            <div class="signature-text">{{ $date }}</div>
+                            <div class="signature-line">Date of Completion</div>
+                        </td>
+                    </tr>
+                </table>
+
+                <div class="cert-id">ID: {{ $certificateId }}</div>
+            </div>
         </div>
-
-        <div class="cert-id">Certificate ID: {{ $certificateId }}</div>
-    </div>
-
-    <div class="footer">
-        <table style="width: 100%; text-align: center; vertical-align: bottom;">
-            <tr>
-                <td style="width: 33%;">
-                    <div class="signature-line">
-                        <strong>{{ $instructorName }}</strong><br>
-                        Instructor
-                    </div>
-                </td>
-                <td style="width: 33%;">
-                    <img src="data:image/svg+xml;base64,{{ $qrCode }}" alt="QR Code" style="width: 80px; height: 80px;">
-                    <div style="font-size: 10px; color: #888; margin-top: 5px;">Scan to Verify</div>
-                </td>
-                <td style="width: 33%;">
-                    <div class="signature-line">
-                        <strong>{{ $date }}</strong><br>
-                        Date of Completion
-                    </div>
-                </td>
-            </tr>
-        </table>
     </div>
 </body>
-
 </html>

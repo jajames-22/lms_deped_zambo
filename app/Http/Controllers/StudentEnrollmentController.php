@@ -209,4 +209,33 @@ class StudentEnrollmentController extends Controller
         // Pass the data to the certificates blade file
         return view('dashboard.partials.student.certificates', compact('completedEnrollments'));
     }
+    public function previewCertificateTemplate($enrollment_id)
+    {
+        // 1. Fetch the enrollment with necessary relationships
+        $enrollment = Enrollment::with(['material.instructor', 'user'])
+            ->findOrFail($enrollment_id);
+
+        // 2. Security: Ensure the user owns this certificate (unless admin)
+        if (Auth::id() !== $enrollment->user_id && !in_array(Auth::user()->role, ['teacher', 'admin', 'superadmin'])) {
+            abort(403, 'Unauthorized access to this certificate preview.');
+        }
+
+        // 3. Prepare the data (same logic as downloadCertificate)
+        $signedUrl = URL::signedRoute('student.materials.achieved', ['enrollment_id' => $enrollment->id]);
+        $qrCode = base64_encode(QrCode::format('svg')->size(100)->generate($signedUrl));
+
+        $data = [
+            'studentName' => $enrollment->user->first_name . ' ' . $enrollment->user->last_name,
+            'courseName' => $enrollment->material->title,
+            'instructorName' => $enrollment->material->instructor->first_name . ' ' . $enrollment->material->instructor->last_name,
+            'date' => $enrollment->completed_at ? $enrollment->completed_at->format('F j, Y') : $enrollment->updated_at->format('F j, Y'),
+            'certificateId' => 'CERT-' . str_pad($enrollment->id, 6, '0', STR_PAD_LEFT),
+            'qrCode' => $qrCode
+        ];
+
+        // 4. Return the view directly to the browser
+        return view('dashboard.partials.student.certificate-template', $data);
+    }
+
 }
+
