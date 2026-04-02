@@ -99,6 +99,11 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('/materials/{material}/enroll', [MaterialsController::class, 'enroll'])->name('materials.enroll');
         Route::get('/materials/{material}/study', [MaterialsController::class, 'study'])->name('dashboard.materials.study');
         Route::post('/materials/{material}/unenroll', [MaterialsController::class, 'unenroll'])->name('dashboard.materials.unenroll');
+
+        Route::post('/materials/{id}/grading', [MaterialsController::class, 'updateGrading'])->name('dashboard.materials.grading');
+
+        Route::post('/dashboard/materials/{material}/progress', [MaterialsController::class, 'saveProgress'])->name('dashboard.materials.progress');
+
     });
 
     Route::get('/get-districts/{quadrantId}', [DashboardController::class, 'getDistricts'])->name('districts.get');

@@ -19,6 +19,36 @@
         .toggle-container .toggle-input:focus-visible+.toggle-track {
             box-shadow: 0 0 0 4px rgba(165, 42, 42, 0.4);
         }
+        
+        /* Custom Slider Styling */
+        input[type=range] {
+            -webkit-appearance: none;
+            width: 100%;
+            height: 10px;
+            border-radius: 5px;
+            background: #e5e7eb;
+            outline: none;
+        }
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            height: 20px;
+            width: 20px;
+            border-radius: 50%;
+            background: #ffffff;
+            border: 2px solid currentColor;
+            cursor: pointer;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+            transition: transform 0.1s;
+        }
+        input[type=range]:disabled::-webkit-slider-thumb {
+            background: #f3f4f6;
+            border-color: #9ca3af;
+            cursor: not-allowed;
+            box-shadow: none;
+        }
+        input[type=range]:not(:disabled)::-webkit-slider-thumb:hover {
+            transform: scale(1.2);
+        }
     </style>
 </head>
 <div class="space-y-6 pb-20 max-w-6xl mx-auto relative">
@@ -35,7 +65,38 @@
         }
     " style="display:none;">
 
-    @php $isLive = ($material->status === 'published'); @endphp
+    @php 
+        $isLive = ($material->status === 'published'); 
+        
+        // --- GRADING CONFIGURATION LOGIC & AUTO-HEALING ---
+        $hasExams = \Illuminate\Support\Facades\DB::table('exams')->where('material_id', $material->id)->exists();
+        $hasQuizzes = \Illuminate\Support\Facades\DB::table('lesson_contents')
+            ->join('lessons', 'lesson_contents.lesson_id', '=', 'lessons.id')
+            ->where('lessons.material_id', $material->id)
+            ->whereIn('lesson_contents.type', ['mcq', 'checkbox', 'true_false']) 
+            ->exists();
+
+        // Get raw DB values
+        $rawExamWeight = $material->exam_weight;
+        $savedPassingPercentage = $material->passing_percentage ?? 80;
+        
+        // Calculate what the weight MUST be based on available content
+        if ($hasExams && $hasQuizzes) {
+            $savedExamWeight = $rawExamWeight ?? 60; // Both exist, use DB or default to 60
+        } elseif ($hasExams && !$hasQuizzes) {
+            $savedExamWeight = 100; // Only exams exist
+        } elseif (!$hasExams && $hasQuizzes) {
+            $savedExamWeight = 0;   // Only quizzes exist
+        } else {
+            $savedExamWeight = 0;   // Neither exist
+        }
+
+        // Flag to trigger JS auto-correction if DB holds an invalid weight due to content deletion in builder
+        $needsWeightSync = ($rawExamWeight !== null && $rawExamWeight !== $savedExamWeight);
+        
+        // Inverting for the UI: Slider value represents Quizzes (Left Side)
+        $quizWeight = 100 - $savedExamWeight;
+    @endphp
 
     <div class="flex items-center justify-between">
         <button onclick="loadPartial('{{ url('/dashboard/materials') }}', document.getElementById('nav-materials-btn'))"
@@ -49,170 +110,125 @@
                 class="px-3 py-1.5 {{ $isLive ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700' }} text-xs font-bold rounded-lg uppercase tracking-wider flex items-center gap-2 transition-colors">
                 <span class="relative flex h-2 w-2">
                     @if($isLive)
-                        <span id="status-ping"
-                            class="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                        <span id="status-ping" class="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
                         <span id="status-dot" class="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
                     @else
-                        <span id="status-ping"
-                            class="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75 hidden"></span>
+                        <span id="status-ping" class="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75 hidden"></span>
                         <span id="status-dot" class="relative inline-flex rounded-full h-2 w-2 bg-amber-500"></span>
                     @endif
                 </span>
                 <span id="status-text">{{ $isLive ? 'Published' : 'Draft Mode' }}</span>
             </span>
 
-            {{-- Pure Tailwind Toggle --}}
             <label class="relative inline-flex items-center cursor-pointer" title="Toggle Material Status">
-                <input type="checkbox" id="material-status-toggle" class="sr-only peer"
-                    onchange="window.toggleMaterialStatus(this)" {{ $isLive ? 'checked' : '' }}>
-                <div
-                    class="w-16 h-8 bg-gray-300 rounded-full peer peer-focus:ring-2 peer-focus:ring-[#a52a2a]/40 peer-checked:after:translate-x-8 after:content-[''] after:absolute after:top-1 after:left-1 after:bg-white after:rounded-full after:h-6 after:w-6 after:transition-all after:shadow-md peer-checked:bg-[#26da65] shadow-inner transition-colors">
-                </div>
+                <input type="checkbox" id="material-status-toggle" class="sr-only peer" onchange="window.toggleMaterialStatus(this)" {{ $isLive ? 'checked' : '' }}>
+                <div class="w-16 h-8 bg-gray-300 rounded-full peer peer-focus:ring-2 peer-focus:ring-[#a52a2a]/40 peer-checked:after:translate-x-8 after:content-[''] after:absolute after:top-1 after:left-1 after:bg-white after:rounded-full after:h-6 after:w-6 after:transition-all after:shadow-md peer-checked:bg-[#26da65] shadow-inner transition-colors"></div>
             </label>
         </div>
     </div>
 
     <div class="bg-white p-8 rounded-3xl shadow-sm border border-gray-100 relative overflow-hidden">
-        <div
-            class="absolute top-0 right-0 w-64 h-64 bg-gradient-to-br from-[#a52a2a]/5 to-transparent rounded-bl-full pointer-events-none">
-        </div>
+        <div class="absolute top-0 right-0 w-64 h-64 bg-gradient-to-br from-[#a52a2a]/5 to-transparent rounded-bl-full pointer-events-none"></div>
 
         <div class="relative z-10 flex flex-col md:flex-row md:items-start justify-between gap-6">
             <div class="flex-1">
                 <div class="flex items-center gap-3 mb-3">
-                    <span
-                        class="bg-gray-100 text-gray-600 px-3 py-1 rounded-lg text-xs font-bold uppercase tracking-widest">
-                        Module Setup
-                    </span>
-                    <span class="text-gray-400 text-sm font-medium">
-                        Last Updated {{ $material->updated_at->format('M d, Y') }}
-                    </span>
+                    <span class="bg-gray-100 text-gray-600 px-3 py-1 rounded-lg text-xs font-bold uppercase tracking-widest">Module Setup</span>
+                    <span class="text-gray-400 text-sm font-medium">Last Updated {{ $material->updated_at->format('M d, Y') }}</span>
                 </div>
-
                 <h1 class="text-3xl font-black text-gray-900 mb-4">{{ $material->title }}</h1>
-                <p class="text-gray-600 max-w-3xl leading-relaxed">
-                    {{ $material->description ?: 'No description provided for this module.' }}
-                </p>
+                <p class="text-gray-600 max-w-3xl leading-relaxed">{{ $material->description ?: 'No description provided for this module.' }}</p>
             </div>
-
             <div class="flex flex-col sm:flex-row md:flex-col gap-3 shrink-0 md:w-48">
-                <button
-                    onclick="loadPartial('{{ route('dashboard.materials.edit', $material->id) }}', document.getElementById('nav-materials-btn'))"
+                <button onclick="loadPartial('{{ route('dashboard.materials.edit', $material->id) }}', document.getElementById('nav-materials-btn'))"
                     class="w-full py-3 px-4 bg-white border-2 border-[#a52a2a] text-[#a52a2a] font-bold rounded-xl hover:bg-[#a52a2a] hover:text-white transition-all flex items-center justify-center gap-2 group shadow-sm">
-                    <i class="fas fa-pen group-hover:rotate-12 transition-transform"></i>
-                    Edit Content
+                    <i class="fas fa-pen group-hover:rotate-12 transition-transform"></i> Edit Content
                 </button>
             </div>
         </div>
     </div>
 
-    <div
-        class="bg-white rounded-3xl p-8 shadow-sm border border-gray-100 mt-6 flex flex-col lg:flex-row items-start lg:items-center justify-between gap-8">
-
+    <div class="bg-white rounded-3xl p-8 shadow-sm border border-gray-100 mt-6 flex flex-col lg:flex-row items-start lg:items-center justify-between gap-8">
         <div class="w-full lg:flex-1">
             <h3 class="text-sm font-bold text-gray-500 uppercase tracking-widest mb-3">Module Tags</h3>
-
             <div id="active-tags-container" class="flex flex-wrap gap-2 mb-3"></div>
-
             <div class="relative w-full md:w-80">
-                <div
-                    class="flex items-center bg-gray-50 border border-gray-200 rounded-xl px-3 py-2.5 focus-within:ring-2 focus-within:ring-[#a52a2a]/20 focus-within:border-[#a52a2a] transition-all">
+                <div class="flex items-center bg-gray-50 border border-gray-200 rounded-xl px-3 py-2.5 focus-within:ring-2 focus-within:ring-[#a52a2a]/20 focus-within:border-[#a52a2a] transition-all">
                     <i class="fas fa-tags text-gray-400 mr-2 text-sm"></i>
                     <input type="text" id="tag-input" placeholder="Add a tag (e.g. Science, Grade 4)..."
                         class="bg-transparent border-none outline-none w-full text-sm font-medium text-gray-700 placeholder-gray-400"
                         onkeydown="handleTagKeydown(event)" oninput="handleTagInput(event)" autocomplete="off">
                 </div>
-
-                <div id="tag-suggestions"
-                    class="absolute z-50 w-full mt-2 bg-white border border-gray-100 rounded-xl shadow-lg hidden max-h-48 overflow-y-auto">
-                </div>
+                <div id="tag-suggestions" class="absolute z-50 w-full mt-2 bg-white border border-gray-100 rounded-xl shadow-lg hidden max-h-48 overflow-y-auto"></div>
             </div>
-            <p class="text-xs text-gray-400 mt-2">Press <kbd
-                    class="px-1.5 py-0.5 bg-gray-100 border border-gray-200 rounded text-gray-500 font-mono">Enter</kbd>
-                to add a custom tag.</p>
+            <p class="text-xs text-gray-400 mt-2">Press <kbd class="px-1.5 py-0.5 bg-gray-100 border border-gray-200 rounded text-gray-500 font-mono">Enter</kbd> to add a custom tag.</p>
         </div>
 
-        <div
-            class="flex items-center justify-center gap-8 lg:shrink-0 w-full lg:w-auto border-t lg:border-t-0 lg:border-l border-gray-100 pt-6 lg:pt-0 lg:pl-8">
+        <div class="flex flex-wrap items-center justify-center gap-6 lg:gap-8 lg:shrink-0 w-full lg:w-auto border-t lg:border-t-0 lg:border-l border-gray-100 pt-6 lg:pt-0 lg:pl-8">
             <div class="text-center flex flex-col items-center">
-                <div
-                    class="h-14 w-14 rounded-2xl bg-green-50 text-green-600 flex items-center justify-center text-xl shadow-sm mb-2">
-                    <i class="fas fa-eye"></i>
-                </div>
+                <div class="h-14 w-14 rounded-2xl bg-green-50 text-green-600 flex items-center justify-center text-xl shadow-sm mb-2"><i class="fas fa-eye"></i></div>
                 <p class="text-2xl font-black text-gray-900">{{ number_format($material->views ?? 0) }}</p>
                 <p class="text-xs font-bold text-gray-500 uppercase tracking-widest">Views</p>
             </div>
-            <div class="w-px h-16 bg-gray-200"></div>
+            
+            <div class="w-px h-16 bg-gray-200 hidden sm:block"></div>
+            
             <div class="text-center flex flex-col items-center">
-                <div
-                    class="h-14 w-14 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center text-xl shadow-sm mb-2">
-                    <i class="fas fa-layer-group"></i>
-                </div>
-                <p class="text-2xl font-black text-gray-900">{{ $material->lessons_count ?? 0 }}</p>
+                <div class="h-14 w-14 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center text-xl shadow-sm mb-2"><i class="fas fa-layer-group"></i></div>
+                <p class="text-2xl font-black text-gray-900">{{ number_format($material->lessons_count ?? 0) }}</p>
                 <p class="text-xs font-bold text-gray-500 uppercase tracking-widest">Lessons</p>
             </div>
-            <div class="w-px h-16 bg-gray-200"></div>
+            
+            <div class="w-px h-16 bg-gray-200 hidden md:block"></div>
+            
             <div class="text-center flex flex-col items-center">
-                <div
-                    class="h-14 w-14 rounded-2xl bg-purple-50 text-purple-600 flex items-center justify-center text-xl shadow-sm mb-2">
-                    <i class="fas fa-cubes"></i>
-                </div>
-                <p class="text-2xl font-black text-gray-900">{{ $material->items_count ?? 0 }}</p>
+                <div class="h-14 w-14 rounded-2xl bg-purple-50 text-purple-600 flex items-center justify-center text-xl shadow-sm mb-2"><i class="fas fa-cubes"></i></div>
+                <p class="text-2xl font-black text-gray-900">{{ number_format($material->items_count ?? 0) }}</p>
                 <p class="text-xs font-bold text-gray-500 uppercase tracking-widest">Items</p>
+            </div>
+
+            <div class="w-px h-16 bg-gray-200 hidden sm:block"></div>
+            
+            <div class="text-center flex flex-col items-center">
+                <div class="h-14 w-14 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center text-xl shadow-sm mb-2"><i class="fas fa-download"></i></div>
+                <p class="text-2xl font-black text-gray-900">{{ number_format($material->downloads ?? 0) }}</p>
+                <p class="text-xs font-bold text-gray-500 uppercase tracking-widest">Downloads</p>
             </div>
         </div>
     </div>
 
-    <div class="bg-white rounded-3xl p-8 shadow-sm border border-gray-100 mt-8 relative transition-all duration-300"
-        id="access-management-container">
-
-        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 rounded-xl border transition-colors duration-300 {{ $material->is_public ? 'bg-green-50 border-green-200 mb-0' : 'bg-gray-50 border-gray-200 mb-6' }}"
-            id="visibility-banner">
+    <div class="bg-white rounded-3xl p-8 shadow-sm border border-gray-100 mt-8 relative transition-all duration-300" id="access-management-container">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 rounded-xl border transition-colors duration-300 {{ $material->is_public ? 'bg-green-50 border-green-200 mb-0' : 'bg-gray-50 border-gray-200 mb-6' }}" id="visibility-banner">
             <div>
                 <h4 class="font-bold text-gray-900 flex items-center gap-2">
-                    <i id="visibility-icon"
-                        class="fas {{ $material->is_public ? 'fa-globe-asia text-green-600' : 'fa-lock text-gray-500' }}"></i>
-                    <span
-                        id="visibility-title">{{ $material->is_public ? 'Public Material' : 'Private Material' }}</span>
+                    <i id="visibility-icon" class="fas {{ $material->is_public ? 'fa-globe-asia text-green-600' : 'fa-lock text-gray-500' }}"></i>
+                    <span id="visibility-title">{{ $material->is_public ? 'Public Material' : 'Private Material' }}</span>
                 </h4>
-                <p id="visibility-desc"
-                    class="text-sm mt-1 {{ $material->is_public ? 'text-green-700' : 'text-gray-500' }}">
+                <p id="visibility-desc" class="text-sm mt-1 {{ $material->is_public ? 'text-green-700' : 'text-gray-500' }}">
                     {{ $material->is_public ? 'Anyone on the platform can view this module. The access list below is currently ignored.' : 'Only the specific Emails listed below can view this module.' }}
                 </p>
             </div>
 
             <div class="flex items-center gap-4 mt-2 sm:mt-0">
-                <div id="access-code-display"
-                    class="inline-flex items-center gap-3 bg-white px-4 py-2 rounded-lg border border-gray-200 shadow-sm transition-all duration-300 {{ $material->is_public ? 'opacity-50 pointer-events-none' : '' }}">
+                <div id="access-code-display" class="inline-flex items-center gap-3 bg-white px-4 py-2 rounded-lg border border-gray-200 shadow-sm transition-all duration-300 {{ $material->is_public ? 'opacity-50 pointer-events-none' : '' }}">
                     <span class="text-xs font-bold text-gray-500 uppercase tracking-widest">Class Code:</span>
-                    <span
-                        class="font-mono text-lg font-black text-[#a52a2a] tracking-widest">{{ $material->access_code ?? 'N/A' }}</span>
-                    <button onclick="copyAccessCode('{{ $material->access_code }}')"
-                        class="text-gray-400 hover:text-[#a52a2a] transition-colors" title="Copy Code">
-                        <i class="fas fa-copy"></i>
-                    </button>
+                    <span class="font-mono text-lg font-black text-[#a52a2a] tracking-widest">{{ $material->access_code ?? 'N/A' }}</span>
+                    <button onclick="copyAccessCode('{{ $material->access_code }}')" class="text-gray-400 hover:text-[#a52a2a] transition-colors" title="Copy Code"><i class="fas fa-copy"></i></button>
                 </div>
 
-                {{-- Pure Tailwind Toggle --}}
                 <label class="relative inline-flex items-center cursor-pointer shrink-0" title="Toggle Privacy">
-                    <input type="checkbox" id="visibility-toggle" class="sr-only peer"
-                        onchange="window.toggleVisibility(this)" {{ $material->is_public ? 'checked' : '' }}>
-                    <div
-                        class="w-16 h-8 bg-gray-300 rounded-full peer peer-focus:ring-2 peer-focus:ring-[#a52a2a]/40 peer-checked:after:translate-x-8 after:content-[''] after:absolute after:top-1 after:left-1 after:bg-white after:rounded-full after:h-6 after:w-6 after:transition-all after:shadow-md peer-checked:bg-[#26da65] shadow-inner transition-colors">
-                    </div>
+                    <input type="checkbox" id="visibility-toggle" class="sr-only peer" onchange="window.toggleVisibility(this)" {{ $material->is_public ? 'checked' : '' }}>
+                    <div class="w-16 h-8 bg-gray-300 rounded-full peer peer-focus:ring-2 peer-focus:ring-[#a52a2a]/40 peer-checked:after:translate-x-8 after:content-[''] after:absolute after:top-1 after:left-1 after:bg-white after:rounded-full after:h-6 after:w-6 after:transition-all after:shadow-md peer-checked:bg-[#26da65] shadow-inner transition-colors"></div>
                 </label>
             </div>
         </div>
 
-        <div id="access-management-content"
-            class="transition-all duration-500 overflow-hidden {{ $material->is_public ? 'max-h-0 opacity-0' : 'max-h-[2000px] opacity-100' }}">
+        <div id="access-management-content" class="transition-all duration-500 overflow-hidden {{ $material->is_public ? 'max-h-0 opacity-0' : 'max-h-[2000px] opacity-100' }}">
             <div class="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-6" id="access-controls">
                 <div>
                     <h3 class="text-xl font-bold text-gray-900">Access Management</h3>
                     <p class="text-sm text-gray-500 mt-1">Manage who can see this private module.</p>
-
-                    <button type="button" onclick="notifyStudents(this)"
-                        class="mt-3 px-4 py-2 bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-200 text-sm font-bold rounded-lg transition-all shadow-sm flex items-center gap-2">
+                    <button type="button" onclick="notifyStudents(this)" class="mt-3 px-4 py-2 bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-200 text-sm font-bold rounded-lg transition-all shadow-sm flex items-center gap-2">
                         <i class="fas fa-paper-plane"></i> Invite All Pending
                     </button>
                 </div>
@@ -221,114 +237,63 @@
                     <input type="email" id="student-email-input" name="email" placeholder="Enter Student Email" required
                         class="w-full md:w-64 px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#a52a2a]/20 focus:border-[#a52a2a] outline-none transition-all text-sm font-medium">
 
-                    <button type="button" onclick="submitEmail(this)"
-                        class="px-5 py-2.5 bg-gray-900 text-white text-sm font-bold rounded-xl hover:bg-gray-800 transition-all shadow-sm flex items-center gap-2 whitespace-nowrap">
+                    <button type="button" onclick="submitEmail(this)" class="px-5 py-2.5 bg-gray-900 text-white text-sm font-bold rounded-xl hover:bg-gray-800 transition-all shadow-sm flex items-center gap-2 whitespace-nowrap">
                         <i class="fas fa-plus"></i> Add
                     </button>
 
-                    <input type="file" id="email-file-input" class="hidden" accept=".csv, .xlsx, .xls"
-                        onchange="importEmailList(this)">
-                    <button type="button" onclick="document.getElementById('email-file-input').click()"
-                        class="px-5 py-2.5 bg-white border border-gray-300 text-gray-700 text-sm font-bold rounded-xl hover:bg-gray-50 transition-all shadow-sm flex items-center gap-2 whitespace-nowrap">
+                    <input type="file" id="email-file-input" class="hidden" accept=".csv, .xlsx, .xls" onchange="importEmailList(this)">
+                    <button type="button" onclick="document.getElementById('email-file-input').click()" class="px-5 py-2.5 bg-white border border-gray-300 text-gray-700 text-sm font-bold rounded-xl hover:bg-gray-50 transition-all shadow-sm flex items-center gap-2 whitespace-nowrap">
                         <i class="fas fa-file-import"></i> Import List
                     </button>
                 </form>
             </div>
 
             <div id="access-table-container">
-                <div
-                    class="flex flex-col sm:flex-row items-center justify-between gap-4 bg-gray-50/50 p-4 rounded-xl border border-gray-100 mb-4">
+                <div class="flex flex-col sm:flex-row items-center justify-between gap-4 bg-gray-50/50 p-4 rounded-xl border border-gray-100 mb-4">
                     <div class="relative w-full sm:w-72">
                         <i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm"></i>
-                        <input type="text" id="search-student" placeholder="Search Email or Name..."
-                            class="w-full pl-9 pr-4 py-2 border border-gray-200 rounded-lg outline-none focus:border-[#a52a2a] focus:ring-1 focus:ring-[#a52a2a] transition text-sm bg-white"
-                            onkeyup="filterStudents()">
+                        <input type="text" id="search-student" placeholder="Search Email or Name..." class="w-full pl-9 pr-4 py-2 border border-gray-200 rounded-lg outline-none focus:border-[#a52a2a] focus:ring-1 focus:ring-[#a52a2a] transition text-sm bg-white" onkeyup="filterStudents()">
                     </div>
 
-                    <button type="button" id="bulk-delete-btn" onclick="window.openDeleteModal('bulk')"
-                        class="hidden w-full sm:w-auto items-center justify-center gap-2 px-4 py-2 bg-red-50 text-red-600 hover:bg-red-100 border border-red-200 text-sm font-bold rounded-lg transition-all shadow-sm">
+                    <button type="button" id="bulk-delete-btn" onclick="window.openDeleteModal('bulk')" class="hidden w-full sm:w-auto items-center justify-center gap-2 px-4 py-2 bg-red-50 text-red-600 hover:bg-red-100 border border-red-200 text-sm font-bold rounded-lg transition-all shadow-sm">
                         <i class="fas fa-trash-alt"></i> Remove Selected (<span id="selected-count">0</span>)
                     </button>
                 </div>
 
                 <div class="overflow-x-auto rounded-xl border border-gray-100 mt-4">
                     <table class="w-full text-left text-sm text-gray-600" id="students-table">
-                        <thead
-                            class="bg-gray-50/50 text-[10px] uppercase text-gray-500 font-bold tracking-wider border-b border-gray-100">
+                        <thead class="bg-gray-50/50 text-[10px] uppercase text-gray-500 font-bold tracking-wider border-b border-gray-100">
                             <tr>
-                                <th class="px-6 py-4 w-12 text-center">
-                                    <input type="checkbox" id="select-all"
-                                        class="rounded border-gray-300 text-[#a52a2a] focus:ring-[#a52a2a] h-4 w-4 cursor-pointer transition-all"
-                                        onclick="window.toggleSelectAll(this)">
-                                </th>
-                                <th class="px-6 py-4 cursor-pointer group hover:bg-gray-100 transition"
-                                    onclick="window.sortTable(1, 'alpha')">
-                                    Email Address <i
-                                        class="fas fa-sort ml-1 text-gray-300 group-hover:text-gray-500"></i>
-                                </th>
-                                <th class="px-6 py-4 cursor-pointer group hover:bg-gray-100 transition"
-                                    onclick="window.sortTable(2, 'alpha')">
-                                    Student Name <i
-                                        class="fas fa-sort ml-1 text-gray-300 group-hover:text-gray-500"></i>
-                                </th>
-                                <th class="px-6 py-4 text-center cursor-pointer group hover:bg-gray-100 transition"
-                                    onclick="window.sortTable(3, 'alpha')">
-                                    Status <i class="fas fa-sort ml-1 text-gray-300 group-hover:text-gray-500"></i>
-                                </th>
+                                <th class="px-6 py-4 w-12 text-center"><input type="checkbox" id="select-all" class="rounded border-gray-300 text-[#a52a2a] focus:ring-[#a52a2a] h-4 w-4 cursor-pointer transition-all" onclick="window.toggleSelectAll(this)"></th>
+                                <th class="px-6 py-4 cursor-pointer group hover:bg-gray-100 transition" onclick="window.sortTable(1, 'alpha')">Email Address <i class="fas fa-sort ml-1 text-gray-300 group-hover:text-gray-500"></i></th>
+                                <th class="px-6 py-4 cursor-pointer group hover:bg-gray-100 transition" onclick="window.sortTable(2, 'alpha')">Student Name <i class="fas fa-sort ml-1 text-gray-300 group-hover:text-gray-500"></i></th>
+                                <th class="px-6 py-4 text-center cursor-pointer group hover:bg-gray-100 transition" onclick="window.sortTable(3, 'alpha')">Status <i class="fas fa-sort ml-1 text-gray-300 group-hover:text-gray-500"></i></th>
                                 <th class="px-6 py-4 text-center">Action</th>
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-gray-100" id="students-tbody">
                             @forelse($whitelistedStudents ?? [] as $access)
                                 <tr class="student-row hover:bg-gray-50/50 transition">
-                                    <td class="px-6 py-4 text-center">
-                                        <input type="checkbox"
-                                            class="email-checkbox rounded border-gray-300 text-[#a52a2a] focus:ring-[#a52a2a] h-4 w-4 cursor-pointer transition-all"
-                                            value="{{ $access->id }}" onchange="window.updateBulkDeleteBtn()">
-                                    </td>
+                                    <td class="px-6 py-4 text-center"><input type="checkbox" class="email-checkbox rounded border-gray-300 text-[#a52a2a] focus:ring-[#a52a2a] h-4 w-4 cursor-pointer transition-all" value="{{ $access->id }}" onchange="window.updateBulkDeleteBtn()"></td>
                                     <td class="px-6 py-4 font-medium text-gray-900 email-cell">{{ $access->email }}</td>
-                                    <td class="px-6 py-4 name-cell {{ $access->student ? 'text-gray-800' : '' }}">
-                                        {{ $access->student ? $access->student->first_name . ' ' . $access->student->last_name : 'Unregistered' }}
-                                    </td>
+                                    <td class="px-6 py-4 name-cell {{ $access->student ? 'text-gray-800' : '' }}">{{ $access->student ? $access->student->first_name . ' ' . $access->student->last_name : 'Unregistered' }}</td>
                                     <td class="px-6 py-4 text-center status-cell">
                                         @if($access->status === 'enrolled')
-                                            <span
-                                                class="px-2.5 py-1 bg-green-100 text-green-700 rounded-md text-[10px] font-bold uppercase tracking-wider border border-green-200">
-                                                Enrolled
-                                            </span>
+                                            <span class="px-2.5 py-1 bg-green-100 text-green-700 rounded-md text-[10px] font-bold uppercase tracking-wider border border-green-200">Enrolled</span>
                                         @else
                                             <div class="flex flex-col items-center justify-center gap-1.5">
-                                                <span
-                                                    class="status-badge px-2.5 py-1 {{ $access->status === 'invited' ? 'bg-blue-100 text-blue-700 border-blue-200' : 'bg-amber-100 text-amber-700 border-amber-200' }} rounded-md text-[10px] font-bold uppercase tracking-wider border">
-                                                    {{ strtoupper($access->status) }}
-                                                </span>
-
-                                                <button type="button" onclick="sendIndividualInvite(this, '{{ $access->id }}')"
-                                                    class="invite-btn text-blue-600 hover:text-blue-800 text-[10px] font-bold uppercase tracking-wider flex items-center gap-1 transition-colors group">
-                                                    <i
-                                                        class="fas fa-paper-plane group-hover:-translate-y-0.5 transition-transform"></i>
-                                                    <span
-                                                        class="btn-text">{{ $access->status === 'invited' ? 'Send Again' : 'Send Invite' }}</span>
-                                                </button>
+                                                <span class="status-badge px-2.5 py-1 {{ $access->status === 'invited' ? 'bg-blue-100 text-blue-700 border-blue-200' : 'bg-amber-100 text-amber-700 border-amber-200' }} rounded-md text-[10px] font-bold uppercase tracking-wider border">{{ strtoupper($access->status) }}</span>
+                                                <button type="button" onclick="sendIndividualInvite(this, '{{ $access->id }}')" class="invite-btn text-blue-600 hover:text-blue-800 text-[10px] font-bold uppercase tracking-wider flex items-center gap-1 transition-colors group"><i class="fas fa-paper-plane group-hover:-translate-y-0.5 transition-transform"></i><span class="btn-text">{{ $access->status === 'invited' ? 'Send Again' : 'Send Invite' }}</span></button>
                                             </div>
                                         @endif
                                     </td>
-                                    <td class="px-6 py-4 text-center">
-                                        <button type="button" onclick="window.openDeleteModal('{{ $access->id }}')"
-                                            class="text-gray-400 hover:text-red-500 transition" title="Remove Access">
-                                            <i class="fas fa-times-circle"></i>
-                                        </button>
-                                    </td>
+                                    <td class="px-6 py-4 text-center"><button type="button" onclick="window.openDeleteModal('{{ $access->id }}')" class="text-gray-400 hover:text-red-500 transition" title="Remove Access"><i class="fas fa-times-circle"></i></button></td>
                                 </tr>
                             @empty
                                 <tr id="empty-state-row">
                                     <td colspan="5" class="px-6 py-12 text-center text-gray-400">
-                                        <div
-                                            class="h-16 w-16 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-3 text-2xl border border-gray-100">
-                                            <i class="fas fa-users-slash"></i>
-                                        </div>
-                                        <p class="font-medium text-gray-500">No students found.</p>
-                                        <p class="text-xs mt-1">Add emails above to grant access.</p>
+                                        <div class="h-16 w-16 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-3 text-2xl border border-gray-100"><i class="fas fa-users-slash"></i></div>
+                                        <p class="font-medium text-gray-500">No students found.</p><p class="text-xs mt-1">Add emails above to grant access.</p>
                                     </td>
                                 </tr>
                             @endforelse
@@ -336,25 +301,118 @@
                     </table>
                 </div>
 
-                <div id="pagination-wrapper"
-                    class="rounded-xl mt-1 hidden flex flex-col sm:flex-row items-center justify-between px-6 py-4 border-t border-gray-100 bg-gray-50/50">
-                    <div class="text-sm text-gray-500 mb-3 sm:mb-0">
-                        Showing <span id="page-start-info" class="font-bold text-gray-900">0</span> to <span
-                            id="page-end-info" class="font-bold text-gray-900">0</span> of <span id="page-total-info"
-                            class="font-bold text-gray-900">0</span> results
-                    </div>
+                <div id="pagination-wrapper" class="rounded-xl mt-1 hidden flex flex-col sm:flex-row items-center justify-between px-6 py-4 border-t border-gray-100 bg-gray-50/50">
+                    <div class="text-sm text-gray-500 mb-3 sm:mb-0">Showing <span id="page-start-info" class="font-bold text-gray-900">0</span> to <span id="page-end-info" class="font-bold text-gray-900">0</span> of <span id="page-total-info" class="font-bold text-gray-900">0</span> results</div>
                     <div class="flex items-center gap-1" id="pagination-controls"></div>
                 </div>
             </div>
         </div>
     </div>
 
+    {{-- GRADING & CERTIFICATION SETTINGS --}}
+    <div class="bg-white rounded-3xl p-8 shadow-sm border border-gray-100 mt-8">
+        
+        @if($isLive)
+            <div class="mb-6 p-4 bg-blue-50 text-blue-700 rounded-xl border border-blue-200 flex items-start gap-3">
+                <i class="fas fa-lock mt-0.5"></i>
+                <div class="text-sm">
+                    <strong class="font-bold">Grading Configuration Locked</strong>
+                    <p class="mt-1">This module is currently Published. To protect student progress, you must switch it back to Draft Mode at the top of the page to adjust grading settings.</p>
+                </div>
+            </div>
+        @endif
+
+        <div class="flex items-center gap-4 mb-2">
+            <div class="h-10 w-10 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center text-lg">
+                <i class="fas fa-award"></i>
+            </div>
+            <h3 class="text-xl font-bold text-gray-900">Grading & Certification Configuration</h3>
+        </div>
+        <p class="text-sm text-gray-500 mb-8 ml-14">Configure how students are evaluated to receive their completion certificate.</p>
+
+        @php
+            $isWeightDisabled = $isLive || (!$hasExams || !$hasQuizzes);
+            $isPassingDisabled = $isLive;
+        @endphp
+
+        @if(!$hasExams && !$hasQuizzes)
+             <div class="p-5 bg-gray-50 border border-gray-200 rounded-xl flex items-start gap-4 ml-14">
+                 <i class="fas fa-info-circle text-gray-400 text-xl mt-0.5"></i>
+                 <div>
+                    <p class="text-sm font-bold text-gray-700">No Assessments Detected</p>
+                    <p class="text-sm text-gray-500 mt-1">This module currently has no quizzes or exams. Students won't receive any certificates from this material.</p>
+                 </div>
+             </div>
+        @else
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-12 ml-14">
+                
+                {{-- SLIDER 1: Weight Distribution --}}
+                <div class="relative">
+                    <div class="flex justify-between items-end mb-4">
+                        <div>
+                            <h4 class="font-bold text-gray-800">Assessment Weights</h4>
+                            <p class="text-xs text-gray-500 mt-1">Adjust the impact of Quizzes vs. Final Exam.</p>
+                        </div>
+                        @if(!$hasExams || !$hasQuizzes)
+                            <span class="text-[10px] font-bold uppercase tracking-widest bg-gray-100 text-gray-400 px-2 py-1 rounded">Locked</span>
+                        @endif
+                    </div>
+
+                    <div class="relative w-full mt-2">
+                        <input type="range" id="weight-slider" min="0" max="100" value="{{ $quizWeight }}"
+                               class="{{ $isWeightDisabled ? 'opacity-50 cursor-not-allowed' : '' }}"
+                               {{ $isWeightDisabled ? 'disabled' : '' }}
+                               oninput="window.updateWeightUI()"
+                               style="color: #6b7280;">
+                               
+                        <div class="flex justify-between mt-4 text-sm font-bold">
+                            <span id="quiz-weight-text" class="{{ $hasQuizzes ? 'text-yellow-600' : 'text-gray-300' }}">Quizzes: {{ $quizWeight }}%</span>
+                            <span id="exam-weight-text" class="{{ $hasExams ? 'text-red-600' : 'text-gray-300' }}">Exam: {{ $savedExamWeight }}%</span>
+                        </div>
+                    </div>
+                </div>
+
+                {{-- SLIDER 2: Passing Percentage --}}
+                <div class="relative border-t md:border-t-0 md:border-l border-gray-100 pt-8 md:pt-0 md:pl-12">
+                    <div class="flex justify-between items-end mb-4">
+                        <div>
+                            <h4 class="font-bold text-gray-800">Passing Grade Required</h4>
+                            <p class="text-xs text-gray-500 mt-1">Minimum overall score to earn the certificate.</p>
+                        </div>
+                        <span id="passing-percentage-text" class="text-2xl font-black text-green-600">{{ $savedPassingPercentage }}%</span>
+                    </div>
+
+                    <input type="range" id="passing-slider" min="0" max="100" value="{{ $savedPassingPercentage }}"
+                           class="{{ $isPassingDisabled ? 'opacity-50 cursor-not-allowed' : '' }}"
+                           {{ $isPassingDisabled ? 'disabled' : '' }}
+                           oninput="window.updatePassingUI()"
+                           style="color: #16a34a;">
+
+                    {{-- Zero Percent Warning --}}
+                    <div id="zero-percent-warning" class="mt-5 p-4 bg-amber-50 border border-amber-200 rounded-xl items-start gap-3 transition-all duration-300 {{ $savedPassingPercentage == 0 ? 'flex' : 'hidden' }}">
+                        <i class="fas fa-exclamation-triangle text-amber-500 mt-0.5"></i>
+                        <div>
+                            <p class="text-sm font-bold text-amber-800">No Grading Enforced</p>
+                            <p class="text-xs text-amber-700 mt-1 leading-relaxed">At 0%, student answers will not be strictly graded. They can claim the certificate simply by traversing all materials and completing the assessments regardless of their final score.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="mt-8 pt-6 border-t border-gray-100 flex justify-end">
+                 <button type="button" onclick="window.saveGradingSettings(this)" 
+                    class="px-6 py-3 bg-gray-900 text-white text-sm font-bold rounded-xl hover:bg-gray-800 transition-all shadow-sm flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                    {{ $isLive ? 'disabled' : '' }}>
+                     <i class="fas fa-save"></i> <span>Save Grading Settings</span>
+                 </button>
+            </div>
+        @endif
+    </div>
+
     <div class="bg-red-50 rounded-3xl p-6 border border-red-100 mt-8">
         <h3 class="text-red-800 font-bold mb-2">Danger Zone</h3>
-        <p class="text-sm text-red-600 mb-4">Deleting this module will permanently remove it and all associated content.
-            This action cannot be undone.</p>
-        <button onclick="window.openMaterialDeleteModal()"
-            class="px-6 py-2.5 bg-white border border-red-200 text-red-600 text-sm font-bold rounded-xl hover:bg-red-600 hover:text-white transition-all shadow-sm">
+        <p class="text-sm text-red-600 mb-4">Deleting this module will permanently remove it and all associated content. This action cannot be undone.</p>
+        <button onclick="window.openMaterialDeleteModal()" class="px-6 py-2.5 bg-white border border-red-200 text-red-600 text-sm font-bold rounded-xl hover:bg-red-600 hover:text-white transition-all shadow-sm">
             Delete Module
         </button>
     </div>
@@ -364,18 +422,12 @@
         <div class="absolute inset-0 bg-gray-900/60 backdrop-blur-sm" onclick="window.closeMaterialDeleteModal()"></div>
         <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-sm p-6">
             <div class="bg-white rounded-2xl shadow-2xl overflow-hidden border border-gray-100 p-6 text-center">
-                <div
-                    class="h-16 w-16 bg-red-50 text-red-500 rounded-full flex items-center justify-center mx-auto mb-4 text-3xl">
-                    <i class="fas fa-trash-alt"></i>
-                </div>
+                <div class="h-16 w-16 bg-red-50 text-red-500 rounded-full flex items-center justify-center mx-auto mb-4 text-3xl"><i class="fas fa-trash-alt"></i></div>
                 <h3 class="text-xl font-bold text-gray-900 mb-2">Delete Module?</h3>
-                <p class="text-gray-500 text-sm mb-6">Are you sure you want to permanently delete this material? All
-                    associated content will be lost.</p>
+                <p class="text-gray-500 text-sm mb-6">Are you sure you want to permanently delete this material? All associated content will be lost.</p>
                 <div class="flex gap-3 mt-2">
-                    <button type="button" onclick="window.closeMaterialDeleteModal()"
-                        class="w-full py-3 bg-gray-100 text-gray-700 font-bold rounded-xl hover:bg-gray-200 transition active:scale-95">Cancel</button>
-                    <button type="button" id="confirm-material-delete-btn" onclick="window.executeMaterialDelete()"
-                        class="w-full py-3 bg-red-600 text-white font-bold rounded-xl hover:bg-red-700 transition active:scale-95 shadow-md flex items-center justify-center gap-2">
+                    <button type="button" onclick="window.closeMaterialDeleteModal()" class="w-full py-3 bg-gray-100 text-gray-700 font-bold rounded-xl hover:bg-gray-200 transition active:scale-95">Cancel</button>
+                    <button type="button" id="confirm-material-delete-btn" onclick="window.executeMaterialDelete()" class="w-full py-3 bg-red-600 text-white font-bold rounded-xl hover:bg-red-700 transition active:scale-95 shadow-md flex items-center justify-center gap-2">
                         <i class="fas fa-trash-alt"></i> Delete
                     </button>
                 </div>
@@ -387,18 +439,12 @@
         <div class="absolute inset-0 bg-gray-900/60 backdrop-blur-sm" onclick="window.closeDeleteModal()"></div>
         <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-sm p-6">
             <div class="bg-white rounded-2xl shadow-2xl overflow-hidden border border-gray-100 p-6 text-center">
-                <div
-                    class="h-16 w-16 bg-red-50 text-red-500 rounded-full flex items-center justify-center mx-auto mb-4 text-3xl">
-                    <i class="fas fa-exclamation-triangle"></i>
-                </div>
+                <div class="h-16 w-16 bg-red-50 text-red-500 rounded-full flex items-center justify-center mx-auto mb-4 text-3xl"><i class="fas fa-exclamation-triangle"></i></div>
                 <h3 class="text-xl font-bold text-gray-900 mb-2">Revoke Access?</h3>
-                <p id="delete-modal-text" class="text-gray-500 text-sm mb-6">Are you sure you want to remove access for
-                    the selected student(s)? They will not be able to view this module.</p>
+                <p id="delete-modal-text" class="text-gray-500 text-sm mb-6">Are you sure you want to remove access for the selected student(s)? They will not be able to view this module.</p>
                 <div class="flex gap-3 mt-2">
-                    <button type="button" onclick="window.closeDeleteModal()"
-                        class="w-full py-3 bg-gray-100 text-gray-700 font-bold rounded-xl hover:bg-gray-200 transition active:scale-95">Cancel</button>
-                    <button type="button" id="confirm-delete-btn" onclick="window.executeDelete()"
-                        class="w-full py-3 bg-red-600 text-white font-bold rounded-xl hover:bg-red-700 transition active:scale-95 shadow-md flex items-center justify-center gap-2">
+                    <button type="button" onclick="window.closeDeleteModal()" class="w-full py-3 bg-gray-100 text-gray-700 font-bold rounded-xl hover:bg-gray-200 transition active:scale-95">Cancel</button>
+                    <button type="button" id="confirm-delete-btn" onclick="window.executeDelete()" class="w-full py-3 bg-red-600 text-white font-bold rounded-xl hover:bg-red-700 transition active:scale-95 shadow-md flex items-center justify-center gap-2">
                         <i class="fas fa-trash-alt"></i> Confirm
                     </button>
                 </div>
@@ -406,16 +452,102 @@
         </div>
     </div>
 
-    <div id="custom-snackbar"
-        class="fixed bg-[#a52a2a] bottom-6 right-6 z-[200] transform translate-y-24 opacity-0 transition-all duration-300 flex items-center gap-3 px-5 py-4 rounded-xl shadow-2xl font-medium text-sm text-white">
+    <div id="custom-snackbar" class="fixed bg-[#a52a2a] bottom-6 right-6 z-[200] transform translate-y-24 opacity-0 transition-all duration-300 flex items-center gap-3 px-5 py-4 rounded-xl shadow-2xl font-medium text-sm text-white">
         <div id="snackbar-icon" class="text-xl"></div>
         <span id="snackbar-message"></span>
-        <button onclick="closeSnackbar()" class="ml-4 text-white/70 hover:text-white transition"><i
-                class="fas fa-times"></i></button>
+        <button onclick="closeSnackbar()" class="ml-4 text-white/70 hover:text-white transition"><i class="fas fa-times"></i></button>
     </div>
 </div>
 
 <script>
+    // --- Grading Logic ---
+    window.updateWeightUI = function() {
+        const slider = document.getElementById('weight-slider');
+        if (!slider) return;
+        
+        const quizWeight = parseInt(slider.value);
+        const examWeight = 100 - quizWeight;
+        
+        document.getElementById('quiz-weight-text').innerText = `Quizzes: ${quizWeight}%`;
+        document.getElementById('exam-weight-text').innerText = `Exam: ${examWeight}%`;
+        
+        // Dynamic Gradient: Yellow (#eab308) for Quizzes on Left, Red (#ef4444) for Exam on Right
+        slider.style.background = `linear-gradient(to right, #eab308 ${quizWeight}%, #ef4444 ${quizWeight}%)`;
+    };
+
+    window.updatePassingUI = function() {
+        const slider = document.getElementById('passing-slider');
+        if (!slider) return;
+        
+        const val = parseInt(slider.value);
+        document.getElementById('passing-percentage-text').innerText = `${val}%`;
+
+        // Dynamic Gradient: Green (#16a34a) on Left, Gray (#e5e7eb) on Right
+        slider.style.background = `linear-gradient(to right, #16a34a ${val}%, #e5e7eb ${val}%)`;
+
+        const warning = document.getElementById('zero-percent-warning');
+        if (val === 0) {
+            warning.classList.remove('hidden');
+            warning.classList.add('flex');
+        } else {
+            warning.classList.remove('flex');
+            warning.classList.add('hidden');
+        }
+    };
+
+    // Initialize CSS Gradients on Page Load
+    setTimeout(() => {
+        if(document.getElementById('weight-slider')) window.updateWeightUI();
+        if(document.getElementById('passing-slider')) window.updatePassingUI();
+
+        // Auto-sync if an anomaly was detected (e.g. Exam deleted in builder)
+        @if($needsWeightSync)
+            console.log("Anomaly detected: Syncing grading weights based on available content...");
+            window.saveGradingSettings(null, true);
+        @endif
+    }, 50);
+
+    window.saveGradingSettings = async function(btn = null, isSilent = false) {
+        // We get quiz weight from the slider, so examWeight is 100 - quizWeight
+        const quizWeight = document.getElementById('weight-slider') ? parseInt(document.getElementById('weight-slider').value) : 0;
+        const examWeight = 100 - quizWeight; 
+        
+        const passingScore = document.getElementById('passing-slider') ? parseInt(document.getElementById('passing-slider').value) : 0;
+        const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || '{{ csrf_token() }}';
+
+        let originalHtml = '';
+        if (btn) {
+            originalHtml = btn.innerHTML;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> <span>Saving...</span>';
+            btn.disabled = true;
+        }
+
+        try {
+            const response = await fetch(`/dashboard/materials/{{ $material->id }}/grading`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrfToken, 'Accept': 'application/json' },
+                body: JSON.stringify({ exam_weight: examWeight, passing_percentage: passingScore })
+            });
+            const data = await response.json();
+            if(!response.ok) throw new Error(data.message || "Server Error");
+            
+            if (!isSilent) {
+                showSnackbar('Grading settings saved successfully!', 'success');
+            }
+
+        } catch (e) {
+            if (!isSilent) {
+                showSnackbar(e.message || 'Failed to save grading settings.', 'error');
+            }
+        } finally {
+            if (btn) {
+                btn.innerHTML = originalHtml;
+                btn.disabled = false;
+            }
+        }
+    };
+
+
     // --- Individual Invite Logic ---
     window.sendIndividualInvite = async function (btn, accessId) {
         const btnTextEl = btn.querySelector('.btn-text');
@@ -598,6 +730,8 @@
                     ping.className = "animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75 hidden";
                     ping.classList.add('hidden');
                 }
+                
+                setTimeout(() => window.location.reload(), 1000);
             } else {
                 checkbox.checked = !checkbox.checked;
                 throw new Error(data.message || 'Failed to update status.');

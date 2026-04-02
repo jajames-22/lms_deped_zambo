@@ -14,11 +14,15 @@ class Material extends Model
         'description',
         'instructor_id',
         'status',
+        'exam_weight',         
+        'passing_percentage',  
+        'access_code',
         'thumbnail',
         'views',
+        'downloads',           
         'is_public',
-        'draft_json',
-        'is_featured'
+        'is_featured',
+        'draft_json'
     ];
 
     protected $casts = [

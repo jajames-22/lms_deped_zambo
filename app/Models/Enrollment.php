@@ -13,6 +13,7 @@ class Enrollment extends Model
         'user_id',
         'material_id',
         'status',
+        'progress_data',
         'completed_at'
         
     ];
