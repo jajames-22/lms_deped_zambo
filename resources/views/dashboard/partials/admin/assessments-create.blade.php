@@ -7,7 +7,7 @@
     data-delete-url="{{ isset($assessment) && isset($assessment->id) ? route('dashboard.assessments.destroy', $assessment->id) : '#' }}"
     data-redirect-url="{{ route('dashboard.assessments.index') }}" data-csrf="{{ csrf_token() }}"
     data-upload-url="{{ route('dashboard.assessments.upload_media') }}"
-    class="space-y-6 pb-20 w-full max-w-5xl mx-auto">
+    class="space-y-6 pb-20 w-full max-w-5xl mx-auto relative">
 
     <input type="hidden" id="existing-data" value="{{ json_encode($categories ?? []) }}">
     <input type="hidden" id="server-draft-data" value="{{ $assessment->draft_json ?? '' }}">
@@ -71,9 +71,7 @@
         </div>
     </div>
 
-
     <div id="builder-container" class="space-y-4"></div>
-
 
     <div class="mt-6 grid grid-cols-1 md:grid-cols-3 gap-4">
         <button type="button" onclick="AssessmentBuilder.addCategory()"
@@ -108,6 +106,21 @@
             <i class="fas fa-paper-plane"></i>
         </button>
     </div>
+</div>
+
+<div id="quick-nav-widget" class="fixed bottom-8 right-8 z-[90] flex flex-col items-end gap-2 hidden">
+    <div id="quick-nav-menu" class="hidden flex-col gap-2 bg-white/95 backdrop-blur-md p-4 rounded-2xl shadow-2xl border border-gray-200 mb-2 w-72 max-h-[60vh] overflow-y-auto">
+        <div class="flex items-center justify-between mb-2 px-1">
+            <span class="text-xs font-bold text-gray-400 uppercase tracking-wider">Assessment Outline</span>
+            <span id="nav-category-count" class="text-xs bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full font-bold">0</span>
+        </div>
+        <div id="quick-nav-list" class="flex flex-col gap-1">
+            </div>
+    </div>
+    <button onclick="toggleQuickNav()" class="h-14 w-14 bg-gray-900 text-white rounded-full shadow-lg hover:bg-gray-800 hover:scale-105 transition-all flex items-center justify-center text-xl active:scale-95 group">
+        <i class="fas fa-list-ul group-hover:hidden"></i>
+        <i class="fas fa-chevron-up hidden group-hover:block"></i>
+    </button>
 </div>
 
 <div id="back-modal" class="fixed inset-0 z-[100] hidden">
@@ -419,4 +432,135 @@
         modal.classList.remove('hidden');
         actionBtn.onclick = () => modal.classList.add('hidden');
     }
+</script>
+
+<script>
+    (function initializeQuickNav() {
+        const container = document.getElementById('builder-container');
+        // Grab the main content area to measure its padding
+        const contentArea = document.getElementById('content-area');
+        
+        if (!container) {
+            setTimeout(initializeQuickNav, 100);
+            return;
+        }
+
+        function updateNavigationAndStickyHeaders() {
+            const list = document.getElementById('quick-nav-list');
+            const widget = document.getElementById('quick-nav-widget');
+            const counter = document.getElementById('nav-category-count');
+            
+            if(!list || !widget || !counter) return;
+
+            list.innerHTML = ''; 
+
+            const sections = container.children;
+            
+            if (sections.length > 0) {
+                widget.classList.remove('hidden');
+                counter.innerText = sections.length;
+            } else {
+                widget.classList.add('hidden');
+                document.getElementById('quick-nav-menu').classList.add('hidden');
+            }
+
+            // Dynamically calculate the gap caused by the dashboard's padding
+            const gapOffset = contentArea ? window.getComputedStyle(contentArea).paddingTop : '32px';
+
+            Array.from(sections).forEach((section, index) => {
+                if (!section.id) section.id = 'builder-category-' + index;
+
+                section.classList.remove('overflow-hidden');
+                section.style.overflow = 'visible';
+
+                let header = section.firstElementChild;
+                if (header && header.tagName === 'INPUT') {
+                    header = header.nextElementSibling;
+                }
+
+                if (header) {
+                    header.style.position = 'sticky';
+                    
+                    // Set the top position to perfectly negative the padding gap
+                    header.style.top = '-' + gapOffset; 
+                    header.style.zIndex = '40';
+                    
+                    // 1. Remove old flat backgrounds
+                    header.classList.remove('bg-gray-50/50', 'bg-white');
+                    
+                    // 2. Apply Premium Glassmorphism (frosted glass blur effect)
+                    header.style.backgroundColor = 'rgba(255, 255, 255, 0.85)'; 
+                    header.style.backdropFilter = 'blur(12px)';
+                    header.style.WebkitBackdropFilter = 'blur(12px)'; // Safari support
+                    
+                    // 3. Add a distinct bottom border to separate from scrolling content
+                    header.style.borderBottom = '1px solid #e5e7eb'; 
+                    
+                    // 4. Match the rounded corners of the parent card
+                    header.style.borderTopLeftRadius = '1rem';
+                    header.style.borderTopRightRadius = '1rem';
+                    
+                    // 5. Softer, more elevated floating shadow
+                    header.style.boxShadow = '0 10px 15px -3px rgba(0, 0, 0, 0.05), 0 4px 6px -2px rgba(0, 0, 0, 0.025)'; 
+                }
+
+                const titleInput = section.querySelector('input[type="text"]');
+                let titleText = `Section ${index + 1}`;
+                
+                if (titleInput && titleInput.value) {
+                    titleText = titleInput.value;
+                }
+
+                if (titleInput) {
+                    titleInput.addEventListener('input', (e) => {
+                        const btn = document.getElementById('jump-btn-' + index);
+                        if(btn) btn.innerHTML = `<i class="fas fa-circle text-[8px] text-gray-300"></i> <span class="truncate">${e.target.value || `Section ${index + 1}`}</span>`;
+                    });
+                }
+
+                const btn = document.createElement('button');
+                btn.id = 'jump-btn-' + index;
+                btn.className = 'w-full text-left px-3 py-2.5 text-sm text-gray-600 hover:bg-gray-50 hover:text-gray-900 rounded-lg transition flex items-center gap-3 font-medium border border-transparent hover:border-gray-200';
+                btn.innerHTML = `<i class="fas fa-circle text-[8px] text-gray-300"></i> <span class="truncate">${titleText}</span>`;
+                
+                btn.onclick = () => {
+                    // Temporarily adjust the scroll position to account for the navbar
+                    const yOffset = -80; 
+                    const y = section.getBoundingClientRect().top + window.pageYOffset + yOffset;
+                    
+                    if(contentArea) {
+                        contentArea.scrollTo({top: section.offsetTop - 20, behavior: 'smooth'});
+                    } else {
+                        window.scrollTo({top: y, behavior: 'smooth'});
+                    }
+
+                    section.classList.add('ring-4', 'ring-[#a52a2a]/30', 'transition-all', 'duration-500');
+                    setTimeout(() => section.classList.remove('ring-4', 'ring-[#a52a2a]/30'), 1500);
+                    window.toggleQuickNav(); 
+                };
+                list.appendChild(btn);
+            });
+        }
+
+        const observer = new MutationObserver(() => {
+            updateNavigationAndStickyHeaders();
+        });
+
+        observer.observe(container, { childList: true, subtree: false });
+
+        setTimeout(updateNavigationAndStickyHeaders, 500);
+    })();
+
+    window.toggleQuickNav = function() {
+        const menu = document.getElementById('quick-nav-menu');
+        if (!menu) return;
+        
+        if (menu.classList.contains('hidden')) {
+            menu.classList.remove('hidden');
+            menu.classList.add('flex');
+        } else {
+            menu.classList.add('hidden');
+            menu.classList.remove('flex');
+        }
+    };
 </script>

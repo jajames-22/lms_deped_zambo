@@ -184,6 +184,15 @@ MaterialBuilder.addSection = function (type = 'lesson') {
             </div>`;
     }
 
+    // NEW: Only render move buttons if it is NOT an exam
+    let moveButtonsHtml = '';
+    if (type !== 'exam') {
+        moveButtonsHtml = `
+            <button type="button" onclick="MaterialBuilder.moveCategoryUp(this, event)" class="h-8 w-8 flex items-center justify-center text-gray-400 hover:text-gray-700 hover:bg-gray-200 rounded transition" title="Move Section Up"><i class="fas fa-arrow-up"></i></button>
+            <button type="button" onclick="MaterialBuilder.moveCategoryDown(this, event)" class="h-8 w-8 flex items-center justify-center text-gray-400 hover:text-gray-700 hover:bg-gray-200 rounded transition" title="Move Section Down"><i class="fas fa-arrow-down"></i></button>
+        `;
+    }
+
     const html = `
         <div class="bg-white rounded-2xl shadow-sm border ${borderColor} category-block overflow-hidden transition-all mb-4" id="${catId}" data-section-type="${type}">
             <div class="p-4 bg-gray-50/50 flex items-center justify-between cursor-pointer group" onclick="MaterialBuilder.toggleCategory('${catId}', event)">
@@ -195,8 +204,7 @@ MaterialBuilder.addSection = function (type = 'lesson') {
                 </div>
                 
                 <div class="flex items-center gap-1">
-                    <button type="button" onclick="MaterialBuilder.moveCategoryUp(this, event)" class="h-8 w-8 flex items-center justify-center text-gray-400 hover:text-gray-700 hover:bg-gray-200 rounded transition" title="Move Section Up"><i class="fas fa-arrow-up"></i></button>
-                    <button type="button" onclick="MaterialBuilder.moveCategoryDown(this, event)" class="h-8 w-8 flex items-center justify-center text-gray-400 hover:text-gray-700 hover:bg-gray-200 rounded transition" title="Move Section Down"><i class="fas fa-arrow-down"></i></button>
+                    ${moveButtonsHtml}
                     <button type="button" onclick="MaterialBuilder.removeElement('${catId}')" class="h-8 w-8 flex items-center justify-center text-gray-400 hover:text-red-500 hover:bg-red-50 rounded transition ml-2" title="Delete Section"><i class="fas fa-trash-alt"></i></button>
                 </div>
             </div>

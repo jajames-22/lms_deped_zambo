@@ -92,7 +92,7 @@
                 </div>
             </button>
 
-            <button type="button" onclick="MaterialBuilder.addSection('exam')" class="px-4 py-8 border-2 border-dashed border-red-200 text-red-600 font-bold rounded-2xl hover:bg-red-50 transition flex flex-col items-center justify-center gap-3 group bg-white shadow-sm">
+            <button type="button" onclick="handleAddExam()" class="px-4 py-8 border-2 border-dashed border-red-200 text-red-600 font-bold rounded-2xl hover:bg-red-50 transition flex flex-col items-center justify-center gap-3 group bg-white shadow-sm">
                 <div class="h-12 w-12 rounded-full bg-red-100 group-hover:bg-red-200 flex items-center justify-center transition text-xl">
                     <i class="fas fa-file-signature"></i>
                 </div>
@@ -126,6 +126,21 @@
             <i class="fas fa-upload"></i>
         </button>
     </div>
+</div>
+
+<div id="quick-nav-widget" class="fixed bottom-8 right-8 z-[90] flex flex-col items-end gap-2 hidden">
+    <div id="quick-nav-menu" class="hidden flex-col gap-2 bg-white/95 backdrop-blur-md p-4 rounded-2xl shadow-2xl border border-gray-200 mb-2 w-72 max-h-[60vh] overflow-y-auto">
+        <div class="flex items-center justify-between mb-2 px-1">
+            <span class="text-xs font-bold text-gray-400 uppercase tracking-wider">Course Outline</span>
+            <span id="nav-lesson-count" class="text-xs bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full font-bold">0</span>
+        </div>
+        <div id="quick-nav-list" class="flex flex-col gap-1">
+            </div>
+    </div>
+    <button onclick="toggleQuickNav()" class="h-14 w-14 bg-gray-900 text-white rounded-full shadow-lg hover:bg-gray-800 hover:scale-105 transition-all flex items-center justify-center text-xl active:scale-95 group">
+        <i class="fas fa-list-ul group-hover:hidden"></i>
+        <i class="fas fa-chevron-up hidden group-hover:block"></i>
+    </button>
 </div>
 
 <div id="back-modal" class="fixed inset-0 z-[100] hidden">
@@ -263,7 +278,9 @@
 
 <script src="{{ asset('js/material.js') }}"></script>
 
+
 <script>
+    /* Original scripts remain exactly the same */
     function previewThumbnail(input) {
         if (input.files && input.files[0]) {
             const reader = new FileReader();
@@ -471,4 +488,148 @@
         modal.classList.remove('hidden');
         actionBtn.onclick = () => modal.classList.add('hidden');
     }
+
+    function handleAddExam() {
+        let payload = MaterialBuilder.getPayload ? MaterialBuilder.getPayload() : { categories: [] };
+        
+        let hasExam = payload.categories && payload.categories.some(cat => cat.section_type === 'exam' || cat.type === 'exam');
+        let builderHtml = document.getElementById('builder-container').innerHTML;
+
+        if (hasExam || builderHtml.includes('Final Exam') || builderHtml.includes('section_type="exam"')) {
+            showStatusModal('Not Allowed', 'You can only add one (1) Final Exam per module.', 'error');
+            return;
+        }
+
+        MaterialBuilder.addSection('exam');
+    }
+</script>
+
+<script>
+    (function initializeQuickNav() {
+        const container = document.getElementById('builder-container');
+        const contentArea = document.getElementById('content-area');
+        
+        if (!container) {
+            setTimeout(initializeQuickNav, 100);
+            return;
+        }
+
+        function updateNavigationAndStickyHeaders() {
+            const list = document.getElementById('quick-nav-list');
+            const widget = document.getElementById('quick-nav-widget');
+            
+            // Handle both assessment and material count IDs
+            const counter = document.getElementById('nav-lesson-count') || document.getElementById('nav-category-count');
+            
+            if(!list || !widget || !counter) return;
+
+            list.innerHTML = ''; 
+
+            const sections = container.children;
+            
+            if (sections.length > 0) {
+                widget.classList.remove('hidden');
+                counter.innerText = sections.length;
+            } else {
+                widget.classList.add('hidden');
+                document.getElementById('quick-nav-menu').classList.add('hidden');
+            }
+
+            const gapOffset = contentArea ? window.getComputedStyle(contentArea).paddingTop : '32px';
+
+            Array.from(sections).forEach((section, index) => {
+                if (!section.id) section.id = 'builder-section-' + index;
+
+                section.classList.remove('overflow-hidden');
+                section.style.overflow = 'visible';
+
+                let header = section.firstElementChild;
+                if (header && header.tagName === 'INPUT') {
+                    header = header.nextElementSibling;
+                }
+
+                if (header) {
+                    header.style.position = 'sticky';
+                    header.style.top = '-' + gapOffset; 
+                    header.style.zIndex = '40';
+                    
+                    // 1. Remove old flat backgrounds
+                    header.classList.remove('bg-gray-50/50', 'bg-white');
+                    
+                    // 2. Apply Premium Glassmorphism (frosted glass blur effect)
+                    header.style.backgroundColor = 'rgba(255, 255, 255, 0.85)'; 
+                    header.style.backdropFilter = 'blur(12px)';
+                    header.style.WebkitBackdropFilter = 'blur(12px)'; // Safari support
+                    
+                    // 3. Add a distinct bottom border to separate from scrolling content
+                    header.style.borderBottom = '1px solid #e5e7eb'; 
+                    
+                    // 4. Match the rounded corners of the parent card
+                    header.style.borderTopLeftRadius = '1rem';
+                    header.style.borderTopRightRadius = '1rem';
+                    
+                    // 5. Softer, more elevated floating shadow
+                    header.style.boxShadow = '0 10px 15px -3px rgba(0, 0, 0, 0.05), 0 4px 6px -2px rgba(0, 0, 0, 0.025)'; 
+                }
+
+                const titleInput = section.querySelector('input[type="text"]');
+                let titleText = `Section ${index + 1}`;
+                
+                if (titleInput && titleInput.value) {
+                    titleText = titleInput.value;
+                } else if (section.innerHTML.includes('Final Exam') || section.innerHTML.includes('section_type="exam"')) {
+                    titleText = 'Final Exam';
+                }
+
+                if (titleInput) {
+                    titleInput.addEventListener('input', (e) => {
+                        const btn = document.getElementById('jump-btn-' + index);
+                        if(btn) btn.innerHTML = `<i class="fas fa-circle text-[8px] text-gray-300"></i> <span class="truncate">${e.target.value || `Section ${index + 1}`}</span>`;
+                    });
+                }
+
+                const btn = document.createElement('button');
+                btn.id = 'jump-btn-' + index;
+                btn.className = 'w-full text-left px-3 py-2.5 text-sm text-gray-600 hover:bg-gray-50 hover:text-gray-900 rounded-lg transition flex items-center gap-3 font-medium border border-transparent hover:border-gray-200';
+                btn.innerHTML = `<i class="fas fa-circle text-[8px] text-gray-300"></i> <span class="truncate">${titleText}</span>`;
+                
+                btn.onclick = () => {
+                    const yOffset = -80; 
+                    const y = section.getBoundingClientRect().top + window.pageYOffset + yOffset;
+                    
+                    if(contentArea) {
+                        contentArea.scrollTo({top: section.offsetTop - 20, behavior: 'smooth'});
+                    } else {
+                        window.scrollTo({top: y, behavior: 'smooth'});
+                    }
+                    
+                    section.classList.add('ring-4', 'ring-[#a52a2a]/30', 'transition-all', 'duration-500');
+                    setTimeout(() => section.classList.remove('ring-4', 'ring-[#a52a2a]/30'), 1500);
+                    window.toggleQuickNav(); 
+                };
+                list.appendChild(btn);
+            });
+        }
+
+        const observer = new MutationObserver(() => {
+            updateNavigationAndStickyHeaders();
+        });
+
+        observer.observe(container, { childList: true, subtree: false });
+
+        setTimeout(updateNavigationAndStickyHeaders, 500);
+    })();
+
+    window.toggleQuickNav = function() {
+        const menu = document.getElementById('quick-nav-menu');
+        if (!menu) return;
+        
+        if (menu.classList.contains('hidden')) {
+            menu.classList.remove('hidden');
+            menu.classList.add('flex');
+        } else {
+            menu.classList.add('hidden');
+            menu.classList.remove('flex');
+        }
+    };
 </script>

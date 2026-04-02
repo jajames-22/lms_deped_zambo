@@ -71,8 +71,6 @@ class AssessmentController extends Controller
         return view('dashboard.partials.admin.assessments-create', compact('assessment', 'isNew'));
     }
 
-    // Inside AssessmentController.php
-
     public function builder($id)
     {
         $assessment = DB::table('assessments')->where('id', $id)->first();
@@ -83,11 +81,12 @@ class AssessmentController extends Controller
 
         $categories = DB::table('assessment_categories')
             ->where('assessment_id', $id)
+            ->orderBy('sort_order', 'asc') // Added Sort Order
             ->get()
             ->map(function ($category) {
-                // Ensure type and media_url are fetched here
                 $category->questions = DB::table('assessment_questions')
                     ->where('category_id', $category->id)
+                    ->orderBy('sort_order', 'asc') // Added Sort Order
                     ->get()
                     ->map(function ($question) {
                     $question->options = DB::table('assessment_options')
@@ -115,53 +114,102 @@ class AssessmentController extends Controller
                 'updated_at' => now()
             ]);
 
-            $existingCategories = DB::table('assessment_categories')->where('assessment_id', $id)->pluck('id');
+            // Tracking arrays to know what NOT to delete
+            $keptCategoryIds = [];
+            $keptQuestionIds = [];
+            $keptOptionIds = [];
 
-            if ($existingCategories->isNotEmpty()) {
-                $existingQuestions = DB::table('assessment_questions')->whereIn('category_id', $existingCategories)->pluck('id');
+            $categories = $request->categories ?? [];
 
-                if ($existingQuestions->isNotEmpty()) {
-                    DB::table('assessment_options')->whereIn('question_id', $existingQuestions)->delete();
-                }
-
-                DB::table('assessment_questions')->whereIn('category_id', $existingCategories)->delete();
-                DB::table('assessment_categories')->where('assessment_id', $id)->delete();
-            }
-
-            foreach ($request->categories as $cat) {
-                $categoryId = DB::table('assessment_categories')->insertGetId([
+            // 1. PROCESS AND UPSERT
+            foreach ($categories as $index => $cat) {
+                $categoryId = isset($cat['id']) && is_numeric($cat['id']) ? $cat['id'] : null;
+                
+                $catData = [
                     'assessment_id' => $id,
                     'title' => $cat['title'] ?? 'New Section',
                     'time_limit' => $cat['time_limit'] ?? 0,
-                    'created_at' => now(),
+                    'sort_order' => $index + 1, // Start sorting at 1
                     'updated_at' => now(),
-                ]);
+                ];
 
-                foreach ($cat['questions'] as $q) {
-                    // NEW: Save the type and media_url
-                    $questionId = DB::table('assessment_questions')->insertGetId([
+                if ($categoryId && DB::table('assessment_categories')->where('id', $categoryId)->exists()) {
+                    DB::table('assessment_categories')->where('id', $categoryId)->update($catData);
+                } else {
+                    $catData['created_at'] = now();
+                    $categoryId = DB::table('assessment_categories')->insertGetId($catData);
+                }
+                $keptCategoryIds[] = $categoryId;
+
+                foreach ($cat['questions'] ?? [] as $qIndex => $q) {
+                    $questionId = isset($q['id']) && is_numeric($q['id']) ? $q['id'] : null;
+                    
+                    $qData = [
                         'category_id' => $categoryId,
                         'type' => $q['type'] ?? 'mcq',
                         'question_text' => $q['text'] ?? '',
                         'media_url' => $q['media_url'] ?? null,
-                        'created_at' => now(),
-                        'updated_at' => now(),
                         'is_case_sensitive' => $q['is_case_sensitive'] ?? false,
-                    ]);
+                        'sort_order' => $qIndex + 1, // Start sorting at 1
+                        'updated_at' => now(),
+                    ];
 
-                    // NEW: Fallback to empty array if options don't exist (like for Instructions)
+                    if ($questionId && DB::table('assessment_questions')->where('id', $questionId)->exists()) {
+                        DB::table('assessment_questions')->where('id', $questionId)->update($qData);
+                    } else {
+                        $qData['created_at'] = now();
+                        $questionId = DB::table('assessment_questions')->insertGetId($qData);
+                    }
+                    $keptQuestionIds[] = $questionId;
+
                     $options = $q['options'] ?? [];
                     foreach ($options as $opt) {
-                        DB::table('assessment_options')->insert([
+                        $optId = isset($opt['id']) && is_numeric($opt['id']) ? $opt['id'] : null;
+                        
+                        $optData = [
                             'question_id' => $questionId,
                             'option_text' => $opt['text'] ?? '',
                             'is_correct' => $opt['is_correct'] ?? false,
-                            'created_at' => now(),
                             'updated_at' => now(),
-                        ]);
+                        ];
+
+                        if ($optId && DB::table('assessment_options')->where('id', $optId)->exists()) {
+                            DB::table('assessment_options')->where('id', $optId)->update($optData);
+                        } else {
+                            $optData['created_at'] = now();
+                            $optId = DB::table('assessment_options')->insertGetId($optData);
+                        }
+                        $keptOptionIds[] = $optId;
                     }
                 }
             }
+
+            // 2. CLEANUP (Delete items removed from the builder)
+            $allCategoryIdsForAssessment = DB::table('assessment_categories')->where('assessment_id', $id)->pluck('id');
+            
+            if ($allCategoryIdsForAssessment->isNotEmpty()) {
+                // Delete removed options
+                DB::table('assessment_options')
+                    ->whereIn('question_id', function ($query) use ($allCategoryIdsForAssessment) {
+                        $query->select('id')->from('assessment_questions')
+                              ->whereIn('category_id', $allCategoryIdsForAssessment);
+                    })
+                    ->whereNotIn('id', $keptOptionIds)
+                    ->delete();
+
+                // Delete removed questions
+                DB::table('assessment_questions')
+                    ->whereIn('category_id', $allCategoryIdsForAssessment)
+                    ->whereNotIn('id', $keptQuestionIds)
+                    ->delete();
+            }
+
+            // Delete removed categories
+            DB::table('assessment_categories')
+                ->where('assessment_id', $id)
+                ->whereNotIn('id', $keptCategoryIds)
+                ->delete();
+
             DB::commit();
             return response()->json(['success' => true]);
         } catch (Exception $e) {
@@ -180,7 +228,7 @@ class AssessmentController extends Controller
             $file = $request->file('media_file');
             $path = $file->store('assessment_media', 'public');
 
-            // NEW: Explicitly detect the exact media type
+            // Explicitly detect the exact media type
             $ext = strtolower($file->getClientOriginalExtension());
             $type = 'image';
             if (in_array($ext, ['mp4', 'webm']))
@@ -201,7 +249,7 @@ class AssessmentController extends Controller
     public function destroy($id)
     {
         try {
-            // ADD THIS: Manual cascade delete for all child records
+            // Manual cascade delete for all child records
             $categoryIds = DB::table('assessment_categories')->where('assessment_id', $id)->pluck('id');
 
             if ($categoryIds->isNotEmpty()) {
@@ -249,7 +297,6 @@ class AssessmentController extends Controller
             }
 
             // 2. Otherwise, tuck ALL the unsaved typing safely inside draft_json.
-            // This prevents the official title/description from being permanently overwritten!
             $draftData = [
                 'title' => $request->title,
                 'year_level' => $request->year_level,
@@ -311,24 +358,26 @@ class AssessmentController extends Controller
 
                 // Insert the payload from the frontend
                 if (is_array($categories)) {
-                    foreach ($categories as $cat) {
+                    foreach ($categories as $index => $cat) {
                         $categoryId = DB::table('assessment_categories')->insertGetId([
                             'assessment_id' => $id,
                             'title' => $cat['title'] ?? 'New Section',
                             'time_limit' => (int) ($cat['time_limit'] ?? 0),
+                            'sort_order' => $index + 1,
                             'created_at' => now(),
                             'updated_at' => now(),
                         ]);
 
-                        foreach ($cat['questions'] ?? [] as $q) {
+                        foreach ($cat['questions'] ?? [] as $qIndex => $q) {
                             $questionId = DB::table('assessment_questions')->insertGetId([
                                 'category_id' => $categoryId,
                                 'type' => $q['type'] ?? 'mcq',
                                 'question_text' => $q['text'] ?? '',
                                 'media_url' => $q['media_url'] ?? null,
+                                'is_case_sensitive' => $q['is_case_sensitive'] ?? false,
+                                'sort_order' => $qIndex + 1,
                                 'created_at' => now(),
                                 'updated_at' => now(),
-                                'is_case_sensitive' => $q['is_case_sensitive'] ?? false,
                             ]);
 
                             foreach ($q['options'] ?? [] as $opt) {
@@ -377,17 +426,14 @@ class AssessmentController extends Controller
         return view('dashboard.partials.admin.assessments-manage', compact('assessment', 'whitelistedStudents'));
     }
 
-    // 2. ADD THIS NEW METHOD TO SAVE LRNs
     public function addAccess(Request $request, \App\Models\Assessment $assessment)
     {
         $request->validate([
-            'lrn' => 'required|string|max:50' // string allows us to safely trim
+            'lrn' => 'required|string|max:50'
         ]);
 
-        // Clean the input to prevent hidden space bugs
         $cleanLrn = trim($request->lrn);
 
-        // Check if LRN is already added to this specific assessment
         if (AssessmentAccess::where('assessment_id', $assessment->id)->where('lrn', $cleanLrn)->exists()) {
             return response()->json([
                 'success' => false, 
@@ -395,7 +441,6 @@ class AssessmentController extends Controller
             ]);
         }
 
-        // Save the LRN directly, regardless of whether they have a registered account yet
         AssessmentAccess::create([
             'assessment_id' => $assessment->id,
             'lrn' => $cleanLrn,
@@ -408,7 +453,6 @@ class AssessmentController extends Controller
         ]);
     }
 
-    // 3. ADD THIS NEW METHOD TO REMOVE LRNs
     public function removeAccess(AssessmentAccess $access)
     {
         $access->delete();
@@ -418,10 +462,8 @@ class AssessmentController extends Controller
     public function toggleStatus(Request $request, \App\Models\Assessment $assessment)
     {
         try {
-            // Flip the status
             $newStatus = $assessment->status === 'published' ? 'draft' : 'published';
             
-            // Update DB
             \Illuminate\Support\Facades\DB::table('assessments')
                 ->where('id', $assessment->id)
                 ->update(['status' => $newStatus, 'updated_at' => now()]);
