@@ -1,103 +1,139 @@
-<div class="flex-1 overflow-y-auto">
-    <section class="mb-8 flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-            <h2 class="text-2xl font-bold text-gray-900">Welcome back, {{ auth()->user()->first_name }} 👋</h2>
-            <p class="text-gray-500 mt-1">You've completed <span class="text-[#a52a2a] font-bold">80%</span> of your
-                weekly goal. Keep it up!</p>
-        </div>
-
+<div class="mb-8 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+    <div>
+        <h1 class="text-2xl font-bold text-gray-900">Welcome back, {{ auth()->user()->first_name }} 👋</h1>
+        <p class="text-gray-500 text-sm">Pick up right where you left off and track your academic progress.</p>
+    </div>
+    <div class="flex items-center gap-3">
         <button onclick="toggleAssessmentModal(true)"
-            class="flex-shrink-0 flex items-center justify-center gap-2 px-6 py-3 bg-[#a52a2a] text-white font-bold rounded-xl shadow-lg hover:bg-red-800 transition-all group">
+            class="flex-shrink-0 flex items-center justify-center gap-2 px-5 py-2.5 bg-[#a52a2a] text-white text-sm font-bold rounded-xl shadow-sm hover:bg-red-800 transition-all group">
             <i class="fas fa-edit group-hover:rotate-12 transition-transform"></i>
             <span>Take Assessment</span>
         </button>
-    </section>
+    </div>
+</div>
 
-    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-10">
-        <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
-            <div class="flex items-center space-x-4">
-                <div class="p-3 bg-blue-50 text-blue-600 rounded-xl"><i class="fas fa-book text-xl"></i></div>
-                <div>
-                    <p class="text-xs text-gray-500 font-medium">Enrolled</p>
-                    <p class="text-xl font-bold">12</p>
-                </div>
-            </div>
+<div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+    <div
+        class="bg-gradient-to-r from-amber-500 to-orange-500 rounded-2xl p-6 text-white shadow-lg shadow-orange-900/20 relative overflow-hidden">
+        <div class="relative z-10">
+            <p class="text-orange-100 text-xs font-bold uppercase tracking-wider mb-1 flex items-center gap-1.5"><i
+                    class="fas fa-chart-pie"></i> Overall Progress</p>
+            <h3 class="text-3xl font-black mb-1">{{ $overallProgress }}<span class="text-xl text-orange-200">%</span>
+            </h3>
+            <p class="text-sm text-orange-100">Of enrolled modules completed</p>
         </div>
-        <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
-            <div class="flex items-center space-x-4">
-                <div class="p-3 bg-green-50 text-green-600 rounded-xl"><i class="fas fa-check-circle text-xl"></i></div>
-                <div>
-                    <p class="text-xs text-gray-500 font-medium">Completed</p>
-                    <p class="text-xl font-bold">04</p>
-                </div>
-            </div>
+        <i class="fas fa-tasks absolute -bottom-4 -right-4 text-7xl text-white/20 transform -rotate-12"></i>
+    </div>
+
+    <div
+        class="bg-gradient-to-r from-blue-600 to-indigo-700 rounded-2xl p-6 text-white shadow-lg shadow-blue-900/20 flex items-center justify-between">
+        <div>
+            <p class="text-blue-200 text-xs font-bold uppercase tracking-wider mb-1">Average Exam Score</p>
+            <h3 class="text-3xl font-black">{{ $averageExamScore }}<span class="text-xl text-blue-300">%</span></h3>
         </div>
-        <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
-            <div class="flex items-center space-x-4">
-                <div class="p-3 bg-yellow-50 text-yellow-600 rounded-xl"><i class="fas fa-clock text-xl"></i></div>
-                <div>
-                    <p class="text-xs text-gray-500 font-medium">Hours Spent</p>
-                    <p class="text-xl font-bold">58h</p>
-                </div>
-            </div>
+        <i class="fas fa-spell-check text-5xl text-white/20"></i>
+    </div>
+
+    <div
+        class="bg-gradient-to-r from-emerald-500 to-green-600 rounded-2xl p-6 text-white shadow-lg shadow-green-900/20 flex items-center justify-between">
+        <div>
+            <p class="text-emerald-200 text-xs font-bold uppercase tracking-wider mb-1">Certificates Awarded</p>
+            <h3 class="text-3xl font-black">{{ number_format($completedModulesCount) }}</h3>
         </div>
-        <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
-            <div class="flex items-center space-x-4">
-                <div class="p-3 bg-[#a52a2a]/10 text-[#a52a2a] rounded-xl"><i class="fas fa-certificate text-xl"></i>
-                </div>
-                <div>
-                    <p class="text-xs text-gray-500 font-medium">Certificates</p>
-                    <p class="text-xl font-bold">02</p>
-                </div>
+        <i class="fas fa-medal text-5xl text-white/20"></i>
+    </div>
+</div>
+
+<div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+    <div class="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm flex items-center justify-between">
+        <div>
+            <p class="text-gray-400 text-[10px] font-bold uppercase tracking-widest mb-1">Active Modules</p>
+            <h3 class="text-2xl font-black text-gray-900">{{ number_format($activeModulesCount) }}</h3>
+        </div>
+        <i class="fas fa-book-reader text-blue-500 text-2xl"></i>
+    </div>
+    <div class="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm flex items-center justify-between">
+        <div>
+            <p class="text-gray-400 text-[10px] font-bold uppercase tracking-widest mb-1">Completed Modules</p>
+            <h3 class="text-2xl font-black text-gray-900">{{ number_format($completedModulesCount) }}</h3>
+        </div>
+        <i class="fas fa-check-circle text-green-500 text-2xl"></i>
+    </div>
+</div>
+
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-8 pb-10">
+
+    <div class="lg:col-span-2 space-y-8">
+        <div class="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden flex flex-col">
+            <div class="p-5 border-b border-gray-50 flex items-center justify-between">
+                <h3 class="font-bold text-gray-900">Continue Learning</h3>
+                <i class="fas fa-book-open text-blue-500"></i>
+            </div>
+
+            <div class="p-6 flex flex-col gap-4">
+                @forelse($continueLearning as $enrollment)
+                    <div
+                        class="bg-gray-50 p-4 rounded-xl border border-gray-100 flex flex-col sm:flex-row items-center gap-4 hover:border-[#a52a2a]/30 transition group">
+
+                        <div
+                            class="w-full sm:w-24 h-24 rounded-lg overflow-hidden bg-white border border-gray-200 flex items-center justify-center flex-shrink-0">
+                            @if($enrollment->material->thumbnail)
+                                <img src="{{ asset('storage/' . $enrollment->material->thumbnail) }}"
+                                    class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                                    alt="Material Thumbnail">
+                            @else
+                                <i class="fas fa-book text-gray-300 text-3xl"></i>
+                            @endif
+                        </div>
+
+                        <div class="flex-1 w-full min-w-0">
+                            <h4 class="font-bold text-gray-800 truncate">
+                                {{ $enrollment->material->title ?? 'Untitled Material' }}</h4>
+                            <p class="text-[10px] text-gray-500 mb-3 uppercase tracking-wider">Last accessed:
+                                {{ $enrollment->updated_at->diffForHumans() }}</p>
+                            <div class="w-full bg-gray-200 rounded-full h-1.5 mb-1">
+                                <div class="bg-blue-600 h-1.5 rounded-full" style="width: 50%"></div>
+                            </div>
+                        </div>
+
+                        <a href="{{ route('student.materials.show', $enrollment->material_id) }}"
+                            class="bg-white border border-gray-200 text-gray-700 px-5 py-2.5 rounded-lg text-xs font-bold hover:bg-gray-100 hover:text-blue-600 transition w-full sm:w-auto text-center shadow-sm whitespace-nowrap block sm:inline-block">
+                            Resume <i class="fas fa-arrow-right ml-1"></i>
+                        </a>
+
+                    </div>
+                @empty
+                    <div class="text-center py-8">
+                        <div
+                            class="w-16 h-16 bg-green-50 text-green-500 rounded-full flex items-center justify-center mx-auto mb-3">
+                            <i class="fas fa-check-double text-2xl"></i>
+                        </div>
+                        <h4 class="font-bold text-gray-800">You are all caught up!</h4>
+                        <p class="text-sm text-gray-500 mt-1 mb-4">You have no pending lessons.</p>
+                        <button
+                            onclick="loadPartial('{{ route('dashboard.explore') }}', document.getElementById('nav-explore-btn'))"
+                            class="bg-blue-50 text-blue-600 px-6 py-2 rounded-lg text-sm font-bold hover:bg-blue-100 transition">
+                            Browse Course Library
+                        </button>
+                    </div>
+                @endforelse
             </div>
         </div>
     </div>
 
-    <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        <div class="lg:col-span-2 space-y-4">
-            <div class="flex items-center justify-between">
-                <h3 class="text-lg font-bold text-gray-800">Continue Learning</h3>
-                <a href="#" class="text-sm text-[#a52a2a] font-semibold hover:underline">View All</a>
-            </div>
+    <div class="space-y-8">
 
-            <div
-                class="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm flex flex-col sm:flex-row items-center gap-4 hover:border-[#a52a2a]/20 transition group">
-                <div class="w-full sm:w-24 h-24 rounded-xl overflow-hidden">
-                    <img src="https://images.unsplash.com/photo-1587620962725-abab7fe55159?w=300"
-                        class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
-                        alt="Materials">
-                </div>
-                <div class="flex-1 w-full">
-                    <h4 class="font-bold text-gray-800">UI/UX Design Masterclass</h4>
-                    <p class="text-xs text-gray-500 mb-3">Module 4: High-Fidelity Prototyping</p>
-                    <div class="w-full bg-gray-100 rounded-full h-2">
-                        <div class="bg-[#a52a2a] h-2 rounded-full" style="width: 75%"></div>
-                    </div>
-                </div>
-                <button
-                    class="bg-[#a52a2a] text-white px-6 py-2 rounded-lg text-sm font-semibold hover:opacity-90 transition w-full sm:w-auto text-center shadow-lg shadow-[#a52a2a]/20">
-                    Continue
-                </button>
-            </div>
+        <div
+            class="bg-gradient-to-br from-gray-50 text-center to-gray-100 rounded-2xl border border-gray-200 p-6 shadow-sm">
+            <h4 class="font-bold text-gray-800 mb-1">Ready for something new?</h4>
+            <p class="text-xs text-gray-500 mb-4">Discover new subjects and expand your knowledge.</p>
+            <button
+                onclick="loadPartial('{{ route('dashboard.explore') }}', document.getElementById('nav-explore-btn'))"
+                class="text-xs font-bold text-gray-700 bg-white border border-gray-300 px-4 py-2 rounded-lg hover:bg-gray-50 transition w-full">
+                Explore Library
+            </button>
         </div>
 
-        <div class="space-y-6">
-            <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
-                <h3 class="text-lg font-bold text-gray-800 mb-4">Upcoming Deadlines</h3>
-                <div class="space-y-4">
-                    <div class="flex items-center p-3 bg-[#a52a2a]/5 rounded-xl border border-[#a52a2a]/10">
-                        <div
-                            class="w-10 h-10 bg-[#a52a2a] text-white rounded-lg flex items-center justify-center mr-3 font-bold text-[10px] leading-tight flex-shrink-0 text-center uppercase">
-                            24<br>MAR
-                        </div>
-                        <div class="min-w-0">
-                            <p class="text-sm font-bold text-gray-800 truncate">Final Exam: UI Design</p>
-                            <p class="text-xs text-[#a52a2a] font-medium">Due: 05:00 PM</p>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
     </div>
 </div>
 
@@ -139,6 +175,7 @@
         </form>
     </div>
 </div>
+
 <script>
     function toggleAssessmentModal(show) {
         const modal = document.getElementById('assessmentModal');
@@ -159,27 +196,20 @@
         }
     }
 
-    // --- BULLETPROOF EVENT DELEGATION ---
-    // Remove old listeners to prevent duplicates when navigating back and forth
     if (window.assessmentSubmitHandler) {
         document.removeEventListener('submit', window.assessmentSubmitHandler);
     }
 
-    // Attach listener to the entire document to catch the form no matter how it was loaded
-    window.assessmentSubmitHandler = function(e) {
-        // Only intercept if the target is our specific form
+    window.assessmentSubmitHandler = function (e) {
         if (e.target && e.target.id === 'verifyCodeForm') {
-            e.preventDefault(); // Guarantee the page never reloads!
+            e.preventDefault();
 
             var form = e.target;
             var submitBtn = document.getElementById('verifySubmitBtn');
             var errorBox = document.getElementById('codeErrorBox');
             var originalText = submitBtn.innerHTML;
-
-            // 1. Grab the CSRF token generated by the @csrf directive
             var csrfToken = form.querySelector('input[name="_token"]').value;
 
-            // Loading state
             submitBtn.disabled = true;
             submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
             errorBox.classList.add('hidden');
@@ -192,40 +222,37 @@
                 headers: {
                     'X-Requested-With': 'XMLHttpRequest',
                     'Accept': 'application/json',
-                    'X-CSRF-TOKEN': csrfToken // 2. <--- ADD THE TOKEN TO THE HEADERS HERE
+                    'X-CSRF-TOKEN': csrfToken
                 }
             })
-            .then(response => {
-                if (!response.ok) {
-                    return response.json().then(err => { throw err; });
-                }
-                return response.json();
-            })
-            .then(data => {
-                // SUCCESS: Redirect to the lobby!
-                if (data.redirect_url) {
-                    submitBtn.innerHTML = '<i class="fas fa-check"></i>';
-                    window.location.href = data.redirect_url;
-                }
-            })
-            .catch(error => {
-                // FAILED: Show error message
-                submitBtn.disabled = false;
-                submitBtn.innerHTML = originalText;
+                .then(response => {
+                    if (!response.ok) {
+                        return response.json().then(err => { throw err; });
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    if (data.redirect_url) {
+                        submitBtn.innerHTML = '<i class="fas fa-check"></i>';
+                        window.location.href = data.redirect_url;
+                    }
+                })
+                .catch(error => {
+                    submitBtn.disabled = false;
+                    submitBtn.innerHTML = originalText;
 
-                var errorMessage = "An error occurred. Please try again.";
-                if (error.message) {
-                    errorMessage = error.message; 
-                } else if (error.errors && error.errors.assessment_code) {
-                    errorMessage = error.errors.assessment_code[0]; 
-                }
+                    var errorMessage = "An error occurred. Please try again.";
+                    if (error.message) {
+                        errorMessage = error.message;
+                    } else if (error.errors && error.errors.assessment_code) {
+                        errorMessage = error.errors.assessment_code[0];
+                    }
 
-                errorBox.textContent = errorMessage;
-                errorBox.classList.remove('hidden');
-            });
+                    errorBox.textContent = errorMessage;
+                    errorBox.classList.remove('hidden');
+                });
         }
     };
 
-    // Bind the listener to the document
     document.addEventListener('submit', window.assessmentSubmitHandler);
 </script>

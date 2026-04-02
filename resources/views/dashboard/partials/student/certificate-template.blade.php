@@ -1,6 +1,5 @@
 <!DOCTYPE html>
 <html>
-
 <head>
     <title>Certificate of Completion</title>
     <style>
@@ -48,7 +47,7 @@
             font-size: 48px;
             font-weight: bold;
             color: #222;
-            border-bottom: 2px solid #ccc;
+            border-bottom: 2px solid #a52a2a;
             display: inline-block;
             padding-bottom: 10px;
             margin-bottom: 10px;
@@ -111,7 +110,6 @@
         }
     </style>
 </head>
-
 <body>
     <div class="certificate-container">
         <div class="detailed-header">
@@ -121,11 +119,11 @@
         <div class="header">Certificate of Completion</div>
         <div class="sub-header">This is proudly presented to</div>
 
-        <div class="student-name">{{ $studentName }}</div>
+                <div class="student-name">{{ $studentName }}</div>
 
-        <div class="sub-header">for successfully completing the learning module</div>
+                <div class="course-label">for successfully completing the learning module</div>
 
-        <div class="course-name">"{{ $courseName }}"</div>
+                <div class="course-name">"{{ $courseName }}"</div>
 
         <table class="footer-table">
             <tr>
@@ -155,5 +153,4 @@
         <div class="cert-id">Certificate ID: {{ $certificateId }}</div>
     </div>
 </body>
-
 </html>
