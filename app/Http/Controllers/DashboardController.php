@@ -7,6 +7,8 @@ use Illuminate\Support\Facades\Auth;
 use App\Models\Quadrant;
 use App\Models\Assessment;
 use App\Models\School;
+use App\Models\User;
+use App\Models\Material;
 
 class DashboardController extends Controller
 {
@@ -93,15 +95,268 @@ class DashboardController extends Controller
     {
         $role = Auth::user()->role;
 
+        // 1. ADMIN & SUPERADMIN LOGIC
         if ($role === 'admin' || $role === 'superadmin') {
-            return view('dashboard.partials.admin.home');
-        } elseif ($role === 'teacher') {
-            return view('dashboard.partials.teacher.home');
+
+            // --- A. BASE PLATFORM METRICS ---
+            $totalStudents = User::where('role', 'student')->count();
+            $totalTeachers = User::where('role', 'teacher')->count();
+            $totalSchools = School::count();
+
+            $totalMaterials = Material::count();
+            $totalAssessments = Assessment::count();
+
+            // --- B. ENGAGEMENT & ADOPTION (CHART DATA) ---
+            $dailyActiveUsers = User::where('updated_at', '>=', now()->subDay())->count();
+            $weeklyActiveUsers = User::where('updated_at', '>=', now()->subDays(7))->count();
+
+            // 7-Day Activity Trend for Line Chart
+            $activityDates = [];
+            $activityTrend = [];
+            for ($i = 6; $i >= 0; $i--) {
+                $date = now()->subDays($i)->format('Y-m-d');
+                $activityDates[] = now()->subDays($i)->format('M d');
+                $activityTrend[] = User::whereDate('updated_at', $date)->count();
+            }
+
+            // Top 5 Schools for Bar Chart
+            $topSchoolsRaw = User::where('role', 'student')
+                ->whereNotNull('school_id')
+                ->selectRaw('school_id, count(*) as count')
+                ->groupBy('school_id')
+                ->orderBy('count', 'desc')
+                ->take(5)
+                ->get();
+
+            $topSchoolLabels = [];
+            $topSchoolData = [];
+            if ($topSchoolsRaw->isNotEmpty()) {
+                $schoolIds = $topSchoolsRaw->pluck('school_id');
+                $schoolsMapping = School::whereIn('id', $schoolIds)->get()->keyBy('id');
+
+                foreach ($topSchoolsRaw as $ts) {
+                    if (isset($schoolsMapping[$ts->school_id])) {
+                        $topSchoolLabels[] = \Illuminate\Support\Str::limit($schoolsMapping[$ts->school_id]->name, 15);
+                        $topSchoolData[] = $ts->count;
+                    }
+                }
+            }
+
+            // Top 5 Materials by Views for Doughnut Chart
+            $topMaterialsRaw = Material::orderBy('views', 'desc')->take(5)->get();
+            $topMaterialsLabels = [];
+            $topMaterialsData = [];
+            foreach ($topMaterialsRaw as $mat) {
+                $topMaterialsLabels[] = \Illuminate\Support\Str::limit($mat->title, 15);
+                $topMaterialsData[] = $mat->views;
+            }
+
+            // --- C. SYSTEM HEALTH & STORAGE ---
+            $storagePath = storage_path();
+            $freeSpace = function_exists('disk_free_space') ? @disk_free_space($storagePath) : 0;
+            $totalSpace = function_exists('disk_total_space') ? @disk_total_space($storagePath) : 1;
+            $usedSpace = $totalSpace - $freeSpace;
+            $storagePercentage = round(($usedSpace / $totalSpace) * 100);
+            $usedGb = round($usedSpace / 1073741824, 1);
+            $totalGb = round($totalSpace / 1073741824, 1);
+
+            // --- D. LEARNING OUTCOMES ---
+            $certificatesIssued = \App\Models\Enrollment::where('status', 'completed')->count();
+            $totalEnrollments = \App\Models\Enrollment::count();
+            $completionRate = $totalEnrollments > 0 ? round(($certificatesIssued / $totalEnrollments) * 100) : 0;
+
+            $totalExamAnswers = \App\Models\ExamAnswer::count();
+            $correctExamAnswers = \App\Models\ExamAnswer::where('is_correct', true)->count();
+            $avgLearnerSuccessRate = $totalExamAnswers > 0 ? round(($correctExamAnswers / $totalExamAnswers) * 100, 1) : 0;
+
+            // --- E. ACTIONABLE ALERTS ---
+            $pendingTeachersCount = User::where('role', 'teacher')->where('status', 'pending')->count();
+            $pendingStudentsCount = User::where('role', 'student')->where('status', 'pending')->count();
+            $unassignedUsersCount = User::whereNull('school_id')->whereIn('role', ['teacher', 'student'])->count();
+
+            return view('dashboard.partials.admin.home', compact(
+                'totalStudents',
+                'totalTeachers',
+                'totalSchools',
+                'totalMaterials',
+                'totalAssessments',
+                'dailyActiveUsers',
+                'weeklyActiveUsers',
+                'activityDates',
+                'activityTrend',
+                'topSchoolLabels',
+                'topSchoolData',
+                'topMaterialsLabels',
+                'topMaterialsData',
+                'storagePercentage',
+                'usedGb',
+                'totalGb',
+                'avgLearnerSuccessRate',
+                'completionRate',
+                'certificatesIssued',
+                'pendingTeachersCount',
+                'pendingStudentsCount',
+                'unassignedUsersCount'
+            ));
         }
 
-        return view('dashboard.partials.student.home');
-    }
+        // 2. DYNAMIC TEACHER LOGIC (Module Creator Focus)
+        elseif ($role === 'teacher') {
+            $teacherId = Auth::id();
 
+            // --- A. CORE MODULE METRICS ---
+            $myMaterialsCount = \App\Models\Material::where('instructor_id', $teacherId)->count();
+            $totalViews = \App\Models\Material::where('instructor_id', $teacherId)->sum('views');
+
+            // Most Popular Module
+            $topModule = \App\Models\Material::where('instructor_id', $teacherId)
+                ->orderBy('views', 'desc')
+                ->first();
+
+            // Total unique students across all the teacher's modules
+            $totalLearners = \App\Models\Enrollment::whereIn('material_id', function ($query) use ($teacherId) {
+                $query->select('id')->from('materials')->where('instructor_id', $teacherId);
+            })->distinct('user_id')->count();
+
+            // --- B. PERFORMANCE & EXAM PASSING RATE ---
+            // Find all exam IDs belonging to this teacher's materials
+            $teacherExamIds = \App\Models\Exam::whereIn('material_id', function ($query) use ($teacherId) {
+                $query->select('id')->from('materials')->where('instructor_id', $teacherId);
+            })->pluck('id');
+
+            $totalTeacherExamAnswers = \App\Models\ExamAnswer::whereIn('exam_id', $teacherExamIds)->count();
+            $correctTeacherExamAnswers = \App\Models\ExamAnswer::whereIn('exam_id', $teacherExamIds)
+                ->where('is_correct', true)->count();
+
+            $examPassingRate = $totalTeacherExamAnswers > 0
+                ? round(($correctTeacherExamAnswers / $totalTeacherExamAnswers) * 100, 1)
+                : 0;
+
+            // --- C. MODULE COMPLETION RATE ---
+            $completedMyModules = \App\Models\Enrollment::where('status', 'completed')
+                ->whereIn('material_id', function ($q) use ($teacherId) {
+                    $q->select('id')->from('materials')->where('instructor_id', $teacherId);
+                })->count();
+
+            $totalMyEnrollments = \App\Models\Enrollment::whereIn('material_id', function ($q) use ($teacherId) {
+                $q->select('id')->from('materials')->where('instructor_id', $teacherId);
+            })->count();
+
+            $moduleCompletionRate = $totalMyEnrollments > 0
+                ? round(($completedMyModules / $totalMyEnrollments) * 100)
+                : 0;
+
+            // --- D. CHART DATA: MODULE ENGAGEMENT TREND ---
+            // Tracks *New Enrollments* into your modules over the last 7 days
+            $activityDates = [];
+            $activityTrend = [];
+            for ($i = 6; $i >= 0; $i--) {
+                $date = now()->subDays($i)->format('Y-m-d');
+                $activityDates[] = now()->subDays($i)->format('M d');
+                $activityTrend[] = \App\Models\Enrollment::whereDate('created_at', $date)
+                    ->whereIn('material_id', function ($q) use ($teacherId) {
+                        $q->select('id')->from('materials')->where('instructor_id', $teacherId);
+                    })->count();
+            }
+
+            $topMaterialsRaw = \App\Models\Material::where('instructor_id', $teacherId)
+                ->orderBy('views', 'desc')->take(5)->get();
+            $topMaterialsLabels = $topMaterialsRaw->pluck('title')->map(fn($t) => \Illuminate\Support\Str::limit($t, 15))->toArray();
+            $topMaterialsData = $topMaterialsRaw->pluck('views')->toArray();
+
+            // --- E. LISTS: MOST ACTIVE STUDENTS & PENDING INVITES ---
+            // Pending Invites with explicit Module Context
+            $pendingInvitesQuery = \App\Models\MaterialAccess::with('material')
+                ->where('status', 'pending')
+                ->whereIn('material_id', function ($q) use ($teacherId) {
+                    $q->select('id')->from('materials')->where('instructor_id', $teacherId);
+                });
+
+            $pendingInvitesCount = $pendingInvitesQuery->count();
+            $pendingInvitesList = $pendingInvitesQuery->latest()->take(5)->get();
+
+            // Most Active/Recent Students interacting with your modules
+            $activeStudentsList = \App\Models\Enrollment::with(['user', 'material'])
+                ->whereIn('material_id', function ($q) use ($teacherId) {
+                    $q->select('id')->from('materials')->where('instructor_id', $teacherId);
+                })
+                ->orderBy('updated_at', 'desc')
+                ->take(10)->get()->unique('user_id')->take(5); // Get top 5 unique recent users
+
+            return view('dashboard.partials.teacher.home', compact(
+                'myMaterialsCount',
+                'totalViews',
+                'topModule',
+                'totalLearners',
+                'examPassingRate',
+                'moduleCompletionRate',
+                'completedMyModules',
+                'activityDates',
+                'activityTrend',
+                'topMaterialsLabels',
+                'topMaterialsData',
+                'pendingInvitesCount',
+                'pendingInvitesList',
+                'activeStudentsList'
+            ));
+        }
+
+        // 3. STUDENT LOGIC
+        else {
+            $studentId = Auth::id();
+
+            // --- A. AT-A-GLANCE STATISTICS ---
+            $totalEnrollments = \App\Models\Enrollment::where('user_id', $studentId)->count();
+
+            $completedModulesCount = \App\Models\Enrollment::where('user_id', $studentId)
+                ->where('status', 'completed')
+                ->count();
+
+            $activeModulesCount = \App\Models\Enrollment::where('user_id', $studentId)
+                ->where(function ($q) {
+                    $q->where('status', 'in_progress')->orWhereNull('status');
+                })->count();
+
+            // Calculate personal Average Exam Score
+            $totalAnswers = \App\Models\ExamAnswer::where('user_id', $studentId)->count();
+            $correctAnswers = \App\Models\ExamAnswer::where('user_id', $studentId)
+                ->where('is_correct', true)->count();
+
+            $averageExamScore = $totalAnswers > 0
+                ? round(($correctAnswers / $totalAnswers) * 100, 1)
+                : 0;
+
+            // Overall Progress for the Welcome Banner
+            $overallProgress = $totalEnrollments > 0
+                ? round(($completedModulesCount / $totalEnrollments) * 100)
+                : 0;
+
+            // --- B. CONTINUE LEARNING ---
+            // Fetch up to 2 modules the student recently interacted with but hasn't finished
+            $continueLearning = \App\Models\Enrollment::with('material')
+                ->where('user_id', $studentId)
+                ->where('status', '!=', 'completed')
+                ->orderBy('updated_at', 'desc')
+                ->take(2)
+                ->get();
+
+            // --- C. ACTION REQUIRED / UPCOMING ---
+            // Fetch the newest published district exams available to take
+            $availableAssessments = \App\Models\Assessment::where('status', 'published')
+                ->orderBy('created_at', 'desc')
+                ->take(3)
+                ->get();
+
+            return view('dashboard.partials.student.home', compact(
+                'activeModulesCount',
+                'completedModulesCount',
+                'averageExamScore',
+                'overallProgress',
+                'continueLearning',
+                'availableAssessments'
+            ));
+        }
+    }
 
 
     public function loadEnrolledPartial()
@@ -153,8 +408,8 @@ class DashboardController extends Controller
     {
         // Fetch the students from your database. 
         // (Adjust this query depending on if your model is Student or User)
-        $students = \App\Models\User::where('role', 'student')->get(); 
-        
+        $students = \App\Models\User::where('role', 'student')->get();
+
         // Pass the variable to the view using compact()
         return view('dashboard.partials.admin.students', compact('students'));
     }
@@ -183,11 +438,11 @@ class DashboardController extends Controller
     {
         $school = \App\Models\School::with('district')->findOrFail($id);
         $quadrants = \App\Models\Quadrant::orderBy('name', 'asc')->get();
-        
+
         // We need to fetch the districts for the quadrant this school is already in
         // so the dropdown isn't empty when the form first loads
         $districts = \App\Models\District::where('quadrant_id', $school->district->quadrant_id ?? null)
-                        ->orderBy('name', 'asc')->get();
+            ->orderBy('name', 'asc')->get();
 
         return view('dashboard.partials.admin.school-edit', compact('school', 'quadrants', 'districts'));
     }
@@ -198,7 +453,7 @@ class DashboardController extends Controller
 
         $validated = $request->validate([
             // The unique rule ignores THIS school's ID so you don't get a "School ID already taken" error when saving
-            'school_id' => 'required|string|max:255|unique:schools,school_id,' . $school->id, 
+            'school_id' => 'required|string|max:255|unique:schools,school_id,' . $school->id,
             'name' => 'required|string|max:255',
             'level' => 'required|in:elementary,highschool,seniorhighschool,integrated',
             'district_id' => 'required|exists:districts,id',
@@ -211,7 +466,7 @@ class DashboardController extends Controller
             $filename = time() . '_' . $file->getClientOriginalName();
             $file->move(public_path('storage/schools'), $filename);
             $validated['logo'] = 'schools/' . $filename;
-            
+
             // Optional: You could delete the old image file here if you want to save server space
         }
 
