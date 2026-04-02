@@ -499,4 +499,222 @@ class DashboardController extends Controller
         return view('dashboard.partials.student.explore');
     }
 
+    public function loadAnalyticsPartial()
+    {
+        $role = Auth::user()->role;
+
+        if ($role === 'admin' || $role === 'superadmin') {
+            return $this->loadAdminAnalytics();
+        } elseif ($role === 'teacher') {
+            return $this->loadTeacherAnalytics();
+        }
+
+        return $this->loadStudentAnalytics();
+    }
+
+
+    private function loadAdminAnalytics()
+    {
+        // ==========================================
+        // 1. USER & DEMOGRAPHICS
+        // ==========================================
+        $totalStudents = \App\Models\User::where('role', 'student')->count();
+        $totalTeachers = \App\Models\User::where('role', 'teacher')->count();
+        $unassignedUsersCount = \App\Models\User::whereNull('school_id')->whereIn('role', ['teacher', 'student'])->count();
+
+        $dailyActiveUsers = \App\Models\User::where('updated_at', '>=', now()->subDay())->count();
+        $weeklyActiveUsers = \App\Models\User::where('updated_at', '>=', now()->subDays(7))->count();
+
+        // Top 5 Schools by Student Count
+        $topSchoolsRaw = \App\Models\User::where('role', 'student')
+            ->whereNotNull('school_id')
+            ->selectRaw('school_id, count(*) as count')
+            ->groupBy('school_id')
+            ->orderBy('count', 'desc')
+            ->take(5)
+            ->with('school')
+            ->get();
+
+        $schoolLabels = [];
+        $schoolData = [];
+        foreach ($topSchoolsRaw as $ts) {
+            if ($ts->school) {
+                $schoolLabels[] = \Illuminate\Support\Str::limit($ts->school->name, 20);
+                $schoolData[] = $ts->count;
+            }
+        }
+
+        // ==========================================
+        // 2. CONTENT & ENGAGEMENT
+        // ==========================================
+        $totalMaterials = \App\Models\Material::count();
+        $certificatesIssued = \App\Models\Enrollment::where('status', 'completed')->count();
+        $totalEnrollments = \App\Models\Enrollment::count();
+
+        $completionRate = $totalEnrollments > 0 ? round(($certificatesIssued / $totalEnrollments) * 100) : 0;
+
+        // Top Materials by Views
+        $topMaterialsRaw = \App\Models\Material::orderBy('views', 'desc')->take(5)->get();
+        $topMaterialsLabels = [];
+        $topMaterialsData = [];
+        foreach ($topMaterialsRaw as $mat) {
+            $topMaterialsLabels[] = \Illuminate\Support\Str::limit($mat->title, 20);
+            $topMaterialsData[] = $mat->views;
+        }
+
+        // ==========================================
+        // 3. ASSESSMENT & PERFORMANCE
+        // ==========================================
+        $totalAssessments = \App\Models\Assessment::count();
+        $totalExamAnswers = \App\Models\ExamAnswer::count();
+        $correctExamAnswers = \App\Models\ExamAnswer::where('is_correct', true)->count();
+
+        $globalSuccessRate = $totalExamAnswers > 0 ? round(($correctExamAnswers / $totalExamAnswers) * 100, 1) : 0;
+
+        // ==========================================
+        // 4. SYSTEM HEALTH & RESOURCES
+        // ==========================================
+        $storagePath = storage_path();
+        $freeSpace = function_exists('disk_free_space') ? @disk_free_space($storagePath) : 0;
+        $totalSpace = function_exists('disk_total_space') ? @disk_total_space($storagePath) : 1;
+        $usedSpace = $totalSpace - $freeSpace;
+
+        $storagePercentage = round(($usedSpace / $totalSpace) * 100);
+        $usedGb = round($usedSpace / 1073741824, 1);
+        $totalGb = round($totalSpace / 1073741824, 1);
+
+        return view('dashboard.partials.admin.analytics', compact(
+            'totalStudents',
+            'totalTeachers',
+            'unassignedUsersCount',
+            'dailyActiveUsers',
+            'weeklyActiveUsers',
+            'schoolLabels',
+            'schoolData',
+            'totalMaterials',
+            'completionRate',
+            'totalEnrollments',
+            'topMaterialsLabels',
+            'topMaterialsData',
+            'totalAssessments',
+            'globalSuccessRate',
+            'storagePercentage',
+            'usedGb',
+            'totalGb'
+        ));
+    }
+
+    private function loadTeacherAnalytics()
+    {
+        $teacherId = Auth::id();
+
+        // 1. CLASS OVERVIEW
+        $myMaterialIds = \App\Models\Material::where('instructor_id', $teacherId)->pluck('id');
+
+        $totalLearners = \App\Models\Enrollment::whereIn('material_id', $myMaterialIds)
+            ->distinct('user_id')
+            ->count();
+
+        $activeLearners = \App\Models\Enrollment::whereIn('material_id', $myMaterialIds)
+            ->where('updated_at', '>=', now()->subDays(7))
+            ->distinct('user_id')
+            ->count();
+
+        $pendingRequests = \App\Models\MaterialAccess::whereIn('material_id', $myMaterialIds)
+            ->where('status', 'pending')
+            ->count();
+
+        // 2. MATERIAL ENGAGEMENT
+        $totalMaterials = $myMaterialIds->count();
+        $totalViews = \App\Models\Material::where('instructor_id', $teacherId)->sum('views');
+
+        $topMaterials = \App\Models\Material::where('instructor_id', $teacherId)
+            ->orderBy('views', 'desc')
+            ->take(5)
+            ->get();
+
+        $materialLabels = $topMaterials->pluck('title')->map(fn($t) => \Illuminate\Support\Str::limit($t, 20))->toArray();
+        $materialViews = $topMaterials->pluck('views')->toArray();
+
+        $completedCount = \App\Models\Enrollment::whereIn('material_id', $myMaterialIds)->where('status', 'completed')->count();
+        $inProgressCount = \App\Models\Enrollment::whereIn('material_id', $myMaterialIds)->where('status', 'in_progress')->count();
+
+        // 3. ASSESSMENT & PERFORMANCE
+        $teacherExamIds = \App\Models\Exam::whereIn('material_id', $myMaterialIds)->pluck('id');
+        $totalAnswers = \App\Models\ExamAnswer::whereIn('exam_id', $teacherExamIds)->count();
+        $correctAnswers = \App\Models\ExamAnswer::whereIn('exam_id', $teacherExamIds)->where('is_correct', true)->count();
+
+        $averageScore = $totalAnswers > 0 ? round(($correctAnswers / $totalAnswers) * 100, 1) : 0;
+        $incorrectAnswers = $totalAnswers - $correctAnswers;
+
+        // 4. RECENT ACTIVITY TREND (Last 7 days of Enrollments)
+        $activityDates = [];
+        $activityTrend = [];
+        for ($i = 6; $i >= 0; $i--) {
+            $date = now()->subDays($i)->format('Y-m-d');
+            $activityDates[] = now()->subDays($i)->format('M d');
+            $activityTrend[] = \App\Models\Enrollment::whereDate('created_at', $date)
+                ->whereIn('material_id', $myMaterialIds)
+                ->count();
+        }
+
+        return view('dashboard.partials.teacher.analytics', compact(
+            'totalLearners',
+            'activeLearners',
+            'pendingRequests',
+            'totalMaterials',
+            'totalViews',
+            'materialLabels',
+            'materialViews',
+            'completedCount',
+            'inProgressCount',
+            'averageScore',
+            'correctAnswers',
+            'incorrectAnswers',
+            'activityDates',
+            'activityTrend'
+        ));
+    }
+    private function loadStudentAnalytics()
+    {
+        $studentId = Auth::id();
+
+        // 1. ACHIEVEMENTS & PROGRESS
+        $totalEnrollments = \App\Models\Enrollment::where('user_id', $studentId)->count();
+        $completedCount = \App\Models\Enrollment::where('user_id', $studentId)->where('status', 'completed')->count();
+        $inProgressCount = \App\Models\Enrollment::where('user_id', $studentId)->where('status', 'in_progress')->count();
+        
+        $completionRate = $totalEnrollments > 0 ? round(($completedCount / $totalEnrollments) * 100) : 0;
+
+        // 2. ALL-TIME ASSESSMENT PERFORMANCE
+        $totalAnswers = \App\Models\ExamAnswer::where('user_id', $studentId)->count();
+        $correctAnswers = \App\Models\ExamAnswer::where('user_id', $studentId)->where('is_correct', true)->count();
+        $incorrectAnswers = $totalAnswers - $correctAnswers;
+
+        $averageScore = $totalAnswers > 0 ? round(($correctAnswers / $totalAnswers) * 100, 1) : 0;
+
+        // 3. RECENT EXAM TREND (Last 7 Days)
+        $examDates = [];
+        $examScores = [];
+        
+        // Loop backwards to get the last 7 days including today
+        for ($i = 6; $i >= 0; $i--) {
+            $date = now()->subDays($i)->format('Y-m-d');
+            $examDates[] = now()->subDays($i)->format('M d');
+            
+            // Sum correct answers for that specific day
+            $dailyScore = \App\Models\ExamAnswer::where('user_id', $studentId)
+                ->whereDate('created_at', $date)
+                ->where('is_correct', true)
+                ->count();
+                
+            $examScores[] = $dailyScore;
+        }
+
+        return view('dashboard.partials.student.analytics', compact(
+            'totalEnrollments', 'completedCount', 'inProgressCount', 'completionRate',
+            'totalAnswers', 'correctAnswers', 'incorrectAnswers', 'averageScore',
+            'examDates', 'examScores'
+        ));
+    }
 }

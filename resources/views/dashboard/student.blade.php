@@ -28,6 +28,12 @@
         <span class="group-hover:text-[#a52a2a] transition-colors">Certificates</span>
     </button>
 
+    <button id="nav-analytics-btn" onclick="loadPartial('{{ url('/dashboard/analytics') }}', this)"
+        class="nav-btn w-full flex items-center px-4 py-3 text-gray-600 hover:bg-gray-100 transition group transition-all">
+        <i class="fas fa-chart-bar w-5 mr-3 group-hover:text-[#a52a2a] transition-colors"></i>
+        <span class="group-hover:text-[#a52a2a] transition-colors">My Progress</span> 
+    </button>
+
     <button id="nav-profile-btn" onclick="loadPartial('{{ url('/dashboard/profile') }}', this)"
         class="nav-btn w-full flex items-center px-4 py-3 text-gray-600 hover:bg-gray-100 transition group transition-all">
         <i class="fas fa-user w-5 mr-3 group-hover:text-[#a52a2a] transition-colors"></i>

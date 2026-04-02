@@ -29,7 +29,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     // Main Dashboard Entry Point
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard.main');
-    
+
     // Alias for the student middleware redirect to fallback to the main dashboard
     Route::get('/student/dashboard', [DashboardController::class, 'index'])->name('student.dashboard');
 
@@ -46,6 +46,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('/profile', [DashboardController::class, 'loadProfilePartial'])->name('dashboard.profile');
         Route::get('/settings', [DashboardController::class, 'loadSettingsPartial'])->name('dashboard.settings');
         Route::get('/assessment', [DashboardController::class, 'loadAssessmentPartial'])->name('dashboard.assessment');
+        Route::get('/analytics', [DashboardController::class, 'loadAnalyticsPartial'])->name('dashboard.analytics');
 
         // Schools Management
         Route::get('/schools', [DashboardController::class, 'loadSchoolsPartial'])->name('schools');
@@ -91,7 +92,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::patch('/explore-layout/{section}/toggle', [ExploreLayoutController::class, 'toggleActive'])->name('dashboard.explore-layout.toggle');
         Route::post('/explore-layout/reorder', [ExploreLayoutController::class, 'reorder'])->name('dashboard.explore-layout.reorder');
 
-        Route::get('/explore-layout/search-materials',[ExploreLayoutController::class, 'searchMaterials'])->name('dashboard.explore-layout.search');
+        Route::get('/explore-layout/search-materials', [ExploreLayoutController::class, 'searchMaterials'])->name('dashboard.explore-layout.search');
 
         Route::patch('/materials/{material}/toggle-featured', [MaterialsController::class, 'toggleFeatured'])->name('dashboard.materials.toggle-featured');
 
@@ -138,7 +139,7 @@ Route::middleware(['auth'])->group(function () {
 |--------------------------------------------------------------------------
 */
 Route::middleware(['auth'])->group(function () {
-    
+
     // Public validation endpoint (Checks if code is valid)
     Route::post('/student/assessment/verify', [StudentAssessmentController::class, 'verifyCode'])->name('student.assessment.verify');
 
@@ -150,14 +151,14 @@ Route::middleware(['auth'])->group(function () {
         Route::post('/assessment/{access_key}/autosave', [StudentAssessmentController::class, 'autoSave'])->name('student.assessment.autosave');
 
         Route::get('/assessment/{access_key}/results', [StudentAssessmentController::class, 'results'])->name('student.assessment.results');
-        
-        
+
+
         // ADD SUBMIT ROUTE HERE LATER:
         // Route::post('/assessment/{access_key}/submit', [StudentAssessmentController::class, 'submit'])->name('student.assessment.submit');
     });
 
     Route::get('/dashboard/profile', [ProfileController::class, 'show'])->name('profile');
-    
+
     // Handles the form submissions via AJAX/JSON
     Route::patch('/dashboard/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::put('/dashboard/profile/password', [ProfileController::class, 'updatePassword'])->name('password.update');
