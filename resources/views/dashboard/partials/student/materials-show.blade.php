@@ -70,11 +70,11 @@
         $timeline = $timeline->sortBy('timestamp')->values();
         $timelineCount = $timeline->count();
 
-        // 2. CALCULATE PROGRESS
+        // 2. CALCULATE PROGRESS & STATUS
         $sectionsCompleted = 0;
         $progressPct = 0;
+        $enrollmentStatus = null;
         
-        // Count the absolute total number of individual items/questions in the entire module
         $totalContents = $timeline->sum(function($section) {
             return $section->items->count();
         });
@@ -85,7 +85,9 @@
                 ->first();
             
             if ($enrollment) {
-                if ($enrollment->status === 'completed' || !is_null($enrollment->completed_at)) {
+                $enrollmentStatus = $enrollment->status; // 'in_progress', 'completed', or 'failed'
+
+                if ($enrollmentStatus === 'completed' || !is_null($enrollment->completed_at)) {
                     $sectionsCompleted = $timelineCount;
                     $progressPct = 100;
                 } elseif ($enrollment->progress_data) {
@@ -97,7 +99,6 @@
                     
                     $sectionsCompleted = $highestUnlocked;
                     
-                    // Calculate exact items passed for a smooth, granular percentage
                     $contentsPassed = 0;
                     for ($i = 0; $i < $highestUnlocked; $i++) {
                         if (isset($timeline[$i])) {
@@ -114,7 +115,7 @@
             }
         }
 
-        // 3. GET GRADING RULES DIRECTLY FROM DATABASE
+        // 3. GET GRADING RULES
         $dbHasExams = \Illuminate\Support\Facades\DB::table('exams')->where('material_id', $material->id)->exists();
         $dbHasQuizzes = \Illuminate\Support\Facades\DB::table('lesson_contents')
             ->join('lessons', 'lesson_contents.lesson_id', '=', 'lessons.id')
@@ -286,14 +287,30 @@
                             <i class="fas fa-user-plus text-lg"></i> Enroll Now
                         </button>
 
-                        {{-- Unenroll Button (Hidden if NOT enrolled) --}}
-                        <button id="unenroll-btn" onclick="openDropModal({{ $material->id }})" class="{{ $isEnrolled ? 'flex' : 'hidden' }} w-full sm:w-auto px-6 py-3.5 bg-green-50 text-green-700 border border-green-200 font-bold rounded-xl hover:bg-green-100 transition items-center justify-center gap-2 cursor-pointer shadow-sm">
-                            <i class="fas fa-check-circle text-lg"></i>
-                            <span>Enrolled</span>
+                        {{-- Unenroll / Status Button (Hidden if NOT enrolled) --}}
+                        <button id="unenroll-btn" onclick="openDropModal({{ $material->id }})" class="{{ $isEnrolled ? 'flex' : 'hidden' }} w-full sm:w-auto px-6 py-3.5 bg-gray-50 text-gray-700 border border-gray-200 font-bold rounded-xl hover:bg-gray-100 transition items-center justify-center gap-2 cursor-pointer shadow-sm">
+                            @if($enrollmentStatus === 'completed')
+                                <i class="fas fa-trophy text-yellow-600 text-lg"></i> <span>Completed</span>
+                            @elseif($enrollmentStatus === 'failed')
+                                <i class="fas fa-times-circle text-red-600 text-lg"></i> <span>Needs Retake</span>
+                            @else
+                                <i class="fas fa-check-circle text-green-600 text-lg"></i> <span>Enrolled</span>
+                            @endif
                         </button>
 
-                        {{-- Study Now Button (Hidden if NOT enrolled) --}}
-                        <button id="study-now-btn" onclick="startStudying()" class="{{ $isEnrolled ? 'flex' : 'hidden' }} flex-1 sm:flex-none px-8 py-3.5 bg-green-600 text-white font-bold rounded-xl hover:bg-green-700 transition shadow-lg shadow-green-600/20 items-center justify-center gap-2">
+                        {{-- Conditional Action Buttons (Certificate vs Result vs Study) --}}
+                        @if($enrollmentStatus === 'completed')
+                            <a href="{{ route('dashboard.materials.certificate', $material->id) }}" class="flex-1 sm:flex-none px-8 py-3.5 bg-yellow-500 text-white font-bold rounded-xl hover:bg-yellow-600 transition shadow-lg shadow-yellow-500/20 flex items-center justify-center gap-2">
+                                <i class="fas fa-certificate text-lg"></i> View Certificate
+                            </a>
+                        @elseif($enrollmentStatus === 'failed')
+                            <a href="{{ route('dashboard.materials.result', $material->id) }}" class="flex-1 sm:flex-none px-8 py-3.5 bg-red-600 text-white font-bold rounded-xl hover:bg-red-700 transition shadow-lg shadow-red-600/20 flex items-center justify-center gap-2">
+                                <i class="fas fa-chart-bar text-lg"></i> View Results
+                            </a>
+                        @endif
+
+                        {{-- Study Now Button (Hidden if NOT enrolled, or if completed/failed) --}}
+                        <button id="study-now-btn" onclick="startStudying()" class="{{ $isEnrolled && !in_array($enrollmentStatus, ['completed', 'failed']) ? 'flex' : 'hidden' }} flex-1 sm:flex-none px-8 py-3.5 bg-green-600 text-white font-bold rounded-xl hover:bg-green-700 transition shadow-lg shadow-green-600/20 items-center justify-center gap-2">
                             <i class="fas fa-play-circle text-lg"></i> Study Now
                         </button>
                     </div>
@@ -402,14 +419,12 @@
         function navigateBack() {
             const wrapper = document.getElementById('page-wrapper');
 
-            // 1. Trigger the slide-out animation
             wrapper.classList.remove('animate-slide-in');
             wrapper.classList.add('animate-slide-out');
 
-            // 2. Explicitly redirect back to the main dashboard layout
             setTimeout(() => {
                 window.location.href = "{{ url('/dashboard') }}";
-            }, 300); // 300ms matches the CSS animation duration
+            }, 300);
         }
 
         // Study Now Logic
@@ -472,7 +487,6 @@
             const box = document.getElementById('dropCourseBox');
             const confirmBtn = document.getElementById('confirm-drop-btn');
             
-            // Reset button and timer state
             confirmBtn.disabled = true;
             confirmBtn.innerHTML = 'Drop (<span id="drop-timer">5</span>s)';
             let timeLeft = 5;
@@ -535,41 +549,8 @@
                     closeDropModal();
                     showStandaloneAlert('Course dropped successfully.', 'success');
                     
-                    // --- DOM Reversion: Re-lock everything instantly instead of refreshing ---
-                    
-                    const enrollBtn = document.getElementById('enroll-btn');
-                    const unenrollBtn = document.getElementById('unenroll-btn');
-                    const studyBtn = document.getElementById('study-now-btn');
-                    
-                    // Button Swap
-                    enrollBtn.classList.replace('hidden', 'flex');
-                    unenrollBtn.classList.replace('flex', 'hidden');
-                    studyBtn.classList.replace('flex', 'hidden');
-                    
-                    // Hide Progress Bar & Reset values visually
-                    document.getElementById('progress-container')?.classList.replace('block', 'hidden');
-                    document.getElementById('progress-percentage-text').innerText = '0%';
-                    document.getElementById('progress-bar-fill').style.width = '0%';
-                    document.getElementById('progress-count-text').innerText = `0 of {{ $timelineCount }} sections completed`;
-
-                    // Visually Lock Lessons
-                    document.querySelectorAll('.lesson-item').forEach(item => {
-                        item.classList.add('opacity-70', 'cursor-not-allowed');
-                        item.classList.remove('hover:bg-gray-50', 'hover:border-gray-100', 'cursor-pointer');
-                        
-                        const icon = item.querySelector('.lesson-status-icon');
-                        if (icon) {
-                            icon.className = 'fas fa-lock text-gray-300 tooltip lesson-status-icon';
-                            icon.title = "Enroll to unlock";
-                        }
-                        
-                        const numberBadge = item.querySelector('.lesson-number');
-                        if(numberBadge) numberBadge.classList.remove('group-hover:bg-[#a52a2a]/10', 'group-hover:text-[#a52a2a]');
-                        
-                        const titleText = item.querySelector('.lesson-title');
-                        if(titleText) titleText.classList.remove('group-hover:text-[#a52a2a]');
-                    });
-
+                    // Simple page reload to reset the UI back to standard un-enrolled view
+                    setTimeout(() => window.location.reload(), 1000);
                 } else {
                     showStandaloneAlert(data.message || 'Failed to drop course.', 'error');
                     confirmBtn.innerHTML = originalHtml;
@@ -636,7 +617,6 @@
                         if(titleText) titleText.classList.add('group-hover:text-[#a52a2a]');
                     });
 
-                    // Reset enroll button back to normal
                     btn.innerHTML = originalHtml;
                     btn.disabled = false;
 
@@ -648,38 +628,6 @@
                 }
             } catch (error) {
                 showStandaloneAlert('A network error occurred.', 'error');
-                btn.innerHTML = originalHtml;
-                btn.disabled = false;
-            }
-        }
-
-        async function completeModule(materialId, btn) {
-            btn.disabled = true;
-            const originalHtml = btn.innerHTML;
-            btn.innerHTML = '<i class="fas fa-spinner fa-spin text-lg"></i> Processing...';
-
-            try {
-                const response = await fetch(`{{ url('/dashboard/student/materials') }}/${materialId}/complete`, {
-                    method: 'POST',
-                    headers: {
-                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
-                        'Accept': 'application/json'
-                    }
-                });
-
-                const data = await response.json();
-
-                if (response.ok && data.success) {
-                    sessionStorage.setItem('lastActiveTab', '{{ route('student.enrolled.index') }}');
-                    sessionStorage.setItem('lastActiveBtn', 'nav-enrolled-btn');
-                    window.location.href = data.redirect_url;
-                } else {
-                    showStandaloneAlert(data.message || 'Failed to mark as complete.', 'error');
-                    btn.innerHTML = originalHtml;
-                    btn.disabled = false;
-                }
-            } catch (error) {
-                showStandaloneAlert('A network error occurred. Please try again.', 'error');
                 btn.innerHTML = originalHtml;
                 btn.disabled = false;
             }

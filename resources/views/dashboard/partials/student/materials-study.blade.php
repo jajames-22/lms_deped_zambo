@@ -902,19 +902,53 @@
             }
         }
 
-        function finishModule() {
-            saveProgressToServer(false); 
+        async function finishModule() {
+            await saveProgressToServer(false); // Force silent save of the last answer
 
+            // Push UI to 100%
             document.getElementById('top-progress-bar').style.width = '100%';
             document.getElementById('top-progress-text').innerText = '100%';
             
-            if (typeof confetti === 'function') {
-                confetti({ particleCount: 150, spread: 80, origin: { y: 0.6 }, colors: ['#a52a2a', '#22c55e', '#fbbf24', '#3b82f6'] });
+            const btn = document.getElementById('btn-next');
+            const originalHtml = btn.innerHTML;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processing...';
+            btn.disabled = true;
+
+            try {
+                const response = await fetch(`{{ route('dashboard.materials.complete', $material->id) }}`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+                        'Accept': 'application/json'
+                    }
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    if (data.passed) {
+                        if (typeof confetti === 'function') {
+                            confetti({ particleCount: 150, spread: 80, origin: { y: 0.6 }, colors: ['#a52a2a', '#22c55e', '#fbbf24', '#3b82f6'] });
+                        }
+                        showCustomAlert("Congratulations!", "You have passed this module! Redirecting...", "success", function() {
+                            window.location.href = data.redirect_url;
+                        });
+                    } else {
+                        // They finished but failed. Redirect immediately to the result page.
+                        window.location.href = data.redirect_url;
+                    }
+                } else {
+                    showCustomAlert("Error", data.message || "Failed to process completion.");
+                    btn.innerHTML = originalHtml;
+                    btn.disabled = false;
+                }
+            } catch (error) {
+                console.error(error);
+                showCustomAlert("Error", "A network error occurred. Please check your connection.");
+                btn.innerHTML = originalHtml;
+                btn.disabled = false;
             }
-            
-            showCustomAlert("Congratulations!", "You have successfully completed this module. Processing your certificate...", "success", function() {
-                window.location.href = "{{ route('dashboard.materials.show', $material->id) }}";
-            });
         }
 
         // --- SAVE PROGRESS SCRIPT ---
