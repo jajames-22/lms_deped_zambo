@@ -36,6 +36,102 @@
 
 <body class="bg-gray-50 font-sans text-gray-900 min-h-screen overflow-x-hidden selection:bg-[#a52a2a] selection:text-white">
 
+    @php
+        // 1. BUILD UNIFIED TIMELINE (Lessons + Exams)
+        $timeline = collect();
+        if(isset($material->lessons)) {
+            foreach($material->lessons as $lesson) {
+                $timeline->push((object)[
+                    'is_exam' => false,
+                    'id' => 'lesson_'.$lesson->id,
+                    'title' => $lesson->title,
+                    'items' => $lesson->contents,
+                    'timestamp' => $lesson->created_at ? \Carbon\Carbon::parse($lesson->created_at)->timestamp : 0
+                ]);
+            }
+        }
+
+        if(isset($material->exams) && $material->exams->count() > 0) {
+            $groupedExams = $material->exams->groupBy(function($e) { 
+                return $e->created_at ? \Carbon\Carbon::parse($e->created_at)->format('Y-m-d H:i:s') : '0'; 
+            });
+            $examCounter = 1;
+            foreach($groupedExams as $time => $questions) {
+                $timeline->push((object)[
+                    'is_exam' => true,
+                    'id' => 'exam_group_'.$examCounter,
+                    'title' => 'Final Examination',
+                    'items' => $questions,
+                    'timestamp' => \Carbon\Carbon::parse($time)->timestamp
+                ]);
+                $examCounter++;
+            }
+        }
+        $timeline = $timeline->sortBy('timestamp')->values();
+        $timelineCount = $timeline->count();
+
+        // 2. CALCULATE PROGRESS
+        $sectionsCompleted = 0;
+        $progressPct = 0;
+        
+        // Count the absolute total number of individual items/questions in the entire module
+        $totalContents = $timeline->sum(function($section) {
+            return $section->items->count();
+        });
+
+        if ($isEnrolled) {
+            $enrollment = \App\Models\Enrollment::where('material_id', $material->id)
+                ->where('user_id', auth()->id())
+                ->first();
+            
+            if ($enrollment) {
+                if ($enrollment->status === 'completed' || !is_null($enrollment->completed_at)) {
+                    $sectionsCompleted = $timelineCount;
+                    $progressPct = 100;
+                } elseif ($enrollment->progress_data) {
+                    $pData = json_decode($enrollment->progress_data);
+                    
+                    $highestUnlocked = isset($pData->highest_unlocked) ? (int)$pData->highest_unlocked : 0;
+                    $currentContent = isset($pData->content) ? (int)$pData->content : 0;
+                    $currentLesson = isset($pData->lesson) ? (int)$pData->lesson : 0;
+                    
+                    $sectionsCompleted = $highestUnlocked;
+                    
+                    // Calculate exact items passed for a smooth, granular percentage
+                    $contentsPassed = 0;
+                    for ($i = 0; $i < $highestUnlocked; $i++) {
+                        if (isset($timeline[$i])) {
+                            $contentsPassed += $timeline[$i]->items->count();
+                        }
+                    }
+                    
+                    if ($currentLesson === $highestUnlocked) {
+                        $contentsPassed += $currentContent;
+                    }
+                    
+                    $progressPct = $totalContents > 0 ? min(100, round(($contentsPassed / $totalContents) * 100)) : 0;
+                }
+            }
+        }
+
+        // 3. GET GRADING RULES DIRECTLY FROM DATABASE
+        $dbHasExams = \Illuminate\Support\Facades\DB::table('exams')->where('material_id', $material->id)->exists();
+        $dbHasQuizzes = \Illuminate\Support\Facades\DB::table('lesson_contents')
+            ->join('lessons', 'lesson_contents.lesson_id', '=', 'lessons.id')
+            ->where('lessons.material_id', $material->id)
+            ->whereIn('lesson_contents.type', ['mcq', 'checkbox', 'true_false', 'text']) 
+            ->exists();
+
+        $examWeight = $material->exam_weight ?? 60;
+        $passingScore = $material->passing_percentage ?? 80;
+        
+        if ($dbHasExams && !$dbHasQuizzes) { $examWeight = 100; }
+        elseif (!$dbHasExams && $dbHasQuizzes) { $examWeight = 0; }
+        elseif (!$dbHasExams && !$dbHasQuizzes) { $examWeight = 0; }
+        
+        $quizWeight = 100 - $examWeight;
+    @endphp
+
     {{-- WRAPPER FOR ANIMATION --}}
     <div id="page-wrapper" class="min-h-screen flex flex-col animate-slide-in">
 
@@ -115,7 +211,8 @@
                         {{ $material->description }}
                     </p>
 
-                    <div class="flex flex-wrap items-center gap-6 py-4 border-y border-gray-100 mt-auto mb-6">
+                    {{-- STATS ROW --}}
+                    <div class="flex flex-wrap items-center gap-6 py-4 border-t border-gray-100 mt-auto">
                         <div class="flex items-center gap-3">
                             <div class="h-10 w-10 rounded-full bg-gray-50 flex items-center justify-center text-gray-400 text-lg border border-gray-200 shadow-sm shrink-0">
                                 <i class="fas fa-user"></i>
@@ -133,8 +230,52 @@
 
                         <div>
                             <p class="text-[10px] text-gray-400 font-bold uppercase tracking-wider">Total Views</p>
-                            <p class="text-sm font-bold text-gray-900"><i class="fas fa-eye text-[#a52a2a] mr-1.5"></i>{{ number_format($material->views) }}</p>
+                            <p class="text-sm font-bold text-gray-900"><i class="fas fa-eye text-[#a52a2a] mr-1.5"></i>{{ number_format($material->views ?? 0) }}</p>
                         </div>
+                        
+                        <div class="hidden sm:block w-px h-8 bg-gray-200"></div>
+
+                        <div>
+                            <p class="text-[10px] text-gray-400 font-bold uppercase tracking-wider">Downloads</p>
+                            <p class="text-sm font-bold text-gray-900"><i class="fas fa-download text-amber-500 mr-1.5"></i>{{ number_format($material->downloads ?? 0) }}</p>
+                        </div>
+                    </div>
+
+                    {{-- GRADING BLOCK --}}
+                    <div class="mt-4 mb-6">
+                        @if($dbHasExams || $dbHasQuizzes)
+                            <div class="p-4 bg-gray-50 border border-gray-100 rounded-2xl">
+                                <h4 class="text-xs font-bold text-gray-900 uppercase tracking-wider mb-3 flex items-center gap-2"><i class="fas fa-award text-blue-500"></i> Grading & Certification</h4>
+                                <div class="flex flex-wrap gap-8">
+                                    <div>
+                                        <p class="text-[10px] text-gray-400 font-bold uppercase tracking-wider mb-0.5">Passing Score</p>
+                                        <p class="text-lg font-black {{ $passingScore == 0 ? 'text-amber-500' : 'text-green-600' }}">{{ $passingScore }}%</p>
+                                    </div>
+                                    <div>
+                                        <p class="text-[10px] text-gray-400 font-bold uppercase tracking-wider mb-0.5">Assessment Weight</p>
+                                        <div class="text-xs font-bold mt-1.5 flex flex-wrap gap-3">
+                                            @if($dbHasQuizzes)
+                                                <span class="flex items-center gap-1.5 text-yellow-600 bg-yellow-50 px-2 py-1 rounded-md border border-yellow-100"><i class="fas fa-list-ul"></i> Quizzes: {{ $quizWeight }}%</span>
+                                            @endif
+                                            @if($dbHasExams)
+                                                <span class="flex items-center gap-1.5 text-red-600 bg-red-50 px-2 py-1 rounded-md border border-red-100"><i class="fas fa-star"></i> Exam: {{ $examWeight }}%</span>
+                                            @endif
+                                        </div>
+                                    </div>
+                                </div>
+                                @if($passingScore == 0)
+                                    <p class="text-[10px] text-amber-600 mt-3 font-medium leading-tight"><i class="fas fa-exclamation-triangle mr-1"></i> No grading enforced. Complete all items to receive certificate.</p>
+                                @endif
+                            </div>
+                        @else
+                            <div class="p-4 bg-gray-50 border border-gray-200 rounded-2xl flex items-start gap-3">
+                                <i class="fas fa-info-circle text-gray-400 text-lg mt-0.5"></i>
+                                <div>
+                                    <p class="text-sm font-bold text-gray-700">No Assessments</p>
+                                    <p class="text-xs text-gray-500 mt-1">Read all materials to automatically earn a certificate.</p>
+                                </div>
+                            </div>
+                        @endif
                     </div>
 
                     {{-- DYNAMIC ACTION BUTTONS --}}
@@ -164,44 +305,44 @@
                 <div class="flex items-end justify-between mb-3">
                     <div>
                         <h4 class="font-bold text-gray-900 text-lg">Your Progress</h4>
-                        <p class="text-xs text-gray-500">Complete all lessons to finish the module</p>
+                        <p class="text-xs text-gray-500">Complete all sections to finish the module</p>
                     </div>
-                    <span class="text-xl font-black text-green-600">0%</span>
+                    <span id="progress-percentage-text" class="text-xl font-black text-green-600">{{ $progressPct }}%</span>
                 </div>
                 <div class="w-full bg-gray-100 rounded-full h-3 overflow-hidden">
-                    <div class="bg-green-500 h-3 rounded-full transition-all duration-1000 ease-out" style="width: 0%"></div>
+                    <div id="progress-bar-fill" class="bg-green-500 h-3 rounded-full transition-all duration-1000 ease-out" style="width: {{ $progressPct }}%"></div>
                 </div>
-                <p class="text-xs text-gray-400 mt-3 font-bold uppercase tracking-wider text-right">0 of {{ $material->lessons->count() }} lessons completed</p>
+                <p id="progress-count-text" class="text-xs text-gray-400 mt-3 font-bold uppercase tracking-wider text-right">{{ $sectionsCompleted }} of {{ $timelineCount }} sections completed</p>
             </div>
 
             {{-- Course Content / Lessons List --}}
             <h3 class="text-xl font-black text-gray-900 mb-4 px-2">Course Content</h3>
             <div class="bg-white rounded-3xl shadow-sm border border-gray-100 p-2 md:p-4">
 
-                @forelse($material->lessons as $index => $lesson)
+                @forelse($timeline as $index => $section)
                     <div class="lesson-item p-4 rounded-2xl transition-colors border border-transparent flex items-start gap-4 group {{ $isEnrolled ? 'hover:bg-gray-50 hover:border-gray-100 cursor-pointer' : 'opacity-70 cursor-not-allowed' }}">
-                        <div class="lesson-number h-10 w-10 shrink-0 rounded-xl bg-gray-100 text-gray-400 font-black flex items-center justify-center {{ $isEnrolled ? 'group-hover:bg-[#a52a2a]/10 group-hover:text-[#a52a2a]' : '' }} transition-colors">
-                            {{ $index + 1 }}
+                        <div class="lesson-number h-10 w-10 shrink-0 rounded-xl {{ $section->is_exam ? 'bg-red-50 text-red-500' : 'bg-gray-100 text-gray-400' }} font-black flex items-center justify-center {{ $isEnrolled && !$section->is_exam ? 'group-hover:bg-[#a52a2a]/10 group-hover:text-[#a52a2a]' : '' }} transition-colors">
+                            @if($section->is_exam) <i class="fas fa-star"></i> @else {{ $index + 1 }} @endif
                         </div>
                         <div class="flex-1 min-w-0 pt-1.5">
-                            <h4
-                                class="font-bold text-gray-900 {{ $isEnrolled ? 'group-hover:text-[#a52a2a]' : '' }} transition-colors text-lg">
-                                {{ $lesson->title }}
+                            <h4 class="font-bold text-gray-900 {{ $isEnrolled && !$section->is_exam ? 'group-hover:text-[#a52a2a]' : '' }} transition-colors text-lg">
+                                {{ $section->title }}
                             </h4>
                             <div class="flex flex-wrap items-center gap-4 mt-1">
                                 <p class="text-xs text-gray-500 font-medium flex items-center gap-1.5 uppercase tracking-wider">
-                                    <i class="fas fa-book-open text-gray-400"></i> {{ ucfirst($lesson->section_type) }}
+                                    <i class="fas {{ $section->is_exam ? 'fa-pen-alt' : 'fa-book-open' }} text-gray-400"></i> {{ $section->items->count() }} {{ $section->is_exam ? 'Questions' : 'Items' }}
                                 </p>
-                                @if($lesson->time_limit)
-                                    <p class="text-xs text-gray-500 font-medium flex items-center gap-1.5 uppercase tracking-wider">
-                                        <i class="far fa-clock text-gray-400"></i> {{ $lesson->time_limit }} mins
-                                    </p>
-                                @endif
                             </div>
                         </div>
                         <div class="pt-3 pl-4">
                             @if($isEnrolled)
-                                <i class="lesson-status-icon fas fa-chevron-right text-gray-300 group-hover:text-[#a52a2a] transition-colors"></i>
+                                @if($index < $sectionsCompleted)
+                                    <i class="lesson-status-icon fas fa-check-circle text-green-500 tooltip" title="Completed"></i>
+                                @elseif($index == $sectionsCompleted)
+                                    <i class="lesson-status-icon fas fa-play-circle text-[#a52a2a] text-xl tooltip" title="Current Section"></i>
+                                @else
+                                    <i class="lesson-status-icon fas fa-lock text-gray-300 tooltip" title="Locked"></i>
+                                @endif
                             @else
                                 <i class="lesson-status-icon fas fa-lock text-gray-300 tooltip" title="Enroll to unlock"></i>
                             @endif
@@ -219,26 +360,6 @@
             </div>
         </main>
 
-    </div>
-
-    {{-- Drop Course Modal --}}
-    <div id="dropCourseModal" class="fixed inset-0 z-[9999] hidden opacity-0 transition-opacity duration-300 flex items-center justify-center p-4">
-        <div class="absolute inset-0 bg-gray-900/60" onclick="closeDropModal()"></div>
-        <div class="bg-white rounded-3xl w-full max-w-sm shadow-2xl overflow-hidden transform scale-95 transition-all duration-300 text-center p-6 relative z-10" id="dropCourseBox">
-            <div class="w-16 h-16 bg-red-50 text-red-500 rounded-full flex items-center justify-center mx-auto mb-4 text-3xl">
-                <i class="fas fa-exclamation-triangle"></i>
-            </div>
-            <h3 class="text-xl font-black text-gray-900 mb-2">Drop Course?</h3>
-            <p class="text-sm text-gray-500 mb-6">Are you sure you want to drop this course? All your progress and completed lessons will be permanently lost.</p>
-            <div class="flex gap-3">
-                <button type="button" onclick="closeDropModal()" class="w-full py-3 bg-gray-100 text-gray-700 font-bold rounded-xl hover:bg-gray-200 transition">
-                    Cancel
-                </button>
-                <button type="button" id="confirm-drop-btn" onclick="executeDrop()" disabled class="w-full py-3 bg-red-600 text-white font-bold rounded-xl hover:bg-red-700 transition disabled:opacity-50 disabled:cursor-not-allowed">
-                    Drop (<span id="drop-timer">5</span>s)
-                </button>
-            </div>
-        </div>
     </div>
 
     {{-- Drop Course Modal --}}
@@ -425,8 +546,11 @@
                     unenrollBtn.classList.replace('flex', 'hidden');
                     studyBtn.classList.replace('flex', 'hidden');
                     
-                    // Hide Progress Bar
+                    // Hide Progress Bar & Reset values visually
                     document.getElementById('progress-container')?.classList.replace('block', 'hidden');
+                    document.getElementById('progress-percentage-text').innerText = '0%';
+                    document.getElementById('progress-bar-fill').style.width = '0%';
+                    document.getElementById('progress-count-text').innerText = `0 of {{ $timelineCount }} sections completed`;
 
                     // Visually Lock Lessons
                     document.querySelectorAll('.lesson-item').forEach(item => {
@@ -488,19 +612,27 @@
                     document.getElementById('progress-container')?.classList.replace('hidden', 'block');
 
                     // Unlock lessons visually
-                    document.querySelectorAll('.lesson-item').forEach(item => {
+                    document.querySelectorAll('.lesson-item').forEach((item, index) => {
                         item.classList.remove('opacity-70', 'cursor-not-allowed');
                         item.classList.add('hover:bg-gray-50', 'hover:border-gray-100', 'cursor-pointer');
+                        
                         const icon = item.querySelector('.lesson-status-icon');
                         if (icon) {
-                            icon.className = 'fas fa-chevron-right text-gray-300 group-hover:text-[#a52a2a] transition-colors lesson-status-icon';
-                            icon.removeAttribute('title');
+                            if (index === 0) {
+                                icon.className = 'fas fa-play-circle text-[#a52a2a] text-xl tooltip lesson-status-icon';
+                                icon.title = "Current Section";
+                            } else {
+                                icon.className = 'fas fa-lock text-gray-300 tooltip lesson-status-icon';
+                                icon.title = "Locked";
+                            }
                         }
                         
                         const numberBadge = item.querySelector('.lesson-number');
-                        if(numberBadge) numberBadge.classList.add('group-hover:bg-[#a52a2a]/10', 'group-hover:text-[#a52a2a]');
+                        if(numberBadge && !numberBadge.classList.contains('text-red-500')) {
+                            numberBadge.classList.add('group-hover:bg-[#a52a2a]/10', 'group-hover:text-[#a52a2a]');
+                        }
                         
-                        const titleText = item.querySelector('.lesson-title');
+                        const titleText = item.querySelector('h4');
                         if(titleText) titleText.classList.add('group-hover:text-[#a52a2a]');
                     });
 
@@ -538,11 +670,8 @@
                 const data = await response.json();
 
                 if (response.ok && data.success) {
-                    // 1. Tell the dashboard memory to load the ENROLLED page when they eventually click "Return"
                     sessionStorage.setItem('lastActiveTab', '{{ route('student.enrolled.index') }}');
                     sessionStorage.setItem('lastActiveBtn', 'nav-enrolled-btn');
-
-                    // 2. Redirect DIRECTLY to the standalone celebration page
                     window.location.href = data.redirect_url;
                 } else {
                     showStandaloneAlert(data.message || 'Failed to mark as complete.', 'error');

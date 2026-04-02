@@ -18,6 +18,8 @@ use Illuminate\Support\Facades\Mail;
 use App\Mail\MaterialInvitationMail;
 use App\Models\MaterialAccess;
 use App\Models\LessonContent;
+use App\Models\ExamAnswer;
+use App\Models\QuizAnswer;
 use Exception;
 
 class MaterialsController extends Controller
@@ -867,27 +869,32 @@ class MaterialsController extends Controller
     {
         $user = auth()->user();
 
-        // Security Check...
-        $isEnrolled = \App\Models\Enrollment::where('material_id', $material->id)
+        // 1. Fetch Enrollment to get Saved Progress
+        $enrollment = \App\Models\Enrollment::where('material_id', $material->id)
             ->where('user_id', $user->id)
-            ->exists();
+            ->first();
 
-        if (!$isEnrolled && $user->role === 'student') {
+        if (!$enrollment && $user->role === 'student') {
             abort(403, 'You must enroll in this material before studying.');
         }
 
-        // LOAD LESSONS, CONTENTS, AND EXAMS!
+        // Decode the JSON so the Blade file can read it
+        $savedProgress = $enrollment && $enrollment->progress_data 
+            ? json_decode($enrollment->progress_data) 
+            : null;
+
+        // LOAD LESSONS, CONTENTS, AND EXAMS
         $material->load([
-            
             'lessons' => function ($query) {
-                    $query->orderBy('sort_order', 'asc');
+                    $query->orderBy('created_at', 'asc');
                 }
         ,
             'lessons.contents.options', 
-            'exams.options' // <--- This is the magic key for the exam!
+            'exams.options' 
         ]);
 
-        return view('dashboard.partials.student.materials-study', compact('material'));
+        // Pass $savedProgress to the view
+        return view('dashboard.partials.student.materials-study', compact('material', 'savedProgress'));
     }
 
     public function unenroll(Request $request, Material $material)
@@ -895,7 +902,7 @@ class MaterialsController extends Controller
         $user = auth()->user();
 
         // 1. Find and delete the enrollment record
-        $enrollment = \App\Models\Enrollment::where('material_id', $material->id)
+        $enrollment = Enrollment::where('material_id', $material->id)
                             ->where('user_id', $user->id)
                             ->first();
 
@@ -918,6 +925,135 @@ class MaterialsController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'Successfully dropped the course.'
+        ]);
+    }
+
+    public function updateGrading(Request $request, $id)
+    {
+        $request->validate([
+            'exam_weight' => 'required|integer|min:0|max:100',
+            'passing_percentage' => 'required|integer|min:0|max:100',
+        ]);
+
+        try {
+            \Illuminate\Support\Facades\DB::table('materials')
+                ->where('id', $id)
+                ->update([
+                    'exam_weight' => $request->exam_weight,
+                    'passing_percentage' => $request->passing_percentage,
+                    'updated_at' => now()
+                ]);
+
+            return response()->json([
+                'success' => true, 
+                'message' => 'Grading settings saved successfully!'
+            ]);
+            
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false, 
+                'message' => 'Database error: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    public function saveProgress(Request $request, \App\Models\Material $material)
+    {
+        $user = auth()->user();
+
+        // 1. Save Position Progress to Enrollment
+        \App\Models\Enrollment::updateOrCreate(
+            ['material_id' => $material->id, 'user_id' => $user->id],
+            ['progress_data' => json_encode([
+                'lesson' => $request->lesson_index,
+                'content' => $request->content_index,
+                'highest_unlocked' => $request->highest_unlocked
+            ])]
+        );
+
+        $validQuestionTypes = ['mcq', 'true_false', 'checkbox', 'text'];
+        $type = $request->question_type;
+        $isCorrect = false;
+        $feedbackType = 'incorrect';
+
+        // 2. Validate and Grade the Answer
+        if (in_array($type, $validQuestionTypes) && $request->has('question_id')) {
+            
+            $answerData = $request->answer_data;
+            if ($answerData === null || $answerData === '') {
+                return response()->json(['success' => true]); // Ignore empty skipped exam answers
+            }
+
+            $isExam = $request->is_exam;
+            $questionId = $request->question_id;
+
+            // Helper to normalize spaces and casing
+            $normalizeText = function($text, $isCaseSensitive) {
+                $text = trim(preg_replace('/\s+/', ' ', $text)); // Remove extra spaces
+                return $isCaseSensitive ? $text : strtolower($text);
+            };
+
+            $questionTable = $isExam ? 'exams' : 'lesson_contents';
+            $optionsTable = $isExam ? 'exam_options' : 'quiz_options';
+            $foreignKey = $isExam ? 'exam_id' : 'quiz_id';
+
+            // GRADING LOGIC
+            if (in_array($type, ['mcq', 'true_false'])) {
+                $isCorrect = \Illuminate\Support\Facades\DB::table($optionsTable)->where('id', $answerData)->value('is_correct') == 1;
+                $feedbackType = $isCorrect ? 'correct' : 'incorrect';
+            } elseif ($type === 'checkbox') {
+                $selectedIds = explode(',', $answerData);
+                $correctIds = \Illuminate\Support\Facades\DB::table($optionsTable)->where($foreignKey, $questionId)->where('is_correct', 1)->pluck('id')->toArray();
+                sort($selectedIds); sort($correctIds);
+                $isCorrect = ($selectedIds == $correctIds);
+                $feedbackType = $isCorrect ? 'correct' : 'incorrect';
+            } elseif ($type === 'text') {
+                $question = \Illuminate\Support\Facades\DB::table($questionTable)->find($questionId);
+                $correctOptions = \Illuminate\Support\Facades\DB::table($optionsTable)->where($foreignKey, $questionId)->where('is_correct', 1)->pluck('option_text');
+
+                if ($correctOptions->isEmpty()) {
+                    $isCorrect = true; 
+                    $feedbackType = 'recorded_as_is'; // No right answer defined by teacher
+                } else {
+                    $isCaseSensitive = $question->is_case_sensitive ?? false;
+                    $userTextNormalized = $normalizeText($answerData, $isCaseSensitive);
+                    
+                    foreach ($correctOptions as $opt) {
+                        if ($userTextNormalized === $normalizeText($opt, $isCaseSensitive)) {
+                            $isCorrect = true;
+                            break;
+                        }
+                    }
+                    $feedbackType = $isCorrect ? 'correct' : 'incorrect';
+                }
+            }
+
+            // SAVE TO DATABASE
+            if ($isExam) {
+                \App\Models\ExamAnswer::updateOrCreate(
+                    ['user_id' => $user->id, 'exam_id' => $questionId],
+                    [
+                        'exam_option_id' => is_numeric($answerData) && $type !== 'checkbox' ? $answerData : null,
+                        'text_answer' => (!is_numeric($answerData) || $type === 'checkbox') ? $answerData : null,
+                        'is_correct' => $isCorrect
+                    ]
+                );
+            } else {
+                \App\Models\QuizAnswer::updateOrCreate(
+                    ['user_id' => $user->id, 'lesson_content_id' => $questionId],
+                    [
+                        'quiz_option_id' => is_numeric($answerData) && $type !== 'checkbox' ? $answerData : null,
+                        'text_answer' => (!is_numeric($answerData) || $type === 'checkbox') ? $answerData : null,
+                        'is_correct' => $isCorrect
+                    ]
+                );
+            }
+        }
+
+        return response()->json([
+            'success' => true,
+            'is_correct' => $isCorrect,
+            'feedback_type' => $feedbackType
         ]);
     }
 }
