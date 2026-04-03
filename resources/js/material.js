@@ -221,7 +221,7 @@ MaterialBuilder.renderExistingCategory = function (catData) {
     }
 };
 
-MaterialBuilder.addSection = function (type = "lesson") {
+MaterialBuilder.addSection = function (type = "lesson", afterElement = null) {
     const container = document.getElementById("builder-container");
     if (!container) return;
 
@@ -263,7 +263,7 @@ MaterialBuilder.addSection = function (type = "lesson") {
         </div>`;
 
     const html = `
-        <div class="bg-white rounded-2xl shadow-sm border ${borderColor} category-block transition-all mb-4" id="${catId}" data-section-type="${type}">
+        <div class="bg-white rounded-2xl shadow-sm border ${borderColor} category-block transition-all mb-6 relative" id="${catId}" data-section-type="${type}">
             <div class="p-4 bg-gray-50/50 flex items-center justify-between cursor-pointer" onclick="MaterialBuilder.toggleCategory('${catId}', event)">
                 <div class="flex items-center gap-4 flex-1">
                     <div class="h-8 w-8 rounded-lg ${badgeColor} flex items-center justify-center font-bold text-sm cat-number-badge">
@@ -292,22 +292,25 @@ MaterialBuilder.addSection = function (type = "lesson") {
                 
                 <div class="mt-6 relative z-30">${controlsHtml}</div>
             </div>
+
+            ${type !== 'exam' ? `
+            <div class="absolute -bottom-4 left-1/2 -translate-x-1/2 flex justify-center items-center h-8 w-32 opacity-0 hover:opacity-100 transition-opacity z-20">
+                <button type="button" onclick="MaterialBuilder.addSection('lesson', this.closest('.category-block'))" class="bg-[#a52a2a] text-white rounded-full h-8 w-8 flex items-center justify-center shadow-lg hover:scale-110 transition-transform border-2 border-white" title="Add Lesson Below">
+                    <i class="fas fa-plus text-xs"></i>
+                </button>
+            </div>` : ""}
         </div>`;
 
-    container.insertAdjacentHTML("beforeend", html);
+    if (afterElement) {
+        afterElement.insertAdjacentHTML("afterend", html);
+    } else {
+        container.insertAdjacentHTML("beforeend", html);
+    }
+
     MaterialBuilder.enforceExamPosition();
     MaterialBuilder.initSortable();
     MaterialBuilder.calculateTotalTime();
     MaterialBuilder.handleAutosaveTrigger();
-};
-
-
-MaterialBuilder.toggleDropdown = function (btn) {
-    const menu = btn.nextElementSibling;
-    document.querySelectorAll(".dropdown-menu").forEach((el) => {
-        if (el !== menu) el.classList.add("hidden");
-    });
-    menu.classList.toggle("hidden");
 };
 
 MaterialBuilder.addItem = function (
@@ -356,8 +359,9 @@ MaterialBuilder.addItem = function (
                 <div class="options-list space-y-2 mb-3"></div>
                 ${mainType !== "content" && (subType === "mcq" || subType === "checkbox") ? `<button type="button" onclick="MaterialBuilder.addOptionToQuestion('${qId}', '${subType}')" class="text-[10px] font-bold text-[#a52a2a] hover:underline uppercase flex items-center mt-2"><i class="fas fa-plus mr-1"></i> Add Choice</button>` : ""}
             </div>
-            <div class="absolute -bottom-4 left-0 right-0 flex justify-center opacity-0 group-hover:opacity-100 transition-opacity z-20 pointer-events-none">
-                <div class="pointer-events-auto"><button type="button" onclick="MaterialBuilder.addItem('${cId}', '${mainType}', '${subType}', this.closest('.question-block'))" class="bg-[#a52a2a] text-white rounded-full h-7 w-7 flex items-center justify-center shadow-lg hover:scale-110 transition-transform"><i class="fas fa-plus text-[10px]"></i></button></div>
+            
+            <div class="absolute -bottom-3.5 left-1/2 -translate-x-1/2 flex justify-center items-center h-8 w-24 opacity-0 hover:opacity-100 transition-opacity z-20">
+                <button type="button" onclick="MaterialBuilder.addItem('${cId}', '${mainType}', '${subType}', this.closest('.question-block'))" class="bg-[#a52a2a] text-white rounded-full h-7 w-7 flex items-center justify-center shadow-lg hover:scale-110 transition-transform border border-white" title="Add Block Below"><i class="fas fa-plus text-[10px]"></i></button>
             </div>
         </div>`;
 
@@ -386,6 +390,15 @@ MaterialBuilder.addItem = function (
         }
     }
     MaterialBuilder.initSortable();
+};
+
+
+MaterialBuilder.toggleDropdown = function (btn) {
+    const menu = btn.nextElementSibling;
+    document.querySelectorAll(".dropdown-menu").forEach((el) => {
+        if (el !== menu) el.classList.add("hidden");
+    });
+    menu.classList.toggle("hidden");
 };
 
 MaterialBuilder.addOptionToQuestion = function (
