@@ -197,18 +197,32 @@ class MaterialsController extends Controller
         $request->validate(['email' => 'required|email']);
         $email = $request->email;
 
-        // Prevent duplicate invites by checking the NEW MaterialAccess table
-        if (MaterialAccess::where('material_id', $id)->where('email', $email)->exists()) {
+        if (\App\Models\MaterialAccess::where('material_id', $id)->where('email', $email)->exists()) {
             return response()->json(['success' => false, 'message' => 'Email is already in the access list.']);
         }
 
-        // Create the record in the new material_accesses table
-        // As you requested, it always defaults to 'pending'
-        MaterialAccess::create([
+        \App\Models\MaterialAccess::create([
             'material_id' => $id,
             'email' => $email,
             'status' => 'pending'
         ]);
+
+        $material = \App\Models\Material::find($id);
+        $student = \App\Models\User::where('email', $email)->first();
+
+        if ($student && $material) {
+            // UPDATED: Grab full name instead of just last name
+            $instructor = auth()->user();
+            $instructorName = trim(($instructor->first_name ?? '') . ' ' . ($instructor->last_name ?? '')) ?: 'An Instructor';
+            
+            $student->notify(new \App\Notifications\LmsAlertNotification(
+                'New Module Access',
+                $instructorName . ' granted you access to a private module: "' . $material->title . '".',
+                route('dashboard.materials.show', $material->id),
+                'fas fa-unlock-alt',
+                'text-blue-600'
+            ));
+        }
 
         return response()->json(['success' => true, 'message' => 'Student added successfully!']);
     }
@@ -265,12 +279,37 @@ class MaterialsController extends Controller
         $request->validate(['file' => 'required|mimes:xlsx,xls,csv|max:2048']);
 
         try {
-            // NOTE: You will also need to update this Import class to read the 'email' column instead of 'lrn'
-            Excel::import(new EmailMaterialsAccessImport($id), $request->file('file'));
+            $existingEmails = \App\Models\MaterialAccess::where('material_id', $id)->pluck('email')->toArray();
+
+            \Maatwebsite\Excel\Facades\Excel::import(new EmailMaterialsAccessImport($id), $request->file('file'));
+
+            $newlyAddedAccesses = \App\Models\MaterialAccess::where('material_id', $id)
+                ->whereNotIn('email', $existingEmails)
+                ->get();
+
+            $material = \App\Models\Material::find($id);
+            
+            // UPDATED: Grab full name
+            $instructor = auth()->user();
+            $instructorName = trim(($instructor->first_name ?? '') . ' ' . ($instructor->last_name ?? '')) ?: 'An Instructor';
+
+            foreach ($newlyAddedAccesses as $access) {
+                $student = \App\Models\User::where('email', $access->email)->first();
+                
+                if ($student && $material) {
+                    $student->notify(new \App\Notifications\LmsAlertNotification(
+                        'New Module Access',
+                        $instructorName . ' granted you access to a private module: "' . $material->title . '".',
+                        route('dashboard.materials.show', $material->id),
+                        'fas fa-unlock-alt',
+                        'text-blue-600'
+                    ));
+                }
+            }
+
             return response()->json(['success' => true, 'message' => 'List imported successfully!']);
-        } catch (Exception $e) {
-            // CHANGED: Updated error message hint
-            return response()->json(['success' => false, 'message' => 'Import failed. Check if your file has an "email" header.'], 500);
+        } catch (\Exception $e) {
+            return response()->json(['success' => false, 'message' => 'Import failed. Check if your file has an "email" header. Error: ' . $e->getMessage()], 500);
         }
     }
 
@@ -1155,6 +1194,15 @@ class MaterialsController extends Controller
                 'completed_at' => now(),
                 'progress_data' => json_encode(['lesson' => $totalTimelineCount - 1, 'content' => 0, 'highest_unlocked' => $totalTimelineCount])
             ]);
+
+            $user->notify(new \App\Notifications\LmsAlertNotification(
+                'Certificate Unlocked!',
+                'Congratulations! You passed "' . $material->title . '" with a score of ' . $grades['totalScore'] . '% and earned your certificate.',
+                route('dashboard.materials.certificate', $material->id),
+                'fas fa-trophy',
+                'text-yellow-500' // Golden color for the trophy
+            ));
+
             return response()->json(['success' => true, 'passed' => true, 'redirect_url' => route('dashboard.materials.certificate', $material->id)]);
         } else {
             $enrollment->update([
@@ -1222,5 +1270,51 @@ class MaterialsController extends Controller
             ->firstOrFail();
             
         return view('dashboard.partials.student.certificate-achieved', compact('enrollment'));
+    }
+
+    public function getNotifications()
+    {
+        $user = auth()->user();
+
+        // 1. Fetch ALL notifications from the last 30 days (Both Read and Unread)
+        $notifications = $user->notifications()
+            ->where('created_at', '>=', now()->subDays(30))
+            ->latest()
+            ->limit(50) // Safe limit to prevent massive dropdowns
+            ->get()
+            ->map(function($notif) {
+                return [
+                    'id' => $notif->id,
+                    'title' => $notif->data['title'],
+                    'message' => $notif->data['message'],
+                    'url' => $notif->data['url'],
+                    'icon' => $notif->data['icon'],
+                    'colorClass' => $notif->data['colorClass'],
+                    'time_ago' => $notif->created_at->diffForHumans(),
+                    'is_read' => $notif->read_at !== null // Tell frontend if it's read
+                ];
+            });
+
+        // 2. Get the specific count of UNREAD notifications for the red bell badge
+        $unreadCount = $user->unreadNotifications()->count();
+
+        return response()->json([
+            'success' => true,
+            'notifications' => $notifications,
+            'unread_count' => $unreadCount
+        ]);
+    }
+
+    public function markNotificationRead($id)
+    {
+        // Query ALL notifications so we don't get a 404 if it's already read
+        $notification = auth()->user()->notifications()->find($id);
+        
+        if ($notification && is_null($notification->read_at)) {
+            $notification->markAsRead();
+            return response()->json(['success' => true]);
+        }
+
+        return response()->json(['success' => true, 'message' => 'Already read']);
     }
 }

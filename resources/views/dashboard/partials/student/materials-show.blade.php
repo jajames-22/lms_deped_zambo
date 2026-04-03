@@ -273,7 +273,7 @@
                                 <i class="fas fa-info-circle text-gray-400 text-lg mt-0.5"></i>
                                 <div>
                                     <p class="text-sm font-bold text-gray-700">No Assessments</p>
-                                    <p class="text-xs text-gray-500 mt-1">Read all materials to automatically earn a certificate.</p>
+                                    <p class="text-xs text-gray-500 mt-1">There are no quizzes and exams in this material.</p>
                                 </div>
                             </div>
                         @endif
@@ -438,7 +438,8 @@
         }
 
         // Alert Modal Logic
-        function showStandaloneAlert(message, type) {
+        function showStandaloneAlert(message, type, callback = null) {
+            alertCallback = callback; 
             const modal = document.getElementById('standaloneAlertModal');
             const box = document.getElementById('standaloneAlertBox');
             const iconContainer = document.getElementById('standaloneAlertIconContainer');
@@ -467,14 +468,27 @@
             }, 10);
         }
 
+        let alertCallback = null; // Stores the redirect action
+
         function closeStandaloneAlert() {
             const modal = document.getElementById('standaloneAlertModal');
             const box = document.getElementById('standaloneAlertBox');
+            
+            // Hide animations...
             box.classList.remove('scale-100');
             box.classList.add('scale-95');
             modal.classList.remove('opacity-100');
             modal.classList.add('opacity-0');
-            setTimeout(() => { modal.classList.add('hidden'); }, 300);
+            
+            setTimeout(() => { 
+                modal.classList.add('hidden'); 
+                
+                // THIS IS THE PART THAT REDIRECTS TO DASHBOARD
+                if (alertCallback) {
+                    alertCallback();  // Triggers navigateBack()
+                    alertCallback = null; // Reset
+                }
+            }, 300);
         }
 
         // Drop Modal Logic
@@ -547,10 +561,12 @@
 
                 if (response.ok && data.success) {
                     closeDropModal();
-                    showStandaloneAlert('Course dropped successfully.', 'success');
+
+                    // THIS is how we pass the callback!
+                    showStandaloneAlert('Course dropped successfully.', 'success', () => {
+                        navigateBack(); 
+                    });
                     
-                    // Simple page reload to reset the UI back to standard un-enrolled view
-                    setTimeout(() => window.location.reload(), 1000);
                 } else {
                     showStandaloneAlert(data.message || 'Failed to drop course.', 'error');
                     confirmBtn.innerHTML = originalHtml;

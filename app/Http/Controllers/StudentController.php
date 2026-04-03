@@ -157,6 +157,7 @@ class StudentController extends Controller
                     })
                     ->where('status', 'published')
                     ->where('is_public', true)
+                    ->inRandomOrder()
                     ->take(10)
                     ->get();
                 
