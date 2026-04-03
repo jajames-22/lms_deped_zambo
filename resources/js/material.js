@@ -264,7 +264,7 @@ MaterialBuilder.addSection = function (type = "lesson") {
 
     const html = `
         <div class="bg-white rounded-2xl shadow-sm border ${borderColor} category-block transition-all mb-4" id="${catId}" data-section-type="${type}">
-            <div class="p-4 bg-gray-50/50 flex items-center justify-between cursor-pointer" onclick="MaterialBuilder.toggleCategory('${catId}', event)">
+            <div class="category-header p-4 bg-gray-50/50 flex items-center justify-between cursor-pointer transition-all" onclick="MaterialBuilder.toggleCategory('${catId}', event)">
                 <div class="flex items-center gap-4 flex-1">
                     <div class="h-8 w-8 rounded-lg ${badgeColor} flex items-center justify-center font-bold text-sm cat-number-badge">
                         <i class="fas ${icon}"></i>
@@ -443,10 +443,21 @@ MaterialBuilder.toggleCategory = function (id, event) {
     if (
         !["INPUT", "BUTTON", "I"].includes(event.target.tagName) &&
         !event.target.closest(".drag-handle-cat")
-    )
-        document
-            .querySelector(`#${id} .category-body`)
-            .classList.toggle("hidden");
+    ) {
+        const block = document.getElementById(id);
+        const body = block.querySelector(".category-body");
+        const header = block.querySelector(".category-header");
+        
+        // 1. Toggle the visibility of the content body
+        body.classList.toggle("hidden");
+        
+        // 2. Toggle the bottom border radius on the header
+        if (body.classList.contains("hidden")) {
+            header.classList.add("rounded-b-2xl");
+        } else {
+            header.classList.remove("rounded-b-2xl");
+        }
+    }
 };
 MaterialBuilder.toggleQuestion = function (id, event) {
     if (

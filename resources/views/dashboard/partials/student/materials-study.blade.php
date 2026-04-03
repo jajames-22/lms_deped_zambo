@@ -38,23 +38,53 @@
             opacity: 0; transition: opacity 0.3s;
         }
         .video-wrapper:hover .video-controls { opacity: 1; }
-        .progress-bar-container { width: 100%; height: 6px; background: rgba(255,255,255,0.3); border-radius: 3px; cursor: pointer; position: relative; }
-        .progress-bar-fill { height: 100%; background: #a52a2a; border-radius: 3px; width: 0%; pointer-events: none; }
+        
+        .video-progress-slider {
+            -webkit-appearance: none;
+            width: 100%;
+            background: rgba(255,255,255,0.3);
+            height: 6px;
+            border-radius: 3px;
+            outline: none;
+        }
+        .video-progress-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 14px;
+            height: 14px;
+            border-radius: 50%;
+            background: #a52a2a;
+            cursor: pointer;
+        }
+
+        /* --- IDLE MEDIA CONTROLS HIDER --- */
+        body.media-idle .video-wrapper { cursor: none !important; }
+        body.media-idle .video-wrapper .video-controls { 
+            opacity: 0 !important; 
+            pointer-events: none; 
+        }
+        body.media-idle .media-fullscreen { cursor: none !important; }
+        body.media-idle .media-fullscreen .pdf-toolbar,
+        body.media-idle .media-fullscreen .fs-toggle-btn { 
+            opacity: 0 !important; 
+            pointer-events: none; 
+            transition: opacity 0.4s; 
+        }
+
         .controls-row { display: flex; align-items: center; justify-content: space-between; color: white; }
         
         .pdf-container { background: #e5e7eb; border-radius: 1rem; overflow: hidden; display: flex; flex-direction: column; height: 60vh; lg:height: 75vh; width: 100%; }
         .pdf-toolbar { background: #1f2937; color: white; padding: 0.75rem 1rem; display: flex; justify-content: space-between; align-items: center; }
         .pdf-render-area { 
             overflow: auto; 
-            display: flex; 
-            flex-direction: column; 
             padding: 1rem; 
             position: relative; 
             flex-grow: 1; 
+            text-align: center; /* Centers canvas horizontally safely */
         }
         .pdf-render-area canvas { 
-            margin: auto; /* Centers perfectly, but allows scrolling if larger than screen */
-            flex-shrink: 0; /* Prevents the container from squishing the canvas */
+            display: inline-block; /* Allows scrolling without clipping top/left */
+            vertical-align: middle;
             box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2); 
             border-radius: 4px; 
             transition: transform 0.2s;
@@ -108,9 +138,11 @@
             z-index: 0 !important;
         }
         body.fs-active .lesson-container, 
-        body.fs-active .content-block {
+        body.fs-active .content-block,
+        body.fs-active #content-area {
             animation: none !important;
             transform: none !important;
+            will-change: auto !important;
         }
     </style>
 </head>
@@ -311,8 +343,8 @@
                                                                 <span class="pdf-scale text-xs font-bold w-12 text-center">100%</span>
                                                                 <button onclick="pdfZoomIn('media-{{ $lessonIndex }}-{{ $contentIndex }}')" class="hover:text-[#a52a2a] transition"><i class="fas fa-search-plus"></i></button>
                                                                 
-                                                                {{-- NEW Fullscreen Button --}}
-                                                                <button onclick="enterFullscreen('media-{{ $lessonIndex }}-{{ $contentIndex }}', 'pdf')" class="fs-toggle-btn hover:text-[#a52a2a] transition ml-3 border-l border-gray-600 pl-3" title="Full Screen"><i class="fas fa-expand"></i></button>
+                                                                {{-- Fullscreen Button --}}
+                                                                <button onclick="openMediaFullscreen('media-{{ $lessonIndex }}-{{ $contentIndex }}', 'pdf')" class="fs-toggle-btn hover:text-[#a52a2a] transition ml-3 border-l border-gray-600 pl-3" title="Full Screen"><i class="fas fa-expand"></i></button>
                                                                 
                                                                 <a href="{{ $mediaUrl }}" target="_blank" class="ml-1 pl-3 border-l border-gray-600 hover:text-[#a52a2a] transition" title="Open in new tab"><i class="fas fa-external-link-alt"></i></a>
                                                             </div>
@@ -331,9 +363,8 @@
                                                             <source src="{{ $mediaUrl }}" type="video/{{ $ext === 'webm' ? 'webm' : 'mp4' }}">
                                                         </video>
                                                         <div class="video-controls">
-                                                            <div class="progress-bar-container" onclick="seekVideo(event, 'media-{{ $lessonIndex }}-{{ $contentIndex }}')">
-                                                                <div class="progress-bar-fill"></div>
-                                                            </div>
+                                                            <input type="range" min="0" max="100" step="0.1" value="0" class="video-progress-slider">
+                                                            
                                                             <div class="controls-row mt-2">
                                                                 <div class="flex items-center gap-4">
                                                                     <button onclick="togglePlay('media-{{ $lessonIndex }}-{{ $contentIndex }}')" class="play-btn text-xl hover:text-[#a52a2a] transition w-6"><i class="fas fa-play"></i></button>
@@ -347,8 +378,8 @@
                                                                     </select>
                                                                     <button onclick="toggleMute('media-{{ $lessonIndex }}-{{ $contentIndex }}', event)" class="mute-btn hover:text-[#a52a2a] transition"><i class="fas fa-volume-up"></i></button>
                                                                     
-                                                                    {{-- NEW Custom Fullscreen Button --}}
-                                                                    <button onclick="enterFullscreen('media-{{ $lessonIndex }}-{{ $contentIndex }}', 'video')" class="fs-toggle-btn hover:text-[#a52a2a] transition" title="Full Screen"><i class="fas fa-expand"></i></button>
+                                                                    {{-- Fullscreen Button --}}
+                                                                    <button onclick="openMediaFullscreen('media-{{ $lessonIndex }}-{{ $contentIndex }}', 'video')" class="fs-toggle-btn hover:text-[#a52a2a] transition" title="Full Screen"><i class="fas fa-expand"></i></button>
                                                                 </div>
                                                             </div>
                                                         </div>
@@ -357,8 +388,8 @@
                                                     <div class="media-container rounded-2xl overflow-hidden bg-gray-200 border border-gray-200 flex bg-white justify-center relative group w-full" id="media-{{ $lessonIndex }}-{{ $contentIndex }}">
                                                         <img src="{{ $mediaUrl }}" class="object-contain max-h-[70vh] w-full transition-transform duration-300">
                                                         
-                                                        {{-- NEW Fullscreen Button --}}
-                                                        <button onclick="enterFullscreen('media-{{ $lessonIndex }}-{{ $contentIndex }}', 'image')" class="fs-toggle-btn absolute top-4 right-4 bg-black/60 text-white w-10 h-10 flex items-center justify-center rounded-xl opacity-0 group-hover:opacity-100 transition hover:bg-[#a52a2a] shadow-lg" title="Full Screen"><i class="fas fa-expand"></i></button>
+                                                        {{-- Fullscreen Button --}}
+                                                        <button onclick="openMediaFullscreen('media-{{ $lessonIndex }}-{{ $contentIndex }}', 'image')" class="fs-toggle-btn absolute top-4 right-4 bg-black/60 text-white w-10 h-10 flex items-center justify-center rounded-xl opacity-0 group-hover:opacity-100 transition hover:bg-[#a52a2a] shadow-lg" title="Full Screen"><i class="fas fa-expand"></i></button>
                                                     </div>
                                                 @endif
                                             </div>
@@ -459,7 +490,7 @@
 
             {{-- FIXED BOTTOM NAVIGATION --}}
             <div class="bg-white border-t border-gray-200 p-4 lg:px-8 flex justify-between items-center shrink-0 z-30 w-full shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] relative">
-                <button id="btn-prev" onclick="navigateContent(-1)" class="px-5 sm:px-6 py-3 sm:py-3.5 bg-gray-100 text-gray-600 font-bold rounded-xl hover:bg-gray-200 transition flex items-center gap-2">
+                <button type="button" id="btn-prev" onclick="navigateContent(-1)" class="px-5 sm:px-6 py-3 sm:py-3.5 bg-gray-100 text-gray-600 font-bold rounded-xl hover:bg-gray-200 transition flex items-center gap-2">
                     <i class="fas fa-arrow-left"></i> <span class="hidden sm:inline">Previous</span>
                 </button>
                 
@@ -470,7 +501,7 @@
                     </div>
                 </div>
 
-                <button id="btn-next" onclick="navigateContent(1)" class="px-6 sm:px-8 py-3 sm:py-3.5 text-white font-bold rounded-xl transition shadow-lg flex items-center gap-2">
+                <button type="button" id="btn-next" onclick="navigateContent(1)" class="px-6 sm:px-8 py-3 sm:py-3.5 text-white font-bold rounded-xl transition bg-[#a52a2a] shadow-lg flex items-center gap-2">
                     <span id="btn-next-text" class="hidden sm:inline">Next</span> 
                     <span id="btn-next-text-mobile" class="sm:hidden">Next</span>
                     <i id="btn-next-icon" class="fas fa-arrow-right"></i>
@@ -481,18 +512,21 @@
     </div>
 
     {{-- NEW GLOBAL FULLSCREEN OVERLAY CONTROLS --}}
-    <div id="fs-global-controls" class="fixed inset-0 pointer-events-none hidden z-[999999]">
-        <button onclick="exitFullscreen()" class="absolute top-4 right-4 sm:top-8 sm:right-8 pointer-events-auto bg-black/60 hover:bg-red-600 text-white rounded-full w-12 h-12 flex items-center justify-center backdrop-blur transition-colors shadow-2xl border border-white/10" title="Exit Full Screen">
+    {{-- NEW GLOBAL FULLSCREEN OVERLAY CONTROLS --}}
+    <div id="fs-global-controls" class="fixed inset-0 pointer-events-none hidden z-[999999] transition-opacity duration-300 opacity-100">
+        <button onclick="closeMediaFullscreen()" class="absolute top-4 right-4 sm:top-15 sm:right-8 pointer-events-auto bg-black/60 hover:bg-red-600 text-white rounded-full w-12 h-12 flex items-center justify-center backdrop-blur transition-colors shadow-2xl border border-white/10" title="Exit Full Screen">
             <i class="fas fa-times text-xl"></i>
         </button>
 
-        <button onclick="fsNavigate(-1)" class="absolute left-4 sm:left-8 top-1/2 -translate-y-1/2 pointer-events-auto bg-black/60 hover:bg-[#a52a2a] text-white rounded-full h-14 w-14 flex items-center justify-center backdrop-blur transition-colors shadow-2xl border border-white/10" id="fs-btn-prev">
-            <i class="fas fa-chevron-left text-xl pr-1"></i>
-        </button>
-        
-        <button onclick="fsNavigate(1)" class="absolute right-4 sm:right-8 top-1/2 -translate-y-1/2 pointer-events-auto bg-black/60 hover:bg-[#a52a2a] text-white rounded-full h-14 w-14 flex items-center justify-center backdrop-blur transition-colors shadow-2xl border border-white/10" id="fs-btn-next">
-            <i class="fas fa-chevron-right text-xl pl-1"></i>
-        </button>
+        <div class="absolute bottom-8 left-1/2 -translate-x-1/2 flex items-center gap-6 pointer-events-auto">
+            <button onclick="mediaFsNavigate(-1)" class="bg-black/60 hover:bg-[#a52a2a] text-white rounded-full h-14 w-14 flex items-center justify-center backdrop-blur transition-colors shadow-2xl border border-white/10" id="fs-btn-prev">
+                <i class="fas fa-chevron-left text-xl pr-1"></i>
+            </button>
+            
+            <button onclick="mediaFsNavigate(1)" class="bg-black/60 hover:bg-[#a52a2a] text-white rounded-full h-14 w-14 flex items-center justify-center backdrop-blur transition-colors shadow-2xl border border-white/10" id="fs-btn-next">
+                <i class="fas fa-chevron-right text-xl pl-1"></i>
+            </button>
+        </div>
     </div>
 
     {{-- EXAM CONFIRMATION MODAL --}}
@@ -535,78 +569,101 @@
             highestUnlockedLesson: {{ $savedProgress->highest_unlocked ?? 0 }}
         };
 
-        let isExamLocked = false;
+        // FIX: Automatically lock the study sections if the student resumes inside an exam!
+        let isExamLocked = (materialData[state.lesson] && materialData[state.lesson].is_exam) ? true : false;
+        
         let pendingExamTarget = null;
         let activeFullscreenId = null;
         let activeFullscreenType = null;
 
+        // --- GLOBAL IDLE TIMER (YOUTUBE-STYLE HIDER) ---
+        let globalMediaIdleTimer = null;
+        
+        function handleMediaActivity() {
+            document.body.classList.remove('media-idle');
+            
+            const fsControls = document.getElementById('fs-global-controls');
+            if (fsControls && !fsControls.classList.contains('hidden')) {
+                fsControls.classList.remove('opacity-0');
+            }
+
+            clearTimeout(globalMediaIdleTimer);
+            globalMediaIdleTimer = setTimeout(() => {
+                document.body.classList.add('media-idle');
+                if (fsControls && !fsControls.classList.contains('hidden')) {
+                    fsControls.classList.add('opacity-0');
+                }
+            }, 2500);
+        }
+
+        document.addEventListener('mousemove', handleMediaActivity);
+        document.addEventListener('touchstart', handleMediaActivity);
+        document.addEventListener('keydown', handleMediaActivity);
+
         // --- FULLSCREEN LOGIC ---
-        // --- FULLSCREEN LOGIC ---
-        function enterFullscreen(id, type) {
+        function openMediaFullscreen(id, type) {
             const el = document.getElementById(id);
             if (!el) return;
             
             activeFullscreenId = id;
             activeFullscreenType = type;
             
-            // FIX: Add class to body to trigger CSS escape overrides
             document.body.classList.add('fs-active'); 
-            
             el.classList.add('media-fullscreen');
+            
             document.getElementById('fs-global-controls').classList.remove('hidden');
             document.getElementById('fs-global-controls').classList.add('flex');
             
+            handleMediaActivity(); 
+            
             if (type === 'pdf' && pdfInstances[id]) {
-                pdfInstances[id].hasSetScale = false; // Force re-calculation for perfect fit
+                pdfInstances[id].hasSetScale = false; 
                 renderPdfPage(id);
             }
             updateFsNavButtons();
         }
 
-        function exitFullscreen() {
-            if (!activeFullscreenId) return;
-            const el = document.getElementById(activeFullscreenId);
-            if (el) {
-                el.classList.remove('media-fullscreen');
-                if (activeFullscreenType === 'pdf' && pdfInstances[activeFullscreenId]) {
-                    pdfInstances[activeFullscreenId].hasSetScale = false; // Force re-calculation back to normal
-                    renderPdfPage(activeFullscreenId);
+        function closeMediaFullscreen() {
+            document.body.classList.remove('fs-active'); 
+            const controls = document.getElementById('fs-global-controls');
+            if (controls) controls.classList.add('hidden');
+
+            if (activeFullscreenId) {
+                const el = document.getElementById(activeFullscreenId);
+                const currentId = activeFullscreenId;
+                const currentType = activeFullscreenType;
+                
+                if (el) {
+                    el.classList.remove('media-fullscreen');
+                    if (currentType === 'pdf' && pdfInstances[currentId]) {
+                        pdfInstances[currentId].hasSetScale = false;
+                        setTimeout(() => renderPdfPage(currentId), 300); 
+                    }
                 }
             }
-            
             activeFullscreenId = null;
             activeFullscreenType = null;
-            
-            // FIX: Remove class to restore normal layout
-            document.body.classList.remove('fs-active'); 
-            
-            document.getElementById('fs-global-controls').classList.add('hidden');
-            document.getElementById('fs-global-controls').classList.remove('flex');
         }
 
-        function fsNavigate(dir) {
+        async function mediaFsNavigate(dir) {
             const oldContent = state.content;
             const oldLesson = state.lesson;
             const oldPdfId = `media-${state.lesson}-${state.content}`;
             const oldPdfInst = pdfInstances[oldPdfId];
             const oldPage = oldPdfInst ? oldPdfInst.pageNum : null;
 
-            // Trigger normal sliding logic
-            navigateContent(dir); 
+            await navigateContent(dir); 
 
             const newPdfId = `media-${state.lesson}-${state.content}`;
             const newPdfInst = pdfInstances[newPdfId];
             const newPage = newPdfInst ? newPdfInst.pageNum : null;
 
-            // IF we are still on the exact same lesson block, AND the page just changed,
-            // it means we just flipped a PDF page. Do NOT exit fullscreen!
             if (oldContent === state.content && oldLesson === state.lesson && oldPage !== newPage) {
                 updateFsNavButtons();
                 return; 
             }
 
-            // Otherwise, we switched completely to a different lesson or content block.
-            exitFullscreen(); 
+            closeMediaFullscreen(); 
             
             setTimeout(() => {
                 const activeContent = document.querySelector('.content-block.active');
@@ -616,17 +673,33 @@
                         let type = 'image';
                         if (newMedia.classList.contains('pdf-container')) type = 'pdf';
                         if (newMedia.classList.contains('video-wrapper')) type = 'video';
-                        enterFullscreen(newMedia.id, type);
+                        openMediaFullscreen(newMedia.id, type);
                     }
                 }
             }, 100); 
         }
 
         function updateFsNavButtons() {
-            const realPrev = document.getElementById('btn-prev');
-            const realNext = document.getElementById('btn-next');
-            document.getElementById('fs-btn-prev').style.display = realPrev.disabled || realPrev.classList.contains('cursor-not-allowed') ? 'none' : 'flex';
-            document.getElementById('fs-btn-next').style.display = realNext.disabled ? 'none' : 'flex';
+            const pdfId = `media-${state.lesson}-${state.content}`;
+            const pdfInst = pdfInstances[pdfId];
+            
+            let hidePrev = false;
+            let hideNext = false;
+            
+            if (activeFullscreenType === 'video' || activeFullscreenType === 'image') {
+                hidePrev = true;
+                hideNext = true;
+            } 
+            else if (activeFullscreenType === 'pdf' && pdfInst) {
+                if (pdfInst.pageNum <= 1) hidePrev = true;
+                if (pdfInst.pageNum >= pdfInst.doc.numPages) hideNext = true;
+            } else {
+                hidePrev = true;
+                hideNext = true;
+            }
+
+            document.getElementById('fs-btn-prev').style.display = hidePrev ? 'none' : 'flex';
+            document.getElementById('fs-btn-next').style.display = hideNext ? 'none' : 'flex';
         }
 
         // --- EXAM CONFIRM MODAL LOGIC ---
@@ -757,11 +830,9 @@
         }
 
         function lockQuizQuestion(id, type, feedbackType) {
-            // Disable inputs permanently
             const inputs = document.querySelectorAll(`[name="answer_${id}"], [name="answer_${id}[]"]`);
             inputs.forEach(input => input.disabled = true);
 
-            // Show feedback badge
             const container = document.getElementById(`quiz-feedback-${id}`);
             if (container) {
                 let html = '';
@@ -775,8 +846,7 @@
                 container.innerHTML = html;
                 container.style.display = 'block';
             }
-
-            renderState(); // Refresh buttons to change "Submit Answer" back to "Next"
+            renderState(); 
         }
 
         function renderState() {
@@ -814,7 +884,6 @@
             document.getElementById('top-progress-bar').style.width = `${globalPct}%`;
             document.getElementById('top-progress-text').innerText = `${globalPct}%`;
 
-            // NAVIGATION BUTTONS LOGIC
             const btnPrev = document.getElementById('btn-prev');
             const btnNext = document.getElementById('btn-next');
             const btnNextText = document.getElementById('btn-next-text');
@@ -825,7 +894,6 @@
             const pdfInst = pdfInstances[pdfId];
             const isFirstExamContent = (currentData.is_exam && state.content === 0 && (state.lesson === 0 || !materialData[state.lesson - 1].is_exam));
 
-            // Setup Previous Button
             if (state.lesson === 0 && state.content === 0 && (!pdfInst || pdfInst.pageNum === 1)) {
                 btnPrev.classList.add('opacity-50', 'cursor-not-allowed');
                 btnPrev.disabled = true;
@@ -837,7 +905,6 @@
                 btnPrev.disabled = false;
             }
 
-            // Detect if current item is a locked/unlocked Quiz
             const isQuiz = !currentData.is_exam && currentItem && currentItem.type !== 'content';
             let isQuizLocked = false;
             if (isQuiz) {
@@ -845,8 +912,7 @@
                 if (inputEl && inputEl.disabled) isQuizLocked = true;
             }
 
-            // Reset Next Button Base Styles
-            btnNext.className = "px-6 sm:px-8 py-3 sm:py-3.5 text-white font-bold rounded-xl transition shadow-lg flex items-center gap-2";
+            btnNext.className = "px-6 sm:px-8 py-3 sm:py-3.5 text-white font-bold rounded-xl transition bg-[#a52a2a] shadow-lg flex items-center gap-2";
             btnNextIcon.className = 'fas fa-arrow-right';
 
             let isLastContent = (state.content === currentData.items.length - 1);
@@ -854,15 +920,12 @@
                 isLastContent = false;
             }
 
-            // Decide Next Button Look & Text
             if (isQuiz && !isQuizLocked) {
-                // UI for an unanswered quiz question
                 btnNextText.innerText = "Submit Answer";
                 btnNextTextMobile.innerText = "Submit";
                 btnNextIcon.className = "fas fa-paper-plane";
                 btnNext.classList.add('bg-blue-600', 'hover:bg-blue-700', 'shadow-blue-600/20');
             } else {
-                // UI for standard progression
                 if (isLastContent) {
                     if (state.lesson === materialData.length - 1) {
                         btnNextText.innerText = "Finish Module";
@@ -896,26 +959,23 @@
             const currentItem = currentSection.items[state.content];
             const isQuiz = !currentSection.is_exam && currentItem && currentItem.type !== 'content';
 
-            // IF MOVING FORWARD AND ON A QUIZ: Enforce submission!
             if (direction === 1 && isQuiz) {
                 const answerData = getAnswerData(currentItem.id, currentItem.type, false);
                 if (!answerData) {
                     showCustomAlert("Answer Required", "You must select or type an answer to proceed.");
-                    return; // Stop them from navigating!
+                    return; 
                 }
 
-                // Check if they already submitted it (inputs are disabled)
                 const isLocked = document.querySelector(`[name="answer_${currentItem.id}"]`)?.disabled || 
                                  document.querySelector(`[name="answer_${currentItem.id}[]"]`)?.disabled;
 
                 if (!isLocked) {
-                    // First time submitting. Save, grade, lock, and SHOW FEEDBACK without changing the slide yet!
                     const btn = document.getElementById('btn-next');
                     const originalHtml = btn.innerHTML;
                     btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Checking...';
                     btn.disabled = true;
 
-                    const result = await saveProgressToServer(true); // pass true to get result back
+                    const result = await saveProgressToServer(true); 
 
                     btn.innerHTML = originalHtml;
                     btn.disabled = false;
@@ -925,13 +985,11 @@
                     } else {
                         showCustomAlert("Error", "Failed to submit answer. Check connection.");
                     }
-                    return; // STOP! They must see their grade before clicking next again.
+                    return; 
                 }
             }
 
-            // Normal Navigation Logic begins here
             if (!isQuiz && direction === 1) {
-                // Save silently for exams and regular content before moving forward
                 saveProgressToServer(false);
             }
 
@@ -1011,9 +1069,7 @@
                     showExamConfirm();
                     return;
                 }
-
-                saveProgressToServer(false); // Silently save before jumping
-
+                saveProgressToServer(false); 
                 state.lesson = targetLessonIdx;
                 state.content = 0; 
                 renderState();
@@ -1084,9 +1140,8 @@
         }
 
         async function finishModule() {
-            await saveProgressToServer(false); // Force silent save of the last answer
+            await saveProgressToServer(false); 
 
-            // Push UI to 100%
             document.getElementById('top-progress-bar').style.width = '100%';
             document.getElementById('top-progress-text').innerText = '100%';
             
@@ -1116,7 +1171,6 @@
                             window.location.href = data.redirect_url;
                         });
                     } else {
-                        // They finished but failed. Redirect immediately to the result page.
                         window.location.href = data.redirect_url;
                     }
                 } else {
@@ -1132,7 +1186,6 @@
             }
         }
 
-        // --- SAVE PROGRESS SCRIPT ---
         async function saveProgressToServer(waitForResult = false) {
             const currentSection = materialData[state.lesson];
             if (!currentSection || !currentSection.items) return { success: false };
@@ -1169,7 +1222,7 @@
                 if (waitForResult) {
                     return await response.json();
                 } else {
-                    response.json(); // fire and forget
+                    response.json(); 
                     return { success: true };
                 }
             } catch (error) {
@@ -1183,15 +1236,56 @@
             document.querySelectorAll('.custom-video').forEach(video => {
                 const wrapper = video.closest('.video-wrapper');
                 const playBtn = wrapper.querySelector('.play-btn i');
-                const progressBar = wrapper.querySelector('.progress-bar-fill');
+                const slider = wrapper.querySelector('.video-progress-slider');
                 const currentTimeEl = wrapper.querySelector('.current-time');
                 const durationEl = wrapper.querySelector('.duration');
-                video.addEventListener('loadedmetadata', () => { durationEl.innerText = formatTime(video.duration); });
+                
+                slider.style.background = `linear-gradient(to right, #a52a2a 0%, rgba(255,255,255,0.3) 0%)`;
+
+                const updateDur = () => { durationEl.innerText = formatTime(video.duration); };
+                video.addEventListener('loadedmetadata', updateDur);
+                if (video.readyState >= 1) updateDur();
+
                 video.addEventListener('timeupdate', () => {
-                    const percent = (video.currentTime / video.duration) * 100;
-                    progressBar.style.width = `${percent}%`;
-                    currentTimeEl.innerText = formatTime(video.currentTime);
+                    if (video.duration && slider.dataset.dragging !== 'true') {
+                        const percent = (video.currentTime / video.duration) * 100;
+                        slider.value = percent;
+                        slider.style.background = `linear-gradient(to right, #a52a2a ${percent}%, rgba(255,255,255,0.3) ${percent}%)`;
+                        currentTimeEl.innerText = formatTime(video.currentTime);
+                    }
                 });
+
+                // FIX: Better Drag & Skip Logic
+                slider.addEventListener('mousedown', () => slider.dataset.dragging = 'true');
+                slider.addEventListener('touchstart', () => slider.dataset.dragging = 'true');
+                
+                // While dragging, just update the visual UI (don't choke the video player)
+                slider.addEventListener('input', (e) => {
+                    slider.dataset.dragging = 'true';
+                    if (video.duration) {
+                        const percent = e.target.value;
+                        currentTimeEl.innerText = formatTime((percent / 100) * video.duration);
+                        slider.style.background = `linear-gradient(to right, #a52a2a ${percent}%, rgba(255,255,255,0.3) ${percent}%)`;
+                    }
+                });
+
+                // When released, actually skip the video to the new time
+                slider.addEventListener('change', (e) => {
+                    if (video.duration) {
+                        const percent = e.target.value;
+                        video.currentTime = (percent / 100) * video.duration;
+                    }
+                    slider.dataset.dragging = 'false';
+                });
+
+                // Fallback catch if mouse leaves the slider before releasing
+                document.addEventListener('mouseup', () => {
+                    if (slider.dataset.dragging === 'true') slider.dataset.dragging = 'false';
+                });
+                document.addEventListener('touchend', () => {
+                    if (slider.dataset.dragging === 'true') slider.dataset.dragging = 'false';
+                });
+
                 video.addEventListener('play', () => playBtn.className = 'fas fa-pause');
                 video.addEventListener('pause', () => playBtn.className = 'fas fa-play');
                 video.addEventListener('ended', () => playBtn.className = 'fas fa-redo');
@@ -1202,8 +1296,10 @@
         function pauseAllVideos() { document.querySelectorAll('.custom-video').forEach(v => v.pause()); }
         function toggleMute(id, event) { const video = document.getElementById(id).querySelector('.custom-video'); const icon = event.currentTarget.querySelector('i'); video.muted = !video.muted; icon.className = video.muted ? 'fas fa-volume-mute' : 'fas fa-volume-up'; }
         function changeSpeed(id, speed) { document.getElementById(id).querySelector('.custom-video').playbackRate = parseFloat(speed); }
-        function seekVideo(e, id) { const video = document.getElementById(id).querySelector('.custom-video'); const container = e.currentTarget; const rect = container.getBoundingClientRect(); const pos = (e.clientX - rect.left) / container.offsetWidth; video.currentTime = pos * video.duration; }
         function formatTime(seconds) { if (isNaN(seconds)) return "0:00"; const m = Math.floor(seconds / 60); const s = Math.floor(seconds % 60); return `${m}:${s < 10 ? '0' : ''}${s}`; }
+        
+        // Retained fallback just in case HTML still expects it
+        function seekVideoInput(e, id) { }
 
         // --- PDF SCRIPTS ---
         pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
@@ -1212,11 +1308,12 @@
         function checkAndLoadPDF(lessonIdx, contentIdx) {
             const id = `media-${lessonIdx}-${contentIdx}`;
             const container = document.getElementById(id);
-            if (!container) return; 
+            
+            // FIX: Must check if the container is actually a PDF container!
+            // Otherwise videos/images will crash the renderState function!
+            if (!container || !container.classList.contains('pdf-container')) return; 
 
             if (pdfInstances[id]) {
-                // FIX: If it's already loaded, force it to recalculate its width 
-                // just in case the window size changed since we last saw it.
                 pdfInstances[id].hasSetScale = false; 
                 renderPdfPage(id);
                 return; 
@@ -1245,26 +1342,23 @@
             if (!instance) return;
 
             instance.doc.getPage(instance.pageNum).then(page => {
-                const isFullscreen = activeFullscreenId === id;
-
-                if (!instance.hasSetScale || isFullscreen) {
+                if (!instance.hasSetScale) {
                     const unscaledViewport = page.getViewport({ scale: 1.0 });
                     const renderArea = instance.container.querySelector('.pdf-render-area');
                     
                     const targetWidth = renderArea.clientWidth - 32; 
                     const targetHeight = renderArea.clientHeight - 32; 
                     
-                    // FIX 30% BUG: Do not calculate if the element is hidden or transitioning (width = 0)
                     if (targetWidth > 0 && targetHeight > 0) {
                         const scaleW = targetWidth / unscaledViewport.width;
                         const scaleH = targetHeight / unscaledViewport.height;
                         
                         instance.scale = Math.min(scaleW, scaleH);
                         
-                        if (instance.scale > 2.0) instance.scale = 2.0; 
-                        if (instance.scale < 0.3) instance.scale = 0.3; 
+                        if (instance.scale > 1.0) instance.scale = 1.0; 
+                        if (instance.scale < 0.3) instance.scale = 0.3;
                         
-                        if (!isFullscreen) instance.hasSetScale = true; 
+                        instance.hasSetScale = true; 
                     }
                 }
 
@@ -1289,8 +1383,8 @@
             });
         }
 
-        function pdfZoomIn(id) { if(pdfInstances[id]) { pdfInstances[id].scale += 0.2; renderPdfPage(id); } }
-        function pdfZoomOut(id) { if(pdfInstances[id] && pdfInstances[id].scale > 0.4) { pdfInstances[id].scale -= 0.2; renderPdfPage(id); } }
+        function pdfZoomIn(id) { if(pdfInstances[id]) { pdfInstances[id].scale += 0.02; renderPdfPage(id); } }
+        function pdfZoomOut(id) { if(pdfInstances[id] && pdfInstances[id].scale > 0.04) { pdfInstances[id].scale -= 0.02; renderPdfPage(id); } }
     </script>
 </body>
 </html>

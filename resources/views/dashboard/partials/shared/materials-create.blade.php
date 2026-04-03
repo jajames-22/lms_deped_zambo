@@ -189,7 +189,9 @@
     <div class="absolute inset-0 bg-gray-900/60 backdrop-blur-sm" onclick="document.getElementById('status-modal').classList.add('hidden')"></div>
     <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-sm p-6">
         <div class="bg-white rounded-2xl shadow-2xl overflow-hidden border border-gray-100 p-6 text-center">
-            <div id="status-modal-icon" class="h-16 w-16 rounded-full flex items-center justify-center mx-auto mb-4 text-3xl"></div>
+            <div id="status-modal-icon" class="h-16 w-16 rounded-full flex items-center justify-center mx-auto mb-4 text-3xl">
+                <i class="fas fa-check-circle text-green-500"></i>
+            </div>
             <h3 id="status-modal-title" class="text-xl font-bold text-gray-900 mb-2">Title</h3>
             <p id="status-modal-message" class="text-gray-500 text-sm mb-6">Message goes here.</p>
             <div class="flex gap-3 mt-2">
