@@ -89,11 +89,11 @@ class AssessmentController extends Controller
                     ->orderBy('sort_order', 'asc') // Added Sort Order
                     ->get()
                     ->map(function ($question) {
-                    $question->options = DB::table('assessment_options')
-                        ->where('question_id', $question->id)
-                        ->get();
-                    return $question;
-                });
+                        $question->options = DB::table('assessment_options')
+                            ->where('question_id', $question->id)
+                            ->get();
+                        return $question;
+                    });
                 return $category;
             });
 
@@ -124,7 +124,7 @@ class AssessmentController extends Controller
             // 1. PROCESS AND UPSERT
             foreach ($categories as $index => $cat) {
                 $categoryId = isset($cat['id']) && is_numeric($cat['id']) ? $cat['id'] : null;
-                
+
                 $catData = [
                     'assessment_id' => $id,
                     'title' => $cat['title'] ?? 'New Section',
@@ -143,7 +143,7 @@ class AssessmentController extends Controller
 
                 foreach ($cat['questions'] ?? [] as $qIndex => $q) {
                     $questionId = isset($q['id']) && is_numeric($q['id']) ? $q['id'] : null;
-                    
+
                     $qData = [
                         'category_id' => $categoryId,
                         'type' => $q['type'] ?? 'mcq',
@@ -165,7 +165,7 @@ class AssessmentController extends Controller
                     $options = $q['options'] ?? [];
                     foreach ($options as $opt) {
                         $optId = isset($opt['id']) && is_numeric($opt['id']) ? $opt['id'] : null;
-                        
+
                         $optData = [
                             'question_id' => $questionId,
                             'option_text' => $opt['text'] ?? '',
@@ -186,13 +186,13 @@ class AssessmentController extends Controller
 
             // 2. CLEANUP (Delete items removed from the builder)
             $allCategoryIdsForAssessment = DB::table('assessment_categories')->where('assessment_id', $id)->pluck('id');
-            
+
             if ($allCategoryIdsForAssessment->isNotEmpty()) {
                 // Delete removed options
                 DB::table('assessment_options')
                     ->whereIn('question_id', function ($query) use ($allCategoryIdsForAssessment) {
                         $query->select('id')->from('assessment_questions')
-                              ->whereIn('category_id', $allCategoryIdsForAssessment);
+                            ->whereIn('category_id', $allCategoryIdsForAssessment);
                     })
                     ->whereNotIn('id', $keptOptionIds)
                     ->delete();
@@ -220,31 +220,35 @@ class AssessmentController extends Controller
 
     public function uploadMedia(Request $request)
     {
-        $request->validate([
-            'media_file' => 'required|file|mimes:jpeg,png,jpg,gif,mp3,wav,mp4,webm|max:51200',
-        ]);
-
+        // Ensure the file is present in the request
         if ($request->hasFile('media_file')) {
             $file = $request->file('media_file');
+
+            // 1. Capture the original name before the system renames it
+            $originalName = $file->getClientOriginalName();
+
+            // 2. Store the file in your preferred disk (e.g., 'public')
+            // This generates a unique filename to prevent overwriting existing files
             $path = $file->store('assessment_media', 'public');
 
-            // Explicitly detect the exact media type
-            $ext = strtolower($file->getClientOriginalExtension());
-            $type = 'image';
-            if (in_array($ext, ['mp4', 'webm']))
-                $type = 'video';
-            if (in_array($ext, ['mp3', 'wav', 'ogg']))
-                $type = 'audio';
+            // 3. Generate the full accessible URL
+            $url = asset('storage/' . $path);
 
+            // 4. Return the specific JSON keys your assessment.js expects
             return response()->json([
                 'success' => true,
-                'media_url' => asset('storage/' . $path),
-                'media_type' => $type // Send the exact type to Javascript!
+                'media_url' => $url,
+                'media_type' => $file->getClientOriginalExtension(),
+                'original_name' => $originalName, // This ensures the frontend keeps the real name
             ]);
         }
 
-        return response()->json(['success' => false, 'message' => 'No media uploaded.'], 400);
+        return response()->json([
+            'success' => false,
+            'message' => 'No file was uploaded.'
+        ], 400);
     }
+    
 
     public function destroy($id)
     {
@@ -436,7 +440,7 @@ class AssessmentController extends Controller
 
         if (AssessmentAccess::where('assessment_id', $assessment->id)->where('lrn', $cleanLrn)->exists()) {
             return response()->json([
-                'success' => false, 
+                'success' => false,
                 'message' => 'This LRN is already on the access list.'
             ]);
         }
@@ -448,7 +452,7 @@ class AssessmentController extends Controller
         ]);
 
         return response()->json([
-            'success' => true, 
+            'success' => true,
             'message' => 'Student LRN added successfully!'
         ]);
     }
@@ -463,19 +467,19 @@ class AssessmentController extends Controller
     {
         try {
             $newStatus = $assessment->status === 'published' ? 'draft' : 'published';
-            
+
             \Illuminate\Support\Facades\DB::table('assessments')
                 ->where('id', $assessment->id)
                 ->update(['status' => $newStatus, 'updated_at' => now()]);
 
             return response()->json([
-                'success' => true, 
+                'success' => true,
                 'new_status' => $newStatus,
                 'message' => 'Assessment is now ' . ($newStatus === 'published' ? 'Live' : 'in Draft Mode')
             ]);
         } catch (\Exception $e) {
             return response()->json([
-                'success' => false, 
+                'success' => false,
                 'message' => 'Error updating status: ' . $e->getMessage()
             ], 500);
         }

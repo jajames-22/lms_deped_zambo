@@ -10,6 +10,8 @@
     data-upload-url="{{ route('dashboard.materials.upload_media') }}"
     class="space-y-6 pb-20 w-full max-w-5xl mx-auto">
 
+    <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
+
     <input type="hidden" id="existing-data" value="{{ json_encode($lessons ?? []) }}">
     <input type="hidden" id="server-draft-data" value="{{ $material->draft_json ?? '' }}">
 
@@ -25,6 +27,10 @@
                 <h2 class="text-xl font-bold text-gray-900">Module Setup</h2>
             </div>
             <div class="flex items-center gap-3">
+                <div id="total-time-display" class="text-xs text-blue-600 font-bold px-3 py-1 bg-blue-50 border border-blue-100 rounded-lg flex items-center">
+                    <i class="far fa-clock mr-1"></i> 0 mins
+                </div>
+                
                 <div id="autosave-indicator" class="text-xs text-gray-400 italic font-medium px-3 py-1 bg-white border border-gray-100 rounded-lg">
                     Ready
                 </div>
@@ -235,19 +241,24 @@
     </div>
 </div>
 
+
 <div id="media-upload-modal" class="fixed inset-0 z-[120] hidden">
-    <div class="absolute inset-0 bg-gray-900/60 backdrop-blur-sm" onclick="MaterialBuilder.closeMediaModal()"></div>
+    <div class="absolute inset-0 bg-gray-900/60 backdrop-blur-sm" onclick="typeof MaterialBuilder !== 'undefined' ? MaterialBuilder.closeMediaModal() : AssessmentBuilder.closeMediaModal()"></div>
+    
     <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-md p-6">
         <div class="bg-white rounded-2xl shadow-2xl overflow-hidden border border-gray-100 p-6">
+
             <div class="text-center mb-6">
                 <div class="h-16 w-16 bg-[#a52a2a]/10 text-[#a52a2a] rounded-full flex items-center justify-center mx-auto mb-4 text-3xl">
                     <i class="fas fa-photo-video"></i>
                 </div>
-                <h3 class="text-xl font-bold text-gray-900">Upload Media or Document</h3>
+                <h3 class="text-xl font-bold text-gray-900">Upload Media</h3>
                 <p class="text-gray-500 text-sm mt-1">Attach an image, audio, video, PDF or ZIP.</p>
             </div>
+
             <div class="mb-6">
-                <input type="file" id="media-file-input" class="hidden" onchange="MaterialBuilder.handleMediaFileSelect(this)">
+                <input type="file" id="media-file-input" class="hidden" onchange="typeof MaterialBuilder !== 'undefined' ? MaterialBuilder.handleMediaFileSelect(this) : AssessmentBuilder.handleMediaFileSelect(this)">
+
                 <label for="media-file-input" id="media-dropzone"
                     class="cursor-pointer flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-gray-300 rounded-xl bg-gray-50 hover:bg-gray-100 hover:border-[#a52a2a]/50 transition">
                     <div class="flex flex-col items-center justify-center pt-5 pb-6">
@@ -255,21 +266,39 @@
                         <p class="text-sm text-gray-500 font-medium">Click to choose a file</p>
                     </div>
                 </label>
-                <div id="selected-media-display" class="hidden mt-4 p-3 bg-gray-50 border border-gray-200 rounded-lg items-center justify-between">
+
+                <div id="selected-media-display"
+                    class="hidden mt-4 p-3 bg-gray-50 border border-gray-200 rounded-lg items-center justify-between">
                     <div class="flex items-center gap-3 overflow-hidden">
                         <i class="fas fa-file-alt text-[#a52a2a] text-lg"></i>
                         <span id="selected-media-name" class="font-mono text-sm text-gray-700 truncate font-medium">file.mp4</span>
                     </div>
-                    <button type="button" onclick="MaterialBuilder.clearSelectedMedia()" class="text-gray-400 hover:text-red-500 transition px-2">
+                    <button type="button" onclick="typeof MaterialBuilder !== 'undefined' ? MaterialBuilder.clearSelectedMedia() : AssessmentBuilder.clearSelectedMedia()"
+                        class="text-gray-400 hover:text-red-500 transition px-2" title="Remove File">
                         <i class="fas fa-times"></i>
                     </button>
                 </div>
+
+                <div id="upload-progress-container" class="hidden mt-4 p-4 bg-gray-50 border border-gray-200 rounded-xl">
+                    <div class="flex justify-between text-xs mb-2">
+                        <span class="text-gray-600 font-bold flex items-center gap-2"><i class="fas fa-spinner fa-spin text-[#a52a2a]"></i> Uploading...</span>
+                        <span id="upload-progress-text" class="text-[#a52a2a] font-black">0%</span>
+                    </div>
+                    <div class="w-full bg-gray-200 rounded-full h-2.5 overflow-hidden">
+                        <div id="upload-progress-bar" class="bg-[#a52a2a] h-2.5 rounded-full transition-all duration-150" style="width: 0%"></div>
+                    </div>
+                </div>
             </div>
+
             <div class="flex gap-3">
-                <button type="button" onclick="MaterialBuilder.closeMediaModal()" class="w-full py-3.5 bg-gray-100 text-gray-700 font-bold rounded-xl hover:bg-gray-200 transition active:scale-95">Cancel</button>
-                <button type="button" id="start-media-upload-btn" onclick="MaterialBuilder.executeMediaUpload()" disabled
+                <button type="button" onclick="typeof MaterialBuilder !== 'undefined' ? MaterialBuilder.closeMediaModal() : AssessmentBuilder.closeMediaModal()"
+                    class="w-full py-3.5 bg-gray-100 text-gray-700 font-bold rounded-xl hover:bg-gray-200 transition active:scale-95">
+                    Cancel
+                </button>
+                <button type="button" id="start-media-upload-btn" onclick="typeof MaterialBuilder !== 'undefined' ? MaterialBuilder.executeMediaUpload() : AssessmentBuilder.executeMediaUpload()" disabled
                     class="w-full py-3.5 bg-[#a52a2a] text-white font-bold rounded-xl hover:bg-[#801f1f] transition disabled:opacity-50 disabled:cursor-not-allowed shadow-md flex justify-center items-center gap-2">
-                    <i class="fas fa-upload"></i><span>Upload Media</span>
+                    <i class="fas fa-upload"></i>
+                    <span>Upload Media</span>
                 </button>
             </div>
         </div>
@@ -489,13 +518,11 @@
         actionBtn.onclick = () => modal.classList.add('hidden');
     }
 
+    // FIXED EXAM FUNCTION
     function handleAddExam() {
-        let payload = MaterialBuilder.getPayload ? MaterialBuilder.getPayload() : { categories: [] };
+        const existingExams = document.querySelectorAll('.category-block[data-section-type="exam"]');
         
-        let hasExam = payload.categories && payload.categories.some(cat => cat.section_type === 'exam' || cat.type === 'exam');
-        let builderHtml = document.getElementById('builder-container').innerHTML;
-
-        if (hasExam || builderHtml.includes('Final Exam') || builderHtml.includes('section_type="exam"')) {
+        if (existingExams.length >= 1) {
             showStatusModal('Not Allowed', 'You can only add one (1) Final Exam per module.', 'error');
             return;
         }
