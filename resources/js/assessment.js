@@ -15,6 +15,11 @@ AssessmentBuilder.SYNC_DELAY = 3000;
 AssessmentBuilder.lastPayload = "";
 AssessmentBuilder.activityListenersAdded = false;
 
+// Media Upload States
+AssessmentBuilder.currentMediaUploadQId = null;
+AssessmentBuilder.selectedMediaFile = null;
+AssessmentBuilder.currentUploadXhr = null;
+
 // Initialize SortableJS
 AssessmentBuilder.initSortable = function () {
     if (typeof Sortable === "undefined") return;
@@ -549,11 +554,9 @@ AssessmentBuilder.handleAutosaveTrigger = function () {
     AssessmentBuilder.resetIdleTimer();
 };
 
-// New function that delays the save until the user is fully idle
 AssessmentBuilder.resetIdleTimer = function () {
     clearTimeout(AssessmentBuilder.autosaveTimer);
 
-    // Only start the countdown if there are pending changes
     if (AssessmentBuilder.hasChanged && !AssessmentBuilder.isInitializing) {
         AssessmentBuilder.autosaveTimer = setTimeout(() => {
             AssessmentBuilder.autosaveToServer();
@@ -569,7 +572,7 @@ AssessmentBuilder.autosaveToServer = async function () {
     const payloadString = JSON.stringify(payload);
 
     if (payloadString === AssessmentBuilder.lastPayload) {
-        AssessmentBuilder.hasChanged = false; // Reset if nothing changed
+        AssessmentBuilder.hasChanged = false;
         return;
     }
     AssessmentBuilder.lastPayload = payloadString;
@@ -587,7 +590,7 @@ AssessmentBuilder.autosaveToServer = async function () {
         AssessmentBuilder.updateAutosaveIndicator(
             '<i class="fas fa-check-circle text-green-500"></i> Synced',
         );
-        AssessmentBuilder.hasChanged = false; // Reset flag after successful sync
+        AssessmentBuilder.hasChanged = false;
     } catch (e) {
         AssessmentBuilder.updateAutosaveIndicator(
             '<i class="fas fa-wifi-slash text-amber-500"></i> Offline',
@@ -600,14 +603,12 @@ AssessmentBuilder.updateAutosaveIndicator = function (html) {
     if (el) el.innerHTML = html;
 };
 
-AssessmentBuilder.currentMediaUploadQId = null;
-AssessmentBuilder.selectedMediaFile = null;
-
 AssessmentBuilder.openMediaModal = function (qId) {
     AssessmentBuilder.currentMediaUploadQId = qId;
     AssessmentBuilder.clearSelectedMedia();
     document.getElementById("media-upload-modal").classList.remove("hidden");
 };
+
 AssessmentBuilder.handleMediaFileSelect = function (input) {
     if (!input.files || input.files.length === 0) return;
 
@@ -635,10 +636,6 @@ AssessmentBuilder.clearSelectedMedia = function () {
     document.getElementById("start-media-upload-btn").disabled = true;
 };
 
-// Add this state variable at the top of your file
-AssessmentBuilder.currentUploadXhr = null;
-
-// Replaces the existing closeMediaModal function
 AssessmentBuilder.closeMediaModal = function () {
     // 1. Abort any ongoing upload when modal closes
     if (AssessmentBuilder.currentUploadXhr) {
@@ -660,7 +657,6 @@ AssessmentBuilder.closeMediaModal = function () {
     }
 };
 
-// Replaces the existing executeMediaUpload function
 AssessmentBuilder.executeMediaUpload = function () {
     const wrapper = document.getElementById("assessment-wrapper");
     const btn = document.getElementById("start-media-upload-btn");
@@ -755,11 +751,9 @@ AssessmentBuilder.setMediaPreview = function (qId, url, explicitType = null, ori
     if (mediaInput) mediaInput.value = url;
 
     const previewDiv = document.getElementById(`preview-${qId}`);
-    // Use originalName if provided, otherwise extract from URL
     const displayFileName = originalName || url.split('/').pop().split('?')[0]; 
     const lowerUrl = url.toLowerCase();
 
-    // Determine type based on explicit parameter or file extension
     let type = explicitType;
     if (!type) {
         if (lowerUrl.endsWith('.mp3') || lowerUrl.endsWith('.wav')) type = "audio";
@@ -769,7 +763,6 @@ AssessmentBuilder.setMediaPreview = function (qId, url, explicitType = null, ori
         else type = "image";
     }
 
-    // Apply the centered, gray-background layout from material.js
     previewDiv.className = "relative mt-3 mb-4 rounded-lg overflow-hidden border border-gray-200 flex flex-col items-center justify-center w-full bg-gray-50 p-2";
 
     let mediaHtml = "";
@@ -794,12 +787,10 @@ AssessmentBuilder.setMediaPreview = function (qId, url, explicitType = null, ori
                         <a href="${url}" target="_blank" class="text-xs text-blue-600 hover:underline mt-1 font-medium">Download Archive</a>
                      </div>`;
     } else {
-        // Standard Image Layout
         mediaHtml = `<img src="${url}" class="max-h-64 object-contain rounded-lg shadow-sm">
                      <span class="text-xs font-medium text-gray-500 mt-2">${displayFileName}</span>`;
     }
 
-    // Add the top-right trash button
     previewDiv.innerHTML = `
         ${mediaHtml}
         <button type="button" onclick="AssessmentBuilder.removeQuestionMedia('${qId}')" class="absolute top-2 right-2 h-8 w-8 bg-red-500/80 hover:bg-red-600 transition text-white rounded shadow-sm flex items-center justify-center">
@@ -832,7 +823,7 @@ AssessmentBuilder.saveCompleteExam = async function (btn, status) {
     AssessmentBuilder.lastPayload = "";
 
     const wrapper = document.getElementById("assessment-wrapper");
-    if (!wrapper) return; // Guard
+    if (!wrapper) return; 
 
     const payload = AssessmentBuilder.getPayload(status);
 
@@ -873,7 +864,7 @@ AssessmentBuilder.saveCompleteExam = async function (btn, status) {
                     : "Your progress has been safely stored.";
 
             AssessmentBuilder.showModal("success", title, msg, () => {
-                window.goToUrl(wrapper.dataset.manageUrl, window.currentNavBtn);
+                AssessmentBuilder.goToUrl(wrapper.dataset.manageUrl);
             });
         } else {
             throw new Error(result.message || "Failed to save");
@@ -896,7 +887,7 @@ AssessmentBuilder.deleteAssessmentFromBuilder = async function () {
         "Are you sure you want to discard this entire assessment? This cannot be undone.",
         async () => {
             const wrapper = document.getElementById("assessment-wrapper");
-            if (!wrapper) return; // Guard
+            if (!wrapper) return;
 
             try {
                 const response = await fetch(wrapper.dataset.deleteUrl, {
@@ -907,10 +898,7 @@ AssessmentBuilder.deleteAssessmentFromBuilder = async function () {
                     },
                 });
                 if (response.ok) {
-                    window.goToUrl(
-                        wrapper.dataset.redirectUrl,
-                        window.currentNavBtn,
-                    );
+                    AssessmentBuilder.goToUrl(wrapper.dataset.redirectUrl);
                 }
             } catch (e) {
                 AssessmentBuilder.showModal(
@@ -937,7 +925,7 @@ AssessmentBuilder.discardChangesAndExit = function (btn) {
         "Are you sure you want to discard your unsaved work and exit? This cannot be undone.",
         async () => {
             const wrapper = document.getElementById("assessment-wrapper");
-            if (!wrapper) return; // Guard
+            if (!wrapper) return; 
 
             const backModal = document.getElementById("back-modal");
             if (backModal) backModal.classList.add("hidden");
@@ -1066,15 +1054,17 @@ AssessmentBuilder.showModal = function (type, title, message, callback = null) {
         }
     };
 };
-window.currentNavBtn = null; // Store it globally for the modals to use
 
-window.goToUrl = function (url) {
+AssessmentBuilder.goToUrl = function (url) {
+    const backModal = document.getElementById("back-modal");
+    const statusModal = document.getElementById("status-modal");
+    if (backModal) backModal.classList.add("hidden");
+    if (statusModal) statusModal.classList.add("hidden");
+
     if (typeof loadPartial === "function") {
-        try {
-            loadPartial(url); // Just load the page! Let the page handle its own sidebar.
-        } catch (e) {
-            window.location.href = url;
-        }
+        loadPartial(url); 
+    } else if (typeof window.loadPartial === "function") {
+        window.loadPartial(url);
     } else {
         window.location.href = url;
     }
@@ -1082,7 +1072,7 @@ window.goToUrl = function (url) {
 
 AssessmentBuilder.silentlyDeleteAndExit = async function () {
     const wrapper = document.getElementById("assessment-wrapper");
-    if (!wrapper) return; // Guard
+    if (!wrapper) return; 
     try {
         await fetch(wrapper.dataset.deleteUrl, {
             method: "DELETE",
@@ -1096,7 +1086,6 @@ AssessmentBuilder.silentlyDeleteAndExit = async function () {
     }
 };
 
-// Accept the nav element directly from the HTML click
 AssessmentBuilder.handleAssessmentBackButton = async function (btn) {
     const wrapper = document.getElementById("assessment-wrapper");
     if (!wrapper) return;
@@ -1113,44 +1102,10 @@ AssessmentBuilder.handleAssessmentBackButton = async function (btn) {
         btn.disabled = true;
 
         if (isNew) {
-            await window.silentlyDeleteAndExit();
-            window.goToUrl(redirectUrl);
+            await AssessmentBuilder.silentlyDeleteAndExit();
+            AssessmentBuilder.goToUrl(redirectUrl);
         } else {
-            window.goToUrl(manageUrl);
+            AssessmentBuilder.goToUrl(manageUrl);
         }
     }
 };
-// --- IMPORT EXCEL LOGIC ADDED HERE ---
-
-let selectedFile = null;
-
-window.openImportModal = function () {
-    window.clearSelectedFile();
-    document.getElementById("excel-import-modal").classList.remove("hidden");
-};
-
-window.closeImportModal = function () {
-    document.getElementById("excel-import-modal").classList.add("hidden");
-};
-
-window.handleFileSelect = function (input) {
-    if (!input.files || input.files.length === 0) return;
-
-    selectedFile = input.files[0];
-    document.getElementById("selected-file-name").innerText = selectedFile.name;
-    document.getElementById("file-dropzone").classList.add("hidden");
-    document.getElementById("selected-file-display").classList.remove("hidden");
-    document.getElementById("selected-file-display").classList.add("flex");
-    document.getElementById("start-upload-btn").disabled = false;
-};
-
-window.clearSelectedFile = function () {
-    selectedFile = null;
-    document.getElementById("excel-file-input").value = "";
-    document.getElementById("file-dropzone").classList.remove("hidden");
-    document.getElementById("selected-file-display").classList.add("hidden");
-    document.getElementById("selected-file-display").classList.remove("flex");
-    document.getElementById("start-upload-btn").disabled = true;
-};
-
-

@@ -259,7 +259,7 @@
 
 
 <div id="media-upload-modal" class="fixed inset-0 z-[120] hidden">
-    <div class="absolute inset-0 bg-gray-900/60 backdrop-blur-sm" onclick="typeof MaterialBuilder !== 'undefined' ? MaterialBuilder.closeMediaModal() : AssessmentBuilder.closeMediaModal()"></div>
+    <div class="absolute inset-0 bg-gray-900/60 backdrop-blur-sm" onclick="AssessmentBuilder.closeMediaModal()"></div>
     
     <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-md p-6">
         <div class="bg-white rounded-2xl shadow-2xl overflow-hidden border border-gray-100 p-6">
@@ -273,7 +273,7 @@
             </div>
 
             <div class="mb-6">
-                <input type="file" id="media-file-input" class="hidden" onchange="typeof MaterialBuilder !== 'undefined' ? MaterialBuilder.handleMediaFileSelect(this) : AssessmentBuilder.handleMediaFileSelect(this)">
+                <input type="file" id="media-file-input" class="hidden" onchange="AssessmentBuilder.handleMediaFileSelect(this)">
 
                 <label for="media-file-input" id="media-dropzone"
                     class="cursor-pointer flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-gray-300 rounded-xl bg-gray-50 hover:bg-gray-100 hover:border-[#a52a2a]/50 transition">
@@ -289,7 +289,7 @@
                         <i class="fas fa-file-alt text-[#a52a2a] text-lg"></i>
                         <span id="selected-media-name" class="font-mono text-sm text-gray-700 truncate font-medium">file.mp4</span>
                     </div>
-                    <button type="button" onclick="typeof MaterialBuilder !== 'undefined' ? MaterialBuilder.clearSelectedMedia() : AssessmentBuilder.clearSelectedMedia()"
+                    <button type="button" onclick="AssessmentBuilder.clearSelectedMedia()"
                         class="text-gray-400 hover:text-red-500 transition px-2" title="Remove File">
                         <i class="fas fa-times"></i>
                     </button>
@@ -307,11 +307,11 @@
             </div>
 
             <div class="flex gap-3">
-                <button type="button" onclick="typeof MaterialBuilder !== 'undefined' ? MaterialBuilder.closeMediaModal() : AssessmentBuilder.closeMediaModal()"
+                <button type="button" onclick="AssessmentBuilder.closeMediaModal()"
                     class="w-full py-3.5 bg-gray-100 text-gray-700 font-bold rounded-xl hover:bg-gray-200 transition active:scale-95">
                     Cancel
                 </button>
-                <button type="button" id="start-media-upload-btn" onclick="typeof MaterialBuilder !== 'undefined' ? MaterialBuilder.executeMediaUpload() : AssessmentBuilder.executeMediaUpload()" disabled
+                <button type="button" id="start-media-upload-btn" onclick="AssessmentBuilder.executeMediaUpload()" disabled
                     class="w-full py-3.5 bg-[#a52a2a] text-white font-bold rounded-xl hover:bg-[#801f1f] transition disabled:opacity-50 disabled:cursor-not-allowed shadow-md flex justify-center items-center gap-2">
                     <i class="fas fa-upload"></i>
                     <span>Upload Media</span>
