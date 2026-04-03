@@ -83,7 +83,7 @@
 
         <main class="flex-1 flex flex-col min-w-0 h-full overflow-hidden">
             <header
-                class="bg-white border-b border-gray-200 h-16 flex items-center justify-between px-4 md:px-8 shrink-0 z-20">
+                class="bg-white border-b border-gray-200 h-16 flex items-center justify-between px-4 md:px-8 shrink-0 z-20 relative">
                 <div class="flex items-center gap-4 flex-1">
                     <button onclick="toggleSidebar()" class="md:hidden p-2 rounded-lg text-gray-600 hover:bg-gray-100">
                         <i class="fas fa-bars text-xl"></i>
@@ -96,13 +96,37 @@
                     </div>
                 </div>
 
-                <div class="flex items-center space-x-4">
-                    <button class="relative text-gray-500 hover:text-[#a52a2a]">
-                        <i class="fas fa-bell text-xl"></i>
-                        <span
-                            class="absolute top-0 right-0 h-2 w-2 bg-[#a52a2a] rounded-full border-2 border-white"></span>
-                    </button>
+                <div class="flex items-center space-x-2 sm:space-x-4 relative">
+                    
+                    <div class="relative" id="notificationContainer">
+                        <button onclick="toggleNotifications()" class="relative text-gray-600 hover:bg-gray-100 p-2 rounded-full focus:outline-none transition-colors flex items-center justify-center h-10 w-10">
+                            <i class="fas fa-bell text-xl"></i>
+                            <span id="notificationBadge" class="hidden absolute top-0 right-0 h-3 w-3 bg-red-600 rounded-full border-2 border-white shadow-sm"></span>
+                        </button>
 
+                        <div id="notificationDropdown" class="hidden fixed inset-0 m-4 sm:m-0 sm:absolute sm:inset-auto sm:right-0 sm:top-full sm:mt-2 sm:w-[380px] bg-white rounded-2xl shadow-2xl border border-gray-100 flex flex-col z-[100] sm:z-50 transform opacity-0 sm:scale-95 transition-all duration-200 origin-top-right sm:max-h-[85vh] overflow-hidden">
+        
+                            <div class="px-4 py-3 border-b border-gray-100 flex justify-between items-center shrink-0 bg-white shadow-sm z-10 relative">
+                                <div class="flex items-center gap-2">
+                                    <h3 class="font-black text-gray-900 text-2xl tracking-tight">Notifications</h3>
+                                    <span id="notificationCountText" class="text-xs font-bold text-red-600 bg-red-50 px-2 py-0.5 rounded-md hidden">0 New</span>
+                                </div>
+                                <button onclick="toggleNotifications()" class="w-9 h-9 rounded-full bg-gray-100 text-gray-600 hover:bg-gray-200 flex items-center justify-center transition-colors focus:outline-none text-lg">
+                                    <i class="fas fa-times"></i>
+                                </button>
+                            </div>
+                            
+                            <div id="notificationList" class="flex-1 overflow-y-auto bg-gray-50/50 sidebar-scroll pb-4 relative z-0">
+                                <div class="flex justify-center items-center py-8">
+                                    <i class="fas fa-circle-notch fa-spin text-2xl text-gray-300"></i>
+                                </div>
+                            </div>
+
+                            <div class="w-full flex items-center p-4">
+                                <p class="text-xs text-center text-gray-500">Notifications that are more than 30 days will automatically be deleted</p>
+                            </div>
+                        </div>
+                    </div>
                     <div class="flex items-center space-x-3 border-l pl-4 border-gray-200 cursor-pointer 
                             hover:bg-gray-100 p-1.5 
                             rounded-none hover:rounded-xl 
@@ -128,7 +152,7 @@
         </main>
     </div>
 
-    <div id="logoutModal" class="fixed inset-0 z-[60] opacity-0 pointer-events-none transition-opacity duration-300">
+    <div id="logoutModal" class="fixed inset-0 z-[110] opacity-0 pointer-events-none transition-opacity duration-300">
         <div class="absolute inset-0 bg-gray-900/60" onclick="toggleLogoutModal()"></div>
         <div class="relative flex items-center justify-center min-h-screen p-4">
 
@@ -221,10 +245,9 @@
                     contentArea.scrollTop = 0;
                     contentArea.classList.add('animate-float-in');
 
-                    // Listen for the animation to finish, then remove the class entirely
                     contentArea.addEventListener('animationend', function handler() {
                         contentArea.classList.remove('animate-float-in');
-                        contentArea.removeEventListener('animationend', handler); // Clean up to prevent memory leaks
+                        contentArea.removeEventListener('animationend', handler); 
                     });
                     
                     const scripts = contentArea.querySelectorAll('script');
@@ -235,25 +258,19 @@
                         oldScript.parentNode.replaceChild(newScript, oldScript);
                     });
 
-                    // Clear previous active states
                     document.querySelectorAll('.nav-btn').forEach(btn => {
                         btn.classList.remove('bg-[#a52a2a]/10', 'text-[#a52a2a]', 'font-bold', 'border-r-4', 'border-[#a52a2a]');
                         btn.classList.add('text-gray-600', 'hover:bg-gray-100');
                     });
 
-                    // UPDATED INTELLIGENT ROUTE DETECTION (Fixes Sidebar disappearing)
                     let targetBtn = element;
                     if (!targetBtn || !targetBtn.classList) {
-
                         const roleIsStudent = document.getElementById('nav-explore-btn') !== null;
-
                         if (roleIsStudent) {
-                            // Student Fallbacks
                             if (url.includes('/explore') || url.includes('/materials')) targetBtn = document.getElementById('nav-explore-btn');
                             else if (url.includes('/enrolled')) targetBtn = document.getElementById('nav-enrolled-btn');
                             else if (url.includes('/home')) targetBtn = document.getElementById('nav-student-home-btn') || document.querySelector('.nav-btn');
                         } else {
-                            // Admin Fallbacks
                             if (url.includes('/materials')) targetBtn = document.getElementById('nav-materials-btn');
                             else if (url.includes('/assessment')) targetBtn = document.getElementById('nav-assessment-btn');
                             else if (url.includes('/explore-layout')) targetBtn = document.getElementById('nav-explore-layout-btn');
@@ -264,7 +281,6 @@
                         }
                     }
 
-                    // Apply active state safely
                     if (targetBtn) {
                         targetBtn.classList.add('bg-[#a52a2a]/10', 'text-[#a52a2a]', 'font-bold', 'border-r-4', 'border-[#a52a2a]');
                         targetBtn.classList.remove('text-gray-600', 'hover:bg-gray-100');
@@ -282,19 +298,148 @@
             const savedBtnId = sessionStorage.getItem('lastActiveBtn');
 
             if (savedUrl) {
-                // If memory exists, load what they were last looking at (Explore, Enrolled, etc.)
                 const targetBtn = document.getElementById(savedBtnId) || document.querySelector('.nav-btn');
                 loadPartial(savedUrl, targetBtn);
             } else {
-                // Default to home if no memory exists
                 const dashboardBtn = document.querySelector('.nav-btn');
                 loadPartial('{{ url("/dashboard/home") }}', dashboardBtn);
             }
+            
+            // Check for notifications immediately when dashboard loads
+            fetchNotifications();
         };
 
         window.onclick = function (event) {
             if (event.target == logoutModal.firstElementChild) toggleLogoutModal();
         }
+
+        // --- NOTIFICATION SYSTEM LOGIC ---
+        const notificationDropdown = document.getElementById('notificationDropdown');
+        const notificationBadge = document.getElementById('notificationBadge');
+        const notificationList = document.getElementById('notificationList');
+        const notificationCountText = document.getElementById('notificationCountText');
+        let isNotificationOpen = false;
+
+        function toggleNotifications() {
+            isNotificationOpen = !isNotificationOpen;
+            if (isNotificationOpen) {
+                notificationDropdown.classList.remove('hidden');
+                // Small delay to allow display:block to apply before animating opacity/transform
+                setTimeout(() => {
+                    notificationDropdown.classList.remove('opacity-0', 'sm:scale-95');
+                    notificationDropdown.classList.add('opacity-100', 'sm:scale-100');
+                }, 10);
+                fetchNotifications(); // Refresh data when opened
+            } else {
+                notificationDropdown.classList.remove('opacity-100', 'sm:scale-100');
+                notificationDropdown.classList.add('opacity-0', 'sm:scale-95');
+                setTimeout(() => notificationDropdown.classList.add('hidden'), 200);
+            }
+        }
+
+        async function fetchNotifications() {
+            try {
+                const response = await fetch('{{ route("dashboard.notifications") }}', {
+                    headers: { 'X-Requested-With': 'XMLHttpRequest' }
+                });
+                const data = await response.json();
+                
+                if (data.success) {
+                    // We now pass both the list AND the unread count
+                    renderNotifications(data.notifications, data.unread_count);
+                }
+            } catch (error) {
+                console.error("Failed to load notifications:", error);
+            }
+        }
+
+        async function markAsReadAndGo(notifId, targetUrl, isRead) {
+            // Only ping the server if the notification hasn't been read yet
+            if (!isRead) {
+                try {
+                    // ADDED /dashboard back into the URL string here!
+                    await fetch(`{{ url('/dashboard/notifications') }}/${notifId}/read`, {
+                        method: 'POST',
+                        headers: {
+                            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+                            'Accept': 'application/json'
+                        }
+                    });
+                } catch (error) {
+                    console.error("Network error while marking as read:", error);
+                }
+            }
+            
+            toggleNotifications(); 
+            window.location.href = targetUrl;
+        }
+
+        function renderNotifications(notifications, unreadCount) {
+            // Badge logic now depends on the actual unreadCount, not the total list length
+            if (unreadCount > 0) {
+                notificationBadge.classList.remove('hidden');
+                notificationCountText.classList.remove('hidden');
+                notificationCountText.innerText = `${unreadCount} New`;
+            } else {
+                notificationBadge.classList.add('hidden');
+                notificationCountText.classList.add('hidden');
+            }
+
+            notificationList.innerHTML = '';
+            
+            if (notifications.length === 0) {
+                notificationList.innerHTML = `
+                    <div class="px-6 py-12 text-center flex flex-col items-center">
+                        <img src="https://cdn-icons-png.flaticon.com/512/3237/3237472.png" class="w-20 h-20 opacity-20 mb-4 grayscale" alt="Empty">
+                        <p class="text-base font-bold text-gray-500">You're all caught up!</p>
+                        <p class="text-sm text-gray-400 mt-1">No notifications from the last 30 days.</p>
+                    </div>`;
+                return;
+            }
+
+            notifications.forEach(notif => {
+                const item = document.createElement('div');
+                
+                // Dynamic styling based on whether it is read or unread
+                const bgDefault = notif.is_read ? 'bg-transparent' : 'bg-blue-50/30';
+                const textColor = notif.is_read ? 'text-gray-600 font-medium' : 'text-gray-900 font-bold';
+                const timeColor = notif.is_read ? 'text-gray-400' : 'text-[#a52a2a] font-semibold';
+                const iconOpacity = notif.is_read ? 'opacity-60' : 'opacity-100';
+
+                item.className = `px-4 py-3 hover:bg-gray-100 transition-colors cursor-pointer flex gap-3 group border-b border-gray-50 ${bgDefault}`;
+                item.onclick = () => markAsReadAndGo(notif.id, notif.url, notif.is_read);
+
+                const bgClass = notif.colorClass.replace('text-', 'bg-').replace('-600', '-500').replace('-500', '-500');
+
+                item.innerHTML = `
+                    <div class="relative shrink-0 ${iconOpacity}">
+                        <div class="w-12 h-12 rounded-full flex items-center justify-center text-white shadow-sm ${bgClass}">
+                            <i class="${notif.icon} text-lg"></i>
+                        </div>
+                    </div>
+                    <div class="flex-1 min-w-0 pt-1">
+                        <p class="text-[14px] ${textColor} leading-snug break-words">
+                            ${notif.message}
+                        </p>
+                        <p class="text-[12px] ${timeColor} mt-1">
+                            ${notif.time_ago}
+                        </p>
+                    </div>
+                    <div class="shrink-0 self-center pl-2">
+                        ${notif.is_read ? '' : '<div class="w-2.5 h-2.5 bg-[#a52a2a] rounded-full shadow-sm"></div>'}
+                    </div>
+                `;
+                notificationList.appendChild(item);
+            });
+        }
+
+        // Close dropdown when clicking outside
+        document.addEventListener('click', (event) => {
+            const container = document.getElementById('notificationContainer');
+            if (isNotificationOpen && container && !container.contains(event.target)) {
+                toggleNotifications();
+            }
+        });
     </script>
 </body>
 

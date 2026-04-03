@@ -113,6 +113,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
         Route::get('/materials/{material}/certificate', [MaterialsController::class, 'certificate'])->name('dashboard.materials.certificate');
 
+        Route::get('/notifications', [MaterialsController::class, 'getNotifications'])->name('dashboard.notifications');
+
+        Route::post('/notifications/{id}/read', [MaterialsController::class, 'markNotificationRead']);
+
     });
 
     Route::get('/get-districts/{quadrantId}', [DashboardController::class, 'getDistricts'])->name('districts.get');

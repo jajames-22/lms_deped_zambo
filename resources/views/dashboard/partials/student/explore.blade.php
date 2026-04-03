@@ -57,7 +57,7 @@
                 </button>
 
                 {{-- Dots --}}
-                <div class="absolute bottom-6 left-1/2 -translate-x-1/2 z-30 flex gap-2">
+                <div class="absolute bottom-6 left-1/2 -translate-x-1/2 z-10 flex gap-2">
                     @foreach($featuredMaterials as $index => $material)
                         <button onclick="window.goToSlide({{ $index }})" class="carousel-dot h-2.5 rounded-full transition-all duration-300 {{ $index === 0 ? 'bg-[#a52a2a] w-8' : 'bg-white/50 hover:bg-white w-2.5' }}"></button>
                     @endforeach

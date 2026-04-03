@@ -44,8 +44,74 @@
         
         .pdf-container { background: #e5e7eb; border-radius: 1rem; overflow: hidden; display: flex; flex-direction: column; height: 60vh; lg:height: 75vh; width: 100%; }
         .pdf-toolbar { background: #1f2937; color: white; padding: 0.75rem 1rem; display: flex; justify-content: space-between; align-items: center; }
-        .pdf-render-area { overflow: auto; display: flex; justify-content: center; align-items: flex-start; padding: 1.5rem 1rem; position: relative; flex-grow: 1; }
-        .pdf-render-area canvas { box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15); border-radius: 4px; }
+        .pdf-render-area { 
+            overflow: auto; 
+            display: flex; 
+            flex-direction: column; 
+            padding: 1rem; 
+            position: relative; 
+            flex-grow: 1; 
+        }
+        .pdf-render-area canvas { 
+            margin: auto; /* Centers perfectly, but allows scrolling if larger than screen */
+            flex-shrink: 0; /* Prevents the container from squishing the canvas */
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2); 
+            border-radius: 4px; 
+            transition: transform 0.2s;
+        }
+
+        /* CUSTOM FULLSCREEN OVERRIDE */
+        .media-fullscreen {
+            position: fixed !important;
+            top: 0 !important;
+            left: 0 !important;
+            width: 100vw !important;
+            height: 100vh !important;
+            z-index: 99990 !important; 
+            background: rgba(15, 15, 15, 0.95) !important;
+            backdrop-filter: blur(8px);
+            border-radius: 0 !important;
+            border: none !important;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            margin: 0 !important;
+            padding: 0 !important;
+        }
+        .media-fullscreen > img, .media-fullscreen > video {
+            max-height: 100vh !important;
+            max-width: 100vw !important;
+            object-fit: contain;
+            margin: auto;
+        }
+        .media-fullscreen .pdf-toolbar {
+            width: 100%;
+            background: rgba(20, 25, 30, 0.95) !important;
+        }
+        .media-fullscreen .pdf-render-area {
+            width: 100%;
+            flex-grow: 1;
+            background: transparent !important;
+        }
+        .media-fullscreen .video-controls {
+            padding-bottom: 2rem;
+            background: linear-gradient(to top, rgba(0,0,0,0.95), transparent);
+        }
+        .media-fullscreen .fs-toggle-btn { display: none !important; }
+
+        body.fs-active .z-10, 
+        body.fs-active .z-20, 
+        body.fs-active .z-30, 
+        body.fs-active .z-40, 
+        body.fs-active .z-50 {
+            z-index: 0 !important;
+        }
+        body.fs-active .lesson-container, 
+        body.fs-active .content-block {
+            animation: none !important;
+            transform: none !important;
+        }
     </style>
 </head>
 
@@ -174,7 +240,7 @@
 
         <main class="flex-1 flex flex-col min-w-0 bg-gray-50 h-full relative z-10">
             <div id="main-scroll-area" class="flex-1 overflow-y-auto w-full relative">
-                <div class="w-full max-w-7xl mx-auto px-4 py-8 sm:px-8 lg:px-12 flex flex-col min-h-full">
+                <div class="w-full max-w-7xl mx-auto px-4 py-8 sm:px-8 flex flex-col min-h-full">
                     
                     @foreach($timeline as $lessonIndex => $section)
                         <div id="lesson-{{ $lessonIndex }}" class="lesson-container w-full">
@@ -206,7 +272,6 @@
                                             $isLocked = true; 
                                             $isCorrect = $existingAnswer->is_correct;
                                             
-                                            // Assess feedback type dynamically for Blade render
                                             $hasCorrectOptions = collect($block->options)->where('is_correct', 1)->count() > 0;
                                             if ($block->type === 'text' && !$hasCorrectOptions) {
                                                 $feedbackType = 'recorded_as_is';
@@ -220,7 +285,7 @@
                                         $inputName = $section->is_exam ? "exam_answer_{$block->id}" : "answer_{$block->id}";
                                     @endphp
 
-                                    <div class="flex flex-col lg:flex-row gap-6 lg:gap-8 w-full">
+                                    <div class="flex flex-col lg:flex-row gap-2 lg:gap-4 w-full">
                                         
                                         {{-- MEDIA PARSER --}}
                                         @if($hasMedia)
@@ -236,16 +301,20 @@
                                                 @endphp
 
                                                 @if($isPdf)
-                                                    <div class="pdf-container shadow-sm border border-gray-200" data-pdf-url="{{ $mediaUrl }}" id="pdf-{{ $lessonIndex }}-{{ $contentIndex }}">
+                                                    <div class="pdf-container media-container shadow-sm border border-gray-200" data-pdf-url="{{ $mediaUrl }}" id="media-{{ $lessonIndex }}-{{ $contentIndex }}">
                                                         <div class="pdf-toolbar shrink-0">
                                                             <div class="flex items-center gap-4">
                                                                 <span class="text-sm font-bold"><i class="fas fa-file-pdf mr-2"></i> Page <span class="pdf-page-num text-[#a52a2a]">1</span> of <span class="pdf-page-count">?</span></span>
                                                             </div>
                                                             <div class="flex items-center gap-3">
-                                                                <button onclick="pdfZoomOut('pdf-{{ $lessonIndex }}-{{ $contentIndex }}')" class="hover:text-[#a52a2a] transition"><i class="fas fa-search-minus"></i></button>
+                                                                <button onclick="pdfZoomOut('media-{{ $lessonIndex }}-{{ $contentIndex }}')" class="hover:text-[#a52a2a] transition"><i class="fas fa-search-minus"></i></button>
                                                                 <span class="pdf-scale text-xs font-bold w-12 text-center">100%</span>
-                                                                <button onclick="pdfZoomIn('pdf-{{ $lessonIndex }}-{{ $contentIndex }}')" class="hover:text-[#a52a2a] transition"><i class="fas fa-search-plus"></i></button>
-                                                                <a href="{{ $mediaUrl }}" target="_blank" class="ml-2 pl-4 border-l border-gray-600 hover:text-[#a52a2a] transition" title="Open PDF in new tab"><i class="fas fa-external-link-alt"></i></a>
+                                                                <button onclick="pdfZoomIn('media-{{ $lessonIndex }}-{{ $contentIndex }}')" class="hover:text-[#a52a2a] transition"><i class="fas fa-search-plus"></i></button>
+                                                                
+                                                                {{-- NEW Fullscreen Button --}}
+                                                                <button onclick="enterFullscreen('media-{{ $lessonIndex }}-{{ $contentIndex }}', 'pdf')" class="fs-toggle-btn hover:text-[#a52a2a] transition ml-3 border-l border-gray-600 pl-3" title="Full Screen"><i class="fas fa-expand"></i></button>
+                                                                
+                                                                <a href="{{ $mediaUrl }}" target="_blank" class="ml-1 pl-3 border-l border-gray-600 hover:text-[#a52a2a] transition" title="Open in new tab"><i class="fas fa-external-link-alt"></i></a>
                                                             </div>
                                                         </div>
                                                         <div class="pdf-render-area bg-gray-200 relative">
@@ -257,34 +326,39 @@
                                                         </div>
                                                     </div>
                                                 @elseif($isVideo)
-                                                    <div class="video-wrapper shadow-xl group border border-gray-800">
-                                                        <video class="w-full max-h-[70vh] object-contain custom-video" id="video-{{ $lessonIndex }}-{{ $contentIndex }}">
+                                                    <div class="video-wrapper media-container shadow-xl group border border-gray-800" id="media-{{ $lessonIndex }}-{{ $contentIndex }}">
+                                                        <video class="w-full max-h-[70vh] object-contain custom-video">
                                                             <source src="{{ $mediaUrl }}" type="video/{{ $ext === 'webm' ? 'webm' : 'mp4' }}">
                                                         </video>
                                                         <div class="video-controls">
-                                                            <div class="progress-bar-container" onclick="seekVideo(event, 'video-{{ $lessonIndex }}-{{ $contentIndex }}')">
+                                                            <div class="progress-bar-container" onclick="seekVideo(event, 'media-{{ $lessonIndex }}-{{ $contentIndex }}')">
                                                                 <div class="progress-bar-fill"></div>
                                                             </div>
                                                             <div class="controls-row mt-2">
                                                                 <div class="flex items-center gap-4">
-                                                                    <button onclick="togglePlay('video-{{ $lessonIndex }}-{{ $contentIndex }}')" class="play-btn text-xl hover:text-[#a52a2a] transition w-6"><i class="fas fa-play"></i></button>
+                                                                    <button onclick="togglePlay('media-{{ $lessonIndex }}-{{ $contentIndex }}')" class="play-btn text-xl hover:text-[#a52a2a] transition w-6"><i class="fas fa-play"></i></button>
                                                                     <div class="text-xs font-mono font-bold"><span class="current-time">0:00</span> / <span class="duration">0:00</span></div>
                                                                 </div>
                                                                 <div class="flex items-center gap-4">
-                                                                    <select onchange="changeSpeed('video-{{ $lessonIndex }}-{{ $contentIndex }}', this.value)" class="bg-transparent text-xs font-bold outline-none cursor-pointer hover:text-[#a52a2a] transition hidden sm:block">
+                                                                    <select onchange="changeSpeed('media-{{ $lessonIndex }}-{{ $contentIndex }}', this.value)" class="bg-transparent text-xs font-bold outline-none cursor-pointer hover:text-[#a52a2a] transition hidden sm:block">
                                                                         <option class="text-black" value="1" selected>1.0x</option>
                                                                         <option class="text-black" value="1.5">1.5x</option>
                                                                         <option class="text-black" value="2">2.0x</option>
                                                                     </select>
-                                                                    <button onclick="toggleMute('video-{{ $lessonIndex }}-{{ $contentIndex }}', event)" class="mute-btn hover:text-[#a52a2a] transition"><i class="fas fa-volume-up"></i></button>
-                                                                    <button onclick="toggleFullscreen('video-{{ $lessonIndex }}-{{ $contentIndex }}')" class="hover:text-[#a52a2a] transition"><i class="fas fa-expand"></i></button>
+                                                                    <button onclick="toggleMute('media-{{ $lessonIndex }}-{{ $contentIndex }}', event)" class="mute-btn hover:text-[#a52a2a] transition"><i class="fas fa-volume-up"></i></button>
+                                                                    
+                                                                    {{-- NEW Custom Fullscreen Button --}}
+                                                                    <button onclick="enterFullscreen('media-{{ $lessonIndex }}-{{ $contentIndex }}', 'video')" class="fs-toggle-btn hover:text-[#a52a2a] transition" title="Full Screen"><i class="fas fa-expand"></i></button>
                                                                 </div>
                                                             </div>
                                                         </div>
                                                     </div>
                                                 @elseif($isImage)
-                                                    <div class="rounded-2xl overflow-hidden bg-gray-200 border border-gray-200 flex bg-white justify-center relative group">
-                                                        <img src="{{ $mediaUrl }}" class="object-contain max-h-[70vh] w-full transition-transform duration-300" id="img-{{ $lessonIndex }}-{{ $contentIndex }}">
+                                                    <div class="media-container rounded-2xl overflow-hidden bg-gray-200 border border-gray-200 flex bg-white justify-center relative group w-full" id="media-{{ $lessonIndex }}-{{ $contentIndex }}">
+                                                        <img src="{{ $mediaUrl }}" class="object-contain max-h-[70vh] w-full transition-transform duration-300">
+                                                        
+                                                        {{-- NEW Fullscreen Button --}}
+                                                        <button onclick="enterFullscreen('media-{{ $lessonIndex }}-{{ $contentIndex }}', 'image')" class="fs-toggle-btn absolute top-4 right-4 bg-black/60 text-white w-10 h-10 flex items-center justify-center rounded-xl opacity-0 group-hover:opacity-100 transition hover:bg-[#a52a2a] shadow-lg" title="Full Screen"><i class="fas fa-expand"></i></button>
                                                     </div>
                                                 @endif
                                             </div>
@@ -295,12 +369,12 @@
                                             <div class="w-full {{ $hasMedia ? 'lg:w-1/2 xl:w-5/12' : 'max-w-4xl mx-auto' }}">
                                                 
                                                 @if($block->type === 'content' && $block->question_text)
-                                                    <div class="bg-white rounded-3xl p-6 sm:p-8 shadow-sm border border-gray-100 prose prose-gray max-w-none text-gray-800 text-base sm:text-lg leading-relaxed">
+                                                    <div class="bg-white rounded-3xl p-4 sm:p-6 shadow-sm border border-gray-100 prose prose-gray max-w-none text-gray-800 text-base sm:text-lg leading-relaxed">
                                                         {!! nl2br(e($block->question_text)) !!}
                                                     </div>
 
                                                 @elseif(in_array($block->type, ['mcq', 'true_false']))
-                                                    <div class="bg-white rounded-3xl p-6 sm:p-8 shadow-sm border border-[#a52a2a]/20 relative overflow-hidden">
+                                                    <div class="bg-white rounded-3xl p-4 sm:p-6 shadow-sm border border-[#a52a2a]/20 relative overflow-hidden">
                                                         <div class="absolute top-0 left-0 w-1.5 h-full bg-[#a52a2a]"></div>
                                                         <h3 class="text-xl font-bold text-gray-900 mb-6">{{ $block->question_text }}</h3>
                                                         <div class="space-y-3">
@@ -320,7 +394,7 @@
                                                     </div>
 
                                                 @elseif($block->type === 'checkbox')
-                                                    <div class="bg-white rounded-3xl p-6 sm:p-8 shadow-sm border border-[#a52a2a]/20 relative overflow-hidden">
+                                                    <div class="bg-white rounded-3xl p-4 sm:p-6 shadow-sm border border-[#a52a2a]/20 relative overflow-hidden">
                                                         <div class="absolute top-0 left-0 w-1.5 h-full bg-[#a52a2a]"></div>
                                                         <div class="flex items-start justify-between gap-4 mb-6">
                                                             <h3 class="text-xl font-bold text-gray-900">{{ $block->question_text }}</h3>
@@ -344,7 +418,7 @@
                                                     </div>
 
                                                 @elseif($block->type === 'text')
-                                                    <div class="bg-white rounded-3xl p-6 sm:p-8 shadow-sm border border-[#a52a2a]/20 relative overflow-hidden">
+                                                    <div class="bg-white rounded-3xl p-4 sm:p-6 shadow-sm border border-[#a52a2a]/20 relative overflow-hidden">
                                                         <div class="absolute top-0 left-0 w-1.5 h-full bg-[#a52a2a]"></div>
                                                         <h3 class="text-xl font-bold text-gray-900 mb-4">{{ $block->question_text }}</h3>
                                                         <textarea name="{{ $inputName }}" rows="5" placeholder="Type your answer here..." {{ $isLocked ? 'disabled' : '' }}
@@ -406,6 +480,21 @@
         </main>
     </div>
 
+    {{-- NEW GLOBAL FULLSCREEN OVERLAY CONTROLS --}}
+    <div id="fs-global-controls" class="fixed inset-0 pointer-events-none hidden z-[999999]">
+        <button onclick="exitFullscreen()" class="absolute top-4 right-4 sm:top-8 sm:right-8 pointer-events-auto bg-black/60 hover:bg-red-600 text-white rounded-full w-12 h-12 flex items-center justify-center backdrop-blur transition-colors shadow-2xl border border-white/10" title="Exit Full Screen">
+            <i class="fas fa-times text-xl"></i>
+        </button>
+
+        <button onclick="fsNavigate(-1)" class="absolute left-4 sm:left-8 top-1/2 -translate-y-1/2 pointer-events-auto bg-black/60 hover:bg-[#a52a2a] text-white rounded-full h-14 w-14 flex items-center justify-center backdrop-blur transition-colors shadow-2xl border border-white/10" id="fs-btn-prev">
+            <i class="fas fa-chevron-left text-xl pr-1"></i>
+        </button>
+        
+        <button onclick="fsNavigate(1)" class="absolute right-4 sm:right-8 top-1/2 -translate-y-1/2 pointer-events-auto bg-black/60 hover:bg-[#a52a2a] text-white rounded-full h-14 w-14 flex items-center justify-center backdrop-blur transition-colors shadow-2xl border border-white/10" id="fs-btn-next">
+            <i class="fas fa-chevron-right text-xl pl-1"></i>
+        </button>
+    </div>
+
     {{-- EXAM CONFIRMATION MODAL --}}
     <div id="exam-confirm-modal" class="fixed inset-0 z-[9999] hidden opacity-0 transition-opacity duration-300 flex items-center justify-center p-4">
         <div class="absolute inset-0 bg-gray-900/60" onclick="closeExamConfirm()"></div>
@@ -448,6 +537,97 @@
 
         let isExamLocked = false;
         let pendingExamTarget = null;
+        let activeFullscreenId = null;
+        let activeFullscreenType = null;
+
+        // --- FULLSCREEN LOGIC ---
+        // --- FULLSCREEN LOGIC ---
+        function enterFullscreen(id, type) {
+            const el = document.getElementById(id);
+            if (!el) return;
+            
+            activeFullscreenId = id;
+            activeFullscreenType = type;
+            
+            // FIX: Add class to body to trigger CSS escape overrides
+            document.body.classList.add('fs-active'); 
+            
+            el.classList.add('media-fullscreen');
+            document.getElementById('fs-global-controls').classList.remove('hidden');
+            document.getElementById('fs-global-controls').classList.add('flex');
+            
+            if (type === 'pdf' && pdfInstances[id]) {
+                pdfInstances[id].hasSetScale = false; // Force re-calculation for perfect fit
+                renderPdfPage(id);
+            }
+            updateFsNavButtons();
+        }
+
+        function exitFullscreen() {
+            if (!activeFullscreenId) return;
+            const el = document.getElementById(activeFullscreenId);
+            if (el) {
+                el.classList.remove('media-fullscreen');
+                if (activeFullscreenType === 'pdf' && pdfInstances[activeFullscreenId]) {
+                    pdfInstances[activeFullscreenId].hasSetScale = false; // Force re-calculation back to normal
+                    renderPdfPage(activeFullscreenId);
+                }
+            }
+            
+            activeFullscreenId = null;
+            activeFullscreenType = null;
+            
+            // FIX: Remove class to restore normal layout
+            document.body.classList.remove('fs-active'); 
+            
+            document.getElementById('fs-global-controls').classList.add('hidden');
+            document.getElementById('fs-global-controls').classList.remove('flex');
+        }
+
+        function fsNavigate(dir) {
+            const oldContent = state.content;
+            const oldLesson = state.lesson;
+            const oldPdfId = `media-${state.lesson}-${state.content}`;
+            const oldPdfInst = pdfInstances[oldPdfId];
+            const oldPage = oldPdfInst ? oldPdfInst.pageNum : null;
+
+            // Trigger normal sliding logic
+            navigateContent(dir); 
+
+            const newPdfId = `media-${state.lesson}-${state.content}`;
+            const newPdfInst = pdfInstances[newPdfId];
+            const newPage = newPdfInst ? newPdfInst.pageNum : null;
+
+            // IF we are still on the exact same lesson block, AND the page just changed,
+            // it means we just flipped a PDF page. Do NOT exit fullscreen!
+            if (oldContent === state.content && oldLesson === state.lesson && oldPage !== newPage) {
+                updateFsNavButtons();
+                return; 
+            }
+
+            // Otherwise, we switched completely to a different lesson or content block.
+            exitFullscreen(); 
+            
+            setTimeout(() => {
+                const activeContent = document.querySelector('.content-block.active');
+                if (activeContent) {
+                    const newMedia = activeContent.querySelector('.media-container');
+                    if (newMedia) {
+                        let type = 'image';
+                        if (newMedia.classList.contains('pdf-container')) type = 'pdf';
+                        if (newMedia.classList.contains('video-wrapper')) type = 'video';
+                        enterFullscreen(newMedia.id, type);
+                    }
+                }
+            }, 100); 
+        }
+
+        function updateFsNavButtons() {
+            const realPrev = document.getElementById('btn-prev');
+            const realNext = document.getElementById('btn-next');
+            document.getElementById('fs-btn-prev').style.display = realPrev.disabled || realPrev.classList.contains('cursor-not-allowed') ? 'none' : 'flex';
+            document.getElementById('fs-btn-next').style.display = realNext.disabled ? 'none' : 'flex';
+        }
 
         // --- EXAM CONFIRM MODAL LOGIC ---
         function showExamConfirm() {
@@ -641,7 +821,7 @@
             const btnNextTextMobile = document.getElementById('btn-next-text-mobile');
             const btnNextIcon = document.getElementById('btn-next-icon');
 
-            const pdfId = `pdf-${state.lesson}-${state.content}`;
+            const pdfId = `media-${state.lesson}-${state.content}`;
             const pdfInst = pdfInstances[pdfId];
             const isFirstExamContent = (currentData.is_exam && state.content === 0 && (state.lesson === 0 || !materialData[state.lesson - 1].is_exam));
 
@@ -707,6 +887,7 @@
             }
 
             updateSidebar();
+            if (activeFullscreenId) updateFsNavButtons();
             document.getElementById('main-scroll-area').scrollTop = 0;
         }
 
@@ -754,7 +935,7 @@
                 saveProgressToServer(false);
             }
 
-            const pdfId = `pdf-${state.lesson}-${state.content}`;
+            const pdfId = `media-${state.lesson}-${state.content}`;
             const pdfInst = pdfInstances[pdfId];
 
             if (pdfInst) {
@@ -805,7 +986,7 @@
                         state.lesson--;
                         state.content = materialData[state.lesson].items.length - 1;
                         
-                        const newPdfId = `pdf-${state.lesson}-${state.content}`;
+                        const newPdfId = `media-${state.lesson}-${state.content}`;
                         if (pdfInstances[newPdfId] && pdfInstances[newPdfId].doc) {
                             pdfInstances[newPdfId].pageNum = pdfInstances[newPdfId].doc.numPages;
                         }
@@ -1017,12 +1198,11 @@
             });
         }
 
-        function togglePlay(id) { const video = document.getElementById(id); if (video.paused) video.play(); else video.pause(); }
+        function togglePlay(id) { const video = document.getElementById(id).querySelector('.custom-video'); if (video.paused) video.play(); else video.pause(); }
         function pauseAllVideos() { document.querySelectorAll('.custom-video').forEach(v => v.pause()); }
-        function toggleMute(id, event) { const video = document.getElementById(id); const icon = event.currentTarget.querySelector('i'); video.muted = !video.muted; icon.className = video.muted ? 'fas fa-volume-mute' : 'fas fa-volume-up'; }
-        function changeSpeed(id, speed) { document.getElementById(id).playbackRate = parseFloat(speed); }
-        function toggleFullscreen(id) { const video = document.getElementById(id).closest('.video-wrapper'); if (!document.fullscreenElement) { video.requestFullscreen().catch(err => console.log(err)); } else { document.exitFullscreen(); } }
-        function seekVideo(e, id) { const video = document.getElementById(id); const container = e.currentTarget; const rect = container.getBoundingClientRect(); const pos = (e.clientX - rect.left) / container.offsetWidth; video.currentTime = pos * video.duration; }
+        function toggleMute(id, event) { const video = document.getElementById(id).querySelector('.custom-video'); const icon = event.currentTarget.querySelector('i'); video.muted = !video.muted; icon.className = video.muted ? 'fas fa-volume-mute' : 'fas fa-volume-up'; }
+        function changeSpeed(id, speed) { document.getElementById(id).querySelector('.custom-video').playbackRate = parseFloat(speed); }
+        function seekVideo(e, id) { const video = document.getElementById(id).querySelector('.custom-video'); const container = e.currentTarget; const rect = container.getBoundingClientRect(); const pos = (e.clientX - rect.left) / container.offsetWidth; video.currentTime = pos * video.duration; }
         function formatTime(seconds) { if (isNaN(seconds)) return "0:00"; const m = Math.floor(seconds / 60); const s = Math.floor(seconds % 60); return `${m}:${s < 10 ? '0' : ''}${s}`; }
 
         // --- PDF SCRIPTS ---
@@ -1030,9 +1210,17 @@
         const pdfInstances = {};
 
         function checkAndLoadPDF(lessonIdx, contentIdx) {
-            const id = `pdf-${lessonIdx}-${contentIdx}`;
+            const id = `media-${lessonIdx}-${contentIdx}`;
             const container = document.getElementById(id);
-            if (!container || pdfInstances[id]) return; 
+            if (!container) return; 
+
+            if (pdfInstances[id]) {
+                // FIX: If it's already loaded, force it to recalculate its width 
+                // just in case the window size changed since we last saw it.
+                pdfInstances[id].hasSetScale = false; 
+                renderPdfPage(id);
+                return; 
+            }
 
             const url = container.dataset.pdfUrl;
             const canvas = container.querySelector('.pdf-canvas');
@@ -1041,7 +1229,7 @@
             loadingSpinner.classList.remove('hidden');
 
             pdfjsLib.getDocument(url).promise.then(pdfDoc => {
-                pdfInstances[id] = { doc: pdfDoc, pageNum: 1, scale: 1.2, canvas: canvas, ctx: ctx, container: container };
+                pdfInstances[id] = { doc: pdfDoc, pageNum: 1, scale: 1.0, hasSetScale: false, canvas: canvas, ctx: ctx, container: container };
                 container.querySelector('.pdf-page-count').textContent = pdfDoc.numPages;
                 loadingSpinner.classList.add('hidden');
                 renderPdfPage(id);
@@ -1055,14 +1243,49 @@
         function renderPdfPage(id) {
             const instance = pdfInstances[id];
             if (!instance) return;
+
             instance.doc.getPage(instance.pageNum).then(page => {
+                const isFullscreen = activeFullscreenId === id;
+
+                if (!instance.hasSetScale || isFullscreen) {
+                    const unscaledViewport = page.getViewport({ scale: 1.0 });
+                    const renderArea = instance.container.querySelector('.pdf-render-area');
+                    
+                    const targetWidth = renderArea.clientWidth - 32; 
+                    const targetHeight = renderArea.clientHeight - 32; 
+                    
+                    // FIX 30% BUG: Do not calculate if the element is hidden or transitioning (width = 0)
+                    if (targetWidth > 0 && targetHeight > 0) {
+                        const scaleW = targetWidth / unscaledViewport.width;
+                        const scaleH = targetHeight / unscaledViewport.height;
+                        
+                        instance.scale = Math.min(scaleW, scaleH);
+                        
+                        if (instance.scale > 2.0) instance.scale = 2.0; 
+                        if (instance.scale < 0.3) instance.scale = 0.3; 
+                        
+                        if (!isFullscreen) instance.hasSetScale = true; 
+                    }
+                }
+
                 const viewport = page.getViewport({ scale: instance.scale });
-                instance.canvas.height = viewport.height;
-                instance.canvas.width = viewport.width;
-                const renderContext = { canvasContext: instance.ctx, viewport: viewport };
+                const outputScale = window.devicePixelRatio || 1; 
+                
+                instance.canvas.width = Math.floor(viewport.width * outputScale);
+                instance.canvas.height = Math.floor(viewport.height * outputScale);
+                
+                instance.canvas.style.width = Math.floor(viewport.width) + "px";
+                instance.canvas.style.height = Math.floor(viewport.height) + "px";
+
+                const transform = outputScale !== 1 ? [outputScale, 0, 0, outputScale, 0, 0] : null;
+                const renderContext = { canvasContext: instance.ctx, transform: transform, viewport: viewport };
+                
                 page.render(renderContext);
+                
                 instance.container.querySelector('.pdf-page-num').textContent = instance.pageNum;
                 instance.container.querySelector('.pdf-scale').textContent = Math.round(instance.scale * 100) + '%';
+            }).catch(err => {
+                console.log("PDF render cancelled", err);
             });
         }
 
