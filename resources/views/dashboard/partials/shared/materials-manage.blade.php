@@ -211,7 +211,7 @@
 
             <div class="flex items-center gap-4 mt-2 sm:mt-0">
                 <div id="access-code-display" class="inline-flex items-center gap-3 bg-white px-4 py-2 rounded-lg border border-gray-200 shadow-sm transition-all duration-300 {{ $material->is_public ? 'opacity-50 pointer-events-none' : '' }}">
-                    <span class="text-xs font-bold text-gray-500 uppercase tracking-widest">Class Code:</span>
+                    <span class="text-xs font-bold text-gray-500 uppercase tracking-widest">Material Code:</span>
                     <span class="font-mono text-lg font-black text-[#a52a2a] tracking-widest">{{ $material->access_code ?? 'N/A' }}</span>
                     <button onclick="copyAccessCode('{{ $material->access_code }}')" class="text-gray-400 hover:text-[#a52a2a] transition-colors" title="Copy Code"><i class="fas fa-copy"></i></button>
                 </div>
@@ -660,14 +660,40 @@
 
     // --- Bulk Send Emails Logic ---
     window.notifyStudents = async function (btn) {
-        const originalHtml = btn.innerHTML;
-        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Sending...';
-        btn.disabled = true;
+    const rows = document.querySelectorAll('#students-tbody .student-row');
+    const pendingAccesses = [];
 
-        const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || '{{ csrf_token() }}';
+    // 1. Gather only the rows that are explicitly 'PENDING'
+    rows.forEach(row => {
+        const badge = row.querySelector('.status-badge');
+        if (badge && badge.innerText.trim().toUpperCase() === 'PENDING') {
+            const checkbox = row.querySelector('.email-checkbox');
+            if (checkbox && checkbox.value) {
+                pendingAccesses.push({ id: checkbox.value, row: row });
+            }
+        }
+    });
 
-        try {
-            const response = await fetch('{{ route("dashboard.materials.notify-students", $material->id ?? 0) }}', {
+    if (pendingAccesses.length === 0) {
+        showSnackbar('There are no pending students to invite.', 'info');
+        return;
+    }
+
+    const originalHtml = btn.innerHTML;
+    btn.disabled = true;
+
+    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || '{{ csrf_token() }}';
+    let successCount = 0;
+
+    try {
+        // 2. Loop through only the pending students and hit the individual invite route
+        for (let i = 0; i < pendingAccesses.length; i++) {
+            const access = pendingAccesses[i];
+            
+            // Update button text to show progress
+            btn.innerHTML = `<i class="fas fa-spinner fa-spin"></i> Sending ${i + 1}/${pendingAccesses.length}...`;
+            
+            const response = await fetch(`/dashboard/materials/access/${access.id}/invite`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -679,17 +705,34 @@
             const data = await response.json();
 
             if (response.ok && data.success) {
-                showSnackbar(data.message, 'success');
-            } else {
-                showSnackbar(data.message || 'Failed to send emails.', 'error');
+                successCount++;
+                
+                // 3. Instantly update the row UI for this specific student
+                const badge = access.row.querySelector('.status-badge');
+                if (badge) {
+                    badge.innerText = 'INVITED';
+                    badge.className = 'status-badge px-2.5 py-1 bg-blue-100 text-blue-700 border-blue-200 rounded-md text-[10px] font-bold uppercase tracking-wider border';
+                }
+                const btnText = access.row.querySelector('.invite-btn .btn-text');
+                if (btnText) {
+                    btnText.innerText = 'Send Again';
+                }
             }
-        } catch (error) {
-            showSnackbar('A network error occurred.', 'error');
-        } finally {
-            btn.innerHTML = originalHtml;
-            btn.disabled = false;
         }
-    };
+
+        if (successCount > 0) {
+            showSnackbar(`Successfully sent invites to ${successCount} pending student(s).`, 'success');
+        } else {
+            showSnackbar('Failed to send emails. Please try again.', 'error');
+        }
+    } catch (error) {
+        showSnackbar('A network error occurred during the sending process.', 'error');
+    } finally {
+        // Restore the original button state
+        btn.innerHTML = originalHtml;
+        btn.disabled = false;
+    }
+};
 
     // --- Toggle Material Status ---
     window.toggleMaterialStatus = async function (checkbox) {

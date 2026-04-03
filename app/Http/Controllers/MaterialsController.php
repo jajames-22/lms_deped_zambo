@@ -175,7 +175,7 @@ class MaterialsController extends Controller
         $material = Material::findOrFail($id);
 
         $material->lessons_count = DB::table('lessons')
-            ->where('material_id', $id) 
+            ->where('material_id', $id)
             ->where('section_type', 'lesson')
             ->count();
 
@@ -342,7 +342,7 @@ class MaterialsController extends Controller
             $keptQuizOptionIds = [];
             $keptExamIds = [];
             $keptExamOptionIds = [];
-            
+
             $hasProcessedExam = false; // Restricts to 1 Exam
 
             // 1. PROCESS AND UPSERT
@@ -350,12 +350,13 @@ class MaterialsController extends Controller
                 $sectionType = $cat['section_type'] ?? ($cat['type'] ?? 'lesson');
 
                 if ($sectionType === 'exam') {
-                    if ($hasProcessedExam) continue; // Skip if user hacked UI to send multiple exams
+                    if ($hasProcessedExam)
+                        continue; // Skip if user hacked UI to send multiple exams
                     $hasProcessedExam = true;
 
                     foreach ($cat['questions'] ?? [] as $qIndex => $q) {
                         $examId = isset($q['id']) && is_numeric($q['id']) ? $q['id'] : null;
-                        
+
                         $examData = [
                             'material_id' => $id,
                             'type' => $q['type'] ?? 'mcq',
@@ -394,13 +395,13 @@ class MaterialsController extends Controller
                     }
                 } else {
                     $lessonId = isset($cat['id']) && is_numeric($cat['id']) ? $cat['id'] : null;
-                    
+
                     $lessonData = [
                         'material_id' => $id,
                         'section_type' => 'lesson',
                         'title' => $cat['title'] ?? 'New Lesson',
                         'time_limit' => $cat['time_limit'] ?? 0,
-                        'sort_order' => $index + 1 , // Map sort order
+                        'sort_order' => $index + 1, // Map sort order
                         'updated_at' => now(),
                     ];
 
@@ -414,7 +415,7 @@ class MaterialsController extends Controller
 
                     foreach ($cat['questions'] ?? [] as $qIndex => $q) {
                         $quizId = isset($q['id']) && is_numeric($q['id']) ? $q['id'] : null;
-                        
+
                         $quizData = [
                             'lesson_id' => $lessonId,
                             'type' => $q['type'] ?? 'mcq',
@@ -455,7 +456,7 @@ class MaterialsController extends Controller
             }
 
             // 2. CLEANUP (Delete items removed from the builder)
-            
+
             // Cleanup Exams
             DB::table('exam_options')
                 ->whereIn('exam_id', function ($query) use ($id) {
@@ -471,12 +472,12 @@ class MaterialsController extends Controller
 
             // Cleanup Lessons
             $allLessonIdsForMaterial = DB::table('lessons')->where('material_id', $id)->pluck('id');
-            
-            if($allLessonIdsForMaterial->isNotEmpty()){
+
+            if ($allLessonIdsForMaterial->isNotEmpty()) {
                 DB::table('quiz_options')
                     ->whereIn('quiz_id', function ($query) use ($allLessonIdsForMaterial) {
                         $query->select('id')->from('lesson_contents')
-                              ->whereIn('lesson_id', $allLessonIdsForMaterial);
+                            ->whereIn('lesson_id', $allLessonIdsForMaterial);
                     })
                     ->whereNotIn('id', $keptQuizOptionIds)
                     ->delete();
@@ -536,32 +537,26 @@ class MaterialsController extends Controller
 
     public function uploadMedia(Request $request)
     {
-        $request->validate([
-            'media_file' => 'required|file|mimes:jpeg,png,jpg,gif,mp3,wav,mp4,webm,pdf,ppt,pptx,zip|max:51200',
-        ]);
-
         if ($request->hasFile('media_file')) {
             $file = $request->file('media_file');
+
+            // Capture the original name before saving
+            $originalName = $file->getClientOriginalName();
+
+            // Save the file (this usually generates a new unique name like xyz123.pdf)
             $path = $file->store('materials_media', 'public');
+            $url = asset('storage/' . $path);
 
-            $ext = strtolower($file->getClientOriginalExtension());
-
-            $type = 'image';
-            if (in_array($ext, ['mp4', 'webm']))
-                $type = 'video';
-            if (in_array($ext, ['mp3', 'wav', 'ogg']))
-                $type = 'audio';
-            if (in_array($ext, ['pdf', 'ppt', 'pptx', 'zip']))
-                $type = 'document';
-
+            // This is the JSON response your JavaScript receives
             return response()->json([
                 'success' => true,
-                'media_url' => asset('storage/' . $path),
-                'media_type' => $type
+                'media_url' => $url,
+                'media_type' => $file->getClientOriginalExtension(),
+                'original_name' => $originalName, // ADD THIS LINE
             ]);
         }
 
-        return response()->json(['success' => false, 'message' => 'No media uploaded.'], 400);
+        return response()->json(['success' => false, 'message' => 'No file uploaded'], 400);
     }
 
     public function destroy($id)
@@ -918,18 +913,18 @@ class MaterialsController extends Controller
         }
 
         // Decode the JSON so the Blade file can read it
-        $savedProgress = $enrollment && $enrollment->progress_data 
-            ? json_decode($enrollment->progress_data) 
+        $savedProgress = $enrollment && $enrollment->progress_data
+            ? json_decode($enrollment->progress_data)
             : null;
 
         // LOAD LESSONS, CONTENTS, AND EXAMS
         $material->load([
             'lessons' => function ($query) {
-                    $query->orderBy('created_at', 'asc');
-                }
-        ,
-            'lessons.contents.options', 
-            'exams.options' 
+                $query->orderBy('created_at', 'asc');
+            }
+            ,
+            'lessons.contents.options',
+            'exams.options'
         ]);
 
         // Pass $savedProgress to the view
@@ -952,8 +947,8 @@ class MaterialsController extends Controller
 
         // 2. Find and delete the enrollment record
         $enrollment = Enrollment::where('material_id', $material->id)
-                            ->where('user_id', $user->id)
-                            ->first();
+            ->where('user_id', $user->id)
+            ->first();
 
         if ($enrollment) {
             $enrollment->delete();
@@ -994,13 +989,13 @@ class MaterialsController extends Controller
                 ]);
 
             return response()->json([
-                'success' => true, 
+                'success' => true,
                 'message' => 'Grading settings saved successfully!'
             ]);
-            
+
         } catch (\Exception $e) {
             return response()->json([
-                'success' => false, 
+                'success' => false,
                 'message' => 'Database error: ' . $e->getMessage()
             ], 500);
         }
@@ -1013,11 +1008,13 @@ class MaterialsController extends Controller
         // 1. Save Position Progress to Enrollment
         \App\Models\Enrollment::updateOrCreate(
             ['material_id' => $material->id, 'user_id' => $user->id],
-            ['progress_data' => json_encode([
-                'lesson' => $request->lesson_index,
-                'content' => $request->content_index,
-                'highest_unlocked' => $request->highest_unlocked
-            ])]
+            [
+                'progress_data' => json_encode([
+                    'lesson' => $request->lesson_index,
+                    'content' => $request->content_index,
+                    'highest_unlocked' => $request->highest_unlocked
+                ])
+            ]
         );
 
         $validQuestionTypes = ['mcq', 'true_false', 'checkbox', 'text'];
@@ -1027,7 +1024,7 @@ class MaterialsController extends Controller
 
         // 2. Validate and Grade the Answer
         if (in_array($type, $validQuestionTypes) && $request->has('question_id')) {
-            
+
             $answerData = $request->answer_data;
             if ($answerData === null || $answerData === '') {
                 return response()->json(['success' => true]); // Ignore empty skipped exam answers
@@ -1037,7 +1034,7 @@ class MaterialsController extends Controller
             $questionId = $request->question_id;
 
             // Helper to normalize spaces and casing
-            $normalizeText = function($text, $isCaseSensitive) {
+            $normalizeText = function ($text, $isCaseSensitive) {
                 $text = trim(preg_replace('/\s+/', ' ', $text)); // Remove extra spaces
                 return $isCaseSensitive ? $text : strtolower($text);
             };
@@ -1053,7 +1050,8 @@ class MaterialsController extends Controller
             } elseif ($type === 'checkbox') {
                 $selectedIds = explode(',', $answerData);
                 $correctIds = \Illuminate\Support\Facades\DB::table($optionsTable)->where($foreignKey, $questionId)->where('is_correct', 1)->pluck('id')->toArray();
-                sort($selectedIds); sort($correctIds);
+                sort($selectedIds);
+                sort($correctIds);
                 $isCorrect = ($selectedIds == $correctIds);
                 $feedbackType = $isCorrect ? 'correct' : 'incorrect';
             } elseif ($type === 'text') {
@@ -1061,12 +1059,12 @@ class MaterialsController extends Controller
                 $correctOptions = \Illuminate\Support\Facades\DB::table($optionsTable)->where($foreignKey, $questionId)->where('is_correct', 1)->pluck('option_text');
 
                 if ($correctOptions->isEmpty()) {
-                    $isCorrect = true; 
+                    $isCorrect = true;
                     $feedbackType = 'recorded_as_is'; // No right answer defined by teacher
                 } else {
                     $isCaseSensitive = $question->is_case_sensitive ?? false;
                     $userTextNormalized = $normalizeText($answerData, $isCaseSensitive);
-                    
+
                     foreach ($correctOptions as $opt) {
                         if ($userTextNormalized === $normalizeText($opt, $isCaseSensitive)) {
                             $isCorrect = true;
