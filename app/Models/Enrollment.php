@@ -14,8 +14,8 @@ class Enrollment extends Model
         'material_id',
         'status',
         'progress_data',
+        'retakes', // <--- Add this here!
         'completed_at'
-        
     ];
 
     protected $casts = [
@@ -28,10 +28,8 @@ class Enrollment extends Model
         return $this->belongsTo(User::class, 'user_id');
     }
 
-    // Changed from 'materials' to 'material' since it belongs to ONE material
     public function material()
     {
         return $this->belongsTo(Material::class, 'material_id');
     }
-    
 }

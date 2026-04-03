@@ -105,6 +105,14 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
         Route::post('/dashboard/materials/{material}/progress', [MaterialsController::class, 'saveProgress'])->name('dashboard.materials.progress');
 
+        Route::post('/materials/{material}/complete', [MaterialsController::class, 'complete'])->name('dashboard.materials.complete');
+
+        Route::get('/materials/{material}/result', [MaterialsController::class, 'result'])->name('dashboard.materials.result');
+
+        Route::post('/materials/{material}/retake', [MaterialsController::class, 'retake'])->name('dashboard.materials.retake');
+
+        Route::get('/materials/{material}/certificate', [MaterialsController::class, 'certificate'])->name('dashboard.materials.certificate');
+
     });
 
     Route::get('/get-districts/{quadrantId}', [DashboardController::class, 'getDistricts'])->name('districts.get');

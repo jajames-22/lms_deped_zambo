@@ -896,7 +896,17 @@ class MaterialsController extends Controller
     {
         $user = auth()->user();
 
-        // 1. Find and delete the enrollment record
+        // 1. Delete all Quiz and Exam Answers for this specific material
+        $examIds = \Illuminate\Support\Facades\DB::table('exams')->where('material_id', $material->id)->pluck('id');
+        $quizIds = \Illuminate\Support\Facades\DB::table('lesson_contents')
+            ->join('lessons', 'lesson_contents.lesson_id', '=', 'lessons.id')
+            ->where('lessons.material_id', $material->id)
+            ->pluck('lesson_contents.id');
+
+        \App\Models\QuizAnswer::where('user_id', $user->id)->whereIn('lesson_content_id', $quizIds)->delete();
+        \App\Models\ExamAnswer::where('user_id', $user->id)->whereIn('exam_id', $examIds)->delete();
+
+        // 2. Find and delete the enrollment record
         $enrollment = Enrollment::where('material_id', $material->id)
             ->where('user_id', $user->id)
             ->first();
@@ -905,7 +915,7 @@ class MaterialsController extends Controller
             $enrollment->delete();
         }
 
-        // 2. If it's a private material, revert their access status back to pending/invited
+        // 3. If it's a private material, revert their access status back to pending/invited
         if (!$material->is_public) {
             $access = \App\Models\MaterialAccess::where('material_id', $material->id)
                 ->where('email', $user->email)
@@ -919,7 +929,7 @@ class MaterialsController extends Controller
 
         return response()->json([
             'success' => true,
-            'message' => 'Successfully dropped the course.'
+            'message' => 'Successfully dropped the course and cleared previous progress.'
         ]);
     }
 
@@ -1053,5 +1063,164 @@ class MaterialsController extends Controller
             'is_correct' => $isCorrect,
             'feedback_type' => $feedbackType
         ]);
+    }
+
+    private function calculateGrades(\App\Models\Material $material, $user) 
+    {
+        $hasExams = \Illuminate\Support\Facades\DB::table('exams')->where('material_id', $material->id)->exists();
+        $hasQuizzes = \Illuminate\Support\Facades\DB::table('lesson_contents')
+            ->join('lessons', 'lesson_contents.lesson_id', '=', 'lessons.id')
+            ->where('lessons.material_id', $material->id)
+            ->whereIn('lesson_contents.type', ['mcq', 'checkbox', 'true_false', 'text'])
+            ->exists();
+
+        $examWeight = $material->exam_weight ?? 60;
+        $passingScore = $material->passing_percentage ?? 80;
+        
+        if ($hasExams && !$hasQuizzes) { $examWeight = 100; }
+        elseif (!$hasExams && $hasQuizzes) { $examWeight = 0; }
+        elseif (!$hasExams && !$hasQuizzes) { $examWeight = 0; }
+        
+        $quizWeight = 100 - $examWeight;
+
+        // Calculate Quiz Score
+        $quizScore = 0;
+        if ($hasQuizzes) {
+            $quizIds = \Illuminate\Support\Facades\DB::table('lesson_contents')
+                ->join('lessons', 'lesson_contents.lesson_id', '=', 'lessons.id')
+                ->where('lessons.material_id', $material->id)
+                ->whereIn('lesson_contents.type', ['mcq', 'checkbox', 'true_false', 'text'])
+                ->pluck('lesson_contents.id');
+                
+            $totalQuizzes = $quizIds->count();
+            $correctQuizzes = \Illuminate\Support\Facades\DB::table('quiz_answers')
+                ->where('user_id', $user->id)
+                ->whereIn('lesson_content_id', $quizIds)
+                ->where('is_correct', 1)
+                ->count();
+                
+            $quizScore = $totalQuizzes > 0 ? ($correctQuizzes / $totalQuizzes) * 100 : 100;
+        }
+
+        // Calculate Exam Score
+        $examScore = 0;
+        if ($hasExams) {
+            $examIds = \Illuminate\Support\Facades\DB::table('exams')->where('material_id', $material->id)->pluck('id');
+            $totalExams = $examIds->count();
+            $correctExams = \Illuminate\Support\Facades\DB::table('exam_answers')
+                ->where('user_id', $user->id)
+                ->whereIn('exam_id', $examIds)
+                ->where('is_correct', 1)
+                ->count();
+                
+            $examScore = $totalExams > 0 ? ($correctExams / $totalExams) * 100 : 100;
+        }
+
+        // Calculate Total
+        if (!$hasExams && !$hasQuizzes) {
+            $totalScore = 100;
+        } else {
+            $totalScore = ($quizScore * ($quizWeight / 100)) + ($examScore * ($examWeight / 100));
+        }
+
+        // UPDATE THIS RETURN BLOCK:
+        return [
+            'hasQuizzes' => $hasQuizzes,   // <-- Added this
+            'hasExams' => $hasExams,       // <-- Added this
+            'quizScore' => round($quizScore, 2),
+            'examScore' => round($examScore, 2),
+            'totalScore' => round($totalScore, 2),
+            'passingScore' => $passingScore,
+            'quizWeight' => $quizWeight,
+            'examWeight' => $examWeight,
+            'passed' => round($totalScore, 2) >= $passingScore
+        ];
+    }
+
+    public function complete(Request $request, \App\Models\Material $material)
+    {
+        $user = auth()->user();
+        $grades = $this->calculateGrades($material, $user);
+        
+        $enrollment = \App\Models\Enrollment::where('material_id', $material->id)->where('user_id', $user->id)->firstOrFail();
+
+        // Push progress to max so it shows 100% on the show page
+        $totalLessons = \Illuminate\Support\Facades\DB::table('lessons')->where('material_id', $material->id)->count();
+        $hasExams = \Illuminate\Support\Facades\DB::table('exams')->where('material_id', $material->id)->exists();
+        $totalTimelineCount = $totalLessons + ($hasExams ? 1 : 0);
+
+        if ($grades['passed']) {
+            $enrollment->update([
+                'status' => 'completed',
+                'completed_at' => now(),
+                'progress_data' => json_encode(['lesson' => $totalTimelineCount - 1, 'content' => 0, 'highest_unlocked' => $totalTimelineCount])
+            ]);
+            return response()->json(['success' => true, 'passed' => true, 'redirect_url' => route('dashboard.materials.certificate', $material->id)]);
+        } else {
+            $enrollment->update([
+                'status' => 'failed',
+                'progress_data' => json_encode(['lesson' => $totalTimelineCount - 1, 'content' => 0, 'highest_unlocked' => $totalTimelineCount])
+            ]);
+            return response()->json(['success' => true, 'passed' => false, 'redirect_url' => route('dashboard.materials.result', $material->id)]);
+        }
+    }
+
+    public function result(\App\Models\Material $material)
+    {
+        $user = auth()->user();
+        $grades = $this->calculateGrades($material, $user);
+        
+        // Calculate if a perfect exam score is mathematically enough to pass
+        $maxPossibleScore = ($grades['quizScore'] * ($grades['quizWeight'] / 100)) + (100 * ($grades['examWeight'] / 100));
+        $canPassWithExamRetake = $maxPossibleScore >= $grades['passingScore'];
+
+        return view('dashboard.partials.student.materials-result', compact('material', 'grades', 'canPassWithExamRetake', 'maxPossibleScore'));
+    }
+
+    public function retake(Request $request, \App\Models\Material $material)
+    {
+        $user = auth()->user();
+        $type = $request->type; // 'exam' or 'module'
+
+        $examIds = \Illuminate\Support\Facades\DB::table('exams')->where('material_id', $material->id)->pluck('id');
+        $quizIds = \Illuminate\Support\Facades\DB::table('lesson_contents')
+            ->join('lessons', 'lesson_contents.lesson_id', '=', 'lessons.id')
+            ->where('lessons.material_id', $material->id)
+            ->pluck('lesson_contents.id');
+
+        if ($type === 'module') {
+            // Delete EVERYTHING
+            \App\Models\QuizAnswer::where('user_id', $user->id)->whereIn('lesson_content_id', $quizIds)->delete();
+            \App\Models\ExamAnswer::where('user_id', $user->id)->whereIn('exam_id', $examIds)->delete();
+            
+            \App\Models\Enrollment::where('material_id', $material->id)->where('user_id', $user->id)->update([
+                'progress_data' => json_encode(['lesson' => 0, 'content' => 0, 'highest_unlocked' => 0]),
+                'status' => 'in_progress',
+                'retakes' => \Illuminate\Support\Facades\DB::raw('retakes + 1')
+            ]);
+        } elseif ($type === 'exam') {
+            // Delete EXAMS only
+            \App\Models\ExamAnswer::where('user_id', $user->id)->whereIn('exam_id', $examIds)->delete();
+            
+            // Jump back to the start of the Exam section
+            $examSectionIndex = \Illuminate\Support\Facades\DB::table('lessons')->where('material_id', $material->id)->count();
+            \App\Models\Enrollment::where('material_id', $material->id)->where('user_id', $user->id)->update([
+                'progress_data' => json_encode(['lesson' => $examSectionIndex, 'content' => 0, 'highest_unlocked' => $examSectionIndex]),
+                'status' => 'in_progress',
+                'retakes' => \Illuminate\Support\Facades\DB::raw('retakes + 1')
+            ]);
+        }
+
+        return redirect()->route('dashboard.materials.study', $material->id);
+    }
+
+    public function certificate(\App\Models\Material $material)
+    {
+        $enrollment = \App\Models\Enrollment::with(['user', 'material.instructor'])
+            ->where('material_id', $material->id)
+            ->where('user_id', auth()->id())
+            ->firstOrFail();
+            
+        return view('dashboard.partials.student.certificate-achieved', compact('enrollment'));
     }
 }
