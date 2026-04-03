@@ -765,23 +765,37 @@ MaterialBuilder.removeQuestionMedia = function (qId) {
     document.getElementById(`preview-${qId}`).className = "hidden";
     MaterialBuilder.handleAutosaveTrigger();
 };
+
 MaterialBuilder.saveCompleteMaterial = async function (btn, status) {
+    clearTimeout(MaterialBuilder.autosaveTimer);
+    MaterialBuilder.lastPayload = "";
+
     const wrapper = document.getElementById("material-wrapper");
+    if (!wrapper) return;
+
     const payload = MaterialBuilder.getPayload(status);
-    if (!payload.title)
+
+    if (!payload.title) {
         return MaterialBuilder.showModal(
             "warning",
             "Missing Information",
-            "Enter a title.",
+            "Please fill out the Course / Module Title before saving.",
         );
+    }
+
     btn.disabled = true;
+    const originalText = btn.innerHTML;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Saving...';
+
     const formData = new FormData();
     formData.append("title", payload.title);
     formData.append("description", payload.description);
     formData.append("status", status);
     formData.append("categories", JSON.stringify(payload.categories));
+    
     const thumb = document.getElementById("thumbnail-upload");
-    if (thumb.files.length > 0) formData.append("thumbnail", thumb.files[0]);
+    if (thumb && thumb.files.length > 0) formData.append("thumbnail", thumb.files[0]);
+
     try {
         const response = await fetch(wrapper.dataset.saveUrl, {
             method: "POST",
@@ -792,41 +806,81 @@ MaterialBuilder.saveCompleteMaterial = async function (btn, status) {
             body: formData,
         });
         const result = await response.json();
-        if (result.success)
-            MaterialBuilder.showModal(
-                "success",
-                status === "published" ? "Published!" : "Saved!",
-                "Successfully Saved Changes.",
-                () => MaterialBuilder.goToUrl(wrapper.dataset.manageUrl),
+
+        if (response.ok && result.success) {
+            localStorage.removeItem(
+                "material_draft_" + wrapper.dataset.materialId,
             );
+
+            const title =
+                status === "published" ? "Module Published!" : "Draft Saved!";
+            const msg =
+                status === "published"
+                    ? "Your module is live and ready for students."
+                    : "Your progress has been safely stored.";
+
+            MaterialBuilder.showModal("success", title, msg, () => {
+                MaterialBuilder.goToUrl(wrapper.dataset.manageUrl);
+            });
+        } else {
+            throw new Error(result.message || "Failed to save");
+        }
     } catch (e) {
-        MaterialBuilder.showModal("error", "Failed", e.message);
-        btn.disabled = false;
+        MaterialBuilder.showModal("error", "Save Failed", e.message);
+        MaterialBuilder.resetBtn(btn, originalText);
     }
+};
+
+MaterialBuilder.resetBtn = (btn, txt) => {
+    btn.disabled = false;
+    btn.innerHTML = txt;
 };
 
 MaterialBuilder.discardChangesAndExit = function (btn) {
     MaterialBuilder.showModal(
         "confirm",
-        "Discard Changes?",
-        "Work will be lost.",
+        "Discard Unsaved Changes?",
+        "Are you sure you want to discard your unsaved work and exit? This cannot be undone.",
         async () => {
             const wrapper = document.getElementById("material-wrapper");
+            if (!wrapper) return; 
+
+            const backModal = document.getElementById("back-modal");
+            if (backModal) backModal.classList.add("hidden");
+
+            clearTimeout(MaterialBuilder.autosaveTimer);
+            MaterialBuilder.lastPayload = "";
+
             const isNew = wrapper.dataset.isNew === "true";
-            if (isNew) {
-                await MaterialBuilder.silentlyDeleteAndExit();
+
+            const originalText = btn.innerHTML;
+            btn.innerHTML =
+                '<i class="fas fa-spinner fa-spin mr-2"></i> Discarding...';
+            btn.disabled = true;
+
+            localStorage.removeItem(
+                "material_draft_" + wrapper.dataset.materialId,
+            );
+
+            try {
+                if (isNew) {
+                    await MaterialBuilder.silentlyDeleteAndExit();
+                    MaterialBuilder.goToUrl(wrapper.dataset.redirectUrl);
+                } else {
+                    await fetch(wrapper.dataset.autosaveUrl, {
+                        method: "POST",
+                        headers: {
+                            "Content-Type": "application/json",
+                            "X-CSRF-TOKEN": wrapper.dataset.csrf,
+                            Accept: "application/json",
+                        },
+                        body: JSON.stringify({ clear_draft: true }),
+                    });
+                    MaterialBuilder.goToUrl(wrapper.dataset.manageUrl);
+                }
+            } catch (e) {
+                console.warn("Failed to clear drafts or delete:", e);
                 MaterialBuilder.goToUrl(wrapper.dataset.redirectUrl);
-            } else {
-                await fetch(wrapper.dataset.autosaveUrl, {
-                    method: "POST",
-                    headers: {
-                        "Content-Type": "application/json",
-                        "X-CSRF-TOKEN": wrapper.dataset.csrf,
-                        Accept: "application/json",
-                    },
-                    body: JSON.stringify({ clear_draft: true }),
-                });
-                MaterialBuilder.goToUrl(wrapper.dataset.manageUrl);
             }
         },
     );
@@ -834,54 +888,115 @@ MaterialBuilder.discardChangesAndExit = function (btn) {
 
 MaterialBuilder.handleBackButton = async function (btn) {
     const wrapper = document.getElementById("material-wrapper");
-    if (MaterialBuilder.sessionDirty)
-        document.getElementById("back-modal").classList.remove("hidden");
-    else {
-        if (wrapper.dataset.isNew === "true") {
+    if (!wrapper) return;
+
+    const isNew = wrapper.dataset.isNew === "true";
+    const manageUrl = wrapper.dataset.manageUrl;
+    const redirectUrl = wrapper.dataset.redirectUrl;
+
+    if (MaterialBuilder.hasChanged || MaterialBuilder.sessionDirty) {
+        const backModal = document.getElementById("back-modal");
+        if (backModal) backModal.classList.remove("hidden");
+    } else {
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+        btn.disabled = true;
+
+        if (isNew) {
             await MaterialBuilder.silentlyDeleteAndExit();
-            MaterialBuilder.goToUrl(wrapper.dataset.redirectUrl);
-        } else MaterialBuilder.goToUrl(wrapper.dataset.manageUrl);
+            MaterialBuilder.goToUrl(redirectUrl);
+        } else {
+            MaterialBuilder.goToUrl(manageUrl);
+        }
     }
 };
 
 MaterialBuilder.showModal = function (type, title, message, callback = null) {
     const modal = document.getElementById("status-modal");
-    const icon = document.getElementById("status-modal-icon");
+    if (!modal) {
+        alert(`${title}\n${message}`);
+        if (callback && type !== "confirm") callback();
+        return;
+    }
+
+    const iconContainer = document.getElementById("status-modal-icon");
+    const titleEl = document.getElementById("status-modal-title");
+    const msgEl = document.getElementById("status-modal-message");
     const btn = document.getElementById("status-modal-btn");
-    document.getElementById("status-modal-title").innerText = title;
-    document.getElementById("status-modal-message").innerText = message;
-    icon.className =
-        "h-16 w-16 rounded-full flex items-center justify-center mx-auto mb-4 text-3xl " +
-        (type === "success"
-            ? "bg-green-50 text-green-500"
-            : type === "error"
-              ? "bg-red-50 text-red-500"
-              : "bg-amber-50 text-amber-500");
+    if (!btn) return;
+    const cancelBtn = document.getElementById("status-modal-cancel-btn");
+
+    titleEl.innerText = title;
+    msgEl.innerText = message;
+
+    iconContainer.className =
+        "h-16 w-16 rounded-full flex items-center justify-center mx-auto mb-4 text-3xl";
     btn.className =
-        "w-full py-3.5 text-white font-bold rounded-xl " +
-        (type === "success"
-            ? "bg-green-600"
-            : type === "error"
-              ? "bg-red-600"
-              : "bg-amber-500");
+        "w-full py-3.5 text-white font-bold rounded-xl transition active:scale-95 shadow-md";
+    cancelBtn.classList.add("hidden");
+    btn.innerText = "OK";
+
+    cancelBtn.onclick = null;
+    btn.onclick = null;
+
+    if (type === "success") {
+        iconContainer.classList.add("bg-green-50", "text-green-500");
+        iconContainer.innerHTML = '<i class="fas fa-check-circle"></i>';
+        btn.classList.add(
+            "bg-green-600",
+            "hover:bg-green-700",
+            "shadow-green-600/20",
+        );
+    } else if (type === "error") {
+        iconContainer.classList.add("bg-red-50", "text-red-500");
+        iconContainer.innerHTML = '<i class="fas fa-times-circle"></i>';
+        btn.classList.add(
+            "bg-red-600",
+            "hover:bg-red-700",
+            "shadow-red-600/20",
+        );
+    } else if (type === "warning") {
+        iconContainer.classList.add("bg-amber-50", "text-amber-500");
+        iconContainer.innerHTML = '<i class="fas fa-exclamation-triangle"></i>';
+        btn.classList.add(
+            "bg-amber-500",
+            "hover:bg-amber-600",
+            "shadow-amber-500/20",
+        );
+    } else if (type === "confirm") {
+        iconContainer.classList.add("bg-red-50", "text-red-500");
+        iconContainer.innerHTML = '<i class="fas fa-trash-alt"></i>';
+        btn.classList.add(
+            "bg-red-600",
+            "hover:bg-red-700",
+            "shadow-red-600/20",
+        );
+        btn.innerText = "Yes, Discard";
+
+        cancelBtn.classList.remove("hidden");
+        cancelBtn.onclick = function () {
+            modal.classList.add("hidden");
+        };
+    }
+
     modal.classList.remove("hidden");
-    btn.onclick = () => {
+
+    btn.onclick = function () {
         modal.classList.add("hidden");
-        if (callback) callback();
+        if (callback && typeof callback === "function") {
+            callback();
+        }
     };
 };
 
 MaterialBuilder.goToUrl = function (url) {
-    // 1. Ensure modals are closed so they don't persist on the screen after loadPartial
     const backModal = document.getElementById("back-modal");
     const statusModal = document.getElementById("status-modal");
     if (backModal) backModal.classList.add("hidden");
     if (statusModal) statusModal.classList.add("hidden");
 
-    // 2. Use loadPartial if it exists in the global scope, otherwise fallback to standard navigation
-    if (typeof loadPartial === 'function') {
-        loadPartial(url);
-    } else if (typeof window.loadPartial === 'function') {
+    if (typeof loadPartial === "function") {
+        loadPartial(url); 
+    } else if (typeof window.loadPartial === "function") {
         window.loadPartial(url);
     } else {
         window.location.href = url;
@@ -890,6 +1005,7 @@ MaterialBuilder.goToUrl = function (url) {
 
 MaterialBuilder.silentlyDeleteAndExit = async function () {
     const wrapper = document.getElementById("material-wrapper");
+    if (!wrapper) return; 
     try {
         await fetch(wrapper.dataset.deleteUrl, {
             method: "DELETE",
@@ -898,5 +1014,17 @@ MaterialBuilder.silentlyDeleteAndExit = async function () {
                 Accept: "application/json",
             },
         });
-    } catch (e) {}
+    } catch (e) {
+        console.warn("Failed to delete empty material");
+    }
 };
+
+// Make sure we also update the click outside behavior for back-modal
+const matBackModal = document.getElementById("back-modal");
+if (matBackModal) {
+    matBackModal.addEventListener("click", function (e) {
+        if (e.target.classList.contains("backdrop-blur-sm")) {
+            this.classList.add("hidden");
+        }
+    });
+}
