@@ -210,7 +210,7 @@ AssessmentBuilder.renderExistingCategory = function (catData) {
     }
 };
 
-AssessmentBuilder.addCategory = function () {
+AssessmentBuilder.addCategory = function (afterElement = null) {
     const container = document.getElementById("builder-container");
     if (!container) return;
 
@@ -218,8 +218,8 @@ AssessmentBuilder.addCategory = function () {
     const catId = `cat-${AssessmentBuilder.catCount}`;
 
     const html = `
-        <div class="bg-white rounded-2xl shadow-sm border border-gray-200 category-block overflow-hidden transition-all mb-4" id="${catId}">
-            <div class="p-4 bg-gray-50/50 flex items-center justify-between cursor-pointer group" onclick="AssessmentBuilder.toggleCategory('${catId}', event)">
+        <div class="bg-white rounded-2xl shadow-sm border border-gray-200 category-block transition-all mb-6 relative" id="${catId}">
+            <div class="p-4 bg-gray-50/50 flex items-center justify-between cursor-pointer group/header" onclick="AssessmentBuilder.toggleCategory('${catId}', event)">
                 <div class="flex items-center gap-4 flex-1">
                     <div class="h-8 w-8 rounded-lg bg-[#a52a2a]/10 text-[#a52a2a] flex items-center justify-center font-bold text-sm cat-number-badge">
                         ${AssessmentBuilder.catCount}
@@ -268,23 +268,26 @@ AssessmentBuilder.addCategory = function () {
                     </div>
                 </div>
             </div>
+
+            <div class="absolute -bottom-4 left-1/2 -translate-x-1/2 flex justify-center items-center h-8 w-32 opacity-0 hover:opacity-100 transition-opacity z-20">
+                <button type="button" onclick="AssessmentBuilder.addCategory(this.closest('.category-block'))" class="bg-[#a52a2a] text-white rounded-full h-8 w-8 flex items-center justify-center shadow-lg hover:scale-110 transition-transform border-2 border-white" title="Add Section Below">
+                    <i class="fas fa-plus text-xs"></i>
+                </button>
+            </div>
         </div>`;
 
-    container.insertAdjacentHTML("beforeend", html);
+    if (afterElement) {
+        afterElement.insertAdjacentHTML("afterend", html);
+    } else {
+        container.insertAdjacentHTML("beforeend", html);
+    }
+    
     AssessmentBuilder.updateCategoryNumbers();
     AssessmentBuilder.initSortable();
     AssessmentBuilder.calculateTotalTime();
 };
 
-AssessmentBuilder.toggleDropdown = function (btn) {
-    const menu = btn.nextElementSibling;
-    document.querySelectorAll(".dropdown-menu").forEach((el) => {
-        if (el !== menu) el.classList.add("hidden");
-    });
-    menu.classList.toggle("hidden");
-};
-
-AssessmentBuilder.addQuestion = function (cId, type = "mcq") {
+AssessmentBuilder.addQuestion = function (cId, type = "mcq", afterElement = null) {
     const container = document.getElementById(`q-container-${cId}`);
     if (!container) return;
 
@@ -344,9 +347,18 @@ AssessmentBuilder.addQuestion = function (cId, type = "mcq") {
                         : ""
                 }
             </div>
+
+            <div class="absolute -bottom-3.5 left-1/2 -translate-x-1/2 flex justify-center items-center h-8 w-24 opacity-0 hover:opacity-100 transition-opacity z-20">
+                <button type="button" onclick="AssessmentBuilder.addQuestion(${cId}, '${type}', this.closest('.question-block'))" class="bg-[#a52a2a] text-white rounded-full h-7 w-7 flex items-center justify-center shadow-lg hover:scale-110 transition-transform border border-white" title="Add Question Below"><i class="fas fa-plus text-[10px]"></i></button>
+            </div>
         </div>`;
 
-    container.insertAdjacentHTML("beforeend", html);
+    if (afterElement) {
+        afterElement.insertAdjacentHTML("afterend", html);
+    } else {
+        container.insertAdjacentHTML("beforeend", html);
+    }
+    
     AssessmentBuilder.initSortable();
 
     if (type === "mcq" || type === "checkbox") {
@@ -364,6 +376,16 @@ AssessmentBuilder.addQuestion = function (cId, type = "mcq") {
         );
     }
 };
+
+AssessmentBuilder.toggleDropdown = function (btn) {
+    const menu = btn.nextElementSibling;
+    document.querySelectorAll(".dropdown-menu").forEach((el) => {
+        if (el !== menu) el.classList.add("hidden");
+    });
+    menu.classList.toggle("hidden");
+};
+
+
 
 AssessmentBuilder.addOptionToQuestion = function (
     qId,
