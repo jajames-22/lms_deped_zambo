@@ -96,6 +96,28 @@
         
         // Inverting for the UI: Slider value represents Quizzes (Left Side)
         $quizWeight = 100 - $savedExamWeight;
+
+        // --- PROGRESS CALCULATION SETUP ---
+        // Build the timeline lengths once to avoid N+1 queries in the loop below
+        $timeline = collect();
+        $totalContents = 0;
+
+        $lessons = \Illuminate\Support\Facades\DB::table('lessons')->where('material_id', $material->id)->orderBy('created_at')->get();
+        foreach($lessons as $lesson) {
+            $itemCount = \Illuminate\Support\Facades\DB::table('lesson_contents')->where('lesson_id', $lesson->id)->count();
+            $timeline->push((object)['items_count' => $itemCount]);
+            $totalContents += $itemCount;
+        }
+
+        $exams = \Illuminate\Support\Facades\DB::table('exams')->where('material_id', $material->id)->orderBy('created_at')->get();
+        if ($exams->count() > 0) {
+            $groupedExams = $exams->groupBy('created_at');
+            foreach($groupedExams as $questions) {
+                $timeline->push((object)['items_count' => $questions->count()]);
+                $totalContents += $questions->count();
+            }
+        }
+        $timelineCount = $timeline->count();
     @endphp
 
     <div class="flex items-center justify-between">
@@ -198,14 +220,14 @@
     </div>
 
     <div class="bg-white rounded-3xl p-8 shadow-sm border border-gray-100 mt-8 relative transition-all duration-300" id="access-management-container">
-        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 rounded-xl border transition-colors duration-300 {{ $material->is_public ? 'bg-green-50 border-green-200 mb-0' : 'bg-gray-50 border-gray-200 mb-6' }}" id="visibility-banner">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 rounded-xl border mb-6 transition-colors duration-300 {{ $material->is_public ? 'bg-green-50 border-green-200' : 'bg-gray-50 border-gray-200' }}" id="visibility-banner">
             <div>
                 <h4 class="font-bold text-gray-900 flex items-center gap-2">
                     <i id="visibility-icon" class="fas {{ $material->is_public ? 'fa-globe-asia text-green-600' : 'fa-lock text-gray-500' }}"></i>
                     <span id="visibility-title">{{ $material->is_public ? 'Public Material' : 'Private Material' }}</span>
                 </h4>
                 <p id="visibility-desc" class="text-sm mt-1 {{ $material->is_public ? 'text-green-700' : 'text-gray-500' }}">
-                    {{ $material->is_public ? 'Anyone on the platform can view this module. The access list below is currently ignored.' : 'Only the specific Emails listed below can view this module.' }}
+                    {{ $material->is_public ? 'This material is open to everyone. The list below shows all currently enrolled users and their progress.' : 'Only the specific Emails listed below can view this module.' }}
                 </p>
             </div>
 
@@ -223,11 +245,11 @@
             </div>
         </div>
 
-        <div id="access-management-content" class="transition-all duration-500 overflow-hidden {{ $material->is_public ? 'max-h-0 opacity-0' : 'max-h-[2000px] opacity-100' }}">
+        <div id="access-management-content" class="transition-all duration-500 overflow-hidden max-h-[2000px] opacity-100">
             <div class="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-6" id="access-controls">
                 <div>
-                    <h3 class="text-xl font-bold text-gray-900">Access Management</h3>
-                    <p class="text-sm text-gray-500 mt-1">Manage who can see this private module.</p>
+                    <h3 class="text-xl font-bold text-gray-900">Access & Progress</h3>
+                    <p class="text-sm text-gray-500 mt-1">Manage enrollments and track student progress.</p>
                     <button type="button" onclick="notifyStudents(this)" class="mt-3 px-4 py-2 bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-200 text-sm font-bold rounded-lg transition-all shadow-sm flex items-center gap-2">
                         <i class="fas fa-paper-plane"></i> Invite All Pending
                     </button>
@@ -267,37 +289,85 @@
                                 <th class="px-6 py-4 w-12 text-center"><input type="checkbox" id="select-all" class="rounded border-gray-300 text-[#a52a2a] focus:ring-[#a52a2a] h-4 w-4 cursor-pointer transition-all" onclick="window.toggleSelectAll(this)"></th>
                                 <th class="px-6 py-4 cursor-pointer group hover:bg-gray-100 transition" onclick="window.sortTable(1, 'alpha')">Email Address <i class="fas fa-sort ml-1 text-gray-300 group-hover:text-gray-500"></i></th>
                                 <th class="px-6 py-4 cursor-pointer group hover:bg-gray-100 transition" onclick="window.sortTable(2, 'alpha')">Student Name <i class="fas fa-sort ml-1 text-gray-300 group-hover:text-gray-500"></i></th>
-                                <th class="px-6 py-4 text-center cursor-pointer group hover:bg-gray-100 transition" onclick="window.sortTable(3, 'alpha')">Status <i class="fas fa-sort ml-1 text-gray-300 group-hover:text-gray-500"></i></th>
+                                <th class="px-6 py-4 text-center cursor-pointer group hover:bg-gray-100 transition" onclick="window.sortTable(3, 'numeric')">Progress <i class="fas fa-sort ml-1 text-gray-300 group-hover:text-gray-500"></i></th>
+                                <th class="px-6 py-4 text-center cursor-pointer group hover:bg-gray-100 transition" onclick="window.sortTable(4, 'alpha')">Status <i class="fas fa-sort ml-1 text-gray-300 group-hover:text-gray-500"></i></th>
                                 <th class="px-6 py-4 text-center">Action</th>
                             </tr>
-                        </thead>
-                        <tbody class="divide-y divide-gray-100" id="students-tbody">
-                            @forelse($whitelistedStudents ?? [] as $access)
-                                <tr class="student-row hover:bg-gray-50/50 transition">
-                                    <td class="px-6 py-4 text-center"><input type="checkbox" class="email-checkbox rounded border-gray-300 text-[#a52a2a] focus:ring-[#a52a2a] h-4 w-4 cursor-pointer transition-all" value="{{ $access->id }}" onchange="window.updateBulkDeleteBtn()"></td>
-                                    <td class="px-6 py-4 font-medium text-gray-900 email-cell">{{ $access->email }}</td>
-                                    <td class="px-6 py-4 name-cell {{ $access->student ? 'text-gray-800' : '' }}">{{ $access->student ? $access->student->first_name . ' ' . $access->student->last_name : 'Unregistered' }}</td>
-                                    <td class="px-6 py-4 text-center status-cell">
-                                        @if($access->status === 'enrolled')
-                                            <span class="px-2.5 py-1 bg-green-100 text-green-700 rounded-md text-[10px] font-bold uppercase tracking-wider border border-green-200">Enrolled</span>
-                                        @else
-                                            <div class="flex flex-col items-center justify-center gap-1.5">
-                                                <span class="status-badge px-2.5 py-1 {{ $access->status === 'invited' ? 'bg-blue-100 text-blue-700 border-blue-200' : 'bg-amber-100 text-amber-700 border-amber-200' }} rounded-md text-[10px] font-bold uppercase tracking-wider border">{{ strtoupper($access->status) }}</span>
-                                                <button type="button" onclick="sendIndividualInvite(this, '{{ $access->id }}')" class="invite-btn text-blue-600 hover:text-blue-800 text-[10px] font-bold uppercase tracking-wider flex items-center gap-1 transition-colors group"><i class="fas fa-paper-plane group-hover:-translate-y-0.5 transition-transform"></i><span class="btn-text">{{ $access->status === 'invited' ? 'Send Again' : 'Send Invite' }}</span></button>
-                                            </div>
-                                        @endif
-                                    </td>
-                                    <td class="px-6 py-4 text-center"><button type="button" onclick="window.openDeleteModal('{{ $access->id }}')" class="text-gray-400 hover:text-red-500 transition" title="Remove Access"><i class="fas fa-times-circle"></i></button></td>
-                                </tr>
-                            @empty
-                                <tr id="empty-state-row">
-                                    <td colspan="5" class="px-6 py-12 text-center text-gray-400">
-                                        <div class="h-16 w-16 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-3 text-2xl border border-gray-100"><i class="fas fa-users-slash"></i></div>
-                                        <p class="font-medium text-gray-500">No students found.</p><p class="text-xs mt-1">Add emails above to grant access.</p>
-                                    </td>
-                                </tr>
-                            @endforelse
-                        </tbody>
+                        </thead><tbody class="divide-y divide-gray-100" id="students-tbody">
+    @forelse($whitelistedStudents ?? [] as $access)
+        @php
+            $enrollment = $access->current_enrollment;
+            $displayStatus = $enrollment ? 'enrolled' : strtolower($access->status);
+
+            // Progress Calculation 
+            $progressPct = 0;
+            if ($displayStatus === 'enrolled' && $enrollment) {
+                if ($enrollment->status === 'completed' || !is_null($enrollment->completed_at)) {
+                    $progressPct = 100;
+                } elseif ($enrollment->progress_data) {
+                    $pData = is_string($enrollment->progress_data) ? json_decode($enrollment->progress_data) : $enrollment->progress_data;
+                    
+                    $highestUnlocked = isset($pData->highest_unlocked) ? (int)$pData->highest_unlocked : 0;
+                    $currentContent = isset($pData->content) ? (int)$pData->content : 0;
+                    $currentLesson = isset($pData->lesson) ? (int)$pData->lesson : 0;
+
+                    $contentsPassed = 0;
+                    for ($i = 0; $i < $highestUnlocked; $i++) {
+                        if (isset($timeline[$i])) {
+                            $contentsPassed += $timeline[$i]->items_count;
+                        }
+                    }
+                    
+                    if ($currentLesson === $highestUnlocked) {
+                        $contentsPassed += $currentContent;
+                    }
+                    
+                    $progressPct = $totalContents > 0 ? min(100, round(($contentsPassed / $totalContents) * 100)) : 0;
+                }
+            }
+        @endphp
+        <tr class="student-row hover:bg-gray-50/50 transition">
+            <td class="px-6 py-4 text-center"><input type="checkbox" class="email-checkbox rounded border-gray-300 text-[#a52a2a] focus:ring-[#a52a2a] h-4 w-4 cursor-pointer transition-all" value="{{ $access->id }}" onchange="window.updateBulkDeleteBtn()"></td>
+            <td class="px-6 py-4 font-medium text-gray-900 email-cell">{{ $access->email }}</td>
+            
+           <td class="px-6 py-4 name-cell {{ $enrollment ? 'text-gray-900 font-medium' : 'text-gray-400 italic' }}">
+    {{ $enrollment && $enrollment->user ? $enrollment->user->first_name . ' ' . $enrollment->user->last_name : 'Waiting for enrollment...' }}
+</td>
+ {{-- PROGRESS COLUMN --}}
+            <td class="px-6 py-4 text-center" data-value="{{ $displayStatus === 'enrolled' ? $progressPct : -1 }}">
+                @if($displayStatus === 'enrolled')
+                    <div class="flex items-center justify-center gap-2">
+                        <div class="w-16 bg-gray-200 rounded-full h-1.5">
+                            <div class="bg-green-500 h-1.5 rounded-full" style="width: {{ $progressPct }}%"></div>
+                        </div>
+                        <span class="text-xs font-bold text-gray-700">{{ $progressPct }}%</span>
+                    </div>
+                @else
+                    <span class="text-xs text-gray-400 font-medium">-</span>
+                @endif
+            </td>
+
+            <td class="px-6 py-4 text-center status-cell">
+                @if($displayStatus === 'enrolled')
+                    <span class="px-2.5 py-1 bg-green-100 text-green-700 rounded-md text-[10px] font-bold uppercase tracking-wider border border-green-200">Enrolled</span>
+                @else
+                    <div class="flex flex-col items-center justify-center gap-1.5">
+                        <span class="status-badge px-2.5 py-1 {{ $displayStatus === 'invited' ? 'bg-blue-100 text-blue-700 border-blue-200' : 'bg-amber-100 text-amber-700 border-amber-200' }} rounded-md text-[10px] font-bold uppercase tracking-wider border">{{ strtoupper($displayStatus) }}</span>
+                        <button type="button" onclick="sendIndividualInvite(this, '{{ $access->id }}')" class="invite-btn text-blue-600 hover:text-blue-800 text-[10px] font-bold uppercase tracking-wider flex items-center gap-1 transition-colors group"><i class="fas fa-paper-plane group-hover:-translate-y-0.5 transition-transform"></i><span class="btn-text">{{ $displayStatus === 'invited' ? 'Send Again' : 'Send Invite' }}</span></button>
+                    </div>
+                @endif
+            </td>
+            <td class="px-6 py-4 text-center"><button type="button" onclick="window.openDeleteModal('{{ $access->id }}')" class="text-gray-400 hover:text-red-500 transition" title="Remove Access"><i class="fas fa-times-circle"></i></button></td>
+        </tr>
+    @empty
+        <tr id="empty-state-row">
+            <td colspan="6" class="px-6 py-12 text-center text-gray-400">
+                <div class="h-16 w-16 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-3 text-2xl border border-gray-100"><i class="fas fa-users-slash"></i></div>
+                <p class="font-medium text-gray-500">No students found.</p><p class="text-xs mt-1">Add emails above or share the public link.</p>
+            </td>
+        </tr>
+    @endforelse
+</tbody>
                     </table>
                 </div>
 
@@ -619,29 +689,22 @@
                 const icon = document.getElementById('visibility-icon');
                 const title = document.getElementById('visibility-title');
                 const desc = document.getElementById('visibility-desc');
-                const contentWrapper = document.getElementById('access-management-content');
                 const accessCodeDisplay = document.getElementById('access-code-display');
 
                 if (isPublic) {
-                    banner.className = "flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 rounded-xl border transition-colors duration-300 bg-green-50 border-green-200 mb-0";
+                    banner.className = "flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 rounded-xl border mb-6 transition-colors duration-300 bg-green-50 border-green-200";
                     icon.className = "fas fa-globe-asia text-green-600";
                     title.innerText = "Public Material";
-                    desc.innerText = "Anyone on the platform can view this module. The access list below is currently ignored.";
+                    desc.innerText = "This material is open to everyone. The list below shows all currently enrolled users and their progress.";
                     desc.className = "text-sm mt-1 text-green-700";
-
-                    contentWrapper.classList.remove('max-h-[2000px]', 'opacity-100');
-                    contentWrapper.classList.add('max-h-0', 'opacity-0');
 
                     if (accessCodeDisplay) accessCodeDisplay.classList.add('opacity-50', 'pointer-events-none');
                 } else {
-                    banner.className = "flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 rounded-xl border transition-colors duration-300 bg-gray-50 border-gray-200 mb-6";
+                    banner.className = "flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 rounded-xl border mb-6 transition-colors duration-300 bg-gray-50 border-gray-200";
                     icon.className = "fas fa-lock text-gray-500";
                     title.innerText = "Private Material";
                     desc.innerText = "Only the specific Emails listed below can view this module.";
                     desc.className = "text-sm mt-1 text-gray-500";
-
-                    contentWrapper.classList.remove('max-h-0', 'opacity-0');
-                    contentWrapper.classList.add('max-h-[2000px]', 'opacity-100');
 
                     if (accessCodeDisplay) accessCodeDisplay.classList.remove('opacity-50', 'pointer-events-none');
                 }

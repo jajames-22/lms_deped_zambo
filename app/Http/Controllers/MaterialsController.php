@@ -170,6 +170,7 @@ class MaterialsController extends Controller
         return view('dashboard.partials.shared.materials-create', compact('material', 'lessons', 'isNew'));
     }
 
+
     public function manage($id)
     {
         $material = Material::findOrFail($id);
@@ -182,15 +183,27 @@ class MaterialsController extends Controller
         $examIds = DB::table('exams')->where('material_id', $id)->pluck('id');
         $material->items_count = DB::table('exams')->whereIn('id', $examIds)->count();
 
-        // THE FIX: Query the new MaterialAccess table instead of Enrollment
+        // 1. Get whitelisted students
         $whitelistedStudents = \App\Models\MaterialAccess::with('student')
             ->where('material_id', $material->id)
             ->latest()
             ->get();
 
+        // 2. Fetch all enrollments for this material efficiently
+        $enrollments = \App\Models\Enrollment::where('material_id', $material->id)
+            ->get()
+            ->keyBy('user_id');
+
+        // 3. Attach the enrollment data to the access object
+        foreach ($whitelistedStudents as $access) {
+            $access->current_enrollment = null;
+            if ($access->student && $enrollments->has($access->student->id)) {
+                $access->current_enrollment = $enrollments->get($access->student->id);
+            }
+        }
+
         return view('dashboard.partials.shared.materials-manage', compact('material', 'whitelistedStudents'));
     }
-
 
     public function addAccess(Request $request, $id)
     {
@@ -214,7 +227,7 @@ class MaterialsController extends Controller
             // UPDATED: Grab full name instead of just last name
             $instructor = auth()->user();
             $instructorName = trim(($instructor->first_name ?? '') . ' ' . ($instructor->last_name ?? '')) ?: 'An Instructor';
-            
+
             $student->notify(new \App\Notifications\LmsAlertNotification(
                 'New Module Access',
                 $instructorName . ' granted you access to a private module: "' . $material->title . '".',
@@ -227,6 +240,7 @@ class MaterialsController extends Controller
         return response()->json(['success' => true, 'message' => 'Student added successfully!']);
     }
 
+
     public function removeAccess($id)
     {
         DB::beginTransaction();
@@ -234,15 +248,17 @@ class MaterialsController extends Controller
             // 1. Find the specific access record being revoked
             $access = MaterialAccess::findOrFail($id);
 
-            // 2. If the student has already registered an account and enrolled,
-            // delete their enrollment record to remove them from the class and clear progress.
-            if ($access->student_id) {
+            // 2. Look up if a user exists with this email
+            $student = \App\Models\User::where('email', $access->email)->first();
+
+            // 3. If they exist, delete their enrollment to kick them out of the module
+            if ($student) {
                 Enrollment::where('material_id', $access->material_id)
-                    ->where('user_id', $access->student_id)
+                    ->where('user_id', $student->id)
                     ->delete();
             }
 
-            // 3. Delete from the MaterialAccess table (the VIP list)
+            // 4. Delete the email from the whitelist
             $access->delete();
 
             DB::commit();
@@ -288,14 +304,14 @@ class MaterialsController extends Controller
                 ->get();
 
             $material = \App\Models\Material::find($id);
-            
+
             // UPDATED: Grab full name
             $instructor = auth()->user();
             $instructorName = trim(($instructor->first_name ?? '') . ' ' . ($instructor->last_name ?? '')) ?: 'An Instructor';
 
             foreach ($newlyAddedAccesses as $access) {
                 $student = \App\Models\User::where('email', $access->email)->first();
-                
+
                 if ($student && $material) {
                     $student->notify(new \App\Notifications\LmsAlertNotification(
                         'New Module Access',
@@ -854,9 +870,9 @@ class MaterialsController extends Controller
             ], 403);
         }
 
-        // 1. Check Private Material Access
+        // 1. Check Private Material Access & Link the ID
         if (!$material->is_public) {
-            $access = MaterialAccess::where('material_id', $material->id)
+            $access = \App\Models\MaterialAccess::where('material_id', $material->id)
                 ->where('email', $user->email)
                 ->first();
 
@@ -867,14 +883,17 @@ class MaterialsController extends Controller
                 ], 403);
             }
 
-            // Update their invitation status to enrolled
-            if ($access->status !== 'enrolled') {
-                $access->update(['status' => 'enrolled']);
+            // LINKING HAPPENS HERE: Update status AND permanently link their student_id
+            if ($access->status !== 'enrolled' || is_null($access->student_id)) {
+                $access->update([
+                    'status' => 'enrolled',
+                    'student_id' => $user->id // <--- The deferred link!
+                ]);
             }
-        }
+        } 
 
         // 2. Check for Duplicate Enrollment
-        $alreadyEnrolled = Enrollment::where('material_id', $material->id)
+        $alreadyEnrolled = \App\Models\Enrollment::where('material_id', $material->id)
             ->where('user_id', $user->id)
             ->exists();
 
@@ -886,13 +905,23 @@ class MaterialsController extends Controller
         }
 
         // 3. Create the New Enrollment
-        Enrollment::create([
+        \App\Models\Enrollment::create([
             'material_id' => $material->id,
             'user_id' => $user->id,
-            'status' => 'in_progress' // Setting the default status based on your schema
+            'status' => 'in_progress'
         ]);
 
-        // Return a success JSON response to trigger the frontend animation
+        // 4. Auto-add public enrollees to the access list so teachers can track them!
+        if ($material->is_public) {
+            \App\Models\MaterialAccess::firstOrCreate(
+                ['material_id' => $material->id, 'email' => $user->email],
+                [
+                    'status' => 'enrolled',
+                    'student_id' => $user->id // <--- Link public enrollees instantly
+                ]
+            );
+        }
+
         return response()->json([
             'success' => true,
             'message' => 'Successfully enrolled!'
@@ -1104,7 +1133,7 @@ class MaterialsController extends Controller
         ]);
     }
 
-    private function calculateGrades(\App\Models\Material $material, $user) 
+    private function calculateGrades(\App\Models\Material $material, $user)
     {
         $hasExams = \Illuminate\Support\Facades\DB::table('exams')->where('material_id', $material->id)->exists();
         $hasQuizzes = \Illuminate\Support\Facades\DB::table('lesson_contents')
@@ -1115,11 +1144,15 @@ class MaterialsController extends Controller
 
         $examWeight = $material->exam_weight ?? 60;
         $passingScore = $material->passing_percentage ?? 80;
-        
-        if ($hasExams && !$hasQuizzes) { $examWeight = 100; }
-        elseif (!$hasExams && $hasQuizzes) { $examWeight = 0; }
-        elseif (!$hasExams && !$hasQuizzes) { $examWeight = 0; }
-        
+
+        if ($hasExams && !$hasQuizzes) {
+            $examWeight = 100;
+        } elseif (!$hasExams && $hasQuizzes) {
+            $examWeight = 0;
+        } elseif (!$hasExams && !$hasQuizzes) {
+            $examWeight = 0;
+        }
+
         $quizWeight = 100 - $examWeight;
 
         // Calculate Quiz Score
@@ -1130,14 +1163,14 @@ class MaterialsController extends Controller
                 ->where('lessons.material_id', $material->id)
                 ->whereIn('lesson_contents.type', ['mcq', 'checkbox', 'true_false', 'text'])
                 ->pluck('lesson_contents.id');
-                
+
             $totalQuizzes = $quizIds->count();
             $correctQuizzes = \Illuminate\Support\Facades\DB::table('quiz_answers')
                 ->where('user_id', $user->id)
                 ->whereIn('lesson_content_id', $quizIds)
                 ->where('is_correct', 1)
                 ->count();
-                
+
             $quizScore = $totalQuizzes > 0 ? ($correctQuizzes / $totalQuizzes) * 100 : 100;
         }
 
@@ -1151,7 +1184,7 @@ class MaterialsController extends Controller
                 ->whereIn('exam_id', $examIds)
                 ->where('is_correct', 1)
                 ->count();
-                
+
             $examScore = $totalExams > 0 ? ($correctExams / $totalExams) * 100 : 100;
         }
 
@@ -1180,7 +1213,7 @@ class MaterialsController extends Controller
     {
         $user = auth()->user();
         $grades = $this->calculateGrades($material, $user);
-        
+
         $enrollment = \App\Models\Enrollment::where('material_id', $material->id)->where('user_id', $user->id)->firstOrFail();
 
         // Push progress to max so it shows 100% on the show page
@@ -1217,7 +1250,7 @@ class MaterialsController extends Controller
     {
         $user = auth()->user();
         $grades = $this->calculateGrades($material, $user);
-        
+
         // Calculate if a perfect exam score is mathematically enough to pass
         $maxPossibleScore = ($grades['quizScore'] * ($grades['quizWeight'] / 100)) + (100 * ($grades['examWeight'] / 100));
         $canPassWithExamRetake = $maxPossibleScore >= $grades['passingScore'];
@@ -1240,7 +1273,7 @@ class MaterialsController extends Controller
             // Delete EVERYTHING
             \App\Models\QuizAnswer::where('user_id', $user->id)->whereIn('lesson_content_id', $quizIds)->delete();
             \App\Models\ExamAnswer::where('user_id', $user->id)->whereIn('exam_id', $examIds)->delete();
-            
+
             \App\Models\Enrollment::where('material_id', $material->id)->where('user_id', $user->id)->update([
                 'progress_data' => json_encode(['lesson' => 0, 'content' => 0, 'highest_unlocked' => 0]),
                 'status' => 'in_progress',
@@ -1249,7 +1282,7 @@ class MaterialsController extends Controller
         } elseif ($type === 'exam') {
             // Delete EXAMS only
             \App\Models\ExamAnswer::where('user_id', $user->id)->whereIn('exam_id', $examIds)->delete();
-            
+
             // Jump back to the start of the Exam section
             $examSectionIndex = \Illuminate\Support\Facades\DB::table('lessons')->where('material_id', $material->id)->count();
             \App\Models\Enrollment::where('material_id', $material->id)->where('user_id', $user->id)->update([
@@ -1268,7 +1301,7 @@ class MaterialsController extends Controller
             ->where('material_id', $material->id)
             ->where('user_id', auth()->id())
             ->firstOrFail();
-            
+
         return view('dashboard.partials.student.certificate-achieved', compact('enrollment'));
     }
 
@@ -1282,7 +1315,7 @@ class MaterialsController extends Controller
             ->latest()
             ->limit(50) // Safe limit to prevent massive dropdowns
             ->get()
-            ->map(function($notif) {
+            ->map(function ($notif) {
                 return [
                     'id' => $notif->id,
                     'title' => $notif->data['title'],
@@ -1309,7 +1342,7 @@ class MaterialsController extends Controller
     {
         // Query ALL notifications so we don't get a 404 if it's already read
         $notification = auth()->user()->notifications()->find($id);
-        
+
         if ($notification && is_null($notification->read_at)) {
             $notification->markAsRead();
             return response()->json(['success' => true]);
