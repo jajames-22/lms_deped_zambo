@@ -293,20 +293,24 @@
                                 <th class="px-6 py-4 text-center cursor-pointer group hover:bg-gray-100 transition" onclick="window.sortTable(4, 'alpha')">Status <i class="fas fa-sort ml-1 text-gray-300 group-hover:text-gray-500"></i></th>
                                 <th class="px-6 py-4 text-center">Action</th>
                             </tr>
-                        </thead><tbody class="divide-y divide-gray-100" id="students-tbody">
+                        </thead>
+
+                        
+                        <tbody class="divide-y divide-gray-100" id="students-tbody">
     @forelse($whitelistedStudents ?? [] as $access)
         @php
             $enrollment = $access->current_enrollment;
-            $displayStatus = $enrollment ? 'enrolled' : strtolower($access->status);
-
-            // Progress Calculation 
+            $rawStatus = $enrollment ? strtolower($enrollment->status) : strtolower($access->status);
+            $displayStatus = $rawStatus === 'in_progress' ? 'enrolled' : $rawStatus;
+            
             $progressPct = 0;
-            if ($displayStatus === 'enrolled' && $enrollment) {
-                if ($enrollment->status === 'completed' || !is_null($enrollment->completed_at)) {
+            $showProgress = in_array($displayStatus, ['enrolled', 'completed']);
+            
+            if ($showProgress && $enrollment) {
+                if ($rawStatus === 'completed' || !is_null($enrollment->completed_at)) {
                     $progressPct = 100;
                 } elseif ($enrollment->progress_data) {
                     $pData = is_string($enrollment->progress_data) ? json_decode($enrollment->progress_data) : $enrollment->progress_data;
-                    
                     $highestUnlocked = isset($pData->highest_unlocked) ? (int)$pData->highest_unlocked : 0;
                     $currentContent = isset($pData->content) ? (int)$pData->content : 0;
                     $currentLesson = isset($pData->lesson) ? (int)$pData->lesson : 0;
@@ -325,19 +329,25 @@
                     $progressPct = $totalContents > 0 ? min(100, round(($contentsPassed / $totalContents) * 100)) : 0;
                 }
             }
+
+            $cleanStatus = strtoupper(str_replace('_', ' ', $displayStatus));
         @endphp
+        
         <tr class="student-row hover:bg-gray-50/50 transition">
-            <td class="px-6 py-4 text-center"><input type="checkbox" class="email-checkbox rounded border-gray-300 text-[#a52a2a] focus:ring-[#a52a2a] h-4 w-4 cursor-pointer transition-all" value="{{ $access->id }}" onchange="window.updateBulkDeleteBtn()"></td>
+            <td class="px-6 py-4 text-center">
+                <input type="checkbox" class="email-checkbox rounded border-gray-300 text-[#a52a2a] focus:ring-[#a52a2a] h-4 w-4 cursor-pointer transition-all" value="{{ $access->id }}" onchange="window.updateBulkDeleteBtn()">
+            </td>
+            
             <td class="px-6 py-4 font-medium text-gray-900 email-cell">{{ $access->email }}</td>
             
-           <td class="px-6 py-4 name-cell {{ $enrollment ? 'text-gray-900 font-medium' : 'text-gray-400 italic' }}">
-    {{ $enrollment && $enrollment->user ? $enrollment->user->first_name . ' ' . $enrollment->user->last_name : 'Waiting for enrollment...' }}
-</td>
- {{-- PROGRESS COLUMN --}}
-            <td class="px-6 py-4 text-center" data-value="{{ $displayStatus === 'enrolled' ? $progressPct : -1 }}">
-                @if($displayStatus === 'enrolled')
-                    <div class="flex items-center justify-center gap-2">
-                        <div class="w-16 bg-gray-200 rounded-full h-1.5">
+            <td class="px-6 py-4 name-cell {{ $enrollment ? 'text-gray-900 font-medium' : 'text-gray-400 italic' }}">
+                {{ $enrollment && $enrollment->user ? $enrollment->user->first_name . ' ' . $enrollment->user->last_name : 'Waiting for enrollment...' }}
+            </td>
+            
+            <td class="px-6 py-4 text-center" data-value="{{ $showProgress ? $progressPct : -1 }}">
+                @if($showProgress)
+                    <div class="flex items-center justify-center gap-2" title="{{ $progressPct }}% Completed">
+                        <div class="w-16 bg-gray-200 rounded-full h-1.5 border border-gray-100">
                             <div class="bg-green-500 h-1.5 rounded-full" style="width: {{ $progressPct }}%"></div>
                         </div>
                         <span class="text-xs font-bold text-gray-700">{{ $progressPct }}%</span>
@@ -349,15 +359,29 @@
 
             <td class="px-6 py-4 text-center status-cell">
                 @if($displayStatus === 'enrolled')
-                    <span class="px-2.5 py-1 bg-green-100 text-green-700 rounded-md text-[10px] font-bold uppercase tracking-wider border border-green-200">Enrolled</span>
+                    <span class="px-2.5 py-1  bg-green-100 text-green-700 rounded-md text-[10px] font-bold tracking-wider border border-green-200">{{ $cleanStatus }}</span>
+                @elseif($displayStatus === 'completed')
+                    <span class="px-2.5 py-1 bg-green-100 text-yellow-700 rounded-md text-[10px] font-bold tracking-wider border border-yellow-500">{{ $cleanStatus }}</span>
+                @elseif(in_array($displayStatus, ['failed', 'dropped']))
+                    <span class="px-2.5 py-1 bg-red-100 text-red-700 rounded-md text-[10px] font-bold tracking-wider border border-red-200">{{ $cleanStatus }}</span>
                 @else
                     <div class="flex flex-col items-center justify-center gap-1.5">
-                        <span class="status-badge px-2.5 py-1 {{ $displayStatus === 'invited' ? 'bg-blue-100 text-blue-700 border-blue-200' : 'bg-amber-100 text-amber-700 border-amber-200' }} rounded-md text-[10px] font-bold uppercase tracking-wider border">{{ strtoupper($displayStatus) }}</span>
-                        <button type="button" onclick="sendIndividualInvite(this, '{{ $access->id }}')" class="invite-btn text-blue-600 hover:text-blue-800 text-[10px] font-bold uppercase tracking-wider flex items-center gap-1 transition-colors group"><i class="fas fa-paper-plane group-hover:-translate-y-0.5 transition-transform"></i><span class="btn-text">{{ $displayStatus === 'invited' ? 'Send Again' : 'Send Invite' }}</span></button>
+                        <span class="status-badge px-2.5 py-1 {{ $displayStatus === 'invited' ? 'bg-indigo-100 text-indigo-700 border-indigo-200' : 'bg-amber-100 text-amber-700 border-amber-200' }} rounded-md text-[10px] font-bold tracking-wider border">
+                            {{ $cleanStatus ?: 'PENDING' }}
+                        </span>
+                        <button type="button" onclick="sendIndividualInvite(this, '{{ $access->id }}')" class="invite-btn text-blue-600 hover:text-blue-800 text-[10px] font-bold uppercase tracking-wider flex items-center gap-1 transition-colors group">
+                            <i class="fas fa-paper-plane group-hover:-translate-y-0.5 transition-transform"></i>
+                            <span class="btn-text">{{ $displayStatus === 'invited' ? 'Send Again' : 'Send Invite' }}</span>
+                        </button>
                     </div>
                 @endif
             </td>
-            <td class="px-6 py-4 text-center"><button type="button" onclick="window.openDeleteModal('{{ $access->id }}')" class="text-gray-400 hover:text-red-500 transition" title="Remove Access"><i class="fas fa-times-circle"></i></button></td>
+            
+            <td class="px-6 py-4 text-center">
+                <button type="button" onclick="window.openDeleteModal('{{ $access->id }}')" class="text-gray-400 hover:text-red-500 transition" title="Remove Access">
+                    <i class="fas fa-times-circle"></i>
+                </button>
+            </td>
         </tr>
     @empty
         <tr id="empty-state-row">
@@ -368,6 +392,8 @@
         </tr>
     @endforelse
 </tbody>
+
+
                     </table>
                 </div>
 

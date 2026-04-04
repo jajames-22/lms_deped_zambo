@@ -251,18 +251,30 @@ class MaterialsController extends Controller
             // 2. Look up if a user exists with this email
             $student = \App\Models\User::where('email', $access->email)->first();
 
-            // 3. If they exist, delete their enrollment to kick them out of the module
+            // 3. If they exist, delete their enrollment AND all their submitted answers
             if ($student) {
+                // Get all Exam and Quiz IDs for this material
+                $examIds = \Illuminate\Support\Facades\DB::table('exams')->where('material_id', $access->material_id)->pluck('id');
+                $quizIds = \Illuminate\Support\Facades\DB::table('lesson_contents')
+                    ->join('lessons', 'lesson_contents.lesson_id', '=', 'lessons.id')
+                    ->where('lessons.material_id', $access->material_id)
+                    ->pluck('lesson_contents.id');
+
+                // Delete the student's answers
+                \App\Models\QuizAnswer::where('user_id', $student->id)->whereIn('lesson_content_id', $quizIds)->delete();
+                \App\Models\ExamAnswer::where('user_id', $student->id)->whereIn('exam_id', $examIds)->delete();
+
+                // Delete their enrollment to kick them out of the module
                 Enrollment::where('material_id', $access->material_id)
                     ->where('user_id', $student->id)
                     ->delete();
             }
 
-            // 4. Delete the email from the whitelist
+            // 4. Delete the email from the whitelist/access table entirely
             $access->delete();
 
             DB::commit();
-            return response()->json(['success' => true, 'message' => 'Student access and enrollment revoked successfully.']);
+            return response()->json(['success' => true, 'message' => 'Student access, enrollment, and all progress data revoked successfully.']);
 
         } catch (\Exception $e) {
             DB::rollBack();
@@ -848,10 +860,12 @@ class MaterialsController extends Controller
         ]);
 
         // 4. Check if the current user is already enrolled using the Enrollment table
+        // Security check for students
         $isEnrolled = false;
         if (auth()->user()->role === 'student') {
-            $isEnrolled = Enrollment::where('material_id', $material->id)
+            $isEnrolled = \App\Models\Enrollment::where('material_id', $material->id) // use $material->id if in MaterialsController
                 ->where('user_id', auth()->id())
+                ->where('status', '!=', 'dropped') // <-- THIS IS THE KEY ADDITION
                 ->exists();
         }
 
@@ -870,7 +884,7 @@ class MaterialsController extends Controller
             ], 403);
         }
 
-        // 1. Check Private Material Access & Link the ID
+        // 1. Check Private Material Access
         if (!$material->is_public) {
             $access = \App\Models\MaterialAccess::where('material_id', $material->id)
                 ->where('email', $user->email)
@@ -883,41 +897,51 @@ class MaterialsController extends Controller
                 ], 403);
             }
 
-            // LINKING HAPPENS HERE: Update status AND permanently link their student_id
+            // Sync access status
             if ($access->status !== 'enrolled' || is_null($access->student_id)) {
                 $access->update([
                     'status' => 'enrolled',
-                    'student_id' => $user->id // <--- The deferred link!
+                    'student_id' => $user->id
                 ]);
             }
         } 
 
-        // 2. Check for Duplicate Enrollment
-        $alreadyEnrolled = \App\Models\Enrollment::where('material_id', $material->id)
+        // 2. Check for Existing Enrollment (Handle Dropped vs Active)
+        $existingEnrollment = \App\Models\Enrollment::where('material_id', $material->id)
             ->where('user_id', $user->id)
-            ->exists();
+            ->first();
 
-        if ($alreadyEnrolled) {
-            return response()->json([
-                'success' => false,
-                'message' => 'You are already enrolled in this material.'
+        if ($existingEnrollment) {
+            if ($existingEnrollment->status === 'dropped') {
+                // RESURRECT THE DROPPED STUDENT
+                $existingEnrollment->update([
+                    'status' => 'in_progress',
+                    'progress_data' => null, 
+                    'completed_at' => null // Clear any residual progress data
+                ]);
+            } else {
+                // They are actively enrolled, completed, or failed. Block duplicate.
+                return response()->json([
+                    'success' => false,
+                    'message' => 'You are already enrolled in this material.'
+                ]);
+            }
+        } else {
+            // 3. Create the New Enrollment
+            \App\Models\Enrollment::create([
+                'material_id' => $material->id,
+                'user_id' => $user->id,
+                'status' => 'in_progress'
             ]);
         }
 
-        // 3. Create the New Enrollment
-        \App\Models\Enrollment::create([
-            'material_id' => $material->id,
-            'user_id' => $user->id,
-            'status' => 'in_progress'
-        ]);
-
-        // 4. Auto-add public enrollees to the access list so teachers can track them!
+        // 4. Auto-add public enrollees to the access list so teachers can track them
         if ($material->is_public) {
-            \App\Models\MaterialAccess::firstOrCreate(
+            \App\Models\MaterialAccess::updateOrCreate(
                 ['material_id' => $material->id, 'email' => $user->email],
                 [
                     'status' => 'enrolled',
-                    'student_id' => $user->id // <--- Link public enrollees instantly
+                    'student_id' => $user->id
                 ]
             );
         }
@@ -927,7 +951,6 @@ class MaterialsController extends Controller
             'message' => 'Successfully enrolled!'
         ]);
     }
-
     public function study(Material $material)
     {
         $user = auth()->user();
@@ -960,47 +983,50 @@ class MaterialsController extends Controller
         return view('dashboard.partials.student.materials-study', compact('material', 'savedProgress'));
     }
 
-    public function unenroll(Request $request, Material $material)
+   public function unenroll(Request $request, Material $material)
     {
         $user = auth()->user();
 
-        // 1. Delete all Quiz and Exam Answers for this specific material
-        $examIds = \Illuminate\Support\Facades\DB::table('exams')->where('material_id', $material->id)->pluck('id');
-        $quizIds = \Illuminate\Support\Facades\DB::table('lesson_contents')
-            ->join('lessons', 'lesson_contents.lesson_id', '=', 'lessons.id')
-            ->where('lessons.material_id', $material->id)
-            ->pluck('lesson_contents.id');
+        DB::beginTransaction();
+        try {
+            // 1. Delete all Quiz and Exam Answers to clear their progress
+            $examIds = \Illuminate\Support\Facades\DB::table('exams')->where('material_id', $material->id)->pluck('id');
+            $quizIds = \Illuminate\Support\Facades\DB::table('lesson_contents')
+                ->join('lessons', 'lesson_contents.lesson_id', '=', 'lessons.id')
+                ->where('lessons.material_id', $material->id)
+                ->pluck('lesson_contents.id');
 
-        \App\Models\QuizAnswer::where('user_id', $user->id)->whereIn('lesson_content_id', $quizIds)->delete();
-        \App\Models\ExamAnswer::where('user_id', $user->id)->whereIn('exam_id', $examIds)->delete();
+            \App\Models\QuizAnswer::where('user_id', $user->id)->whereIn('lesson_content_id', $quizIds)->delete();
+            \App\Models\ExamAnswer::where('user_id', $user->id)->whereIn('exam_id', $examIds)->delete();
 
-        // 2. Find and delete the enrollment record
-        $enrollment = Enrollment::where('material_id', $material->id)
-            ->where('user_id', $user->id)
-            ->first();
+            // 2. Mark the enrollment record as 'dropped' and reset progress data
+            Enrollment::where('material_id', $material->id)
+                ->where('user_id', $user->id)
+                ->update([
+                    'status' => 'dropped',
+                    'progress_data' => json_encode(['lesson' => 0, 'content' => 0, 'highest_unlocked' => 0])
+                ]);
 
-        if ($enrollment) {
-            $enrollment->delete();
-        }
-
-        // 3. If it's a private material, revert their access status back to pending/invited
-        if (!$material->is_public) {
-            $access = \App\Models\MaterialAccess::where('material_id', $material->id)
+            // 3. Mark their MaterialAccess record as 'dropped'
+            \App\Models\MaterialAccess::where('material_id', $material->id)
                 ->where('email', $user->email)
-                ->first();
+                ->update(['status' => 'dropped']);
 
-            if ($access && $access->status === 'enrolled') {
-                // Change it back to 'pending' so they can re-enroll later if they want
-                $access->update(['status' => 'pending']);
-            }
+            DB::commit();
+            return response()->json([
+                'success' => true,
+                'message' => 'Successfully dropped the course.'
+            ]);
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to drop course: ' . $e->getMessage()
+            ], 500);
         }
-
-        return response()->json([
-            'success' => true,
-            'message' => 'Successfully dropped the course and cleared previous progress.'
-        ]);
     }
-
+    
     public function updateGrading(Request $request, $id)
     {
         $request->validate([
