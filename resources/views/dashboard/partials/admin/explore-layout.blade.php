@@ -17,7 +17,7 @@
         </div>
 
         {{-- Search & Add --}}
-        <div class="relative mb-6 z-20">
+        <div class="relative mb-6 z-10">
             <div class="relative flex items-center bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 focus-within:border-[#a52a2a] focus-within:ring-2 focus-within:ring-[#a52a2a]/20 transition-all">
                 <i class="fas fa-search text-gray-400 mr-3"></i>
                 <input type="text" id="material-search" oninput="window.debounceSearch(this.value)" placeholder="Search material by title or instructor name..." class="w-full bg-transparent border-none outline-none text-sm text-gray-900">

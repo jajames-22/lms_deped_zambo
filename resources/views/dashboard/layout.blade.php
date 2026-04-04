@@ -86,7 +86,7 @@
                 class="bg-white border-b border-gray-200 h-16 flex items-center justify-between px-4 md:px-8 shrink-0 z-20 relative">
                 <div class="flex items-center gap-4 flex-1">
                     <button onclick="toggleSidebar()" class="md:hidden p-2 rounded-lg text-gray-600 hover:bg-gray-100">
-                        <i class="fas fa-bars text-xl"></i>
+                        <i class="fas fa-bars text-xl" styles="margin-top: 1px;"></i>
                     </button>
                     <div
                         class="flex items-center bg-gray-100 px-3 py-2 rounded-lg w-full max-w-md hidden sm:flex border border-transparent focus-within:border-[#a52a2a]/30 transition">
@@ -99,7 +99,7 @@
                 <div class="flex items-center space-x-2 sm:space-x-4 relative">
                     
                     <div class="relative" id="notificationContainer">
-                        <button onclick="toggleNotifications()" class="relative text-gray-600 hover:bg-gray-100 p-2 rounded-full focus:outline-none transition-colors flex items-center justify-center h-10 w-10">
+                        <button onclick="toggleNotifications()" class="relative text-gray-600 hover:bg-gray-100 p-2 z-100 rounded-full focus:outline-none transition-colors flex items-center justify-center h-10 w-10">
                             <i class="fas fa-bell text-xl"></i>
                             <span id="notificationBadge" class="hidden absolute top-0 right-0 h-3 w-3 bg-red-600 rounded-full border-2 border-white shadow-sm"></span>
                         </button>
@@ -118,7 +118,7 @@
                             
                             <div id="notificationList" class="flex-1 overflow-y-auto bg-gray-50/50 sidebar-scroll pb-4 relative z-0">
                                 <div class="flex justify-center items-center py-8">
-                                    <i class="fas fa-circle-notch fa-spin text-2xl text-gray-300"></i>
+                                    <i class="fas fa-circle-notch mt-1 fa-spin text-2xl text-gray-300"></i>
                                 </div>
                             </div>
 
@@ -271,7 +271,9 @@
                             else if (url.includes('/enrolled')) targetBtn = document.getElementById('nav-enrolled-btn');
                             else if (url.includes('/home')) targetBtn = document.getElementById('nav-student-home-btn') || document.querySelector('.nav-btn');
                         } else {
-                            if (url.includes('/materials')) targetBtn = document.getElementById('nav-materials-btn');
+                            // --- ADMIN / TEACHER LOGIC ---
+                            // Ensure this block correctly maps URLs to Button IDs
+                            if (url.includes('/materials')) targetBtn = document.getElementById('nav-materials-btn'); // <--- CHECK THIS LINE
                             else if (url.includes('/assessment')) targetBtn = document.getElementById('nav-assessment-btn');
                             else if (url.includes('/explore-layout')) targetBtn = document.getElementById('nav-explore-layout-btn');
                             else if (url.includes('/schools')) targetBtn = document.getElementById('nav-schools-btn');
@@ -414,7 +416,7 @@
                 item.innerHTML = `
                     <div class="relative shrink-0 ${iconOpacity}">
                         <div class="w-12 h-12 rounded-full flex items-center justify-center text-white shadow-sm ${bgClass}">
-                            <i class="${notif.icon} text-lg"></i>
+                            <i class="${notif.icon} text-lg" style="margin-top: 2px;"></i>
                         </div>
                     </div>
                     <div class="flex-1 min-w-0 pt-1">
