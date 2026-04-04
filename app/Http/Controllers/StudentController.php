@@ -182,5 +182,8 @@ class StudentController extends Controller
         ));
     }
 
-    
+    public function incrementDownload(Material $material) {
+        $material->increment('downloads');
+        return response()->json(['success' => true]);
+    }
 }

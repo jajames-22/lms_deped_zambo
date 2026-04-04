@@ -1,8 +1,8 @@
 <div class="relative min-h-screen pb-12">
     
-    <div class="p-6 pb-2">
-        <h2 class="text-3xl font-bold text-gray-900">My Progress</h2>
-        <p class="text-gray-500 mt-1">Track your learning journey, module completion, and exam performance.</p>
+    <div class=" pb-2">
+        <h2 class="text-2xl font-bold text-gray-900">My Progress</h2>
+        <p class="text-gray-500 text-sm">Track your learning journey, module completion, and exam performance.</p>
     </div>
 
     <div class="fixed bottom-8 right-8 z-50 flex flex-col items-end">
@@ -31,7 +31,7 @@
         </button>
     </div>
 
-    <div class="p-6 space-y-12 max-w-7xl">
+    <div class="mt-10 space-y-12 max-w-7xl">
 
         <section id="my-achievements" class="scroll-mt-20">
             <div class="flex items-center gap-3 mb-6">

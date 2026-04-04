@@ -103,7 +103,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
         Route::post('/materials/{id}/grading', [MaterialsController::class, 'updateGrading'])->name('dashboard.materials.grading');
 
-        Route::post('/dashboard/materials/{material}/progress', [MaterialsController::class, 'saveProgress'])->name('dashboard.materials.progress');
+        Route::post('materials/{material}/progress', [MaterialsController::class, 'saveProgress'])->name('dashboard.materials.progress');
 
         Route::post('/materials/{material}/complete', [MaterialsController::class, 'complete'])->name('dashboard.materials.complete');
 
@@ -117,6 +117,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
         Route::post('/notifications/{id}/read', [MaterialsController::class, 'markNotificationRead']);
 
+        Route::post('/materials/{material}/download-count', [StudentController::class, 'incrementDownload']);
     });
 
     Route::get('/get-districts/{quadrantId}', [DashboardController::class, 'getDistricts'])->name('districts.get');

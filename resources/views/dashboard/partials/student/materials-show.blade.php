@@ -131,6 +131,39 @@
         elseif (!$dbHasExams && !$dbHasQuizzes) { $examWeight = 0; }
         
         $quizWeight = 100 - $examWeight;
+
+        // 4. EXTRACT MEDIA & RESOURCES
+        $resources = collect();
+        foreach($timeline as $section) {
+            foreach($section->items as $item) {
+                if(!empty($item->media_url)) {
+                    $mediaUrl = str_starts_with($item->media_url, 'http') ? $item->media_url : asset('storage/' . $item->media_url);
+                    $pathForExt = parse_url($mediaUrl, PHP_URL_PATH) ?? $mediaUrl;
+                    $ext = strtolower(pathinfo($pathForExt, PATHINFO_EXTENSION));
+                    $name = basename($pathForExt);
+
+                    // Attempt to get file size safely
+                    $size = 'Unknown Size';
+                    try {
+                        if (!str_starts_with($item->media_url, 'http')) {
+                            $filePath = public_path('storage/' . $item->media_url);
+                            if (file_exists($filePath)) {
+                                $size = number_format(filesize($filePath) / 1048576, 2) . ' MB';
+                            }
+                        }
+                    } catch(\Exception $e) {}
+
+                    $resources->push((object)[
+                        'url' => $mediaUrl,
+                        'ext' => $ext,
+                        'name' => $name,
+                        'size' => $size
+                    ]);
+                }
+            }
+        }
+        // Remove duplicates if the same file is used in multiple questions
+        $resources = $resources->unique('url')->values();
     @endphp
 
     {{-- WRAPPER FOR ANIMATION --}}
@@ -375,6 +408,48 @@
                 @endforelse
 
             </div>
+            {{-- DOWNLOADABLE RESOURCES --}}
+            @if($resources->count() > 0)
+                <h3 class="text-xl font-black text-gray-900 mb-4 px-2 mt-12">Media & Resources</h3>
+                <div class="bg-white rounded-3xl shadow-sm border border-gray-100 p-2 md:p-4 grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    @foreach($resources as $res)
+                        @php
+                            $isPdf = $res->ext === 'pdf';
+                            $isVideo = in_array($res->ext, ['mp4', 'webm', 'ogg']);
+                            $isImage = in_array($res->ext, ['jpg', 'jpeg', 'png', 'gif', 'webp']);
+                            
+                            // FIX: Separate the background colors from the FontAwesome icon names!
+                            $bgClass = 'text-gray-500 bg-gray-100';
+                            $iconName = 'fa-file-alt';
+
+                            if($isPdf) { $bgClass = 'text-red-500 bg-red-50'; $iconName = 'fa-file-pdf'; }
+                            elseif($isVideo) { $bgClass = 'text-blue-500 bg-blue-50'; $iconName = 'fa-file-video'; }
+                            elseif($isImage) { $bgClass = 'text-green-500 bg-green-50'; $iconName = 'fa-file-image'; }
+                            elseif(in_array($res->ext, ['zip', 'rar'])) { $bgClass = 'text-yellow-600 bg-yellow-50'; $iconName = 'fa-file-archive'; }
+                        @endphp
+
+                        <div class="flex items-center gap-4 p-3 rounded-2xl hover:bg-gray-50 border border-transparent hover:border-gray-100 transition group">
+                            
+                            <div class="h-12 w-12 shrink-0 rounded-xl flex items-center justify-center cursor-pointer overflow-hidden {{ $bgClass }}" onclick="openResourceViewer('{{ $res->url }}', '{{ $res->ext }}', '{{ $res->name }}')">
+                                @if($isImage)
+                                    <img src="{{ $res->url }}" class="h-full w-full object-cover">
+                                @else
+                                    <i class="fas {{ $iconName }} text-xl"></i>
+                                @endif
+                            </div>
+
+                            <div class="flex-1 min-w-0 cursor-pointer" onclick="openResourceViewer('{{ $res->url }}', '{{ $res->ext }}', '{{ $res->name }}')">
+                                <h4 class="font-bold text-gray-900 text-sm truncate group-hover:text-[#a52a2a] transition">{{ $res->name }}</h4>
+                                <p class="text-[10px] font-bold text-gray-400 uppercase tracking-wider mt-0.5">{{ strtoupper($res->ext) }} • {{ $res->size }}</p>
+                            </div>
+
+                            <button onclick="trackAndDownloadResource('{{ $res->url }}', {{ $material->id }})" class="h-10 w-10 shrink-0 rounded-full flex items-center justify-center text-gray-400 hover:text-[#a52a2a] hover:bg-red-50 transition" title="Download File">
+                                <i class="fas fa-download"></i>
+                            </button>
+                        </div>
+                    @endforeach
+                </div>
+            @endif
         </main>
 
     </div>
@@ -412,6 +487,24 @@
                 Okay
             </button>
         </div>
+    </div>
+
+    <div id="resourceViewerModal" class="fixed inset-0 z-[100000] hidden flex-col bg-[#0f0f0f]/95 backdrop-blur-md transition-opacity duration-300 opacity-0">
+        
+        <div class="h-16 shrink-0 w-full flex items-center justify-between px-4 sm:px-6 bg-gradient-to-b from-black/60 to-transparent text-white">
+            <div class="flex items-center gap-4 min-w-0">
+                <button onclick="closeResourceViewer()" class="hover:bg-white/20 h-10 w-10 rounded-full flex items-center justify-center transition shrink-0"><i class="fas fa-arrow-left"></i></button>
+                <span id="rv-title" class="font-bold truncate text-sm sm:text-base hidden sm:block">filename.pdf</span>
+            </div>
+            <div class="flex items-center gap-2 shrink-0">
+                <button id="rv-download-btn" class="hover:bg-white/20 h-10 w-10 rounded-full flex items-center justify-center transition" title="Download"><i class="fas fa-download"></i></button>
+                <div class="w-px h-6 bg-white/20 mx-1"></div>
+                <button onclick="closeResourceViewer()" class="hover:bg-red-500/80 h-10 w-10 rounded-full flex items-center justify-center transition" title="Close"><i class="fas fa-times text-lg"></i></button>
+            </div>
+        </div>
+
+        <div id="rv-content" class="flex-1 w-full flex items-center justify-center p-4 sm:p-8 overflow-hidden relative">
+            </div>
     </div>
 
     <script>
@@ -647,6 +740,150 @@
                 btn.innerHTML = originalHtml;
                 btn.disabled = false;
             }
+        }
+
+        // --- RESOURCE VIEWER LOGIC ---
+        function openResourceViewer(url, ext, name) {
+            const modal = document.getElementById('resourceViewerModal');
+            const contentArea = document.getElementById('rv-content');
+            const titleEl = document.getElementById('rv-title');
+            const dlBtn = document.getElementById('rv-download-btn');
+            
+            titleEl.innerText = name;
+            dlBtn.onclick = () => trackAndDownloadResource(url, {{ $material->id }});
+
+            contentArea.innerHTML = '<i class="fas fa-circle-notch fa-spin text-4xl text-white/50"></i>';
+
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+            setTimeout(() => modal.classList.remove('opacity-0'), 10);
+            document.body.style.overflow = 'hidden';
+
+            setTimeout(() => {
+                if (ext === 'pdf') {
+                    contentArea.innerHTML = `<iframe src="${url}" class="w-full h-full max-w-5xl bg-white rounded-xl shadow-2xl" frameborder="0"></iframe>`;
+                } 
+                else if (['mp4', 'webm', 'ogg'].includes(ext)) {
+                    // CUSTOM VIDEO PLAYER INJECTION
+                    contentArea.innerHTML = `
+                        <div class="video-wrapper relative w-full h-full max-w-5xl flex items-center justify-center group overflow-hidden rounded-xl shadow-2xl bg-black">
+                            <video id="rv-video" src="${url}" autoplay class="max-w-full max-h-full object-contain"></video>
+                            
+                            <div class="video-controls absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/90 to-transparent p-6 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col gap-3">
+                                <input type="range" min="0" max="100" step="0.1" value="0" id="rv-slider" class="video-progress-slider w-full cursor-pointer">
+                                
+                                <div class="flex items-center justify-between text-white">
+                                    <div class="flex items-center gap-4">
+                                        <button id="rv-play-btn" class="hover:text-[#a52a2a] transition text-xl w-6 flex items-center justify-center"><i class="fas fa-pause"></i></button>
+                                        <div class="text-sm font-mono font-bold"><span id="rv-current">0:00</span> / <span id="rv-duration">0:00</span></div>
+                                    </div>
+                                    <button id="rv-mute-btn" class="hover:text-[#a52a2a] transition text-lg"><i class="fas fa-volume-up"></i></button>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+
+                    // Bind Custom Video Logic
+                    setTimeout(() => {
+                        const video = document.getElementById('rv-video');
+                        const slider = document.getElementById('rv-slider');
+                        const playBtn = document.getElementById('rv-play-btn');
+                        const muteBtn = document.getElementById('rv-mute-btn');
+                        const currentEl = document.getElementById('rv-current');
+                        const durationEl = document.getElementById('rv-duration');
+
+                        slider.style.background = `linear-gradient(to right, #a52a2a 0%, rgba(255,255,255,0.3) 0%)`;
+
+                        const fmt = (s) => { if(isNaN(s)) return "0:00"; const m = Math.floor(s/60); const secs = Math.floor(s%60); return `${m}:${secs<10?'0':''}${secs}`; };
+
+                        video.addEventListener('loadedmetadata', () => { durationEl.innerText = fmt(video.duration); });
+
+                        video.addEventListener('timeupdate', () => {
+                            if (video.duration && slider.dataset.dragging !== 'true') {
+                                const pct = (video.currentTime / video.duration) * 100;
+                                slider.value = pct;
+                                slider.style.background = `linear-gradient(to right, #a52a2a ${pct}%, rgba(255,255,255,0.3) ${pct}%)`;
+                                currentEl.innerText = fmt(video.currentTime);
+                            }
+                        });
+
+                        // Drag & Scrub Logic
+                        slider.addEventListener('mousedown', () => slider.dataset.dragging = 'true');
+                        slider.addEventListener('touchstart', () => slider.dataset.dragging = 'true');
+                        
+                        slider.addEventListener('input', (e) => {
+                            slider.dataset.dragging = 'true';
+                            if(video.duration) {
+                                const pct = e.target.value;
+                                video.currentTime = (pct / 100) * video.duration;
+                                currentEl.innerText = fmt(video.currentTime);
+                                slider.style.background = `linear-gradient(to right, #a52a2a ${pct}%, rgba(255,255,255,0.3) ${pct}%)`;
+                            }
+                        });
+
+                        slider.addEventListener('change', () => slider.dataset.dragging = 'false');
+                        document.addEventListener('mouseup', () => { if(slider.dataset.dragging === 'true') slider.dataset.dragging = 'false'; });
+                        document.addEventListener('touchend', () => { if(slider.dataset.dragging === 'true') slider.dataset.dragging = 'false'; });
+
+                        // Controls Actions
+                        playBtn.onclick = () => { if(video.paused) video.play(); else video.pause(); };
+                        video.addEventListener('play', () => playBtn.innerHTML = '<i class="fas fa-pause"></i>');
+                        video.addEventListener('pause', () => playBtn.innerHTML = '<i class="fas fa-play"></i>');
+                        video.addEventListener('ended', () => playBtn.innerHTML = '<i class="fas fa-redo"></i>');
+
+                        muteBtn.onclick = () => { 
+                            video.muted = !video.muted; 
+                            muteBtn.innerHTML = video.muted ? '<i class="fas fa-volume-mute"></i>' : '<i class="fas fa-volume-up"></i>'; 
+                        };
+                    }, 50);
+                } 
+                else if (['jpg', 'jpeg', 'png', 'gif', 'webp'].includes(ext)) {
+                    contentArea.innerHTML = `<img src="${url}" class="max-w-full max-h-full object-contain drop-shadow-2xl">`;
+                } 
+                else {
+                    contentArea.innerHTML = `
+                        <div class="text-center text-white">
+                            <i class="fas fa-file-archive text-6xl mb-4 text-white/50"></i>
+                            <h3 class="text-xl font-bold mb-2">Preview Not Available</h3>
+                            <p class="text-white/60 mb-6 text-sm">This file type cannot be previewed in the browser.</p>
+                            <button onclick="trackAndDownloadResource('${url}', {{ $material->id }})" class="px-6 py-3 bg-[#a52a2a] rounded-xl font-bold hover:bg-red-700 transition">Download File Instead</button>
+                        </div>`;
+                }
+            }, 300);
+        }
+
+        function closeResourceViewer() {
+            const modal = document.getElementById('resourceViewerModal');
+            const contentArea = document.getElementById('rv-content');
+            
+            modal.classList.add('opacity-0');
+            setTimeout(() => {
+                modal.classList.add('hidden');
+                modal.classList.remove('flex');
+                contentArea.innerHTML = ''; // Stop video playback / clear memory
+                document.body.style.overflow = '';
+            }, 300);
+        }
+
+        // --- DOWNLOAD TRACKING LOGIC ---
+        function trackAndDownloadResource(url, materialId) {
+            // 1. Ping Backend to increment "downloads" column (Fire & Forget)
+            fetch(`{{ url('/dashboard/materials') }}/${materialId}/download-count`, {
+                method: 'POST',
+                headers: {
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+                    'Accept': 'application/json'
+                }
+            }).catch(e => console.log("Download tracking ping failed.", e));
+
+            // 2. Trigger native browser download behavior
+            const a = document.createElement('a');
+            a.href = url;
+            a.setAttribute('download', '');
+            a.target = '_blank';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
         }
     </script>
 </body>
