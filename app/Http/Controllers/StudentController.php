@@ -139,7 +139,7 @@ class StudentController extends Controller
             ->latest()
             ->get();
 
-        $popularMaterials = Material::with('instructor')->where('is_public', true)->where('is_public', true)->orderBy('views', 'desc')->take(10)->get();
+        $popularMaterials = Material::with('instructor')->->where('status', 'published')->where('is_public', true)->orderBy('views', 'desc')->take(10)->get();
 
         // 2. Fetch Dynamic Sections and their associated materials
         $dynamicSections = ExplorePageSection::where('is_active', true)
