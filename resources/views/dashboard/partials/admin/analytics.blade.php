@@ -1,30 +1,36 @@
-<div class="relative min-h-screen pb-12">
-    
-    <div class="p-6 pb-2">
-        <h2 class="text-3xl font-bold text-gray-900">Comprehensive Analytics</h2>
-        <p class="text-gray-500 mt-1">Platform overview, user activity, and system health.</p>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<div id="dashboard-content" class="relative min-h-screen pb-12 bg-gray-50">
+    {{-- Header --}}
+    <div class="p-6 pb-2 flex justify-between items-end max-w-7xl mx-auto">
+        <div>
+            <h2 class="text-3xl font-bold text-gray-900">Comprehensive Analytics</h2>
+            <p class="text-gray-500 mt-1">Platform overview, user activity, and system health.</p>
+        </div>
+        <button onclick="toggleExportModal()" class="bg-[#a52a2a] text-white px-5 py-2.5 rounded-xl shadow-sm hover:bg-red-900 flex items-center gap-2 transition-all text-sm font-bold border-0">
+            <i class="fas fa-file-export text-white/80"></i> Generate Report
+        </button>
     </div>
 
+    {{-- =========================================================================
+         FLOATING ACTION BUTTON (QUICK NAVIGATION)
+         ========================================================================= --}}
     <div class="fixed bottom-8 right-8 z-50 flex flex-col items-end">
-        
         <div id="fabMenu" class="opacity-0 translate-y-4 pointer-events-none transition-all duration-300 ease-in-out mb-4 flex flex-col gap-2 origin-bottom">
-            <div class="bg-white/95 backdrop-blur-md shadow-xl border border-gray-100 rounded-2xl p-3 flex flex-col gap-1 w-48">
+            <div class="bg-white/95 backdrop-blur-md shadow-xl border border-gray-100 rounded-2xl p-3 flex flex-col gap-1 w-56">
                 <p class="text-[10px] font-bold text-gray-400 uppercase tracking-wider px-2 pb-2 mb-1 border-b border-gray-100">Quick Navigation</p>
                 
-                <button onclick="scrollToSection('user-demographics'); toggleFabMenu();" class="flex items-center gap-3 px-3 py-2.5 text-sm text-gray-600 hover:text-[#a52a2a] hover:bg-red-50 rounded-xl transition-all text-left group">
-                    <i class="fas fa-users w-4 text-center group-hover:scale-110 transition-transform"></i> Demographics
+                <button onclick="scrollToSection('ui-user-demographics'); toggleFabMenu();" class="flex items-center gap-3 px-3 py-2.5 text-sm text-gray-600 hover:text-[#a52a2a] hover:bg-red-50 rounded-xl transition-all text-left">
+                    <i class="fas fa-users w-4 text-center"></i> Demographics
                 </button>
-                <button onclick="scrollToSection('content-engagement'); toggleFabMenu();" class="flex items-center gap-3 px-3 py-2.5 text-sm text-gray-600 hover:text-[#a52a2a] hover:bg-red-50 rounded-xl transition-all text-left group">
-                    <i class="fas fa-book-open w-4 text-center group-hover:scale-110 transition-transform"></i> Engagement
+                <button onclick="scrollToSection('ui-content-engagement'); toggleFabMenu();" class="flex items-center gap-3 px-3 py-2.5 text-sm text-gray-600 hover:text-[#a52a2a] hover:bg-red-50 rounded-xl transition-all text-left">
+                    <i class="fas fa-book-open w-4 text-center"></i> Content & Engagement
                 </button>
-                <button onclick="scrollToSection('assessment-performance'); toggleFabMenu();" class="flex items-center gap-3 px-3 py-2.5 text-sm text-gray-600 hover:text-[#a52a2a] hover:bg-red-50 rounded-xl transition-all text-left group">
-                    <i class="fas fa-chart-bar w-4 text-center group-hover:scale-110 transition-transform"></i> Performance
-                </button>
-                <button onclick="scrollToSection('system-health'); toggleFabMenu();" class="flex items-center gap-3 px-3 py-2.5 text-sm text-gray-600 hover:text-[#a52a2a] hover:bg-red-50 rounded-xl transition-all text-left group">
-                    <i class="fas fa-server w-4 text-center group-hover:scale-110 transition-transform"></i> System Health
+                <button onclick="scrollToSection('ui-system-health'); toggleFabMenu();" class="flex items-center gap-3 px-3 py-2.5 text-sm text-gray-600 hover:text-[#a52a2a] hover:bg-red-50 rounded-xl transition-all text-left">
+                    <i class="fas fa-server w-4 text-center"></i> System Health
                 </button>
                 
-                <button onclick="scrollToSection('content-area', true); toggleFabMenu();" class="flex items-center gap-3 px-3 py-2 mt-1 text-xs font-semibold text-gray-400 hover:text-gray-800 bg-gray-50 rounded-xl transition-all text-left justify-center border border-gray-200">
+                <button onclick="scrollToSection('dashboard-content', true); toggleFabMenu();" class="flex items-center gap-3 px-3 py-2 mt-1 text-xs font-semibold text-gray-400 hover:text-gray-800 bg-gray-50 rounded-xl transition-all text-left justify-center border border-gray-200">
                     <i class="fas fa-arrow-up"></i> Back to Top
                 </button>
             </div>
@@ -35,267 +41,272 @@
         </button>
     </div>
 
-    <div class="p-6 space-y-12 max-w-7xl">
+    {{-- Dashboard Content Sections --}}
+    <div class="p-6 space-y-12 max-w-7xl mx-auto">
 
-        <section id="user-demographics" class="scroll-mt-20">
+        {{-- UI Section: Demographics --}}
+        <section id="ui-user-demographics" class="scroll-mt-20">
             <div class="flex items-center gap-3 mb-6">
                 <div class="w-10 h-10 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center"><i class="fas fa-users text-lg"></i></div>
                 <h3 class="text-2xl font-bold text-gray-800">User & Demographics</h3>
             </div>
-            
+
             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
                 <div class="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 border-l-4 border-l-blue-500">
                     <p class="text-gray-500 text-sm font-medium mb-1">Daily Active Users</p>
                     <p class="text-3xl font-bold text-gray-900">{{ number_format($dailyActiveUsers) }}</p>
                 </div>
-                <div class="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 border-l-4 border-l-green-500">
+                <div class="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 border-l-4 border-l-blue-400">
                     <p class="text-gray-500 text-sm font-medium mb-1">Weekly Active Users</p>
-                    <p class="text-3xl font-bold text-gray-900">{{ number_format($weeklyActiveUsers) }}</p>
+                    <p class="text-3xl font-bold text-gray-900">{{ number_format($weeklyActiveUsers ?? 0) }}</p>
                 </div>
-                <div class="bg-white p-5 rounded-2xl shadow-sm border border-gray-100">
-                    <p class="text-gray-500 text-sm font-medium mb-1">Total Users</p>
+                <div class="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 border-l-4 border-l-indigo-500">
+                    <p class="text-gray-500 text-sm font-medium mb-1">Total Registered Users</p>
                     <p class="text-3xl font-bold text-gray-900">{{ number_format($totalStudents + $totalTeachers) }}</p>
                 </div>
-                <div class="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 border-l-4 border-l-red-500">
-                    <p class="text-gray-500 text-sm font-medium mb-1">Unassigned Users</p>
-                    <p class="text-3xl font-bold text-gray-900">{{ number_format($unassignedUsersCount) }}</p>
-                    <p class="text-xs text-gray-400 mt-1">Require school assignment</p>
-                </div>
-            </div>
-
-            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
-                    <h4 class="text-gray-700 font-semibold mb-4 border-b pb-2">User Distribution</h4>
-                    <div class="relative h-64 w-full"><canvas id="adminUsersChart"></canvas></div>
-                </div>
-                <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
-                    <h4 class="text-gray-700 font-semibold mb-4 border-b pb-2">Top 5 Schools by Volume</h4>
-                    <div class="relative h-64 w-full"><canvas id="adminSchoolsChart"></canvas></div>
-                </div>
-            </div>
-        </section>
-
-        <section id="content-engagement" class="scroll-mt-20">
-            <div class="flex items-center gap-3 mb-6">
-                <div class="w-10 h-10 rounded-full bg-purple-100 text-purple-600 flex items-center justify-center"><i class="fas fa-book-open text-lg"></i></div>
-                <h3 class="text-2xl font-bold text-gray-800">Content & Engagement</h3>
-            </div>
-
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-                <div class="bg-white p-5 rounded-2xl shadow-sm border border-gray-100">
-                    <p class="text-gray-500 text-sm font-medium mb-1">Total Materials Published</p>
-                    <p class="text-3xl font-bold text-gray-900">{{ number_format($totalMaterials) }}</p>
-                </div>
-                <div class="bg-white p-5 rounded-2xl shadow-sm border border-gray-100">
-                    <p class="text-gray-500 text-sm font-medium mb-1">Total Enrollments</p>
-                    <p class="text-3xl font-bold text-gray-900">{{ number_format($totalEnrollments) }}</p>
-                </div>
-                <div class="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 border-l-4 border-l-purple-500">
-                    <p class="text-gray-500 text-sm font-medium mb-1">Platform Completion Rate</p>
-                    <p class="text-3xl font-bold text-gray-900">{{ $completionRate }}%</p>
+                {{-- REPLACED: Unassigned Users is now Total Schools --}}
+                <div class="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 border-l-4 border-l-emerald-500">
+                    <p class="text-gray-500 text-sm font-medium mb-1">Total Schools</p>
+                    <p class="text-3xl font-bold text-gray-900">{{ number_format($totalSchools) }}</p>
+                    <p class="text-xs text-gray-400 mt-1">Registered in platform</p>
                 </div>
             </div>
 
             <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
-                <h4 class="text-gray-700 font-semibold mb-4 border-b pb-2">Most Engaged Materials (Views)</h4>
-                <div class="relative h-72 w-full"><canvas id="adminMaterialsChart"></canvas></div>
-            </div>
-        </section>
-
-        <section id="assessment-performance" class="scroll-mt-20">
-            <div class="flex items-center gap-3 mb-6">
-                <div class="w-10 h-10 rounded-full bg-yellow-100 text-yellow-600 flex items-center justify-center"><i class="fas fa-clipboard-check text-lg"></i></div>
-                <h3 class="text-2xl font-bold text-gray-800">Assessment & Performance</h3>
-            </div>
-
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div class="bg-white p-8 rounded-2xl shadow-sm border border-gray-100 flex items-center justify-between">
-                    <div>
-                        <p class="text-gray-500 font-medium mb-1">Global Learner Success Rate</p>
-                        <p class="text-4xl font-bold text-gray-900">{{ $globalSuccessRate }}%</p>
-                        <p class="text-sm text-gray-400 mt-2">Average correct answers across all platform exams.</p>
-                    </div>
-                    <div class="w-20 h-20 rounded-full bg-yellow-50 flex items-center justify-center border-4 border-yellow-400 text-yellow-600 text-2xl font-bold">
-                        <i class="fas fa-star"></i>
-                    </div>
-                </div>
-
-                <div class="bg-white p-8 rounded-2xl shadow-sm border border-gray-100 flex items-center justify-between">
-                    <div>
-                        <p class="text-gray-500 font-medium mb-1">Active Assessments</p>
-                        <p class="text-4xl font-bold text-gray-900">{{ number_format($totalAssessments) }}</p>
-                        <p class="text-sm text-gray-400 mt-2">Total exams created by teachers.</p>
-                    </div>
-                    <div class="w-16 h-16 rounded-xl bg-gray-100 flex items-center justify-center text-gray-400 text-2xl">
-                        <i class="fas fa-file-alt"></i>
-                    </div>
-                </div>
-            </div>
-        </section>
-
-        <section id="system-health" class="scroll-mt-20">
-            <div class="flex items-center gap-3 mb-6">
-                <div class="w-10 h-10 rounded-full bg-[#a52a2a]/10 text-[#a52a2a] flex items-center justify-center"><i class="fas fa-server text-lg"></i></div>
-                <h3 class="text-2xl font-bold text-gray-800">System Health & Storage</h3>
-            </div>
-
-            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
-                    <h4 class="text-gray-700 font-semibold mb-4 border-b pb-2">Storage Capacity</h4>
-                    <div class="relative h-64 w-full"><canvas id="adminStorageChart"></canvas></div>
-                </div>
-                
-                <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex flex-col justify-center space-y-6">
-                    <div>
-                        <p class="text-gray-500 text-sm font-medium mb-1">Storage Usage Status</p>
-                        <div class="flex items-end gap-2">
-                            <p class="text-3xl font-bold text-gray-900">{{ $usedGb }} GB</p>
-                            <p class="text-gray-500 mb-1">/ {{ $totalGb }} GB Used</p>
-                        </div>
-                    </div>
-                    
-                    <div class="w-full bg-gray-200 rounded-full h-3">
-                        <div class="h-3 rounded-full {{ $storagePercentage > 85 ? 'bg-red-500' : ($storagePercentage > 60 ? 'bg-yellow-500' : 'bg-green-500') }}" 
-                             style="width: {{ $storagePercentage }}%"></div>
-                    </div>
-
-                    @if($storagePercentage > 85)
-                        <div class="p-4 bg-red-50 border border-red-200 rounded-xl text-red-700 flex gap-3">
-                            <i class="fas fa-exclamation-triangle mt-1"></i>
-                            <p class="text-sm"><b>Warning:</b> Server storage is critically low. Consider clearing old logs or upgrading your server capacity.</p>
-                        </div>
+                <h4 class="text-gray-700 font-semibold mb-4 border-b pb-2">Top Schools by Student Count</h4>
+                <div class="relative h-72 w-full flex justify-center items-center">
+                    @if(count($schoolLabels) == 0)
+                        <p class="text-gray-400 text-sm">No school data available yet.</p>
                     @else
-                        <div class="p-4 bg-green-50 border border-green-200 rounded-xl text-green-700 flex gap-3">
-                            <i class="fas fa-check-circle mt-1"></i>
-                            <p class="text-sm">System storage levels are healthy and operating normally.</p>
-                        </div>
+                        <canvas id="schoolDistributionChart"></canvas>
                     @endif
                 </div>
             </div>
         </section>
 
+        {{-- UI Section: Content --}}
+        <section id="ui-content-engagement" class="scroll-mt-20">
+            <div class="flex items-center gap-3 mb-6">
+                <div class="w-10 h-10 rounded-full bg-purple-100 text-purple-600 flex items-center justify-center"><i class="fas fa-book-open text-lg"></i></div>
+                <h3 class="text-2xl font-bold text-gray-800">Content & Engagement</h3>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+                <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 text-center">
+                    <h4 class="text-gray-500 font-medium mb-2">Total Modules</h4>
+                    <p class="text-4xl font-bold text-purple-600">{{ number_format($totalMaterials) }}</p>
+                </div>
+                <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 text-center">
+                    <h4 class="text-gray-500 font-medium mb-2">Total Enrollments</h4>
+                    <p class="text-4xl font-bold text-blue-600">{{ number_format($totalEnrollments ?? 0) }}</p>
+                </div>
+                <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 text-center">
+                    <h4 class="text-gray-500 font-medium mb-2">Platform Completion Rate</h4>
+                    <p class="text-4xl font-bold text-green-500">{{ $completionRate ?? 0 }}%</p>
+                </div>
+            </div>
+
+            <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+                <h4 class="text-gray-700 font-semibold mb-4 border-b pb-2">Most Popular Modules (By Views)</h4>
+                <div class="relative h-72 w-full flex justify-center items-center">
+                    @if(count($topMaterialsLabels ?? []) == 0)
+                        <p class="text-gray-400 text-sm">No modules have been viewed yet.</p>
+                    @else
+                        <canvas id="topMaterialsChart"></canvas>
+                    @endif
+                </div>
+            </div>
+        </section>
+
+        {{-- UI Section: Health --}}
+        <section id="ui-system-health" class="scroll-mt-20">
+            <div class="flex items-center gap-3 mb-6">
+                <div class="w-10 h-10 rounded-full bg-green-100 text-green-600 flex items-center justify-center"><i class="fas fa-server text-lg"></i></div>
+                <h3 class="text-2xl font-bold text-gray-800">System Health & Storage</h3>
+            </div>
+
+            <div class="bg-white p-8 rounded-2xl shadow-sm border border-gray-100 flex flex-col md:flex-row items-center gap-8">
+                <div class="w-full md:w-1/3 flex justify-center">
+                    <div class="relative w-40 h-40">
+                        <canvas id="storageChart"></canvas>
+                        <div class="absolute inset-0 flex items-center justify-center flex-col">
+                            <span class="text-2xl font-bold text-gray-800">{{ $storagePercentage }}%</span>
+                            <span class="text-xs text-gray-500 uppercase">Used</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="w-full md:w-2/3 space-y-4">
+                    <div>
+                        <div class="flex justify-between text-sm font-medium mb-1">
+                            <span class="text-gray-700">Storage Capacity</span>
+                            <span class="text-gray-900">{{ $usedGb }} GB / {{ $totalGb }} GB</span>
+                        </div>
+                        <div class="w-full bg-gray-100 rounded-full h-3">
+                            <div class="h-3 rounded-full {{ $storagePercentage > 85 ? 'bg-red-500' : 'bg-green-500' }}" style="width: {{ $storagePercentage }}%"></div>
+                        </div>
+                    </div>
+                    <p class="text-sm text-gray-500">
+                        @if($storagePercentage > 85)
+                            <i class="fas fa-exclamation-triangle text-red-500 mr-1"></i> Warning: Storage capacity is running low. Please clear temporary files or upgrade capacity.
+                        @else
+                            <i class="fas fa-check-circle text-green-500 mr-1"></i> System storage is within healthy limits.
+                        @endif
+                    </p>
+                </div>
+            </div>
+        </section>
+    </div>
+</div>
+
+{{-- =========================================================================
+     EXPORT MODAL
+     ========================================================================= --}}
+<div id="exportModal" class="fixed inset-0 bg-gray-900/50 backdrop-blur-sm z-[100] hidden flex items-center justify-center opacity-0 transition-opacity duration-300">
+    <div class="bg-white rounded-2xl shadow-xl w-full max-w-md p-6 transform scale-95 transition-transform duration-300" id="exportModalContent">
+        <div class="flex justify-between items-center mb-5">
+            <h3 class="text-xl font-bold text-gray-900">Export Admin Report</h3>
+            <button onclick="toggleExportModal()" class="text-gray-400 hover:text-gray-600 border-0 bg-transparent"><i class="fas fa-times text-lg"></i></button>
+        </div>
+
+        <p class="text-sm text-gray-500 mb-4">Select the sections to include in your plain text report:</p>
+
+        <form action="{{ route('analytics.export.admin') }}" method="GET" target="_blank">
+            <div class="space-y-3 mb-6">
+                <label class="flex items-center gap-3 p-3 border border-gray-100 rounded-xl cursor-pointer hover:bg-gray-50 transition-colors">
+                    <input type="checkbox" name="check_users" checked class="w-5 h-5 text-[#a52a2a] rounded border-gray-300 focus:ring-[#a52a2a]">
+                    <span class="text-gray-700 font-medium">User & Demographics</span>
+                </label>
+                <label class="flex items-center gap-3 p-3 border border-gray-100 rounded-xl cursor-pointer hover:bg-gray-50 transition-colors">
+                    <input type="checkbox" name="check_content" checked class="w-5 h-5 text-[#a52a2a] rounded border-gray-300 focus:ring-[#a52a2a]">
+                    <span class="text-gray-700 font-medium">Content & Engagement</span>
+                </label>
+                <label class="flex items-center gap-3 p-3 border border-gray-100 rounded-xl cursor-pointer hover:bg-gray-50 transition-colors">
+                    <input type="checkbox" name="check_health" checked class="w-5 h-5 text-[#a52a2a] rounded border-gray-300 focus:ring-[#a52a2a]">
+                    <span class="text-gray-700 font-medium">System Health & Storage</span>
+                </label>
+            </div>
+
+            <div class="flex gap-3">
+                <button type="button" onclick="toggleExportModal()" class="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-800 py-2.5 rounded-xl font-medium transition-colors border-0">
+                    Cancel
+                </button>
+                <button type="submit" name="action" value="print" onclick="setTimeout(toggleExportModal, 500)" class="flex-1 bg-gray-800 hover:bg-gray-900 text-white py-2.5 rounded-xl font-medium transition-colors flex items-center justify-center gap-2 border-0">
+                    <i class="fas fa-print"></i> Print
+                </button>
+                <button type="submit" name="action" value="pdf" onclick="setTimeout(toggleExportModal, 500)" class="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-2.5 rounded-xl font-medium transition-colors flex items-center justify-center gap-2 border-0">
+                    <i class="fas fa-file-pdf"></i> Download
+                </button>
+            </div>
+        </form>
     </div>
 </div>
 
 <script>
-    // Toggle the Floating Action Button Menu
+    // ==========================================
+    // FAB Logic & Smooth Scrolling
+    // ==========================================
     function toggleFabMenu() {
         const menu = document.getElementById('fabMenu');
         const icon = document.getElementById('fabIcon');
         
-        const isClosed = menu.classList.contains('opacity-0');
-        
-        if (isClosed) {
-            // Open Menu
+        if (menu.classList.contains('opacity-0')) {
             menu.classList.remove('opacity-0', 'translate-y-4', 'pointer-events-none');
             menu.classList.add('opacity-100', 'translate-y-0');
-            
-            // Morph Icon to an 'X'
             icon.classList.remove('fa-list-ul');
             icon.classList.add('fa-times');
             icon.style.transform = 'rotate(90deg)';
         } else {
-            // Close Menu
             menu.classList.add('opacity-0', 'translate-y-4', 'pointer-events-none');
             menu.classList.remove('opacity-100', 'translate-y-0');
-            
-            // Morph Icon back to List
             icon.classList.add('fa-list-ul');
             icon.classList.remove('fa-times');
             icon.style.transform = 'rotate(0deg)';
         }
     }
 
-    // Smooth Scrolling Function specifically tailored for your dynamic layout container
     function scrollToSection(id, isTop = false) {
-        const container = document.getElementById('content-area');
         if (isTop) {
-            container.scrollTo({ top: 0, behavior: 'smooth' });
+            window.scrollTo({ top: 0, behavior: 'smooth' });
             return;
         }
-
         const el = document.getElementById(id);
-        if(el && container) {
-            // Calculate relative offset inside the scrollable area
-            const offsetTop = el.offsetTop - 20; 
-            container.scrollTo({ top: offsetTop, behavior: 'smooth' });
+        if(el) {
+            el.scrollIntoView({ behavior: 'smooth', block: 'start' });
         }
     }
 
-    // Chart logic destruction (prevents hover ghosting on AJAX reload)
-    const chartsToClear = ['adminUsersChart', 'adminSchoolsChart', 'adminMaterialsChart', 'adminStorageChart'];
+    // ==========================================
+    // Modal Toggle Logic
+    // ==========================================
+    function toggleExportModal() {
+        const modal = document.getElementById('exportModal');
+        const content = document.getElementById('exportModalContent');
+        if (modal.classList.contains('hidden')) {
+            modal.classList.remove('hidden');
+            setTimeout(() => {
+                modal.classList.remove('opacity-0');
+                content.classList.remove('scale-95');
+            }, 10);
+        } else {
+            modal.classList.add('opacity-0');
+            content.classList.add('scale-95');
+            setTimeout(() => { modal.classList.add('hidden'); }, 300);
+        }
+    }
+
+    // ==========================================
+    // INITIALIZE UI CHARTS
+    // ==========================================
+    const chartsToClear = ['schoolDistributionChart', 'topMaterialsChart', 'storageChart'];
     chartsToClear.forEach(id => {
         if (window[id + 'Instance']) window[id + 'Instance'].destroy();
     });
 
-    // 1. Demographics: Users Doughnut
-    const usersCtx = document.getElementById('adminUsersChart').getContext('2d');
-    window.adminUsersChartInstance = new Chart(usersCtx, {
+    // 1. School Distribution
+    @if(count($schoolLabels) > 0)
+        window.schoolDistributionChartInstance = new Chart(document.getElementById('schoolDistributionChart').getContext('2d'), {
+            type: 'doughnut',
+            data: {
+                labels: @json($schoolLabels),
+                datasets: [{
+                    data: @json($schoolData),
+                    backgroundColor: ['#3b82f6', '#8b5cf6', '#10b981', '#f59e0b', '#ef4444'],
+                    borderWidth: 0
+                }]
+            },
+            options: { responsive: true, maintainAspectRatio: false, cutout: '60%', plugins: { legend: { position: 'right' } } }
+        });
+    @endif
+
+    // 2. Top Materials
+    @if(count($topMaterialsLabels ?? []) > 0)
+        window.topMaterialsChartInstance = new Chart(document.getElementById('topMaterialsChart').getContext('2d'), {
+            type: 'bar',
+            data: {
+                labels: @json($topMaterialsLabels),
+                datasets: [{
+                    label: 'Total Views',
+                    data: @json($topMaterialsData),
+                    backgroundColor: '#8b5cf6',
+                    borderRadius: 6,
+                    borderWidth: 0
+                }]
+            },
+            options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, grid: { borderDash: [2, 4] } }, x: { grid: { display: false } } } }
+        });
+    @endif
+
+    // 3. Storage Chart
+    window.storageChartInstance = new Chart(document.getElementById('storageChart').getContext('2d'), {
         type: 'doughnut',
         data: {
-            labels: ['Students', 'Teachers'],
-            datasets: [{
-                data: [@json($totalStudents), @json($totalTeachers)],
-                backgroundColor: ['#3b82f6', '#10b981'],
-                borderWidth: 0
-            }]
-        },
-        options: { responsive: true, maintainAspectRatio: false, cutout: '75%', plugins: { legend: { position: 'bottom' } } }
-    });
-
-    // 2. Demographics: Top Schools Bar
-    const schoolsCtx = document.getElementById('adminSchoolsChart').getContext('2d');
-    window.adminSchoolsChartInstance = new Chart(schoolsCtx, {
-        type: 'bar',
-        data: {
-            labels: @json($schoolLabels),
-            datasets: [{
-                label: 'Enrolled Students',
-                data: @json($schoolData),
-                backgroundColor: '#3b82f6',
-                borderRadius: 6
-            }]
-        },
-        options: { 
-            responsive: true, maintainAspectRatio: false, 
-            plugins: { legend: { display: false } },
-            scales: { y: { beginAtZero: true, grid: { borderDash: [2, 4] } }, x: { grid: { display: false } } }
-        }
-    });
-
-    // 3. Content: Top Materials Bar
-    const materialsCtx = document.getElementById('adminMaterialsChart').getContext('2d');
-    window.adminMaterialsChartInstance = new Chart(materialsCtx, {
-        type: 'bar',
-        data: {
-            labels: @json($topMaterialsLabels),
-            datasets: [{
-                label: 'Total Views',
-                data: @json($topMaterialsData),
-                backgroundColor: '#a855f7', // Purple to match the section icon
-                borderRadius: 6
-            }]
-        },
-        options: { 
-            indexAxis: 'y', // Horizontal bar is better for long titles
-            responsive: true, maintainAspectRatio: false, 
-            plugins: { legend: { display: false } },
-            scales: { x: { beginAtZero: true, grid: { borderDash: [2, 4] } }, y: { grid: { display: false } } }
-        }
-    });
-
-    // 4. System Health: Storage Doughnut
-    const storageCtx = document.getElementById('adminStorageChart').getContext('2d');
-    window.adminStorageChartInstance = new Chart(storageCtx, {
-        type: 'doughnut',
-        data: {
-            labels: ['Used Space', 'Free Space'],
+            labels: ['Used Storage', 'Free Storage'],
             datasets: [{
                 data: [@json($usedGb), @json($totalGb - $usedGb)],
-                backgroundColor: [@json($storagePercentage > 85 ? '#ef4444' : '#a52a2a'), '#f3f4f6'],
+                backgroundColor: [@json($storagePercentage > 85 ? '#ef4444' : '#10b981'), '#e5e7eb'],
                 borderWidth: 0
             }]
         },
-        options: { responsive: true, maintainAspectRatio: false, cutout: '75%', plugins: { legend: { position: 'bottom' } } }
+        options: { responsive: true, maintainAspectRatio: false, cutout: '80%', plugins: { legend: { display: false }, tooltip: { enabled: false } } }
     });
 </script>
