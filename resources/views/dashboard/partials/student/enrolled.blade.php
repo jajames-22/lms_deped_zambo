@@ -1,10 +1,10 @@
 <div class="max-w-7xl mx-auto pb-24 relative">
 
     {{-- HEADER SECTION --}}
-    <div class="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-8 px-2 mt-4">
+    <div class="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-8">
         <div>
-            <h1 class="text-3xl font-black text-gray-900 tracking-tight">My Learning Modules</h1>
-            <p class="text-sm text-gray-500 mt-1">Pick up right where you left off and track your progress.</p>
+            <h1 class="text-2xl font-bold text-gray-900">My Learning Modules</h1>
+            <p class="text-gray-500 text-sm">Pick up right where you left off and track your progress.</p>
         </div>
         
         <div class="flex items-center gap-3">

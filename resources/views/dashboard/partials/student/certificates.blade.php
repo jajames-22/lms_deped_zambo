@@ -1,9 +1,9 @@
-<div class="max-w-7xl mx-auto pb-24 relative px-2">
+<div class="max-w-7xl mx-auto pb-24 relative">
 
     {{-- HEADER SECTION --}}
-    <div class="mb-8 mt-4">
-        <h1 class="text-3xl font-black text-gray-900 tracking-tight">My Certificates</h1>
-        <p class="text-sm text-gray-500 mt-1">Review and download the certificates you have earned.</p>
+    <div class="mb-8">
+        <h1 class="text-2xl font-bold text-gray-900">My Certificates</h1>
+        <p class="text-gray-500 text-sm">Review and download the certificates you have earned.</p>
     </div>
 
     {{-- CERTIFICATES GRID --}}
