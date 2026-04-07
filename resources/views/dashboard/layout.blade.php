@@ -191,6 +191,7 @@
         const logoutModalBox = document.getElementById('logoutModalBox');
         const contentArea = document.getElementById('content-area');
 
+        // --- SIDEBAR & MODAL LOGIC ---
         function toggleSidebar() {
             const isOpen = !sidebar.classList.contains('-translate-x-full');
             if (isOpen) {
@@ -221,6 +222,7 @@
             }
         }
 
+        // --- SINGLE PAGE APPLICATION (SPA) LOADER ---
         function loadPartial(url, element) {
             sessionStorage.setItem('lastActiveTab', url);
             if (element && element.id) sessionStorage.setItem('lastActiveBtn', element.id);
@@ -271,14 +273,14 @@
                             else if (url.includes('/enrolled')) targetBtn = document.getElementById('nav-enrolled-btn');
                             else if (url.includes('/home')) targetBtn = document.getElementById('nav-student-home-btn') || document.querySelector('.nav-btn');
                         } else {
-                            // --- ADMIN / TEACHER LOGIC ---
-                            // Ensure this block correctly maps URLs to Button IDs
-                            if (url.includes('/materials')) targetBtn = document.getElementById('nav-materials-btn'); // <--- CHECK THIS LINE
+                            if (url.includes('/materials')) targetBtn = document.getElementById('nav-materials-btn'); 
                             else if (url.includes('/assessment')) targetBtn = document.getElementById('nav-assessment-btn');
                             else if (url.includes('/explore-layout')) targetBtn = document.getElementById('nav-explore-layout-btn');
                             else if (url.includes('/schools')) targetBtn = document.getElementById('nav-schools-btn');
+                            else if (url.includes('/feedback')) targetBtn = document.getElementById('nav-feedback-btn');
                             else if (url.includes('/teachers')) targetBtn = document.getElementById('nav-teachers-btn');
                             else if (url.includes('/students')) targetBtn = document.getElementById('nav-students-btn');
+                            else if (url.includes('/profile')) targetBtn = document.getElementById('nav-profile-btn');
                             else if (url.includes('/home')) targetBtn = document.querySelector('.nav-btn');
                         }
                     }
@@ -295,6 +297,7 @@
                 .catch(err => console.error("Fetch failed entirely:", err));
         }
 
+        // --- INITIALIZATION ---
         window.onload = () => {
             const savedUrl = sessionStorage.getItem('lastActiveTab');
             const savedBtnId = sessionStorage.getItem('lastActiveBtn');
@@ -307,7 +310,6 @@
                 loadPartial('{{ url("/dashboard/home") }}', dashboardBtn);
             }
             
-            // Check for notifications immediately when dashboard loads
             fetchNotifications();
         };
 
@@ -326,12 +328,11 @@
             isNotificationOpen = !isNotificationOpen;
             if (isNotificationOpen) {
                 notificationDropdown.classList.remove('hidden');
-                // Small delay to allow display:block to apply before animating opacity/transform
                 setTimeout(() => {
                     notificationDropdown.classList.remove('opacity-0', 'sm:scale-95');
                     notificationDropdown.classList.add('opacity-100', 'sm:scale-100');
                 }, 10);
-                fetchNotifications(); // Refresh data when opened
+                fetchNotifications(); 
             } else {
                 notificationDropdown.classList.remove('opacity-100', 'sm:scale-100');
                 notificationDropdown.classList.add('opacity-0', 'sm:scale-95');
@@ -341,17 +342,22 @@
 
         async function fetchNotifications() {
             try {
-                const response = await fetch('{{ route("dashboard.notifications") }}', {
-                    headers: { 'X-Requested-With': 'XMLHttpRequest' }
+                const response = await fetch(`{{ url('/dashboard/notifications') }}`, {
+                    headers: {
+                        'Accept': 'application/json',
+                        'X-Requested-With': 'XMLHttpRequest'
+                    }
                 });
-                const data = await response.json();
                 
-                if (data.success) {
-                    // We now pass both the list AND the unread count
-                    renderNotifications(data.notifications, data.unread_count);
+                if (response.ok) {
+                    const data = await response.json();
+                    renderNotifications(data.notifications || [], data.unread_count || 0);
+                } else {
+                    notificationList.innerHTML = '<div class="p-6 text-center text-sm font-bold text-red-500">Failed to load notifications.</div>';
                 }
             } catch (error) {
-                console.error("Failed to load notifications:", error);
+                console.error("Error fetching notifications:", error);
+                notificationList.innerHTML = '<div class="p-6 text-center text-sm font-bold text-red-500">Network error. Check connection.</div>';
             }
         }
 
@@ -359,7 +365,6 @@
             // Only ping the server if the notification hasn't been read yet
             if (!isRead) {
                 try {
-                    // ADDED /dashboard back into the URL string here!
                     await fetch(`{{ url('/dashboard/notifications') }}/${notifId}/read`, {
                         method: 'POST',
                         headers: {
@@ -373,11 +378,31 @@
             }
             
             toggleNotifications(); 
-            window.location.href = targetUrl;
+            
+            // --- NEW: FULL PAGE VS PARTIAL LOGIC ---
+            // Define URL keywords that belong to standalone, full-page views
+            const fullPageKeywords = [
+                '/show', 
+                '/study', 
+                '/result', 
+                '/certificate',
+                '/lobby',
+                '/exam'
+            ];
+
+            // Check if the targetUrl contains any of the keywords
+            const requiresFullReload = fullPageKeywords.some(keyword => targetUrl.includes(keyword));
+
+            if (requiresFullReload) {
+                // Do a standard, hard browser redirect
+                window.location.href = targetUrl;
+            } else {
+                // Inject smoothly via SPA loader
+                loadPartial(targetUrl, null); 
+            }
         }
 
         function renderNotifications(notifications, unreadCount) {
-            // Badge logic now depends on the actual unreadCount, not the total list length
             if (unreadCount > 0) {
                 notificationBadge.classList.remove('hidden');
                 notificationCountText.classList.remove('hidden');
@@ -402,7 +427,6 @@
             notifications.forEach(notif => {
                 const item = document.createElement('div');
                 
-                // Dynamic styling based on whether it is read or unread
                 const bgDefault = notif.is_read ? 'bg-transparent' : 'bg-blue-50/30';
                 const textColor = notif.is_read ? 'text-gray-600 font-medium' : 'text-gray-900 font-bold';
                 const timeColor = notif.is_read ? 'text-gray-400' : 'text-[#a52a2a] font-semibold';
