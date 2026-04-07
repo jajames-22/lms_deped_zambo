@@ -17,15 +17,24 @@ class StudentEnrollmentController extends Controller
 {
     public function index()
     {
-        // Fetch all enrollments for the logged-in student
-        // We eager-load 'material', 'material.instructor', and 'material.tags' for better performance
-        $enrollments = Enrollment::with(['material.instructor', 'material.tags'])
-            ->where('user_id', Auth::id())
+        $user = Auth::user();
+
+        // 1. Get Active Enrollments (In Progress, Completed, Failed)
+        $activeEnrollments = Enrollment::with(['material.instructor', 'material.tags'])
+            ->where('user_id', $user->id)
+            ->where('status', '!=', 'dropped') // Ensure dropped ones don't show here
             ->latest()
             ->get();
 
-        // Pass the $enrollments variable to your blade file
-        return view('dashboard.partials.student.enrolled', compact('enrollments'));
+        // 2. Get Dropped Materials
+        $droppedAccesses = MaterialAccess::with(['material.instructor', 'material.tags'])
+            ->where('email', $user->email)
+            ->where('status', 'dropped')
+            ->latest()
+            ->get();
+
+        // Pass BOTH variables to the blade file matching what the tabs expect
+        return view('dashboard.partials.student.enrolled', compact('activeEnrollments', 'droppedAccesses'));
     }
 
     public function acceptInvitation(Request $request, Material $material, $email)
@@ -109,27 +118,44 @@ class StudentEnrollmentController extends Controller
             'redirect_url' => route('student.materials.show', $material->id)
         ]);
     }
+
     public function show($id)
     {
         $material = Material::findOrFail($id);
+        $user = Auth::user();
 
-        // Security check for students
+        // 1. Check if the user has an ACTIVE enrollment (Used to toggle the Enroll/Resume buttons)
         $isEnrolled = Enrollment::where('material_id', $id)
-            ->where('user_id', Auth::id())
+            ->where('user_id', $user->id)
+            ->where('status', '!=', 'dropped')
             ->exists();
 
-        $hasAccess = $isEnrolled || in_array(Auth::user()->role, ['teacher', 'admin', 'superadmin']);
+        // 2. Check if the user has permission to VIEW the overview page
+        $hasAccess = false;
+        
+        if (in_array($user->role, ['teacher', 'admin', 'superadmin'])) {
+            $hasAccess = true;
+        } elseif ($material->is_public) {
+            // Public modules can be viewed by anyone
+            $hasAccess = true; 
+        } else {
+            // Private modules: Check if the student's email is on the access list (even if they dropped)
+            $hasAccess = MaterialAccess::where('material_id', $material->id)
+                ->where('email', $user->email)
+                ->exists();
+        }
 
+        // If they aren't on the list at all and it's private, block them
         if (!$hasAccess) {
-            abort(403, 'You are not enrolled in this module.');
+            abort(403, 'You do not have permission to view this module.');
         }
 
         $lessons = DB::table('lessons')->where('material_id', $id)->get();
         $exams = DB::table('exams')->where('material_id', $id)->get();
 
-        // FIX: Return the view instead of redirecting!
         return view('dashboard.partials.student.materials-show', compact('material', 'lessons', 'exams', 'isEnrolled'));
     }
+
     public function markAsCompleted($id)
     {
         $enrollment = Enrollment::where('material_id', $id)

@@ -21,7 +21,7 @@ Route::post('/student/enroll-code', [StudentEnrollmentController::class, 'enroll
     ->middleware(['auth']);
 
 Route::get('/dashboard/enrolled', [App\Http\Controllers\StudentEnrollmentController::class, 'index'])
-    ->name('student.enrolled.index')
+    ->name('student.enrolled')
     ->middleware(['auth']);
 
 Route::post('/dashboard/student/materials/{id}/complete', [App\Http\Controllers\StudentEnrollmentController::class, 'markAsCompleted'])

@@ -249,20 +249,20 @@ class MaterialsController extends Controller
             $access = MaterialAccess::findOrFail($id);
 
             // 2. Look up if a user exists with this email
-            $student = \App\Models\User::where('email', $access->email)->first();
+            $student = User::where('email', $access->email)->first();
 
             // 3. If they exist, delete their enrollment AND all their submitted answers
             if ($student) {
                 // Get all Exam and Quiz IDs for this material
-                $examIds = \Illuminate\Support\Facades\DB::table('exams')->where('material_id', $access->material_id)->pluck('id');
-                $quizIds = \Illuminate\Support\Facades\DB::table('lesson_contents')
+                $examIds = DB::table('exams')->where('material_id', $access->material_id)->pluck('id');
+                $quizIds = DB::table('lesson_contents')
                     ->join('lessons', 'lesson_contents.lesson_id', '=', 'lessons.id')
                     ->where('lessons.material_id', $access->material_id)
                     ->pluck('lesson_contents.id');
 
                 // Delete the student's answers
-                \App\Models\QuizAnswer::where('user_id', $student->id)->whereIn('lesson_content_id', $quizIds)->delete();
-                \App\Models\ExamAnswer::where('user_id', $student->id)->whereIn('exam_id', $examIds)->delete();
+                QuizAnswer::where('user_id', $student->id)->whereIn('lesson_content_id', $quizIds)->delete();
+                ExamAnswer::where('user_id', $student->id)->whereIn('exam_id', $examIds)->delete();
 
                 // Delete their enrollment to kick them out of the module
                 Enrollment::where('material_id', $access->material_id)
@@ -951,6 +951,7 @@ class MaterialsController extends Controller
             'message' => 'Successfully enrolled!'
         ]);
     }
+
     public function study(Material $material)
     {
         $user = auth()->user();
@@ -983,6 +984,7 @@ class MaterialsController extends Controller
         return view('dashboard.partials.student.materials-study', compact('material', 'savedProgress'));
     }
 
+    
     public function unenroll(Request $request, Material $material)
     {
         $user = auth()->user();
@@ -990,25 +992,22 @@ class MaterialsController extends Controller
         DB::beginTransaction();
         try {
             // 1. Delete all Quiz and Exam Answers to clear their progress
-            $examIds = \Illuminate\Support\Facades\DB::table('exams')->where('material_id', $material->id)->pluck('id');
-            $quizIds = \Illuminate\Support\Facades\DB::table('lesson_contents')
+            $examIds = DB::table('exams')->where('material_id', $material->id)->pluck('id');
+            $quizIds = DB::table('lesson_contents')
                 ->join('lessons', 'lesson_contents.lesson_id', '=', 'lessons.id')
                 ->where('lessons.material_id', $material->id)
                 ->pluck('lesson_contents.id');
 
-            \App\Models\QuizAnswer::where('user_id', $user->id)->whereIn('lesson_content_id', $quizIds)->delete();
-            \App\Models\ExamAnswer::where('user_id', $user->id)->whereIn('exam_id', $examIds)->delete();
+            QuizAnswer::where('user_id', $user->id)->whereIn('lesson_content_id', $quizIds)->delete();
+            ExamAnswer::where('user_id', $user->id)->whereIn('exam_id', $examIds)->delete();
 
-            // 2. Mark the enrollment record as 'dropped' and reset progress data
+            // Delete their enrollment to kick them out of the module
             Enrollment::where('material_id', $material->id)
                 ->where('user_id', $user->id)
-                ->update([
-                    'status' => 'dropped',
-                    'progress_data' => json_encode(['lesson' => 0, 'content' => 0, 'highest_unlocked' => 0])
-                ]);
+                ->delete();
 
             // 3. Mark their MaterialAccess record as 'dropped'
-            \App\Models\MaterialAccess::where('material_id', $material->id)
+            MaterialAccess::where('material_id', $material->id)
                 ->where('email', $user->email)
                 ->update(['status' => 'dropped']);
 
@@ -1018,7 +1017,7 @@ class MaterialsController extends Controller
                 'message' => 'Successfully dropped the course.'
             ]);
 
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             DB::rollBack();
             return response()->json([
                 'success' => false,
