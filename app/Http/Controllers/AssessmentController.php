@@ -32,7 +32,7 @@ class AssessmentController extends Controller
                 'success' => true,
                 'message' => 'LRN list imported successfully!'
             ]);
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             return response()->json([
                 'success' => false,
                 'message' => 'Import failed. Check if your file has an "lrn" header.'
@@ -248,7 +248,7 @@ class AssessmentController extends Controller
             'message' => 'No file was uploaded.'
         ], 400);
     }
-    
+
 
     public function destroy($id)
     {
@@ -276,7 +276,7 @@ class AssessmentController extends Controller
         }
     }
 
-    public function toggleResults(Request $request, \App\Models\Assessment $assessment)
+    public function toggleResults(Request $request, Assessment $assessment)
     {
         // Flip the boolean
         $assessment->show_results = !$assessment->show_results;
@@ -417,7 +417,7 @@ class AssessmentController extends Controller
     }
 
 
-    public function manage(\App\Models\Assessment $assessment)
+    public function manage(Assessment $assessment)
     {
         $assessment->loadCount(['categories', 'questions']);
 
@@ -463,12 +463,12 @@ class AssessmentController extends Controller
         return response()->json(['success' => true, 'message' => 'Student access revoked.']);
     }
 
-    public function toggleStatus(Request $request, \App\Models\Assessment $assessment)
+    public function toggleStatus(Request $request, Assessment $assessment)
     {
         try {
             $newStatus = $assessment->status === 'published' ? 'draft' : 'published';
 
-            \Illuminate\Support\Facades\DB::table('assessments')
+            DB::table('assessments')
                 ->where('id', $assessment->id)
                 ->update(['status' => $newStatus, 'updated_at' => now()]);
 
@@ -477,11 +477,302 @@ class AssessmentController extends Controller
                 'new_status' => $newStatus,
                 'message' => 'Assessment is now ' . ($newStatus === 'published' ? 'Live' : 'in Draft Mode')
             ]);
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             return response()->json([
                 'success' => false,
                 'message' => 'Error updating status: ' . $e->getMessage()
             ], 500);
         }
     }
+
+    public function analytics(\App\Models\Assessment $assessment)
+    {
+        try {
+            // 1. Participation Stats
+            $totalStudents = \Illuminate\Support\Facades\DB::table('assessment_accesses')
+                ->where('assessment_id', $assessment->id)
+                ->count();
+
+            $completedCount = \Illuminate\Support\Facades\DB::table('assessment_accesses')
+                ->where('assessment_id', $assessment->id)
+                ->where('status', 'finished')
+                ->count();
+
+            $completionRate = $totalStudents > 0 ? round(($completedCount / $totalStudents) * 100) : 0;
+
+            // Get Students Who Did Not Take the Assessment (Strictly Offline)
+            $notTakenStudents = \Illuminate\Support\Facades\DB::table('assessment_accesses')
+                ->where('assessment_id', $assessment->id)
+                ->where('status', 'offline')
+                ->select('lrn')
+                ->get();
+
+            // 2. Total Questions
+            $totalQuestions = \Illuminate\Support\Facades\DB::table('assessment_questions')
+                ->join('assessment_categories', 'assessment_questions.category_id', '=', 'assessment_categories.id')
+                ->where('assessment_categories.assessment_id', $assessment->id)
+                ->count();
+
+            // 3. Individual Student Scores
+            $studentScoresRaw = \Illuminate\Support\Facades\DB::table('student_answers')
+                ->join('assessment_questions', 'student_answers.question_id', '=', 'assessment_questions.id')
+                ->join('assessment_categories', 'assessment_questions.category_id', '=', 'assessment_categories.id')
+                ->join('assessment_options', 'student_answers.option_id', '=', 'assessment_options.id')
+                ->where('assessment_categories.assessment_id', $assessment->id)
+                ->select(
+                    'student_answers.user_id',
+                    \Illuminate\Support\Facades\DB::raw('SUM(CASE WHEN assessment_options.is_correct = 1 THEN 1 ELSE 0 END) as correct_count')
+                )
+                ->groupBy('student_answers.user_id')
+                ->get();
+
+            $highestScoreRaw = 0;
+            $lowestScoreRaw = $totalQuestions > 0 ? $totalQuestions : 0; 
+            $passedCount = 0;
+            $failedCount = 0;
+            $totalCorrectAnswers = 0;
+            
+            $scoreDistribution = [
+                '90-100%' => 0, '80-89%' => 0, '70-79%' => 0, '60-69%' => 0, 'Below 60%' => 0,
+            ];
+
+            foreach ($studentScoresRaw as $scoreData) {
+                $rawScore = $scoreData->correct_count;
+                $pct = $totalQuestions > 0 ? round(($rawScore / $totalQuestions) * 100) : 0;
+                $totalCorrectAnswers += $rawScore;
+
+                if ($rawScore > $highestScoreRaw) $highestScoreRaw = $rawScore;
+                if ($rawScore < $lowestScoreRaw) $lowestScoreRaw = $rawScore;
+
+                if ($pct >= 75) $passedCount++; else $failedCount++;
+
+                if ($pct >= 90) $scoreDistribution['90-100%']++;
+                elseif ($pct >= 80) $scoreDistribution['80-89%']++;
+                elseif ($pct >= 70) $scoreDistribution['70-79%']++;
+                elseif ($pct >= 60) $scoreDistribution['60-69%']++;
+                else $scoreDistribution['Below 60%']++;
+            }
+
+            if ($studentScoresRaw->isEmpty()) $lowestScoreRaw = 0; 
+
+            $highestScorePct = $totalQuestions > 0 ? round(($highestScoreRaw / $totalQuestions) * 100) : 0;
+            $lowestScorePct = $totalQuestions > 0 ? round(($lowestScoreRaw / $totalQuestions) * 100) : 0;
+            $averageScoreRaw = $completedCount > 0 ? round($totalCorrectAnswers / $completedCount, 1) : 0;
+            $averageScorePct = ($completedCount > 0 && $totalQuestions > 0) ? round(($totalCorrectAnswers / ($completedCount * $totalQuestions)) * 100) : 0;
+
+            // Calculate Overall Average Time
+            $overallAvgTimeRaw = \Illuminate\Support\Facades\DB::table('assessment_sessions')
+                ->where('assessment_id', $assessment->id)
+                ->where('is_completed', 1)
+                ->avg(\Illuminate\Support\Facades\DB::raw('TIMESTAMPDIFF(SECOND, created_at, updated_at)'));
+            
+            $overallAvgTime = $overallAvgTimeRaw ? sprintf('%02d:%02d', floor($overallAvgTimeRaw / 60), round($overallAvgTimeRaw % 60)) . ' mins' : 'N/A';
+
+            // 4. Section/Category Performance & Time
+            $categoryPerformance = \Illuminate\Support\Facades\DB::table('assessment_categories')
+                ->leftJoin('assessment_questions', 'assessment_categories.id', '=', 'assessment_questions.category_id')
+                ->leftJoin('student_answers', 'assessment_questions.id', '=', 'student_answers.question_id')
+                ->leftJoin('assessment_options', 'student_answers.option_id', '=', 'assessment_options.id')
+                ->where('assessment_categories.assessment_id', $assessment->id)
+                ->select(
+                    'assessment_categories.id',
+                    'assessment_categories.title',
+                    \Illuminate\Support\Facades\DB::raw('COUNT(student_answers.id) as total_answers'),
+                    \Illuminate\Support\Facades\DB::raw('SUM(CASE WHEN assessment_options.is_correct = 1 THEN 1 ELSE 0 END) as correct_answers')
+                )
+                ->groupBy('assessment_categories.id', 'assessment_categories.title', 'assessment_categories.sort_order')
+                ->orderBy('assessment_categories.sort_order')
+                ->get();
+
+            $categoryTimesRaw = \Illuminate\Support\Facades\DB::table('assessment_sessions')
+                ->where('assessment_id', $assessment->id)
+                ->where('is_completed', 1)
+                ->select('category_id', \Illuminate\Support\Facades\DB::raw('AVG(TIMESTAMPDIFF(SECOND, created_at, updated_at)) as avg_time_seconds'))
+                ->groupBy('category_id')
+                ->pluck('avg_time_seconds', 'category_id');
+
+            $categoryLabels = [];
+            $categoryScores = [];
+            $categoryData = [];
+
+            foreach ($categoryPerformance as $cat) {
+                $scorePct = $cat->total_answers > 0 ? round(($cat->correct_answers / $cat->total_answers) * 100) : 0;
+                $categoryLabels[] = \Illuminate\Support\Str::limit($cat->title, 20);
+                $categoryScores[] = $scorePct;
+
+                $avgTimeSec = $categoryTimesRaw[$cat->id] ?? 0;
+                $categoryData[] = [
+                    'title' => $cat->title,
+                    'score_pct' => $scorePct,
+                    'avg_time' => ($avgTimeSec > 0) ? sprintf('%02d:%02d', floor($avgTimeSec / 60), round($avgTimeSec % 60)) . ' mins' : 'N/A'
+                ];
+            }
+
+            // 5. Item Analysis
+            $itemAnalysis = \Illuminate\Support\Facades\DB::table('assessment_questions')
+                ->join('assessment_categories', 'assessment_questions.category_id', '=', 'assessment_categories.id')
+                ->leftJoin('student_answers', 'assessment_questions.id', '=', 'student_answers.question_id')
+                ->leftJoin('assessment_options', 'student_answers.option_id', '=', 'assessment_options.id')
+                ->where('assessment_categories.assessment_id', $assessment->id)
+                ->select(
+                    'assessment_questions.id',
+                    'assessment_questions.question_text',
+                    'assessment_categories.title as category_name',
+                    \Illuminate\Support\Facades\DB::raw('SUM(CASE WHEN assessment_options.is_correct = 1 THEN 1 ELSE 0 END) as correct_count'),
+                    \Illuminate\Support\Facades\DB::raw('SUM(CASE WHEN assessment_options.is_correct = 0 THEN 1 ELSE 0 END) as wrong_count')
+                )
+                ->groupBy('assessment_questions.id', 'assessment_questions.question_text', 'assessment_categories.title', 'assessment_categories.sort_order', 'assessment_questions.sort_order')
+                ->orderBy('assessment_categories.sort_order')
+                ->orderBy('assessment_questions.sort_order')
+                ->get()
+                ->map(function ($item) {
+                    $total = $item->correct_count + $item->wrong_count;
+                    $item->accuracy = $total > 0 ? round(($item->correct_count / $total) * 100) : 0;
+                    $item->correct_count = (int) $item->correct_count;
+                    $item->wrong_count = (int) $item->wrong_count;
+                    return $item;
+                });
+
+            // 6. Actionable Insights
+            $answeredItems = $itemAnalysis->filter(fn($item) => ($item->correct_count + $item->wrong_count) > 0);
+            $mostMissed = $answeredItems->sortBy('accuracy')->take(3);
+            $perfectQuestions = $answeredItems->filter(fn($item) => $item->accuracy == 100);
+
+            return view('dashboard.partials.admin.assessments-analytics', compact(
+                'assessment', 'totalQuestions', 'totalStudents', 'completedCount', 'completionRate', 'notTakenStudents',
+                'averageScoreRaw', 'averageScorePct', 'overallAvgTime', 'highestScoreRaw', 'highestScorePct',
+                'lowestScoreRaw', 'lowestScorePct', 'passedCount', 'failedCount', 'scoreDistribution',
+                'categoryLabels', 'categoryScores', 'categoryData', 'itemAnalysis', 'mostMissed', 'perfectQuestions'
+            ));
+
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error('Analytics Load Error: ' . $e->getMessage());
+            $totalStudents = $completedCount = $completionRate = $totalQuestions = $averageScoreRaw = $averageScorePct = 0;
+            $highestScoreRaw = $highestScorePct = $lowestScoreRaw = $lowestScorePct = $passedCount = $failedCount = 0;
+            $overallAvgTime = 'N/A';
+            $scoreDistribution = ['90-100%' => 0, '80-89%' => 0, '70-79%' => 0, '60-69%' => 0, 'Below 60%' => 0];
+            $notTakenStudents = collect([]);
+            $categoryLabels = $categoryScores = $categoryData = $itemAnalysis = $mostMissed = $perfectQuestions = [];
+
+            return view('dashboard.partials.admin.assessments-analytics', compact(
+                'assessment', 'totalQuestions', 'totalStudents', 'completedCount', 'completionRate', 'notTakenStudents',
+                'averageScoreRaw', 'averageScorePct', 'overallAvgTime', 'highestScoreRaw', 'highestScorePct',
+                'lowestScoreRaw', 'lowestScorePct', 'passedCount', 'failedCount', 'scoreDistribution',
+                'categoryLabels', 'categoryScores', 'categoryData', 'itemAnalysis', 'mostMissed', 'perfectQuestions'
+            ));
+        }
+    }
+
+    public function exportReport(Request $request, \App\Models\Assessment $assessment)
+    {
+        try {
+            $totalStudents = \Illuminate\Support\Facades\DB::table('assessment_accesses')->where('assessment_id', $assessment->id)->count();
+            $completedCount = \Illuminate\Support\Facades\DB::table('assessment_accesses')->where('assessment_id', $assessment->id)->where('status', 'finished')->count();
+            $completionRate = $totalStudents > 0 ? round(($completedCount / $totalStudents) * 100) : 0;
+            
+            $notTakenStudents = \Illuminate\Support\Facades\DB::table('assessment_accesses')
+                ->where('assessment_id', $assessment->id)->where('status', 'offline')->select('lrn')->get();
+
+            $totalQuestions = \Illuminate\Support\Facades\DB::table('assessment_questions')->join('assessment_categories', 'assessment_questions.category_id', '=', 'assessment_categories.id')->where('assessment_categories.assessment_id', $assessment->id)->count();
+
+            $studentScoresRaw = \Illuminate\Support\Facades\DB::table('student_answers')
+                ->join('assessment_questions', 'student_answers.question_id', '=', 'assessment_questions.id')
+                ->join('assessment_categories', 'assessment_questions.category_id', '=', 'assessment_categories.id')
+                ->join('assessment_options', 'student_answers.option_id', '=', 'assessment_options.id')
+                ->where('assessment_categories.assessment_id', $assessment->id)
+                ->select('student_answers.user_id', \Illuminate\Support\Facades\DB::raw('SUM(CASE WHEN assessment_options.is_correct = 1 THEN 1 ELSE 0 END) as correct_count'))
+                ->groupBy('student_answers.user_id')->get();
+
+            $highestScoreRaw = 0; $lowestScoreRaw = $totalQuestions > 0 ? $totalQuestions : 0; 
+            $passedCount = 0; $failedCount = 0; $totalCorrectAnswers = 0;
+
+            foreach ($studentScoresRaw as $scoreData) {
+                $rawScore = $scoreData->correct_count;
+                $pct = $totalQuestions > 0 ? round(($rawScore / $totalQuestions) * 100) : 0;
+                $totalCorrectAnswers += $rawScore;
+
+                if ($rawScore > $highestScoreRaw) $highestScoreRaw = $rawScore;
+                if ($rawScore < $lowestScoreRaw) $lowestScoreRaw = $rawScore;
+                if ($pct >= 75) $passedCount++; else $failedCount++;
+            }
+            if ($studentScoresRaw->isEmpty()) $lowestScoreRaw = 0; 
+
+            $highestScorePct = $totalQuestions > 0 ? round(($highestScoreRaw / $totalQuestions) * 100) : 0;
+            $lowestScorePct = $totalQuestions > 0 ? round(($lowestScoreRaw / $totalQuestions) * 100) : 0;
+            $averageScorePct = ($completedCount > 0 && $totalQuestions > 0) ? round(($totalCorrectAnswers / ($completedCount * $totalQuestions)) * 100) : 0;
+            $averageScoreRaw = $completedCount > 0 ? round($totalCorrectAnswers / $completedCount, 1) : 0;
+
+            $overallAvgTimeRaw = \Illuminate\Support\Facades\DB::table('assessment_sessions')->where('assessment_id', $assessment->id)->where('is_completed', 1)->avg(\Illuminate\Support\Facades\DB::raw('TIMESTAMPDIFF(SECOND, created_at, updated_at)'));
+            $overallAvgTime = $overallAvgTimeRaw ? sprintf('%02d:%02d', floor($overallAvgTimeRaw / 60), round($overallAvgTimeRaw % 60)) . ' mins' : 'N/A';
+
+            $categoryPerformance = \Illuminate\Support\Facades\DB::table('assessment_categories')
+                ->leftJoin('assessment_questions', 'assessment_categories.id', '=', 'assessment_questions.category_id')
+                ->leftJoin('student_answers', 'assessment_questions.id', '=', 'student_answers.question_id')
+                ->leftJoin('assessment_options', 'student_answers.option_id', '=', 'assessment_options.id')
+                ->where('assessment_categories.assessment_id', $assessment->id)
+                ->select('assessment_categories.id', 'assessment_categories.title', \Illuminate\Support\Facades\DB::raw('COUNT(student_answers.id) as total_answers'), \Illuminate\Support\Facades\DB::raw('SUM(CASE WHEN assessment_options.is_correct = 1 THEN 1 ELSE 0 END) as correct_answers'))
+                ->groupBy('assessment_categories.id', 'assessment_categories.title', 'assessment_categories.sort_order')->orderBy('assessment_categories.sort_order')->get();
+
+            $categoryTimesRaw = \Illuminate\Support\Facades\DB::table('assessment_sessions')
+                ->where('assessment_id', $assessment->id)->where('is_completed', 1)
+                ->select('category_id', \Illuminate\Support\Facades\DB::raw('AVG(TIMESTAMPDIFF(SECOND, created_at, updated_at)) as avg_time_seconds'))
+                ->groupBy('category_id')->pluck('avg_time_seconds', 'category_id');
+
+            $categoryData = [];
+            foreach ($categoryPerformance as $cat) {
+                $scorePct = $cat->total_answers > 0 ? round(($cat->correct_answers / $cat->total_answers) * 100) : 0;
+                $avgTimeSec = $categoryTimesRaw[$cat->id] ?? 0;
+                $categoryData[] = [
+                    'title' => $cat->title, 'score_pct' => $scorePct,
+                    'avg_time' => ($avgTimeSec > 0) ? sprintf('%02d:%02d', floor($avgTimeSec / 60), round($avgTimeSec % 60)) . ' mins' : 'N/A'
+                ];
+            }
+
+            $itemAnalysis = \Illuminate\Support\Facades\DB::table('assessment_questions')
+                ->join('assessment_categories', 'assessment_questions.category_id', '=', 'assessment_categories.id')
+                ->leftJoin('student_answers', 'assessment_questions.id', '=', 'student_answers.question_id')
+                ->leftJoin('assessment_options', 'student_answers.option_id', '=', 'assessment_options.id')
+                ->where('assessment_categories.assessment_id', $assessment->id)
+                ->select('assessment_questions.id', 'assessment_questions.question_text', 'assessment_categories.title as category_name', \Illuminate\Support\Facades\DB::raw('SUM(CASE WHEN assessment_options.is_correct = 1 THEN 1 ELSE 0 END) as correct_count'), \Illuminate\Support\Facades\DB::raw('SUM(CASE WHEN assessment_options.is_correct = 0 THEN 1 ELSE 0 END) as wrong_count'))
+                ->groupBy('assessment_questions.id', 'assessment_questions.question_text', 'assessment_categories.title', 'assessment_categories.sort_order', 'assessment_questions.sort_order')
+                ->orderBy('assessment_categories.sort_order')->orderBy('assessment_questions.sort_order')->get()
+                ->map(function ($item) {
+                    $total = $item->correct_count + $item->wrong_count;
+                    $item->accuracy = $total > 0 ? round(($item->correct_count / $total) * 100) : 0;
+                    $item->correct_count = (int) $item->correct_count; $item->wrong_count = (int) $item->wrong_count;
+                    return $item;
+                });
+
+            $answeredItems = $itemAnalysis->filter(fn($item) => ($item->correct_count + $item->wrong_count) > 0);
+            $mostMissed = $answeredItems->sortBy('accuracy')->take(3);
+            $perfectQuestions = $answeredItems->filter(fn($item) => $item->accuracy == 100);
+
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error('Export Error: ' . $e->getMessage());
+            $totalStudents = $completedCount = $completionRate = $totalQuestions = $averageScoreRaw = $averageScorePct = 0;
+            $highestScoreRaw = $highestScorePct = $lowestScoreRaw = $lowestScorePct = $passedCount = $failedCount = 0;
+            $overallAvgTime = 'N/A';
+            $notTakenStudents = collect([]);
+            $categoryData = $itemAnalysis = $mostMissed = $perfectQuestions = [];
+        }
+
+        $isPrint = $request->input('action') === 'print';
+        $data = [
+            'assessment' => $assessment, 'totalQuestions' => $totalQuestions ?? 0, 'totalStudents' => $totalStudents ?? 0, 'completedCount' => $completedCount ?? 0,
+            'completionRate' => $completionRate ?? 0, 'notTakenStudents' => $notTakenStudents,
+            'averageScoreRaw' => $averageScoreRaw ?? 0, 'averageScorePct' => $averageScorePct ?? 0, 'overallAvgTime' => $overallAvgTime ?? 'N/A',
+            'highestScoreRaw' => $highestScoreRaw ?? 0, 'highestScorePct' => $highestScorePct ?? 0,
+            'lowestScoreRaw' => $lowestScoreRaw ?? 0, 'lowestScorePct' => $lowestScorePct ?? 0,
+            'passedCount' => $passedCount ?? 0, 'failedCount' => $failedCount ?? 0,
+            'categoryData' => $categoryData ?? [], 'itemAnalysis' => $itemAnalysis ?? [], 'mostMissed' => $mostMissed ?? [], 'perfectQuestions' => $perfectQuestions ?? collect([]),
+            'showOverview' => $request->has('check_overview'), 'showCategory' => $request->has('check_category'), 'showItemAnalysis' => $request->has('check_item_analysis'),
+            'isPrint' => $isPrint
+        ];
+
+        if ($isPrint) return view('dashboard.partials.admin.assessments-report', $data);
+
+        $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('dashboard.partials.admin.assessments-report', $data);
+        return $pdf->download('Assessment_Report_' . \Illuminate\Support\Str::slug($assessment->title) . '_' . now()->format('Y_m_d') . '.pdf');
+    }
+    
 }

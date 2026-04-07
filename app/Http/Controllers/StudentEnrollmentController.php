@@ -22,24 +22,19 @@ class StudentEnrollmentController extends Controller
         // 1. Get Active Enrollments (In Progress, Completed, Failed)
         $activeEnrollments = Enrollment::with(['material.instructor', 'material.tags'])
             ->where('user_id', $user->id)
-            ->where('status', '!=', 'dropped') // Ensure dropped ones don't show here
+            ->where('status', '!=', 'dropped')
             ->latest()
             ->get();
 
-        // 2. Get Dropped Materials (FILTERED: Public modules only)
+        // 2. Get Dropped Materials (REMOVED public filter so all show up)
         $droppedAccesses = MaterialAccess::with(['material.instructor', 'material.tags'])
             ->where('email', $user->email)
             ->where('status', 'dropped')
-            ->whereHas('material', function ($query) {
-                // This guarantees private modules never show up in the dropped tab
-                $query->where('is_public', true); 
-            })
             ->latest()
             ->get();
 
-        // Pass BOTH variables to the blade file matching what the tabs expect
         return view('dashboard.partials.student.enrolled', compact('activeEnrollments', 'droppedAccesses'));
-    }    
+    }
 
     public function acceptInvitation(Request $request, Material $material, $email)
     {

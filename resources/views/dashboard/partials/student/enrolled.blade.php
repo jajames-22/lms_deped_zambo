@@ -37,6 +37,7 @@
                 if(!$material) continue; 
             @endphp
             
+            {{-- Active cards just redirect normally --}}
             <div class="bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-xl hover:border-[#a52a2a]/30 transition-all duration-300 group flex flex-col overflow-hidden cursor-pointer relative"
                 onclick="window.location.href = '{{ route('student.materials.show', $material->id) }}'">
                 
@@ -111,10 +112,14 @@
                 if(!$material) continue; 
             @endphp
             
-            {{-- Note the grayscale and reduced opacity styling to differentiate dropped modules --}}
+            {{-- Dropped cards trigger the Rejoin modal if Private, or Redirect if Public --}}
             <div class="bg-gray-50/80 rounded-2xl border border-gray-200 shadow-sm hover:shadow-md transition-all duration-300 group flex flex-col overflow-hidden cursor-pointer relative grayscale-[0.3]"
-                onclick="window.location.href = '{{ route('student.materials.show', $material->id) }}'">
-                
+                @if(!$material->is_public && $access->status === 'dropped')
+                    onclick="openRejoinModal('{{ addslashes($material->title) }}')"
+                @else
+                    onclick="window.location.href = '{{ route('student.materials.show', $material->id) }}'"
+                @endif
+            >
                 {{-- Status Badge --}}
                 <div class="absolute top-3 right-3 z-10">
                     <span class="px-2.5 py-1 bg-white text-gray-500 text-[10px] font-black uppercase tracking-wider rounded-lg shadow-sm flex items-center gap-1.5 border border-gray-200">
@@ -159,6 +164,7 @@
         @endforelse
     </div>
 
+
     {{-- MODAL: JOIN WITH ACCESS CODE --}}
     <div id="join-code-modal" class="fixed inset-0 z-[100] hidden h-full">
         <div class="absolute inset-0 bg-gray-900/60 backdrop-blur-sm" onclick="closeJoinModal()"></div>
@@ -177,8 +183,8 @@
                         </button>
                     </div>
                     
-                    <h3 class="text-2xl font-black text-gray-900 mb-2">Join a Module</h3>
-                    <p class="text-gray-500 text-sm mb-6">Enter the access code provided by your instructor to instantly enroll.</p>
+                    <h3 id="join-modal-title" class="text-2xl font-black text-gray-900 mb-2">Join a Module</h3>
+                    <p id="join-modal-desc" class="text-gray-500 text-sm mb-6">Enter the access code provided by your instructor to instantly enroll.</p>
                     
                     <div class="space-y-4">
                         <div>
@@ -326,5 +332,31 @@
             btn.innerHTML = originalHtml;
             btn.disabled = false;
         }
+    }
+
+    // --- Add this new function ---
+    function openRejoinModal(courseTitle) {
+        document.getElementById('join-modal-title').innerText = 'Rejoin Module';
+        document.getElementById('join-modal-desc').innerHTML = `Enter the access code to rejoin <strong>${courseTitle}</strong>.`;
+        openJoinModal();
+    }
+
+    // --- Update your existing closeJoinModal function to this ---
+    function closeJoinModal() {
+        document.getElementById('join-code-modal').classList.add('hidden');
+        
+        const input = document.getElementById('join-code-input');
+        const errorMsg = document.getElementById('join-code-error');
+        
+        input.value = '';
+        input.classList.remove('border-red-500', 'bg-red-50');
+        errorMsg.classList.add('hidden');
+        errorMsg.innerText = '';
+
+        // Reset the modal text back to default after animation finishes
+        setTimeout(() => {
+            document.getElementById('join-modal-title').innerText = 'Join a Module';
+            document.getElementById('join-modal-desc').innerText = 'Enter the access code provided by your instructor to instantly enroll.';
+        }, 300);
     }
 </script>
