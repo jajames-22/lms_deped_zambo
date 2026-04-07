@@ -48,6 +48,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('/assessment', [DashboardController::class, 'loadAssessmentPartial'])->name('dashboard.assessment');
         Route::get('/analytics', [DashboardController::class, 'loadAnalyticsPartial'])->name('dashboard.analytics');
 
+
         // Schools Management
         Route::get('/schools', [DashboardController::class, 'loadSchoolsPartial'])->name('schools');
         Route::get('/schools/create', [DashboardController::class, 'loadSchoolCreatePartial'])->name('schools.create');
@@ -145,6 +146,14 @@ Route::middleware(['auth', 'verified'])->group(function () {
     // This typically routes to the manage/view page of a material
     Route::get('/dashboard/materials/{material}/view', [StudentController::class, 'viewMaterial'])
         ->name('dashboard.materials.view');
+
+    Route::get('/analytics/export/admin', [DashboardController::class, 'exportAdminAnalyticsPdf'])->name('analytics.export.admin');
+
+    
+    Route::get('/analytics/export/student', [DashboardController::class, 'exportStudentAnalyticsPdf'])->name('analytics.export.student');
+
+    
+    Route::get('/analytics/export/teacher', [DashboardController::class, 'exportTeacherAnalyticsPdf'])->name('analytics.export.teacher');
 });
 
 /*

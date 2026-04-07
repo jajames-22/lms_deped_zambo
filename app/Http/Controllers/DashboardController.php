@@ -418,10 +418,6 @@ class DashboardController extends Controller
      */
     public function loadCertificatesPartial()
     {
-        // if (Auth::user()->role === 'student') {
-        //     abort(403, 'Unauthorized access.');
-        // }
-
         return view('dashboard.partials.student.certificates');
     }
 
@@ -466,8 +462,6 @@ class DashboardController extends Controller
             $filename = time() . '_' . $file->getClientOriginalName();
             $file->move(public_path('storage/schools'), $filename);
             $validated['logo'] = 'schools/' . $filename;
-
-            // Optional: You could delete the old image file here if you want to save server space
         }
 
         $school->update($validated);
@@ -520,7 +514,7 @@ class DashboardController extends Controller
         // ==========================================
         $totalStudents = \App\Models\User::where('role', 'student')->count();
         $totalTeachers = \App\Models\User::where('role', 'teacher')->count();
-        $unassignedUsersCount = \App\Models\User::whereNull('school_id')->whereIn('role', ['teacher', 'student'])->count();
+        $totalSchools = \App\Models\School::count();
 
         $dailyActiveUsers = \App\Models\User::where('updated_at', '>=', now()->subDay())->count();
         $weeklyActiveUsers = \App\Models\User::where('updated_at', '>=', now()->subDays(7))->count();
@@ -586,7 +580,7 @@ class DashboardController extends Controller
         return view('dashboard.partials.admin.analytics', compact(
             'totalStudents',
             'totalTeachers',
-            'unassignedUsersCount',
+            'totalSchools',
             'dailyActiveUsers',
             'weeklyActiveUsers',
             'schoolLabels',
@@ -602,6 +596,97 @@ class DashboardController extends Controller
             'usedGb',
             'totalGb'
         ));
+    }
+
+    public function exportAdminAnalyticsPdf(Request $request)
+    {
+        // 1. Ensure only admins can download this
+        if (!in_array(\Illuminate\Support\Facades\Auth::user()->role, ['admin', 'superadmin'])) {
+            abort(403, 'Unauthorized action.');
+        }
+
+        // 2. Fetch the User & Demographics data
+        $totalStudents = \App\Models\User::where('role', 'student')->count();
+        $totalTeachers = \App\Models\User::where('role', 'teacher')->count();
+        $totalSchools = \App\Models\School::count();
+        
+        $dailyActiveUsers = \App\Models\User::where('updated_at', '>=', now()->subDay())->count();
+        $weeklyActiveUsers = \App\Models\User::where('updated_at', '>=', now()->subDays(7))->count();
+
+        // Fetch Top Schools Data (For the PDF Table)
+        $topSchoolsRaw = \App\Models\User::where('role', 'student')
+            ->whereNotNull('school_id')
+            ->selectRaw('school_id, count(*) as count')
+            ->groupBy('school_id')
+            ->orderBy('count', 'desc')
+            ->take(5)
+            ->with('school')
+            ->get();
+
+        $topSchools = [];
+        foreach ($topSchoolsRaw as $ts) {
+            if ($ts->school) {
+                $topSchools[] = [
+                    'name' => $ts->school->name,
+                    'count' => $ts->count
+                ];
+            }
+        }
+
+        // 3. Fetch the Content & Engagement data
+        $totalMaterials = \App\Models\Material::count();
+        $totalEnrollments = \App\Models\Enrollment::count();
+        $certificatesIssued = \App\Models\Enrollment::where('status', 'completed')->count();
+        $completionRate = $totalEnrollments > 0 ? round(($certificatesIssued / $totalEnrollments) * 100) : 0;
+
+        // Fetch Top Materials Data (For the PDF Table)
+        $topMaterials = \App\Models\Material::orderBy('views', 'desc')->take(5)->get();
+
+        // 4. Fetch the System Health & Resources data
+        $storagePath = storage_path();
+        $freeSpace = function_exists('disk_free_space') ? @disk_free_space($storagePath) : 0;
+        $totalSpace = function_exists('disk_total_space') ? @disk_total_space($storagePath) : 1;
+        $usedSpace = $totalSpace - $freeSpace;
+
+        $storagePercentage = round(($usedSpace / $totalSpace) * 100);
+        $usedGb = round($usedSpace / 1073741824, 1);
+        $totalGb = round($totalSpace / 1073741824, 1);
+
+        // 5. Bundle it all together for the view
+        $isPrint = $request->input('action') === 'print';
+
+        $data = [
+            'totalStudents' => $totalStudents,
+            'totalTeachers' => $totalTeachers,
+            'totalSchools' => $totalSchools,
+            'dailyActiveUsers' => $dailyActiveUsers,
+            'weeklyActiveUsers' => $weeklyActiveUsers,
+            'topSchools' => $topSchools, 
+            
+            'totalMaterials' => $totalMaterials,
+            'totalEnrollments' => $totalEnrollments,
+            'completionRate' => $completionRate,
+            'topMaterials' => $topMaterials, 
+            
+            'totalGb' => $totalGb,
+            'usedGb' => $usedGb,
+            'storagePercentage' => $storagePercentage,
+
+            'showUsers' => $request->has('check_users'),
+            'showContent' => $request->has('check_content'),
+            'showHealth' => $request->has('check_health'),
+            
+            'isPrint' => $isPrint,
+        ];
+
+        // 6. IF PRINT: Return the HTML view directly for browser printing
+        if ($isPrint) {
+            return view('dashboard.partials.admin.analytics-report', $data);
+        }
+
+        // 7. IF PDF: Generate and Download using DomPDF
+        $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('dashboard.partials.admin.analytics-report', $data);
+        return $pdf->download('Admin_Analytics_Report_' . now()->format('Y_m_d') . '.pdf');
     }
 
     private function loadTeacherAnalytics()
@@ -675,6 +760,102 @@ class DashboardController extends Controller
             'activityTrend'
         ));
     }
+
+    public function exportTeacherAnalyticsPdf(Request $request)
+    {
+        // 1. Ensure only teachers can download this
+        if (\Illuminate\Support\Facades\Auth::user()->role !== 'teacher') {
+            abort(403, 'Unauthorized action.');
+        }
+
+        $teacherId = \Illuminate\Support\Facades\Auth::id();
+
+        // 2. CLASS OVERVIEW
+        $myMaterialIds = \App\Models\Material::where('instructor_id', $teacherId)->pluck('id');
+
+        $totalLearners = \App\Models\Enrollment::whereIn('material_id', $myMaterialIds)
+            ->distinct('user_id')
+            ->count();
+
+        $activeLearners = \App\Models\Enrollment::whereIn('material_id', $myMaterialIds)
+            ->where('updated_at', '>=', now()->subDays(7))
+            ->distinct('user_id')
+            ->count();
+
+        $pendingRequests = \App\Models\MaterialAccess::whereIn('material_id', $myMaterialIds)
+            ->where('status', 'pending')
+            ->count();
+
+        // 3. MATERIAL ENGAGEMENT
+        $totalMaterials = $myMaterialIds->count();
+        $totalViews = \App\Models\Material::where('instructor_id', $teacherId)->sum('views');
+
+        $topMaterials = \App\Models\Material::where('instructor_id', $teacherId)
+            ->orderBy('views', 'desc')
+            ->take(5)
+            ->get();
+
+        $completedCount = \App\Models\Enrollment::whereIn('material_id', $myMaterialIds)->where('status', 'completed')->count();
+        $inProgressCount = \App\Models\Enrollment::whereIn('material_id', $myMaterialIds)->where('status', 'in_progress')->count();
+
+        // 4. ASSESSMENT & PERFORMANCE
+        $teacherExamIds = \App\Models\Exam::whereIn('material_id', $myMaterialIds)->pluck('id');
+        $totalAnswers = \App\Models\ExamAnswer::whereIn('exam_id', $teacherExamIds)->count();
+        $correctAnswers = \App\Models\ExamAnswer::whereIn('exam_id', $teacherExamIds)->where('is_correct', true)->count();
+
+        $averageScore = $totalAnswers > 0 ? round(($correctAnswers / $totalAnswers) * 100, 1) : 0;
+        $incorrectAnswers = $totalAnswers - $correctAnswers;
+
+        // 5. RECENT ACTIVITY TREND (Tabular Format for PDF)
+        $activityTrends = [];
+        for ($i = 6; $i >= 0; $i--) {
+            $date = now()->subDays($i)->format('Y-m-d');
+            $displayDate = now()->subDays($i)->format('M d, Y');
+            $count = \App\Models\Enrollment::whereDate('created_at', $date)
+                ->whereIn('material_id', $myMaterialIds)
+                ->count();
+            
+            $activityTrends[] = [
+                'date' => $displayDate,
+                'count' => $count
+            ];
+        }
+
+        // 6. Bundle it all together
+        $isPrint = $request->input('action') === 'print';
+
+        $data = [
+            'totalLearners' => $totalLearners,
+            'activeLearners' => $activeLearners,
+            'pendingRequests' => $pendingRequests,
+            'totalMaterials' => $totalMaterials,
+            'totalViews' => $totalViews,
+            'topMaterials' => $topMaterials,
+            'completedCount' => $completedCount,
+            'inProgressCount' => $inProgressCount,
+            'averageScore' => $averageScore,
+            'correctAnswers' => $correctAnswers,
+            'incorrectAnswers' => $incorrectAnswers,
+            'activityTrends' => $activityTrends,
+
+            // Filter checkboxes from the UI Modal
+            'showOverview' => $request->has('check_overview'),
+            'showEngagement' => $request->has('check_engagement'),
+            'showPerformance' => $request->has('check_performance'),
+            'showTrends' => $request->has('check_trends'),
+            
+            'isPrint' => $isPrint,
+        ];
+
+        // 7. IF PRINT: Return HTML directly. IF PDF: Download DomPDF
+        if ($isPrint) {
+            return view('dashboard.partials.teacher.analytics-report', $data);
+        }
+
+        $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('dashboard.partials.teacher.analytics-report', $data);
+        return $pdf->download('Class_Analytics_Report_' . now()->format('Y_m_d') . '.pdf');
+    }
+    
     private function loadStudentAnalytics()
     {
         $studentId = Auth::id();
@@ -686,23 +867,21 @@ class DashboardController extends Controller
         
         $completionRate = $totalEnrollments > 0 ? round(($completedCount / $totalEnrollments) * 100) : 0;
 
-        // 2. ALL-TIME ASSESSMENT PERFORMANCE
+        // 2. ALL-TIME QUIZ PERFORMANCE
         $totalAnswers = \App\Models\ExamAnswer::where('user_id', $studentId)->count();
         $correctAnswers = \App\Models\ExamAnswer::where('user_id', $studentId)->where('is_correct', true)->count();
         $incorrectAnswers = $totalAnswers - $correctAnswers;
 
         $averageScore = $totalAnswers > 0 ? round(($correctAnswers / $totalAnswers) * 100, 1) : 0;
 
-        // 3. RECENT EXAM TREND (Last 7 Days)
+        // 3. RECENT QUIZ TREND (Last 7 Days)
         $examDates = [];
         $examScores = [];
         
-        // Loop backwards to get the last 7 days including today
         for ($i = 6; $i >= 0; $i--) {
             $date = now()->subDays($i)->format('Y-m-d');
             $examDates[] = now()->subDays($i)->format('M d');
             
-            // Sum correct answers for that specific day
             $dailyScore = \App\Models\ExamAnswer::where('user_id', $studentId)
                 ->whereDate('created_at', $date)
                 ->where('is_correct', true)
@@ -711,11 +890,184 @@ class DashboardController extends Controller
             $examScores[] = $dailyScore;
         }
 
+        // 4. LEARNING STREAK (Consecutive days of activity)
+        $streak = 0;
+        $checkDate = now();
+        
+        while (true) {
+            $hasActivity = \App\Models\ExamAnswer::where('user_id', $studentId)
+                ->whereDate('created_at', $checkDate->format('Y-m-d'))
+                ->exists() || 
+                \App\Models\Enrollment::where('user_id', $studentId)
+                ->whereDate('updated_at', $checkDate->format('Y-m-d'))
+                ->exists();
+                
+            if ($hasActivity) {
+                $streak++;
+                $checkDate->subDay();
+            } else {
+                // If checking today and no activity, check if they had a streak going up until yesterday
+                if ($streak == 0 && $checkDate->isToday()) {
+                    $checkDate->subDay();
+                    continue; 
+                }
+                break; // Streak broken
+            }
+        }
+
+        // 5. TOPIC MASTERY (Average score grouped by Material)
+        $masteryRaw = \Illuminate\Support\Facades\DB::table('exam_answers')
+            ->join('exams', 'exam_answers.exam_id', '=', 'exams.id')
+            ->join('materials', 'exams.material_id', '=', 'materials.id')
+            ->where('exam_answers.user_id', $studentId)
+            ->selectRaw('materials.title, 
+                         COUNT(exam_answers.id) as total_attempts, 
+                         SUM(CASE WHEN exam_answers.is_correct = 1 THEN 1 ELSE 0 END) as correct_attempts')
+            ->groupBy('materials.id', 'materials.title')
+            ->get();
+
+        $masteryLabels = [];
+        $masteryScores = [];
+        foreach($masteryRaw as $m) {
+            $masteryLabels[] = \Illuminate\Support\Str::limit($m->title, 15);
+            $masteryScores[] = $m->total_attempts > 0 ? round(($m->correct_attempts / $m->total_attempts) * 100) : 0;
+        }
+
         return view('dashboard.partials.student.analytics', compact(
             'totalEnrollments', 'completedCount', 'inProgressCount', 'completionRate',
             'totalAnswers', 'correctAnswers', 'incorrectAnswers', 'averageScore',
-            'examDates', 'examScores'
+            'examDates', 'examScores', 'streak', 'masteryLabels', 'masteryScores'
         ));
+    }
+
+    public function exportStudentAnalyticsPdf(Request $request)
+    {
+        $studentId = \Illuminate\Support\Facades\Auth::id();
+
+        // 1. ACHIEVEMENTS & PROGRESS
+        $totalEnrollments = \App\Models\Enrollment::where('user_id', $studentId)->count();
+        $completedCount = \App\Models\Enrollment::where('user_id', $studentId)->where('status', 'completed')->count();
+        $inProgressCount = \App\Models\Enrollment::where('user_id', $studentId)->where('status', 'in_progress')->count();
+        $completionRate = $totalEnrollments > 0 ? round(($completedCount / $totalEnrollments) * 100) : 0;
+
+        // 2. EXAM PERFORMANCE
+        $totalAnswers = \App\Models\ExamAnswer::where('user_id', $studentId)->count();
+        $correctAnswers = \App\Models\ExamAnswer::where('user_id', $studentId)->where('is_correct', true)->count();
+        $incorrectAnswers = $totalAnswers - $correctAnswers;
+        $averageScore = $totalAnswers > 0 ? round(($correctAnswers / $totalAnswers) * 100, 1) : 0;
+
+        // 3. TOPIC MASTERY DATA
+        $masteryData = \Illuminate\Support\Facades\DB::table('exam_answers')
+            ->join('exams', 'exam_answers.exam_id', '=', 'exams.id')
+            ->join('materials', 'exams.material_id', '=', 'materials.id')
+            ->where('exam_answers.user_id', $studentId)
+            ->selectRaw('materials.title, COUNT(exam_answers.id) as total_attempts, SUM(CASE WHEN exam_answers.is_correct = 1 THEN 1 ELSE 0 END) as correct_attempts')
+            ->groupBy('materials.id', 'materials.title')
+            ->get();
+
+        // 4. LEARNING STREAK (Re-calculating for PDF)
+        $streak = 0;
+        $checkDate = now();
+        while (true) {
+            $hasActivity = \App\Models\ExamAnswer::where('user_id', $studentId)->whereDate('created_at', $checkDate->format('Y-m-d'))->exists() || 
+                           \App\Models\Enrollment::where('user_id', $studentId)->whereDate('updated_at', $checkDate->format('Y-m-d'))->exists();
+            if ($hasActivity) { $streak++; $checkDate->subDay(); } 
+            else { if ($streak == 0 && $checkDate->isToday()) { $checkDate->subDay(); continue; } break; }
+        }
+
+        // 5. Bundle it all together
+        $isPrint = $request->input('action') === 'print';
+        $data = [
+            'totalEnrollments' => $totalEnrollments,
+            'completedCount' => $completedCount,
+            'inProgressCount' => $inProgressCount,
+            'completionRate' => $completionRate,
+            'totalAnswers' => $totalAnswers,
+            'correctAnswers' => $correctAnswers,
+            'incorrectAnswers' => $incorrectAnswers,
+            'averageScore' => $averageScore,
+            'masteryData' => $masteryData,
+            'streak' => $streak,
+            
+            // Filter checkboxes
+            'showAchievements' => $request->has('check_achievements'),
+            'showProgress' => $request->has('check_progress'),
+            'showPerformance' => $request->has('check_performance'),
+            
+            'isPrint' => $isPrint,
+        ];
+
+        if ($isPrint) {
+            return view('dashboard.partials.student.analytics-report', $data);
+        }
+
+        $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('dashboard.partials.student.analytics-report', $data);
+        return $pdf->download('My_Learning_Report_' . now()->format('Y_m_d') . '.pdf');
+    }
+
+    public function exportStudentAnalyticsPdf(Request $request)
+    {
+        $studentId = \Illuminate\Support\Facades\Auth::id();
+
+        // 1. ACHIEVEMENTS & PROGRESS
+        $totalEnrollments = \App\Models\Enrollment::where('user_id', $studentId)->count();
+        $completedCount = \App\Models\Enrollment::where('user_id', $studentId)->where('status', 'completed')->count();
+        $inProgressCount = \App\Models\Enrollment::where('user_id', $studentId)->where('status', 'in_progress')->count();
+        $completionRate = $totalEnrollments > 0 ? round(($completedCount / $totalEnrollments) * 100) : 0;
+
+        // 2. EXAM PERFORMANCE
+        $totalAnswers = \App\Models\ExamAnswer::where('user_id', $studentId)->count();
+        $correctAnswers = \App\Models\ExamAnswer::where('user_id', $studentId)->where('is_correct', true)->count();
+        $incorrectAnswers = $totalAnswers - $correctAnswers;
+        $averageScore = $totalAnswers > 0 ? round(($correctAnswers / $totalAnswers) * 100, 1) : 0;
+
+        // 3. TOPIC MASTERY DATA
+        $masteryData = \Illuminate\Support\Facades\DB::table('exam_answers')
+            ->join('exams', 'exam_answers.exam_id', '=', 'exams.id')
+            ->join('materials', 'exams.material_id', '=', 'materials.id')
+            ->where('exam_answers.user_id', $studentId)
+            ->selectRaw('materials.title, COUNT(exam_answers.id) as total_attempts, SUM(CASE WHEN exam_answers.is_correct = 1 THEN 1 ELSE 0 END) as correct_attempts')
+            ->groupBy('materials.id', 'materials.title')
+            ->get();
+
+        // 4. LEARNING STREAK (Re-calculating for PDF)
+        $streak = 0;
+        $checkDate = now();
+        while (true) {
+            $hasActivity = \App\Models\ExamAnswer::where('user_id', $studentId)->whereDate('created_at', $checkDate->format('Y-m-d'))->exists() || 
+                           \App\Models\Enrollment::where('user_id', $studentId)->whereDate('updated_at', $checkDate->format('Y-m-d'))->exists();
+            if ($hasActivity) { $streak++; $checkDate->subDay(); } 
+            else { if ($streak == 0 && $checkDate->isToday()) { $checkDate->subDay(); continue; } break; }
+        }
+
+        // 5. Bundle it all together
+        $isPrint = $request->input('action') === 'print';
+        $data = [
+            'totalEnrollments' => $totalEnrollments,
+            'completedCount' => $completedCount,
+            'inProgressCount' => $inProgressCount,
+            'completionRate' => $completionRate,
+            'totalAnswers' => $totalAnswers,
+            'correctAnswers' => $correctAnswers,
+            'incorrectAnswers' => $incorrectAnswers,
+            'averageScore' => $averageScore,
+            'masteryData' => $masteryData,
+            'streak' => $streak,
+            
+            // Filter checkboxes
+            'showAchievements' => $request->has('check_achievements'),
+            'showProgress' => $request->has('check_progress'),
+            'showPerformance' => $request->has('check_performance'),
+            
+            'isPrint' => $isPrint,
+        ];
+
+        if ($isPrint) {
+            return view('dashboard.partials.student.analytics-report', $data);
+        }
+
+        $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('dashboard.partials.student.analytics-report', $data);
+        return $pdf->download('My_Learning_Report_' . now()->format('Y_m_d') . '.pdf');
     }
 
     public function loadFeedbackPartial()
