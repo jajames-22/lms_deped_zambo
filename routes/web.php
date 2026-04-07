@@ -118,6 +118,18 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('/notifications/{id}/read', [MaterialsController::class, 'markNotificationRead']);
 
         Route::post('/materials/{material}/download-count', [StudentController::class, 'incrementDownload']);
+
+        Route::get('/feedback', [DashboardController::class, 'loadFeedbackPartial'])->name('dashboard.feedback');
+
+        Route::patch('/dashboard/profile', [ProfileController::class, 'update'])->name('profile.update');
+        Route::put('/dashboard/profile/password', [ProfileController::class, 'updatePassword'])->name('password.update');
+        Route::patch('/dashboard/profile/avatar', [ProfileController::class, 'updateAvatar'])->name('profile.avatar.update');
+        
+        // ADD THIS NEW ROUTE FOR FEEDBACK:
+        Route::post('/dashboard/feedback/store', [ProfileController::class, 'storeFeedback'])->name('feedback.store');
+
+        Route::get('/feedback', [ProfileController::class, 'loadFeedbackPartial'])->name('dashboard.feedback');
+        Route::post('/feedback/{id}/reply', [ProfileController::class, 'replyToFeedback'])->name('dashboard.feedback.reply');
     });
 
     Route::get('/get-districts/{quadrantId}', [DashboardController::class, 'getDistricts'])->name('districts.get');

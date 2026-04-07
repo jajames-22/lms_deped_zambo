@@ -983,7 +983,7 @@ class MaterialsController extends Controller
         return view('dashboard.partials.student.materials-study', compact('material', 'savedProgress'));
     }
 
-   public function unenroll(Request $request, Material $material)
+    public function unenroll(Request $request, Material $material)
     {
         $user = auth()->user();
 

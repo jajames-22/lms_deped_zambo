@@ -717,4 +717,15 @@ class DashboardController extends Controller
             'examDates', 'examScores'
         ));
     }
+
+    public function loadFeedbackPartial()
+    {
+        // If you have a Feedback model later, you can fetch data here:
+        // $feedbacks = \App\Models\Feedback::latest()->paginate(15);
+        // return view('dashboard.partials.admin.feedback', compact('feedbacks'));
+
+        return view('dashboard.partials.admin.feedback');
+    }
+
+    
 }

@@ -27,14 +27,14 @@
                         
                         <div class="absolute inset-0 z-20 flex flex-col justify-end p-8 md:p-16 w-full md:w-3/4">
                             <span class="px-3 py-1 bg-[#a52a2a] text-white text-[10px] font-black uppercase tracking-[0.2em] rounded-md w-max mb-4 shadow-md">Featured</span>
-                            <h1 class="text-4xl md:text-5xl lg:text-6xl font-black text-white mb-2 leading-tight drop-shadow-lg line-clamp-2">{{ $material->title }}</h1>
+                            <h1 class="text-4xl md:text-5xl lg:text-6xl font-black text-white mb-4 leading-tight drop-shadow-lg line-clamp-2">{{ $material->title }}</h1>
                             
                             {{-- INSTRUCTOR ICON --}}
-                            <p class="text-white font-bold text-xs md:text-sm uppercase tracking-widest mb-4 flex items-center gap-1.5 drop-shadow-md">
+                            <p class="text-white font-bold text-xs md:text-sm uppercase tracking-widest mb-2 flex items-center gap-1.5 drop-shadow-md">
                                 <i class="fas fa-chalkboard-user"></i> {{ $material->instructor->first_name ?? 'Instructor' }} {{ $material->instructor->last_name ?? '' }}
                             </p>
 
-                            <p class="text-gray-100 text-sm md:text-lg mb-8 line-clamp-2 max-w-2xl drop-shadow-md">{{ $material->description }}</p>
+                            <p class="text-gray-100 text-sm md:text-lg mb-4 line-clamp-2 max-w-2xl drop-shadow-md">{{ $material->description }}</p>
                             
                             <div class="flex items-center gap-4">
                                 <button class="bg-white text-black hover:bg-gray-200 font-bold py-3 px-8 rounded-lg transition-all flex items-center gap-2 shadow-xl">
