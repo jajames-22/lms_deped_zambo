@@ -331,8 +331,10 @@
             }
 
             $cleanStatus = strtoupper(str_replace('_', ' ', $displayStatus));
+            
+            // Checks if the user has reached an active or post-active state
+            $hasEnrolledBefore = in_array($displayStatus, ['enrolled', 'completed', 'failed', 'dropped']);
         @endphp
-        
         <tr class="student-row hover:bg-gray-50/50 transition">
             <td class="px-6 py-4 text-center">
                 <input type="checkbox" class="email-checkbox rounded border-gray-300 text-[#a52a2a] focus:ring-[#a52a2a] h-4 w-4 cursor-pointer transition-all" value="{{ $access->id }}" onchange="window.updateBulkDeleteBtn()">
@@ -340,9 +342,9 @@
             
             <td class="px-6 py-4 font-medium text-gray-900 email-cell">{{ $access->email }}</td>
             
-            <td class="px-6 py-4 name-cell {{ $enrollment ? 'text-gray-900 font-medium' : 'text-gray-400 italic' }}">
-                {{ $enrollment && $enrollment->user ? $enrollment->user->first_name . ' ' . $enrollment->user->last_name : 'Waiting for enrollment...' }}
-            </td>
+            <td class="px-6 py-4 name-cell {{ $hasEnrolledBefore && $access->student ? 'text-gray-900 font-medium' : 'text-gray-400 italic' }}">
+    {{ $hasEnrolledBefore && $access->student ? $access->student->first_name . ' ' . $access->student->last_name : 'Waiting for enrollment...' }}
+</td>
             
             <td class="px-6 py-4 text-center" data-value="{{ $showProgress ? $progressPct : -1 }}">
                 @if($showProgress)

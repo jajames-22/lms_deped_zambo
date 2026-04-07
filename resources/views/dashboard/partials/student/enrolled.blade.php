@@ -307,12 +307,9 @@
                 closeJoinModal();
                 if (typeof showSnackbar === 'function') showSnackbar('Successfully enrolled! Loading...', 'success');
                 
+                // Force a hard full-page redirect to match acceptInvitation
                 setTimeout(() => {
-                    if (typeof loadPartial === 'function') {
-                        loadPartial(data.redirect_url, document.getElementById('nav-materials-btn'));
-                    } else {
-                        window.location.href = data.redirect_url;
-                    }
+                    window.location.href = data.redirect_url;
                 }, 1000);
                 
             } else {
