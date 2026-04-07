@@ -70,6 +70,7 @@ AssessmentBuilder.initBuilder = function () {
     AssessmentBuilder.catCount = 0;
     AssessmentBuilder.lastPayload = "";
     AssessmentBuilder.hasChanged = false;
+    AssessmentBuilder.sessionDirty = false;
     clearTimeout(AssessmentBuilder.autosaveTimer);
 
     const wrapper = document.getElementById("assessment-wrapper");
@@ -281,13 +282,17 @@ AssessmentBuilder.addCategory = function (afterElement = null) {
     } else {
         container.insertAdjacentHTML("beforeend", html);
     }
-    
+
     AssessmentBuilder.updateCategoryNumbers();
     AssessmentBuilder.initSortable();
     AssessmentBuilder.calculateTotalTime();
 };
 
-AssessmentBuilder.addQuestion = function (cId, type = "mcq", afterElement = null) {
+AssessmentBuilder.addQuestion = function (
+    cId,
+    type = "mcq",
+    afterElement = null,
+) {
     const container = document.getElementById(`q-container-${cId}`);
     if (!container) return;
 
@@ -358,7 +363,7 @@ AssessmentBuilder.addQuestion = function (cId, type = "mcq", afterElement = null
     } else {
         container.insertAdjacentHTML("beforeend", html);
     }
-    
+
     AssessmentBuilder.initSortable();
 
     if (type === "mcq" || type === "checkbox") {
@@ -384,8 +389,6 @@ AssessmentBuilder.toggleDropdown = function (btn) {
     });
     menu.classList.toggle("hidden");
 };
-
-
 
 AssessmentBuilder.addOptionToQuestion = function (
     qId,
@@ -570,6 +573,8 @@ AssessmentBuilder.handleAutosaveTrigger = function () {
     if (AssessmentBuilder.isInitializing) return;
 
     AssessmentBuilder.hasChanged = true;
+    AssessmentBuilder.sessionDirty = true; // Add this line
+
     AssessmentBuilder.updateAutosaveIndicator(
         '<i class="fas fa-circle-notch text-amber-500"></i> Unsaved changes...',
     );
@@ -669,28 +674,38 @@ AssessmentBuilder.closeMediaModal = function () {
     AssessmentBuilder.currentMediaUploadQId = null;
 
     // 2. Reset UI states safely
-    const progressContainer = document.getElementById("upload-progress-container");
+    const progressContainer = document.getElementById(
+        "upload-progress-container",
+    );
     if (progressContainer) progressContainer.classList.add("hidden");
-    
+
     const btn = document.getElementById("start-media-upload-btn");
     if (btn) {
         btn.disabled = false;
-        btn.innerHTML = '<i class="fas fa-upload"></i><span>Upload Media</span>';
+        btn.innerHTML =
+            '<i class="fas fa-upload"></i><span>Upload Media</span>';
     }
 };
 
 AssessmentBuilder.executeMediaUpload = function () {
     const wrapper = document.getElementById("assessment-wrapper");
     const btn = document.getElementById("start-media-upload-btn");
-    const progressContainer = document.getElementById("upload-progress-container");
+    const progressContainer = document.getElementById(
+        "upload-progress-container",
+    );
     const progressBar = document.getElementById("upload-progress-bar");
     const progressText = document.getElementById("upload-progress-text");
 
-    if (!AssessmentBuilder.selectedMediaFile || !AssessmentBuilder.currentMediaUploadQId) return;
+    if (
+        !AssessmentBuilder.selectedMediaFile ||
+        !AssessmentBuilder.currentMediaUploadQId
+    )
+        return;
 
     btn.disabled = true;
     const originalHtml = btn.innerHTML;
-    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> <span>Uploading...</span>';
+    btn.innerHTML =
+        '<i class="fas fa-spinner fa-spin"></i> <span>Uploading...</span>';
 
     // Show progress bar
     if (progressContainer) {
@@ -725,7 +740,8 @@ AssessmentBuilder.executeMediaUpload = function () {
                         AssessmentBuilder.currentMediaUploadQId,
                         data.media_url,
                         data.media_type,
-                        data.original_name || AssessmentBuilder.selectedMediaFile.name
+                        data.original_name ||
+                            AssessmentBuilder.selectedMediaFile.name,
                     );
                     AssessmentBuilder.closeMediaModal();
                     AssessmentBuilder.handleAutosaveTrigger();
@@ -767,25 +783,36 @@ AssessmentBuilder.executeMediaUpload = function () {
     }
 };
 
-AssessmentBuilder.setMediaPreview = function (qId, url, explicitType = null, originalName = null) {
+AssessmentBuilder.setMediaPreview = function (
+    qId,
+    url,
+    explicitType = null,
+    originalName = null,
+) {
     const block = document.getElementById(qId);
-    const mediaInput = block.querySelector(".q-media-url") || block.querySelector(".q-image-url");
+    const mediaInput =
+        block.querySelector(".q-media-url") ||
+        block.querySelector(".q-image-url");
     if (mediaInput) mediaInput.value = url;
 
     const previewDiv = document.getElementById(`preview-${qId}`);
-    const displayFileName = originalName || url.split('/').pop().split('?')[0]; 
+    const displayFileName = originalName || url.split("/").pop().split("?")[0];
     const lowerUrl = url.toLowerCase();
 
     let type = explicitType;
     if (!type) {
-        if (lowerUrl.endsWith('.mp3') || lowerUrl.endsWith('.wav')) type = "audio";
-        else if (lowerUrl.endsWith('.mp4') || lowerUrl.endsWith('.webm')) type = "video";
-        else if (lowerUrl.endsWith('.pdf')) type = "pdf";
-        else if (lowerUrl.endsWith('.zip') || lowerUrl.endsWith('.rar')) type = "archive";
+        if (lowerUrl.endsWith(".mp3") || lowerUrl.endsWith(".wav"))
+            type = "audio";
+        else if (lowerUrl.endsWith(".mp4") || lowerUrl.endsWith(".webm"))
+            type = "video";
+        else if (lowerUrl.endsWith(".pdf")) type = "pdf";
+        else if (lowerUrl.endsWith(".zip") || lowerUrl.endsWith(".rar"))
+            type = "archive";
         else type = "image";
     }
 
-    previewDiv.className = "relative mt-3 mb-4 rounded-lg overflow-hidden border border-gray-200 flex flex-col items-center justify-center w-full bg-gray-50 p-2";
+    previewDiv.className =
+        "relative mt-3 mb-4 rounded-lg overflow-hidden border border-gray-200 flex flex-col items-center justify-center w-full bg-gray-50 p-2";
 
     let mediaHtml = "";
 
@@ -819,8 +846,8 @@ AssessmentBuilder.setMediaPreview = function (qId, url, explicitType = null, ori
             <i class="fas fa-trash"></i>
         </button>
     `;
-    
-    previewDiv.classList.remove('hidden');
+
+    previewDiv.classList.remove("hidden");
 };
 
 AssessmentBuilder.removeQuestionMedia = function (qId) {
@@ -845,7 +872,7 @@ AssessmentBuilder.saveCompleteExam = async function (btn, status) {
     AssessmentBuilder.lastPayload = "";
 
     const wrapper = document.getElementById("assessment-wrapper");
-    if (!wrapper) return; 
+    if (!wrapper) return;
 
     const payload = AssessmentBuilder.getPayload(status);
 
@@ -947,7 +974,7 @@ AssessmentBuilder.discardChangesAndExit = function (btn) {
         "Are you sure you want to discard your unsaved work and exit? This cannot be undone.",
         async () => {
             const wrapper = document.getElementById("assessment-wrapper");
-            if (!wrapper) return; 
+            if (!wrapper) return;
 
             const backModal = document.getElementById("back-modal");
             if (backModal) backModal.classList.add("hidden");
@@ -1084,7 +1111,7 @@ AssessmentBuilder.goToUrl = function (url) {
     if (statusModal) statusModal.classList.add("hidden");
 
     if (typeof loadPartial === "function") {
-        loadPartial(url); 
+        loadPartial(url);
     } else if (typeof window.loadPartial === "function") {
         window.loadPartial(url);
     } else {
@@ -1094,7 +1121,7 @@ AssessmentBuilder.goToUrl = function (url) {
 
 AssessmentBuilder.silentlyDeleteAndExit = async function () {
     const wrapper = document.getElementById("assessment-wrapper");
-    if (!wrapper) return; 
+    if (!wrapper) return;
     try {
         await fetch(wrapper.dataset.deleteUrl, {
             method: "DELETE",
@@ -1116,7 +1143,8 @@ AssessmentBuilder.handleAssessmentBackButton = async function (btn) {
     const manageUrl = wrapper.dataset.manageUrl;
     const redirectUrl = wrapper.dataset.redirectUrl;
 
-    if (AssessmentBuilder.hasChanged) {
+    // FIX: Now checks sessionDirty so the modal shows even after autosaves
+    if (AssessmentBuilder.hasChanged || AssessmentBuilder.sessionDirty) {
         const backModal = document.getElementById("back-modal");
         if (backModal) backModal.classList.remove("hidden");
     } else {

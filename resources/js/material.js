@@ -1039,3 +1039,11 @@ if (matBackModal) {
         }
     });
 }
+
+// Warns the user if they try to close the entire browser tab with unsaved/un-published work
+window.addEventListener("beforeunload", (event) => {
+    if (MaterialBuilder.hasChanged || MaterialBuilder.sessionDirty) {
+        event.preventDefault();
+        event.returnValue = "";
+    }
+});

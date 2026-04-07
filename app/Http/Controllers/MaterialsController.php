@@ -672,7 +672,7 @@ class MaterialsController extends Controller
                         ]);
 
                         foreach ($cat['questions'] ?? [] as $q) {
-                            $quizId = DB::table('quizzes')->insertGetId([
+                            $quizId = DB::table('lesson_contents')->insertGetId([
                                 'lesson_id' => $lessonId,
                                 'type' => $q['type'] ?? 'mcq',
                                 'question_text' => $q['text'] ?? '',
@@ -904,7 +904,7 @@ class MaterialsController extends Controller
                     'student_id' => $user->id
                 ]);
             }
-        } 
+        }
 
         // 2. Check for Existing Enrollment (Handle Dropped vs Active)
         $existingEnrollment = \App\Models\Enrollment::where('material_id', $material->id)
@@ -916,7 +916,7 @@ class MaterialsController extends Controller
                 // RESURRECT THE DROPPED STUDENT
                 $existingEnrollment->update([
                     'status' => 'in_progress',
-                    'progress_data' => null, 
+                    'progress_data' => null,
                     'completed_at' => null // Clear any residual progress data
                 ]);
             } else {
@@ -983,7 +983,7 @@ class MaterialsController extends Controller
         return view('dashboard.partials.student.materials-study', compact('material', 'savedProgress'));
     }
 
-   public function unenroll(Request $request, Material $material)
+    public function unenroll(Request $request, Material $material)
     {
         $user = auth()->user();
 
@@ -1026,7 +1026,7 @@ class MaterialsController extends Controller
             ], 500);
         }
     }
-    
+
     public function updateGrading(Request $request, $id)
     {
         $request->validate([
