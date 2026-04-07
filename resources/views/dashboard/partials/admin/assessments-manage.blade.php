@@ -94,12 +94,11 @@
                     Edit Content
                 </button>
 
-                @if($isLive)
-                    <button class="w-full py-3 px-4 bg-[#a52a2a] text-white font-bold rounded-xl hover:bg-red-800 transition-all flex items-center justify-center gap-2 shadow-lg shadow-[#a52a2a]/20">
-                        <i class="fas fa-chart-pie"></i>
-                        View Analytics
-                    </button>
-                @endif
+                <button onclick="loadPartial('{{ route('dashboard.assessments.analytics', $assessment->id) }}', document.getElementById('nav-assessment-btn'))"
+                id="analytics-btn" class="w-full py-3 px-4 bg-[#a52a2a] text-white font-bold rounded-xl hover:bg-red-800 transition-all flex items-center justify-center gap-2 shadow-lg shadow-[#a52a2a]/20 {{ $isLive ? '' : 'hidden' }}">
+                    <i class="fas fa-chart-pie"></i>
+                    View Analytics
+                </button>
             </div>
         </div>
     </div>
@@ -390,8 +389,7 @@
             });
 
             const data = await response.json();
-
-            if (response.ok && data.success) {
+if (response.ok && data.success) {
                 showSnackbar(data.message, 'success');
                 
                 // The visual track and knob state are handled automatically by CSS :checked!
@@ -402,20 +400,25 @@
                 const text = document.getElementById('status-text');
                 const dot = document.getElementById('status-dot');
                 const ping = document.getElementById('status-ping');
+                const analyticsBtn = document.getElementById('analytics-btn'); // Get the button
 
                 if (isLive) {
                     badge.className = "px-3 py-1.5 bg-green-100 text-green-700 text-xs font-bold rounded-lg uppercase tracking-wider flex items-center gap-2 transition-colors";
                     text.innerText = "Published";
                     dot.className = "relative inline-flex rounded-full h-2 w-2 bg-green-500";
                     ping.className = "animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75";
+                    
+                    if(analyticsBtn) analyticsBtn.classList.remove('hidden'); // Show button
                 } else {
                     badge.className = "px-3 py-1.5 bg-amber-100 text-amber-700 text-xs font-bold rounded-lg uppercase tracking-wider flex items-center gap-2 transition-colors";
                     text.innerText = "Draft Mode";
                     dot.className = "relative inline-flex rounded-full h-2 w-2 bg-amber-500";
                     ping.className = "animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75 hidden";
+                    
+                    if(analyticsBtn) analyticsBtn.classList.add('hidden'); // Hide button
                 }
                 
-            } else {
+            }else {
                 // If API failed, revert the visual checkbox state to match reality
                 checkbox.checked = !checkbox.checked;
                 throw new Error(data.message || 'Failed to update status.');

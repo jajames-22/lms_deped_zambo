@@ -74,15 +74,16 @@
         @endif
 
         @if($showPerformance)
-        <div class="section-title">3. Detailed Exam Stats</div>
+        <div class="section-title">3. Detailed Performance Stats</div>
         <table class="data-table">
-            <tr><th>All-Time Average Score</th><td class="text-right" style="color: #3b82f6;">{{ $averageScore }}%</td></tr>
+            <tr><th>Total Time Invested</th><td class="text-right" style="color: #3b82f6;">{{ $totalHours }} Hours</td></tr>
+            <tr><th>Overall Accuracy</th><td class="text-right">{{ $totalAnswers > 0 ? round(($correctAnswers / $totalAnswers) * 100) : 0 }}%</td></tr>
             <tr><th>Total Correct Answers</th><td class="text-right">{{ number_format($correctAnswers) }}</td></tr>
         </table>
 
         <div style="font-weight: bold; font-size: 13px; color: #555; margin-top: 20px;">Topic Mastery Breakdown</div>
         <table class="sub-table">
-            <tr><th style="text-align: left;">Module Title</th><th style="text-align: right;">Average Score</th></tr>
+            <tr><th style="text-align: left;">Module Title</th><th style="text-align: right;">Mastery Score</th></tr>
             @foreach($masteryData as $m)
             <tr><td>{{ $m->title }}</td><td style="text-align: right; font-weight: bold; color: #8b5cf6;">{{ $m->total_attempts > 0 ? round(($m->correct_attempts / $m->total_attempts) * 100) : 0 }}%</td></tr>
             @endforeach

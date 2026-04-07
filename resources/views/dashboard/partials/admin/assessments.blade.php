@@ -5,7 +5,8 @@
             <p class="text-gray-500 text-sm">Data-driven test to measure students learning progress.</p>
         </div>
 
-        <button onclick="loadPartial('{{ route('dashboard.assessments.create') }}', document.getElementById('nav-assessment-btn'))"
+        <button
+            onclick="loadPartial('{{ route('dashboard.assessments.create') }}', document.getElementById('nav-assessment-btn'))"
             class="flex-shrink-0 flex items-center justify-center gap-2 px-6 py-3 bg-[#a52a2a] text-white font-bold rounded-xl shadow-lg shadow-[#a52a2a]/20 hover:bg-red-800 transition-all active:scale-95">
             <i class="fas fa-plus"></i>
             <span>Create New Test</span>
@@ -87,23 +88,27 @@
                     @endif
 
                     <div class="flex gap-3 mt-4 pt-4 border-t border-gray-100">
-                        <button onclick="event.stopPropagation(); loadPartial('{{ route('dashboard.assessments.builder', $assessment->id) }}',document.getElementById('nav-assessment-btn'))"
+                        <button
+                            onclick="event.stopPropagation(); loadPartial('{{ route('dashboard.assessments.builder', $assessment->id) }}',document.getElementById('nav-assessment-btn'))"
                             class="flex-1 py-2.5 bg-white border border-gray-200 text-gray-700 text-sm font-bold rounded-xl hover:bg-gray-50 hover:border-[#a52a2a]/30 hover:text-[#a52a2a] transition-all shadow-sm">
                             <i class="fas {{ $isLive ? 'fa-edit' : 'fa-play' }} mr-1"></i>
                             {{ $isLive ? 'Edit' : 'Resume' }}
                         </button>
 
-                        @if($isLive)
-                            <button onclick="event.stopPropagation();"
+                        @if($isLive)<button
+                                 onclick="event.stopPropagation(); loadPartial('{{ route('dashboard.assessments.analytics', $assessment->id) }}', document.getElementById('nav-assessment-btn'))"
+                                id="analytics-btn"
                                 class="flex-1 py-2.5 bg-[#a52a2a] text-white text-sm font-bold rounded-xl hover:bg-red-800 transition-all shadow-md shadow-[#a52a2a]/20">
-                                <i class="fas fa-chart-pie mr-1"></i> Analytics
+                                <i class="fas fa-chart-pie mr-1"></i>
+                                View Analytics
                             </button>
                         @endif
                     </div>
                 </div>
             </div>
         @empty
-            <div class="col-span-full py-16 flex flex-col items-center justify-center bg-white rounded-2xl border border-dashed border-gray-300">
+            <div
+                class="col-span-full py-16 flex flex-col items-center justify-center bg-white rounded-2xl border border-dashed border-gray-300">
                 <div class="h-16 w-16 rounded-full bg-gray-50 flex items-center justify-center text-gray-400 mb-4">
                     <i class="fas fa-clipboard-list text-2xl"></i>
                 </div>
@@ -111,7 +116,8 @@
             </div>
         @endforelse
 
-        <div id="dynamic-empty-state" style="display: none;" class="col-span-full py-16 flex flex-col items-center justify-center bg-white rounded-2xl border border-dashed border-gray-300">
+        <div id="dynamic-empty-state" style="display: none;"
+            class="col-span-full py-16 flex flex-col items-center justify-center bg-white rounded-2xl border border-dashed border-gray-300">
             <div class="h-16 w-16 rounded-full bg-gray-50 flex items-center justify-center text-gray-400 mb-4">
                 <i class="fas fa-search-minus text-2xl"></i>
             </div>
@@ -149,7 +155,7 @@
 
 <script>
     window.AssessmentManager = window.AssessmentManager || {};
-    
+
     AssessmentManager.currentStatus = 'all';
 
     AssessmentManager.showModal = function (type, title, message, callback = null) {
@@ -231,10 +237,10 @@
                 btn.disabled = false;
             }
 
-        }); 
-    }; 
+        });
+    };
 
-    AssessmentManager.filter = function(status, btnElement) {
+    AssessmentManager.filter = function (status, btnElement) {
         AssessmentManager.currentStatus = status;
 
         document.querySelectorAll('.assessment-tab').forEach(tab => {
@@ -248,11 +254,11 @@
         AssessmentManager.applyFilters();
     };
 
-    AssessmentManager.search = function() {
+    AssessmentManager.search = function () {
         AssessmentManager.applyFilters();
     };
 
-    AssessmentManager.applyFilters = function() {
+    AssessmentManager.applyFilters = function () {
         const query = document.getElementById('assessment-search').value.toLowerCase();
         let visibleCount = 0;
 

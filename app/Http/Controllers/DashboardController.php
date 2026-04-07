@@ -859,7 +859,7 @@ class DashboardController extends Controller
     
     private function loadStudentAnalytics()
     {
-        $studentId = Auth::id();
+        $studentId = \Illuminate\Support\Facades\Auth::id();
 
         // 1. ACHIEVEMENTS & PROGRESS
         $totalEnrollments = \App\Models\Enrollment::where('user_id', $studentId)->count();
@@ -868,12 +868,19 @@ class DashboardController extends Controller
         
         $completionRate = $totalEnrollments > 0 ? round(($completedCount / $totalEnrollments) * 100) : 0;
 
-        // 2. ALL-TIME QUIZ PERFORMANCE
+        // NEW: Total Hours Learned (Sum of lesson time_limits from completed modules)
+        $totalMinutes = \Illuminate\Support\Facades\DB::table('enrollments')
+            ->where('enrollments.user_id', $studentId)
+            ->where('enrollments.status', 'completed')
+            ->join('lessons', 'enrollments.material_id', '=', 'lessons.material_id')
+            ->sum('lessons.time_limit');
+            
+        $totalHours = round($totalMinutes / 60, 1);
+
+        // 2. ALL-TIME QUIZ PERFORMANCE (Kept for accuracy charts)
         $totalAnswers = \App\Models\ExamAnswer::where('user_id', $studentId)->count();
         $correctAnswers = \App\Models\ExamAnswer::where('user_id', $studentId)->where('is_correct', true)->count();
         $incorrectAnswers = $totalAnswers - $correctAnswers;
-
-        $averageScore = $totalAnswers > 0 ? round(($correctAnswers / $totalAnswers) * 100, 1) : 0;
 
         // 3. RECENT QUIZ TREND (Last 7 Days)
         $examDates = [];
@@ -936,12 +943,12 @@ class DashboardController extends Controller
 
         return view('dashboard.partials.student.analytics', compact(
             'totalEnrollments', 'completedCount', 'inProgressCount', 'completionRate',
-            'totalAnswers', 'correctAnswers', 'incorrectAnswers', 'averageScore',
+            'totalAnswers', 'correctAnswers', 'incorrectAnswers', 'totalHours',
             'examDates', 'examScores', 'streak', 'masteryLabels', 'masteryScores'
         ));
     }
     
-    public function exportStudentAnalyticsPdf(Request $request)
+    public function exportStudentAnalyticsPdf(\Illuminate\Http\Request $request)
     {
         $studentId = \Illuminate\Support\Facades\Auth::id();
 
@@ -951,11 +958,18 @@ class DashboardController extends Controller
         $inProgressCount = \App\Models\Enrollment::where('user_id', $studentId)->where('status', 'in_progress')->count();
         $completionRate = $totalEnrollments > 0 ? round(($completedCount / $totalEnrollments) * 100) : 0;
 
+        // NEW: Total Hours Learned (Calculated for the PDF)
+        $totalMinutes = \Illuminate\Support\Facades\DB::table('enrollments')
+            ->where('enrollments.user_id', $studentId)
+            ->where('enrollments.status', 'completed')
+            ->join('lessons', 'enrollments.material_id', '=', 'lessons.material_id')
+            ->sum('lessons.time_limit');
+        $totalHours = round($totalMinutes / 60, 1);
+
         // 2. EXAM PERFORMANCE
         $totalAnswers = \App\Models\ExamAnswer::where('user_id', $studentId)->count();
         $correctAnswers = \App\Models\ExamAnswer::where('user_id', $studentId)->where('is_correct', true)->count();
         $incorrectAnswers = $totalAnswers - $correctAnswers;
-        $averageScore = $totalAnswers > 0 ? round(($correctAnswers / $totalAnswers) * 100, 1) : 0;
 
         // 3. TOPIC MASTERY DATA
         $masteryData = \Illuminate\Support\Facades\DB::table('exam_answers')
@@ -986,7 +1000,7 @@ class DashboardController extends Controller
             'totalAnswers' => $totalAnswers,
             'correctAnswers' => $correctAnswers,
             'incorrectAnswers' => $incorrectAnswers,
-            'averageScore' => $averageScore,
+            'totalHours' => $totalHours,
             'masteryData' => $masteryData,
             'streak' => $streak,
             
@@ -1005,7 +1019,6 @@ class DashboardController extends Controller
         $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('dashboard.partials.student.analytics-report', $data);
         return $pdf->download('My_Learning_Report_' . now()->format('Y_m_d') . '.pdf');
     }
-
     public function loadFeedbackPartial()
     {
         // If you have a Feedback model later, you can fetch data here:

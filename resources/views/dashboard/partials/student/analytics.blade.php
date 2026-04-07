@@ -63,9 +63,11 @@
                     <p class="text-gray-500 text-sm font-medium mb-1">Completed Modules</p>
                     <p class="text-3xl font-bold text-gray-900">{{ number_format($completedCount) }}</p>
                 </div>
+                
+                {{-- REPLACED: Average Score is now Time Invested --}}
                 <div class="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 border-l-4 border-l-blue-500">
-                    <p class="text-gray-500 text-sm font-medium mb-1">Average Exam Score</p>
-                    <p class="text-3xl font-bold text-gray-900">{{ $averageScore }}%</p>
+                    <p class="text-gray-500 text-sm font-medium mb-1">Total Time Invested</p>
+                    <p class="text-3xl font-bold text-gray-900">{{ $totalHours }} <span class="text-lg text-blue-500">Hrs</span></p>
                 </div>
             </div>
         </section>
@@ -169,7 +171,7 @@
                 </label>
                 <label class="flex items-center gap-3 p-3 border border-gray-100 rounded-xl cursor-pointer hover:bg-gray-50 transition-colors">
                     <input type="checkbox" name="check_performance" checked class="w-5 h-5 text-[#a52a2a] rounded border-gray-300 focus:ring-[#a52a2a]">
-                    <span class="text-gray-700 font-medium">Detailed Exam Stats</span>
+                    <span class="text-gray-700 font-medium">Detailed Performance Stats</span>
                 </label>
             </div>
 
@@ -238,97 +240,116 @@
         }
     }
 
-    // Destroy existing instances to prevent hover bugs
-    const chartsToClear = ['studentStatusChart', 'studentAccuracyChart', 'studentScoresChart', 'topicMasteryChart'];
-    chartsToClear.forEach(id => {
-        if (window[id + 'Instance']) window[id + 'Instance'].destroy();
-    });
+</script>
 
-    // 1. Status Doughnut Chart
-    @if($completedCount > 0 || $inProgressCount > 0)
-        const statusCtx = document.getElementById('studentStatusChart').getContext('2d');
-        window.studentStatusChartInstance = new Chart(statusCtx, {
-            type: 'doughnut',
-            data: {
-                labels: ['Completed', 'In Progress'],
-                datasets: [{
-                    data: [@json($completedCount), @json($inProgressCount)],
-                    backgroundColor: ['#10b981', '#fbbf24'],
-                    borderWidth: 0
-                }]
-            },
-            options: { responsive: true, maintainAspectRatio: false, cutout: '70%', plugins: { legend: { position: 'bottom' } } }
-        });
-    @endif
+<script>
+    // 1. Create a global object to hold our chart instances so they persist between partial loads
+    window.dashboardCharts = window.dashboardCharts || {};
 
-    // 2. Accuracy Pie Chart
-    @if($totalAnswers > 0)
-        const accuracyCtx = document.getElementById('studentAccuracyChart').getContext('2d');
-        window.studentAccuracyChartInstance = new Chart(accuracyCtx, {
-            type: 'pie',
-            data: {
-                labels: ['Correct Answers', 'Incorrect Answers'],
-                datasets: [{
-                    data: [@json($correctAnswers), @json($incorrectAnswers)],
-                    backgroundColor: ['#3b82f6', '#ef4444'],
-                    borderWidth: 0
-                }]
-            },
-            options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } } }
-        });
-    @endif
+    function initAnalyticsCharts() {
+        // 2. Destroy existing charts to prevent duplicate "canvas already in use" errors
+        if (window.dashboardCharts.studentStatus) window.dashboardCharts.studentStatus.destroy();
+        if (window.dashboardCharts.studentAccuracy) window.dashboardCharts.studentAccuracy.destroy();
+        if (window.dashboardCharts.studentScores) window.dashboardCharts.studentScores.destroy();
+        if (window.dashboardCharts.topicMastery) window.dashboardCharts.topicMastery.destroy();
 
-    // 3. Scores Trend Line Chart
-    const scoresCtx = document.getElementById('studentScoresChart').getContext('2d');
-    window.studentScoresChartInstance = new Chart(scoresCtx, {
-        type: 'line',
-        data: {
-            labels: @json($examDates),
-            datasets: [{
-                label: 'Correct Answers',
-                data: @json($examScores),
-                borderColor: '#a52a2a', 
-                backgroundColor: 'rgba(165, 42, 42, 0.1)',
-                borderWidth: 3,
-                fill: true,
-                tension: 0.4
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: { legend: { display: false } },
-            scales: {
-                y: { beginAtZero: true, grid: { borderDash: [2, 4] }, ticks: { stepSize: 1 } },
-                x: { grid: { display: false } }
-            }
+        // 3. Status Doughnut Chart
+        @if($completedCount > 0 || $inProgressCount > 0)
+        const ctxStatus = document.getElementById('studentStatusChart');
+        if (ctxStatus) {
+            window.dashboardCharts.studentStatus = new Chart(ctxStatus.getContext('2d'), {
+                type: 'doughnut',
+                data: {
+                    labels: ['Completed', 'In Progress'],
+                    datasets: [{
+                        data: [@json($completedCount), @json($inProgressCount)],
+                        backgroundColor: ['#10b981', '#fbbf24'],
+                        borderWidth: 0
+                    }]
+                },
+                options: { responsive: true, maintainAspectRatio: false, cutout: '70%', plugins: { legend: { position: 'bottom' } } }
+            });
         }
-    });
+        @endif
 
-    // 4. Topic Mastery Bar Chart
-    @if(count($masteryLabels) > 0)
-        const masteryCtx = document.getElementById('topicMasteryChart').getContext('2d');
-        window.topicMasteryChartInstance = new Chart(masteryCtx, {
-            type: 'bar',
-            data: {
-                labels: @json($masteryLabels),
-                datasets: [{
-                    label: 'Average Score (%)',
-                    data: @json($masteryScores),
-                    backgroundColor: '#8b5cf6', 
-                    borderRadius: 6,
-                    borderWidth: 0
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: { legend: { display: false } },
-                scales: {
-                    y: { beginAtZero: true, max: 100, grid: { borderDash: [2, 4] } },
-                    x: { grid: { display: false } }
+        // 4. Accuracy Pie Chart
+        @if($totalAnswers > 0)
+        const ctxAccuracy = document.getElementById('studentAccuracyChart');
+        if (ctxAccuracy) {
+            window.dashboardCharts.studentAccuracy = new Chart(ctxAccuracy.getContext('2d'), {
+                type: 'pie',
+                data: {
+                    labels: ['Correct Answers', 'Incorrect Answers'],
+                    datasets: [{
+                        data: [@json($correctAnswers), @json($incorrectAnswers)],
+                        backgroundColor: ['#3b82f6', '#ef4444'],
+                        borderWidth: 0
+                    }]
+                },
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } } }
+            });
+        }
+        @endif
+
+        // 5. Scores Trend Line Chart
+        const ctxScores = document.getElementById('studentScoresChart');
+        if (ctxScores) {
+            window.dashboardCharts.studentScores = new Chart(ctxScores.getContext('2d'), {
+                type: 'line',
+                data: {
+                    labels: @json($examDates ?? []),
+                    datasets: [{
+                        label: 'Correct Answers',
+                        data: @json($examScores ?? []),
+                        borderColor: '#a52a2a', 
+                        backgroundColor: 'rgba(165, 42, 42, 0.1)',
+                        borderWidth: 3,
+                        fill: true,
+                        tension: 0.4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        y: { beginAtZero: true, grid: { borderDash: [2, 4] }, ticks: { stepSize: 1 } },
+                        x: { grid: { display: false } }
+                    }
                 }
-            }
-        });
-    @endif
+            });
+        }
+
+        // 6. Topic Mastery Bar Chart
+        @if(count($masteryLabels ?? []) > 0)
+        const ctxMastery = document.getElementById('topicMasteryChart');
+        if (ctxMastery) {
+            window.dashboardCharts.topicMastery = new Chart(ctxMastery.getContext('2d'), {
+                type: 'bar',
+                data: {
+                    labels: @json($masteryLabels),
+                    datasets: [{
+                        label: 'Average Score (%)',
+                        data: @json($masteryScores),
+                        backgroundColor: '#8b5cf6', 
+                        borderRadius: 6,
+                        borderWidth: 0
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        y: { beginAtZero: true, max: 100, grid: { borderDash: [2, 4] } },
+                        x: { grid: { display: false } }
+                    }
+                }
+            });
+        }
+        @endif
+    }
+
+    // Initialize charts immediately when the analytics partial is loaded
+    initAnalyticsCharts();
 </script>

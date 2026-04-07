@@ -26,4 +26,9 @@ Route::middleware(['auth', 'verified'])->prefix('dashboard/assessments')->name('
 
     Route::patch('/{id}/toggle-status', [AssessmentController::class, 'toggleStatus'])
     ->name('toggle-status');
+    
+    Route::get('/{assessment}/analytics', [AssessmentController::class, 'analytics'])->name('analytics');
+    
+    // ADD THIS NEW LINE FOR THE EXPORT:
+    Route::get('/{assessment}/export', [AssessmentController::class, 'exportReport'])->name('export');
 });

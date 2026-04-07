@@ -257,56 +257,77 @@
     // ==========================================
     // INITIALIZE UI CHARTS
     // ==========================================
-    const chartsToClear = ['schoolDistributionChart', 'topMaterialsChart', 'storageChart'];
-    chartsToClear.forEach(id => {
-        if (window[id + 'Instance']) window[id + 'Instance'].destroy();
-    });
 
-    // 1. School Distribution
-    @if(count($schoolLabels) > 0)
-        window.schoolDistributionChartInstance = new Chart(document.getElementById('schoolDistributionChart').getContext('2d'), {
-            type: 'doughnut',
-            data: {
-                labels: @json($schoolLabels),
-                datasets: [{
-                    data: @json($schoolData),
-                    backgroundColor: ['#3b82f6', '#8b5cf6', '#10b981', '#f59e0b', '#ef4444'],
-                    borderWidth: 0
-                }]
-            },
-            options: { responsive: true, maintainAspectRatio: false, cutout: '60%', plugins: { legend: { position: 'right' } } }
-        });
-    @endif
+</script>
 
-    // 2. Top Materials
-    @if(count($topMaterialsLabels ?? []) > 0)
-        window.topMaterialsChartInstance = new Chart(document.getElementById('topMaterialsChart').getContext('2d'), {
-            type: 'bar',
-            data: {
-                labels: @json($topMaterialsLabels),
-                datasets: [{
-                    label: 'Total Views',
-                    data: @json($topMaterialsData),
-                    backgroundColor: '#8b5cf6',
-                    borderRadius: 6,
-                    borderWidth: 0
-                }]
-            },
-            options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, grid: { borderDash: [2, 4] } }, x: { grid: { display: false } } } }
-        });
-    @endif
+<script>
+    // 1. Create a global object to hold our chart instances so they persist between partial loads
+    window.dashboardCharts = window.dashboardCharts || {};
 
-    // 3. Storage Chart
-    window.storageChartInstance = new Chart(document.getElementById('storageChart').getContext('2d'), {
-        type: 'doughnut',
-        data: {
-            labels: ['Used Storage', 'Free Storage'],
-            datasets: [{
-                data: [@json($usedGb), @json($totalGb - $usedGb)],
-                backgroundColor: [@json($storagePercentage > 85 ? '#ef4444' : '#10b981'), '#e5e7eb'],
-                borderWidth: 0
-            }]
-        },
-        options: { responsive: true, maintainAspectRatio: false, cutout: '80%', plugins: { legend: { display: false }, tooltip: { enabled: false } } }
-    });
+    function initDashboardCharts() {
+        // 2. Destroy existing charts if they exist to prevent "Canvas already in use" errors
+        if (window.dashboardCharts.schoolDistribution) window.dashboardCharts.schoolDistribution.destroy();
+        if (window.dashboardCharts.topMaterials) window.dashboardCharts.topMaterials.destroy();
+        if (window.dashboardCharts.storage) window.dashboardCharts.storage.destroy();
+
+        // 3. School Distribution
+        @if(count($schoolLabels ?? []) > 0)
+        const ctxSchool = document.getElementById('schoolDistributionChart');
+        if (ctxSchool) {
+            window.dashboardCharts.schoolDistribution = new Chart(ctxSchool.getContext('2d'), {
+                type: 'doughnut',
+                data: {
+                    labels: @json($schoolLabels),
+                    datasets: [{
+                        data: @json($schoolData),
+                        backgroundColor: ['#3b82f6', '#8b5cf6', '#10b981', '#f59e0b', '#ef4444'],
+                        borderWidth: 0
+                    }]
+                },
+                options: { responsive: true, maintainAspectRatio: false, cutout: '60%', plugins: { legend: { position: 'right' } } }
+            });
+        }
+        @endif
+
+        // 4. Top Materials
+        @if(count($topMaterialsLabels ?? []) > 0)
+        const ctxMaterials = document.getElementById('topMaterialsChart');
+        if (ctxMaterials) {
+            window.dashboardCharts.topMaterials = new Chart(ctxMaterials.getContext('2d'), {
+                type: 'bar',
+                data: {
+                    labels: @json($topMaterialsLabels),
+                    datasets: [{
+                        label: 'Total Views',
+                        data: @json($topMaterialsData),
+                        backgroundColor: '#8b5cf6',
+                        borderRadius: 6,
+                        borderWidth: 0
+                    }]
+                },
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, grid: { borderDash: [2, 4] } }, x: { grid: { display: false } } } }
+            });
+        }
+        @endif
+
+        // 5. Storage Chart
+        const ctxStorage = document.getElementById('storageChart');
+        if (ctxStorage) {
+            window.dashboardCharts.storage = new Chart(ctxStorage.getContext('2d'), {
+                type: 'doughnut',
+                data: {
+                    labels: ['Used Storage', 'Free Storage'],
+                    datasets: [{
+                        data: [@json($usedGb), @json($totalGb - $usedGb)],
+                        backgroundColor: [@json($storagePercentage > 85 ? '#ef4444' : '#10b981'), '#e5e7eb'],
+                        borderWidth: 0
+                    }]
+                },
+                options: { responsive: true, maintainAspectRatio: false, cutout: '80%', plugins: { legend: { display: false }, tooltip: { enabled: false } } }
+            });
+        }
+    }
+
+    // Initialize charts immediately when this script loads via loadPartial
+    initDashboardCharts();
 </script>
