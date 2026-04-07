@@ -1,15 +1,38 @@
-<div class="space-y-6 relative">
+<div class="space-y-6 relative animate-float-in">
     <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
             <h1 class="text-2xl font-bold text-gray-900">Teacher Directory</h1>
             <p class="text-gray-500 text-sm">Manage registered educators across the Zamboanga Division.</p>
         </div>
 
-        <button onclick="loadPartial('{{ route('teachers.create') }}', document.getElementById('nav-teachers-btn'))"
-            class="flex-shrink-0 flex items-center justify-center gap-2 px-6 py-3 bg-[#a52a2a] text-white font-bold rounded-xl shadow-lg hover:bg-red-800 transition-all">
-            <i class="fas fa-plus-circle"></i>
-            <span>Add New Teacher</span>
-        </button>
+        <div class="flex-shrink-0 flex flex-wrap items-center gap-2">
+            
+            <button id="bulkDeleteBtn" onclick="confirmDeleteTeacher()" class="hidden flex items-center justify-center gap-2 px-4 py-3 bg-red-50 border border-red-200 text-red-600 font-bold rounded-xl shadow-sm hover:bg-red-100 transition-all text-sm">
+                <i class="fas fa-trash-alt"></i>
+                <span id="bulkDeleteCount">Delete (0)</span>
+            </button>
+
+            <a href="{{ route('teachers.import.template') }}" download
+                class="flex items-center justify-center gap-2 px-4 py-3 bg-gray-100 border border-gray-200 text-gray-600 font-bold rounded-xl shadow-sm hover:bg-gray-200 transition-all text-sm"
+                title="Download Excel/CSV Template">
+                <i class="fas fa-download"></i>
+                <span class="hidden sm:inline">Template</span>
+            </a>
+
+            <input type="file" id="teacherImportInput" class="hidden" accept=".xlsx,.xls,.csv" onchange="handleTeacherImport(this)">
+            
+            <button id="importTeacherBtn" onclick="document.getElementById('teacherImportInput').click()"
+                class="flex items-center justify-center gap-2 px-6 py-3 bg-white border border-gray-200 text-gray-700 font-bold rounded-xl shadow-sm hover:bg-gray-50 transition-all text-sm">
+                <i class="fas fa-file-import"></i>
+                <span>Import</span>
+            </button>
+
+            <button onclick="loadPartial('{{ route('teachers.create') }}', document.getElementById('nav-teachers-btn'))"
+                class="flex items-center justify-center gap-2 px-6 py-3 bg-[#a52a2a] text-white font-bold rounded-xl shadow-lg hover:bg-red-800 transition-all">
+                <i class="fas fa-plus-circle"></i>
+                <span>Add New Teacher</span>
+            </button>
+        </div>
     </div>
 
     <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -26,7 +49,7 @@
         <div class="bg-white border border-gray-100 p-5 rounded-2xl shadow-sm flex items-center md:col-span-2">
             <div class="relative w-full">
                 <i class="fas fa-search absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400"></i>
-                <input type="text" id="teacherSearchInput" placeholder="Search by name, ID, email, or school..."
+                <input type="text" id="teacherSearchInput" placeholder="Search by name, Employee ID, email, or school..."
                     class="w-full pl-11 pr-4 py-3 bg-gray-50 border border-transparent focus:border-[#a52a2a] focus:bg-white rounded-xl outline-none transition-all text-sm text-gray-700">
             </div>
         </div>
@@ -52,15 +75,18 @@
             <table class="w-full text-left border-collapse" id="teachersTable">
                 <thead class="bg-gray-50/50 text-xs uppercase text-gray-500 font-bold border-b border-gray-100">
                     <tr>
+                        <th class="px-4 py-3 text-center w-12">
+                            <input type="checkbox" id="selectAllCheckbox" class="rounded border-gray-300 text-[#a52a2a] focus:ring-[#a52a2a] cursor-pointer">
+                        </th>
                         <th class="px-4 py-3 text-center w-16">Photo</th>
                         <th class="px-4 py-3 cursor-pointer hover:bg-gray-100 transition sortable-col select-none" title="Sort by Name">
-                            Teacher Details <i class="fas fa-sort ml-1 text-gray-300"></i>
-                        </th>
-                        <th class="px-4 py-3 cursor-pointer hover:bg-gray-100 transition sortable-col select-none" title="Sort by Status">
-                            Status <i class="fas fa-sort ml-1 text-gray-300"></i>
+                            Educator Details <i class="fas fa-sort ml-1 text-gray-300"></i>
                         </th>
                         <th class="px-4 py-3 cursor-pointer hover:bg-gray-100 transition sortable-col select-none" title="Sort by School">
                             Assigned School <i class="fas fa-sort ml-1 text-gray-300"></i>
+                        </th>
+                        <th class="px-4 py-3 cursor-pointer hover:bg-gray-100 transition sortable-col select-none" title="Sort by Status">
+                            Status <i class="fas fa-sort ml-1 text-gray-300"></i>
                         </th>
                         <th class="px-4 py-3 text-center">Actions</th>
                     </tr>
@@ -68,6 +94,9 @@
                 <tbody class="divide-y divide-gray-50">
                     @forelse($teachers as $teacher)
                         <tr class="hover:bg-gray-50/50 transition teacher-row" data-status="{{ strtolower($teacher->status ?? 'pending') }}">
+                            <td class="px-4 py-2.5 text-center">
+                                <input type="checkbox" value="{{ $teacher->id }}" class="teacher-checkbox rounded border-gray-300 text-[#a52a2a] focus:ring-[#a52a2a] cursor-pointer">
+                            </td>
                             <td class="px-4 py-2.5">
                                 <div class="w-10 h-10 mx-auto rounded-full bg-blue-50 border border-blue-100 overflow-hidden flex items-center justify-center shadow-sm text-blue-600 font-bold text-xs">
                                     @if(isset($teacher->avatar) && $teacher->avatar)
@@ -84,29 +113,15 @@
                                         <p class="text-sm font-bold text-gray-900 leading-tight">
                                             {{ $teacher->first_name }} {{ $teacher->middle_name ? substr($teacher->middle_name, 0, 1) . '.' : '' }} {{ $teacher->last_name }} {{ $teacher->suffix }}
                                         </p>
-                                        <span class="bg-blue-50 text-blue-700 text-[10px] px-1.5 py-0.5 rounded font-mono border border-blue-200">
-                                            ID: {{ $teacher->employee_id }}
+                                        <span class="bg-gray-100 text-gray-700 text-[10px] px-1.5 py-0.5 rounded font-mono border border-gray-200">
+                                            EMP ID: {{ $teacher->employee_id }}
                                         </span>
                                     </div>
                                     <p class="text-xs text-gray-500 mt-0.5 truncate" title="{{ $teacher->email }}">
                                         <i class="fas fa-envelope text-[10px] mr-1"></i>
-                                        {{ $teacher->email }}
+                                        {{ $teacher->email ?? 'No email' }}
                                     </p>
                                 </div>
-                            </td>
-
-                            <td class="px-4 py-2.5">
-                                @php
-                                    $statusStyles = [
-                                        'verified' => 'bg-green-50 text-green-700 border-green-200',
-                                        'pending'  => 'bg-amber-50 text-amber-700 border-amber-200',
-                                        'suspended'=> 'bg-red-50 text-red-700 border-red-200',
-                                    ];
-                                    $currentStyle = $statusStyles[strtolower($teacher->status)] ?? 'bg-gray-50 text-gray-700 border-gray-200';
-                                @endphp
-                                <span class="px-2 py-1 {{ $currentStyle }} text-[10px] font-bold rounded-md border uppercase tracking-tighter">
-                                    {{ ucfirst($teacher->status ?? 'pending') }}
-                                </span>
                             </td>
 
                             <td class="px-4 py-2.5">
@@ -120,6 +135,20 @@
                                         </span>
                                     @endif
                                 </div>
+                            </td>
+
+                            <td class="px-4 py-2.5">
+                                @php
+                                    $statusStyles = [
+                                        'verified' => 'bg-green-50 text-green-700 border-green-200',
+                                        'pending'  => 'bg-amber-50 text-amber-700 border-amber-200',
+                                        'suspended'=> 'bg-red-50 text-red-700 border-red-200',
+                                    ];
+                                    $currentStyle = $statusStyles[strtolower($teacher->status ?? 'pending')] ?? 'bg-gray-50 text-gray-700 border-gray-200';
+                                @endphp
+                                <span class="px-2 py-1 {{ $currentStyle }} text-[10px] font-bold rounded-md border uppercase tracking-tighter">
+                                    {{ ucfirst($teacher->status ?? 'pending') }}
+                                </span>
                             </td>
 
                             <td class="px-4 py-2.5 text-center">
@@ -138,10 +167,10 @@
                         </tr>
                     @empty
                         <tr id="emptyStateRow">
-                            <td colspan="5" class="px-6 py-16 text-center">
+                            <td colspan="6" class="px-6 py-16 text-center">
                                 <div class="flex flex-col items-center">
                                     <div class="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center mb-4">
-                                        <i class="fas fa-users-slash text-gray-200 text-2xl"></i>
+                                        <i class="fas fa-chalkboard-teacher text-gray-200 text-2xl"></i>
                                     </div>
                                     <p class="text-gray-500 font-medium">No teachers found.</p>
                                     <p class="text-gray-400 text-xs">Start by adding a new educator to the system.</p>
@@ -158,20 +187,19 @@
                 Showing <span id="page-start-info" class="font-bold text-gray-900">0</span> to <span id="page-end-info" class="font-bold text-gray-900">0</span> of <span id="page-total-info" class="font-bold text-gray-900">0</span> results
             </div>
             <div class="flex items-center gap-1" id="pagination-controls">
-                </div>
+            </div>
         </div>
-
     </div>
 </div>
 
-<div id="deleteTeacherModal" class="fixed inset-0 z-50 hidden flex items-center justify-center">
-    <div class="absolute inset-0 bg-gray-900/60 backdrop-blur-sm"></div>
-    <div class="relative bg-white rounded-3xl shadow-2xl max-w-sm w-full p-8 text-center transform transition-all border border-gray-100 z-10 animate-fade-in-up">
+<div id="deleteTeacherModal" class="fixed inset-0 z-[9999] hidden flex items-center justify-center p-4">
+    <div class="absolute inset-0 bg-gray-900/60 transition-opacity duration-300" onclick="closeDeleteTeacherModal()"></div>
+    <div id="deleteTeacherModalBox" class="relative bg-white rounded-3xl shadow-2xl max-w-sm w-full p-8 text-center transform scale-95 opacity-0 transition-all duration-300 border border-gray-100 z-10">
         <div class="w-20 h-20 bg-red-50 text-red-500 rounded-full flex items-center justify-center mx-auto mb-5 shadow-inner">
             <i class="fas fa-user-minus text-4xl"></i>
         </div>
         <h3 class="text-2xl font-black text-gray-900 mb-2">Remove Teacher?</h3>
-        <p class="text-gray-500 mb-8 text-sm">This action cannot be undone. Are you sure you want to permanently remove this educator's account?</p>
+        <p class="text-gray-500 mb-8 text-sm">This action cannot be undone. Are you sure you want to permanently remove <span id="deleteTeacherCountText" class="font-bold">this educator's account</span>?</p>
         <div class="flex gap-3">
             <button type="button" onclick="closeDeleteTeacherModal()" 
                 class="flex-1 px-4 py-3 bg-gray-100 text-gray-700 font-bold rounded-xl hover:bg-gray-200 transition">
@@ -185,18 +213,102 @@
     </div>
 </div>
 
-<script>
-    // --- DELETE LOGIC ---
-    var deleteTeacherId = null;
+<div id="importMessageModal" class="fixed inset-0 z-[9999] hidden flex items-center justify-center p-4">
+    <div class="absolute inset-0 bg-gray-900/60 transition-opacity duration-300" onclick="closeImportModal()"></div>
+    <div id="importMessageModalBox" class="relative bg-white rounded-3xl shadow-2xl max-w-sm w-full p-8 text-center transform scale-95 opacity-0 transition-all duration-300 border border-gray-100 z-10">
+        
+        <div id="importModalIconBox" class="w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-5 shadow-inner bg-gray-50 text-gray-500">
+            <i id="importModalIcon" class="fas fa-info-circle text-4xl"></i>
+        </div>
+        
+        <h3 id="importModalTitle" class="text-2xl font-black text-gray-900 mb-2">Notice</h3>
+        <p id="importModalMessage" class="text-gray-500 mb-8 text-sm">Message content goes here.</p>
+        
+        <button type="button" onclick="closeImportModal()" id="importModalBtn" class="w-full px-4 py-3 bg-[#a52a2a] text-white font-bold rounded-xl shadow-md hover:bg-red-800 transition">
+            Okay
+        </button>
+    </div>
+</div>
 
-    function confirmDeleteTeacher(id) {
-        deleteTeacherId = id;
-        document.getElementById('deleteTeacherModal').classList.remove('hidden');
+<script>
+    // --- MULTI-SELECT CHECKBOX LOGIC ---
+    var selectAllCheckbox = document.getElementById('selectAllCheckbox');
+    var bulkDeleteBtn = document.getElementById('bulkDeleteBtn');
+    var bulkDeleteCount = document.getElementById('bulkDeleteCount');
+
+    function updateBulkActionUI() {
+        var checkedBoxes = document.querySelectorAll('.teacher-checkbox:checked');
+        var count = checkedBoxes.length;
+
+        if (count > 0) {
+            bulkDeleteBtn.classList.remove('hidden');
+            bulkDeleteCount.innerText = `Delete (${count})`;
+        } else {
+            bulkDeleteBtn.classList.add('hidden');
+        }
+
+        var visibleRows = Array.from(document.querySelectorAll('.teacher-row')).filter(row => row.style.display !== 'none');
+        if(selectAllCheckbox) {
+            selectAllCheckbox.checked = (count > 0 && count === visibleRows.length);
+        }
+    }
+
+    if (selectAllCheckbox) {
+        selectAllCheckbox.addEventListener('change', function(e) {
+            var isChecked = e.target.checked;
+            document.querySelectorAll('.teacher-row').forEach(row => {
+                if (row.style.display !== 'none') { 
+                    row.querySelector('.teacher-checkbox').checked = isChecked;
+                }
+            });
+            updateBulkActionUI();
+        });
+    }
+
+    document.getElementById('teachersTable').addEventListener('change', function(e) {
+        if (e.target.classList.contains('teacher-checkbox')) {
+            updateBulkActionUI();
+        }
+    });
+
+    // --- ANIMATED DELETE LOGIC ---
+    var deleteTeacherIds = []; 
+
+    function confirmDeleteTeacher(id = null) {
+        if (id) {
+            deleteTeacherIds = [id]; 
+        } else {
+            var checkedBoxes = document.querySelectorAll('.teacher-checkbox:checked');
+            deleteTeacherIds = Array.from(checkedBoxes).map(cb => cb.value);
+        }
+
+        if (deleteTeacherIds.length === 0) return;
+
+        document.getElementById('deleteTeacherCountText').innerText = deleteTeacherIds.length > 1 
+            ? `these ${deleteTeacherIds.length} educators' accounts` 
+            : "this educator's account";
+
+        var modal = document.getElementById('deleteTeacherModal');
+        var box = document.getElementById('deleteTeacherModalBox');
+        
+        modal.classList.remove('hidden');
+        setTimeout(() => {
+            box.classList.remove('scale-95', 'opacity-0');
+            box.classList.add('scale-100', 'opacity-100');
+        }, 10);
     }
 
     function closeDeleteTeacherModal() {
-        deleteTeacherId = null;
-        document.getElementById('deleteTeacherModal').classList.add('hidden');
+        var modal = document.getElementById('deleteTeacherModal');
+        var box = document.getElementById('deleteTeacherModalBox');
+        
+        box.classList.remove('scale-100', 'opacity-100');
+        box.classList.add('scale-95', 'opacity-0');
+        
+        setTimeout(() => {
+            modal.classList.add('hidden');
+            deleteTeacherIds = []; 
+        }, 300);
     }
 
     var confirmTeacherBtn = document.getElementById('confirmDeleteTeacherBtn');
@@ -205,7 +317,7 @@
         confirmTeacherBtn.parentNode.replaceChild(newConfirmTeacherBtn, confirmTeacherBtn);
 
         newConfirmTeacherBtn.addEventListener('click', function() {
-            if (!deleteTeacherId) return;
+            if (deleteTeacherIds.length === 0) return;
 
             var btnText = this.querySelector('span');
             var originalText = btnText.textContent;
@@ -213,25 +325,39 @@
             this.disabled = true;
             btnText.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
 
-            fetch(`/dashboard/teachers/${deleteTeacherId}`, {
-                method: 'DELETE',
+            fetch(`/dashboard/teachers/bulk-delete`, {
+                method: 'POST', 
                 headers: {
+                    'Content-Type': 'application/json',
                     'X-CSRF-TOKEN': '{{ csrf_token() }}',
                     'X-Requested-With': 'XMLHttpRequest',
                     'Accept': 'application/json'
-                }
+                },
+                body: JSON.stringify({ 
+                    ids: deleteTeacherIds,
+                    _method: 'DELETE' 
+                })
             })
-            .then(response => {
-                if (!response.ok) throw new Error('Network response was not ok');
-                return response.json();
+            .then(async response => {
+                var data = await response.json();
+                if (!response.ok) {
+                    throw new Error(data.message || 'Server error occurred.'); 
+                }
+                return data;
             })
             .then(data => {
                 closeDeleteTeacherModal();
-                loadPartial('{{ route('dashboard.teachers') }}', document.getElementById('nav-teachers-btn'));
+                showImportModal('Deleted Successfully!', data.message, 'success', () => {
+                    loadPartial("{{ route('dashboard.teachers') }}", document.getElementById('nav-teachers-btn'));
+                });
             })
             .catch(error => {
                 console.error("Deletion error:", error);
-                alert("An error occurred while trying to remove the teacher.");
+                closeDeleteTeacherModal();
+                
+                setTimeout(() => {
+                    showImportModal('Deletion Blocked', error.message, 'error');
+                }, 350); 
             })
             .finally(() => {
                 this.disabled = false;
@@ -242,38 +368,36 @@
 
     // --- PAGINATION, FILTER, SEARCH & SORT LOGIC ---
     var currentPage = 1;
-    var pageSize = 20; // 20 items per page
+    var pageSize = 20; 
     var allTeacherRows = [];
     var currentFilteredRows = [];
     var currentStatusFilter = 'all';
     var currentSearchFilter = '';
 
-    // Initialize data on load
     setTimeout(function() {
         allTeacherRows = Array.from(document.querySelectorAll('.teacher-row'));
         currentFilteredRows = [...allTeacherRows];
         applyFilters(); 
     }, 50);
 
-    // Master filter function handles Search + Tabs + Pagination array slicing
     function applyFilters() {
         currentFilteredRows = allTeacherRows.filter(function(row) {
             var text = row.textContent.toLowerCase();
             var rowStatus = row.getAttribute('data-status');
-            
             var matchesSearch = text.includes(currentSearchFilter);
             var matchesStatus = (currentStatusFilter === 'all') || (rowStatus === currentStatusFilter);
-
             return matchesSearch && matchesStatus;
         });
 
         var counterElement = document.getElementById('total-teachers-count');
-        if (counterElement) {
-            counterElement.textContent = currentFilteredRows.length;
-        }
+        if (counterElement) counterElement.textContent = currentFilteredRows.length;
 
-        currentPage = 1; // Reset to page 1 whenever filters change
+        currentPage = 1; 
         applyPagination();
+        
+        if(selectAllCheckbox) selectAllCheckbox.checked = false;
+        document.querySelectorAll('.teacher-checkbox').forEach(cb => cb.checked = false);
+        updateBulkActionUI();
     }
 
     function applyPagination() {
@@ -281,7 +405,6 @@
         var emptyState = document.getElementById('emptyStateRow');
         var paginationWrapper = document.getElementById('pagination-wrapper');
 
-        // Hide all rows initially
         allTeacherRows.forEach(row => row.style.display = 'none');
 
         if (currentFilteredRows.length === 0) {
@@ -302,7 +425,6 @@
         var startIdx = (currentPage - 1) * pageSize;
         var endIdx = Math.min(startIdx + pageSize, currentFilteredRows.length);
 
-        // Show and re-append rows for current page
         for (var i = startIdx; i < endIdx; i++) {
             currentFilteredRows[i].style.display = '';
             tbody.appendChild(currentFilteredRows[i]);
@@ -335,6 +457,9 @@
                 btn.onclick = function() {
                     currentPage = page;
                     applyPagination();
+                    if(selectAllCheckbox) selectAllCheckbox.checked = false;
+                    document.querySelectorAll('.teacher-checkbox').forEach(cb => cb.checked = false);
+                    updateBulkActionUI();
                 };
             }
             return btn;
@@ -365,19 +490,17 @@
         controls.appendChild(createBtn('<i class="fas fa-chevron-right text-xs"></i>', currentPage + 1, currentPage === totalPages, false));
     }
 
-    // 1. Search Bar Binding
     var teacherSearchInput = document.getElementById('teacherSearchInput');
     if (teacherSearchInput) {
-        var newTeacherSearchInput = teacherSearchInput.cloneNode(true);
-        teacherSearchInput.parentNode.replaceChild(newTeacherSearchInput, teacherSearchInput);
+        var newSearchInput = teacherSearchInput.cloneNode(true);
+        teacherSearchInput.parentNode.replaceChild(newSearchInput, teacherSearchInput);
 
-        newTeacherSearchInput.addEventListener('input', function() {
+        newSearchInput.addEventListener('input', function() {
             currentSearchFilter = this.value.toLowerCase();
             applyFilters();
         });
     }
 
-    // 2. Tab Clicking Binding
     var tabs = document.querySelectorAll('.status-tab');
     tabs.forEach(function(tab) {
         var newTab = tab.cloneNode(true);
@@ -397,7 +520,6 @@
         });
     });
 
-    // --- SORTING LOGIC ---
     var teacherSortableHeaders = document.querySelectorAll('#teachersTable .sortable-col');
     teacherSortableHeaders.forEach(function(header) {
         var newHeader = header.cloneNode(true);
@@ -407,7 +529,6 @@
             var colIndex = Array.from(newHeader.parentNode.children).indexOf(newHeader);
             var isAsc = newHeader.classList.contains('asc');
 
-            // Reset Icons
             document.querySelectorAll('#teachersTable .sortable-col i').forEach(function(icon) {
                 icon.className = 'fas fa-sort ml-1 text-gray-300';
             });
@@ -415,7 +536,6 @@
                 h.classList.remove('asc', 'desc');
             });
 
-            // Set Direction
             var multiplier = 1;
             if (isAsc) {
                 newHeader.classList.add('desc');
@@ -427,7 +547,6 @@
                 multiplier = 1;
             }
 
-            // Sort filtered array directly
             currentFilteredRows.sort(function(a, b) {
                 var aText = a.children[colIndex].textContent.trim().toLowerCase();
                 var bText = b.children[colIndex].textContent.trim().toLowerCase();
@@ -439,6 +558,97 @@
 
             currentPage = 1;
             applyPagination();
+            
+            if(selectAllCheckbox) selectAllCheckbox.checked = false;
+            document.querySelectorAll('.teacher-checkbox').forEach(cb => cb.checked = false);
+            updateBulkActionUI();
         });
     });
+
+    // --- IMPORT MODAL LOGIC ---
+    var importSuccessCallback = null;
+
+    function showImportModal(title, message, type, callback = null) {
+        importSuccessCallback = callback;
+        
+        var modal = document.getElementById('importMessageModal');
+        var box = document.getElementById('importMessageModalBox');
+        var iconBox = document.getElementById('importModalIconBox');
+        var icon = document.getElementById('importModalIcon');
+
+        document.getElementById('importModalTitle').innerText = title;
+        document.getElementById('importModalMessage').innerText = message;
+
+        if (type === 'success') {
+            iconBox.className = 'w-20 h-20 bg-green-50 text-green-500 rounded-full flex items-center justify-center mx-auto mb-5 shadow-inner';
+            icon.className = 'fas fa-check text-4xl';
+        } else {
+            iconBox.className = 'w-20 h-20 bg-red-50 text-red-500 rounded-full flex items-center justify-center mx-auto mb-5 shadow-inner';
+            icon.className = 'fas fa-exclamation-triangle text-4xl';
+        }
+
+        modal.classList.remove('hidden');
+        setTimeout(() => {
+            box.classList.remove('scale-95', 'opacity-0');
+            box.classList.add('scale-100', 'opacity-100');
+        }, 10);
+    }
+
+    function closeImportModal() {
+        var modal = document.getElementById('importMessageModal');
+        var box = document.getElementById('importMessageModalBox');
+        
+        box.classList.remove('scale-100', 'opacity-100');
+        box.classList.add('scale-95', 'opacity-0');
+        
+        setTimeout(() => {
+            modal.classList.add('hidden');
+            if (importSuccessCallback) {
+                importSuccessCallback(); 
+                importSuccessCallback = null;
+            }
+        }, 300); 
+    }
+
+    function handleTeacherImport(input) {
+        if (!input.files || !input.files[0]) return;
+
+        var formData = new FormData();
+        formData.append('file', input.files[0]);
+
+        var importBtn = document.getElementById('importTeacherBtn');
+        var originalContent = importBtn.innerHTML;
+        
+        importBtn.disabled = true;
+        importBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> <span>Importing...</span>';
+
+        fetch('{{ route("teachers.import") }}', { 
+            method: 'POST',
+            body: formData,
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest',
+                'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                'Accept': 'application/json'
+            }
+        })
+        .then(async response => {
+            var data = await response.json();
+            if (response.ok) {
+                showImportModal('Import Successful!', data.message || 'Educators imported successfully!', 'success', () => {
+                    loadPartial("{{ route('dashboard.teachers') }}", document.getElementById('nav-teachers-btn'));
+                });
+            } else {
+                throw data;
+            }
+        })
+        .catch(error => {
+            console.error("Import error:", error);
+            showImportModal('Import Failed', error.message || "An error occurred during import. Please check your file format.", 'error');
+        })
+        .finally(() => {
+            importBtn.disabled = false;
+            importBtn.innerHTML = originalContent;
+            input.value = '';
+        });
+    }
 </script>

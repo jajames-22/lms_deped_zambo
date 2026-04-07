@@ -57,19 +57,39 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::put('/schools/{school}', [DashboardController::class, 'updateSchool'])->name('schools.update');
         Route::delete('/schools/{school}', [DashboardController::class, 'destroySchool'])->name('schools.destroy');
 
-        // Teachers Management
-        Route::get('/teachers/create', [TeacherController::class, 'createTeacherPartial'])->name('teachers.create');
-        Route::post('/teachers/store', [TeacherController::class, 'storeTeacher'])->name('teachers.store');
-        Route::get('/teachers/{teacher}/edit', [TeacherController::class, 'editTeacherPartial'])->name('teachers.edit');
-        Route::put('/teachers/{teacher}', [TeacherController::class, 'updateTeacher'])->name('teachers.update');
-        Route::delete('/teachers/{teacher}', [TeacherController::class, 'destroyTeacher'])->name('teachers.destroy');
-
-        // Students Management
+        /*
+        |--------------------------------------------------------------------------
+        | STUDENTS MANAGEMENT
+        |--------------------------------------------------------------------------
+        */
+        // 1. Static Routes (MUST be above wildcard routes)
+        Route::delete('/students/bulk-delete', [StudentController::class, 'bulkDestroy'])->name('students.bulk-delete');
         Route::get('/students/create', [StudentController::class, 'createStudentPartial'])->name('students.create');
         Route::post('/students/store', [StudentController::class, 'storeStudent'])->name('students.store');
+        Route::get('/students/import-template', [StudentController::class, 'downloadTemplate'])->name('students.import.template');
+        Route::post('/students/import', [StudentController::class, 'import'])->name('students.import');
+        
+        // 2. Wildcard Routes (MUST be at the bottom)
         Route::get('/students/{student}/edit', [StudentController::class, 'editStudentPartial'])->name('students.edit');
         Route::put('/students/{student}', [StudentController::class, 'updateStudent'])->name('students.update');
         Route::delete('/students/{student}', [StudentController::class, 'destroyStudent'])->name('students.destroy');
+
+        /*
+        |--------------------------------------------------------------------------
+        | TEACHERS MANAGEMENT
+        |--------------------------------------------------------------------------
+        */
+        // 1. Static Routes (MUST be above wildcard routes)
+        Route::delete('/teachers/bulk-delete', [TeacherController::class, 'bulkDestroy'])->name('teachers.bulk-delete');
+        Route::get('/teachers/create', [TeacherController::class, 'createTeacherPartial'])->name('teachers.create');
+        Route::post('/teachers/store', [TeacherController::class, 'storeTeacher'])->name('teachers.store');
+        Route::get('/teachers/import-template', [TeacherController::class, 'downloadTemplate'])->name('teachers.import.template');
+        Route::post('/teachers/import', [TeacherController::class, 'import'])->name('teachers.import');
+        
+        // 2. Wildcard Routes (MUST be at the bottom)
+        Route::get('/teachers/{teacher}/edit', [TeacherController::class, 'editTeacherPartial'])->name('teachers.edit');
+        Route::put('/teachers/{teacher}', [TeacherController::class, 'updateTeacher'])->name('teachers.update');
+        Route::delete('/teachers/{teacher}', [TeacherController::class, 'destroyTeacher'])->name('teachers.destroy');
 
         // Admin Assessment Management
         Route::get('/assessments/{assessment}/manage', [AssessmentController::class, 'manage'])->name('dashboard.assessments.manage');
@@ -135,25 +155,18 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     Route::get('/get-districts/{quadrantId}', [DashboardController::class, 'getDistricts'])->name('districts.get');
 
-    Route::get('/dashboard/explore', [StudentController::class, 'explore'])
-        ->name('dashboard.explore');
+    Route::get('/dashboard/explore', [StudentController::class, 'explore'])->name('dashboard.explore');
 
-    // Route for the "See All" links or individual tag filtering
-    Route::get('/dashboard/explore/tags/{tag}', [StudentController::class, 'viewByTag'])
-        ->name('dashboard.explore.tag');
+    Route::get('/dashboard/explore/tags/{tag}', [StudentController::class, 'viewByTag'])->name('dashboard.explore.tag');
 
-    // Route for the Enroll/Access Material buttons
-    // This typically routes to the manage/view page of a material
-    Route::get('/dashboard/materials/{material}/view', [StudentController::class, 'viewMaterial'])
-        ->name('dashboard.materials.view');
+    Route::get('/dashboard/materials/{material}/view', [StudentController::class, 'viewMaterial'])->name('dashboard.materials.view');
 
     Route::get('/analytics/export/admin', [DashboardController::class, 'exportAdminAnalyticsPdf'])->name('analytics.export.admin');
 
-    
     Route::get('/analytics/export/student', [DashboardController::class, 'exportStudentAnalyticsPdf'])->name('analytics.export.student');
 
-    
     Route::get('/analytics/export/teacher', [DashboardController::class, 'exportTeacherAnalyticsPdf'])->name('analytics.export.teacher');
+
 });
 
 /*
@@ -183,15 +196,11 @@ Route::middleware(['auth'])->group(function () {
         Route::get('/assessment/{access_key}/exam', [StudentAssessmentController::class, 'exam'])->name('student.assessment.exam');
         Route::post('/assessment/{access_key}/submit', [StudentAssessmentController::class, 'submit'])->name('student.assessment.submit');
         Route::post('/assessment/{access_key}/autosave', [StudentAssessmentController::class, 'autoSave'])->name('student.assessment.autosave');
-
         Route::get('/assessment/{access_key}/results', [StudentAssessmentController::class, 'results'])->name('student.assessment.results');
 
-
-        // ADD SUBMIT ROUTE HERE LATER:
-        // Route::post('/assessment/{access_key}/submit', [StudentAssessmentController::class, 'submit'])->name('student.assessment.submit');
     });
 
-    Route::get('/dashboard/profile', [ProfileController::class, 'show'])->name('profile');
+    Route::get('/dashboard/profile', [ProfileController::class, 'show'])->name('dashboard.profile');
 
     // Handles the form submissions via AJAX/JSON
     Route::patch('/dashboard/profile', [ProfileController::class, 'update'])->name('profile.update');

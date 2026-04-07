@@ -109,3 +109,8 @@ Route::middleware('auth')->group(function () {
     Route::post('/logout', [AuthController::class, 'logout'])
         ->name('logout');
 });
+
+Route::middleware('auth')->group(function () {
+    Route::get('/register-email', [AuthController::class, 'showRegisterEmail'])->name('register-email');
+    Route::post('/register-email', [AuthController::class, 'storeRegisterEmail']);
+});

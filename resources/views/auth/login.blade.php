@@ -52,12 +52,12 @@
                         @csrf
 
                         <div>
-                            <label for="email" class="block text-sm font-medium text-gray-700 mb-1">Email Address</label>
-                            <input type="email" name="email" id="email" value="{{ old('email') }}" 
-                                class="w-full px-4 py-2.5 rounded-lg border border-gray-300 focus:ring-2 focus:ring-[#a52a2a]/50 focus:border-[#a52a2a] outline-none transition-all @error('email') border-red-500 @enderror" 
-                                placeholder="Enter your email" autofocus>
+                            <label for="login_id" class="block text-sm font-medium text-gray-700 mb-1">Username or Email</label>
+                            <input type="text" name="login_id" id="login_id" value="{{ old('login_id') }}" 
+                                class="w-full px-4 py-2.5 rounded-lg border border-gray-300 focus:ring-2 focus:ring-[#a52a2a]/50 focus:border-[#a52a2a] outline-none transition-all @error('login_id') border-red-500 @enderror" 
+                                placeholder="Enter your username or email" autofocus>
                             
-                            @error('email')
+                            @error('login_id')
                                 <p class="text-red-500 text-xs mt-1.5 font-medium">{{ $message }}</p>
                                 
                                 {{-- Button linked to the external resend form using form="id" --}}

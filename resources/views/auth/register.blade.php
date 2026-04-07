@@ -95,13 +95,24 @@
                             </div>
                         </div>
 
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">Email Address</label>
-                            <input type="email" name="email" value="{{ old('email') }}"
-                                class="w-full px-4 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-[#a52a2a]/50 focus:border-[#a52a2a] outline-none transition-all @error('email') border-red-500 @enderror"
-                                placeholder="Ex. xxx@deped.gov.ph">
-                            @error('email') <p class="text-red-500 text-xs mt-1 font-medium">{{ $message }}</p>
-                            @enderror
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Username</label>
+                                <input type="text" name="username" value="{{ old('username') }}"
+                                    class="w-full px-4 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-[#a52a2a]/50 focus:border-[#a52a2a] outline-none transition-all @error('username') border-red-500 @enderror"
+                                    placeholder="Ex. JuanDelaCruz22">
+                                @error('username') <p class="text-red-500 text-xs mt-1 font-medium">{{ $message }}</p>
+                                @enderror
+                            </div>
+
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Email Address</label>
+                                <input type="email" name="email" value="{{ old('email') }}"
+                                    class="w-full px-4 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-[#a52a2a]/50 focus:border-[#a52a2a] outline-none transition-all @error('email') border-red-500 @enderror"
+                                    placeholder="Ex. xxx@deped.gov.ph">
+                                @error('email') <p class="text-red-500 text-xs mt-1 font-medium">{{ $message }}</p>
+                                @enderror
+                            </div>
                         </div>
 
                         <div>
@@ -181,26 +192,6 @@
                             </div>
 
                             @error('role')
-                                <p class="text-red-500 text-xs mt-1 font-medium">{{ $message }}</p>
-                            @enderror
-                        </div>
-
-                        <div id="lrnWrapper" style="display:none;">
-                            <label class="block text-sm font-medium text-gray-700 mb-1">Learner Reference Number (LRN)</label>
-                            <input type="text" name="lrn" value="{{ old('lrn') }}"
-                                class="w-full px-4 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-[#a52a2a]/50 focus:border-[#a52a2a] outline-none transition-all @error('lrn') border-red-500 @enderror"
-                                placeholder="Enter your 12-digit LRN">
-                            @error('lrn')
-                                <p class="text-red-500 text-xs mt-1 font-medium">{{ $message }}</p>
-                            @enderror
-                        </div>
-
-                        <div id="employeeIdWrapper" style="display:none;">
-                            <label class="block text-sm font-medium text-gray-700 mb-1">Teacher's ID / Employee ID</label>
-                            <input type="text" name="employee_id" value="{{ old('employee_id') }}"
-                                class="w-full px-4 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-[#a52a2a]/50 focus:border-[#a52a2a] outline-none transition-all @error('employee_id') border-red-500 @enderror"
-                                placeholder="Enter Teacher's ID">
-                            @error('employee_id')
                                 <p class="text-red-500 text-xs mt-1 font-medium">{{ $message }}</p>
                             @enderror
                         </div>
@@ -335,25 +326,18 @@
             // Elements
             const roleRadios = document.querySelectorAll('input[name="role"]');
             const gradeWrapper = document.getElementById('gradeLevelWrapper');
-            const lrnWrapper = document.getElementById('lrnWrapper');
-            const employeeIdWrapper = document.getElementById('employeeIdWrapper');
 
             function toggleFields() {
                 const selectedRole = document.querySelector('input[name="role"]:checked');
 
-                // Hide all by default
+                // Hide grade wrapper by default
                 gradeWrapper.style.display = "none";
-                lrnWrapper.style.display = "none";
-                employeeIdWrapper.style.display = "none";
 
                 if (!selectedRole) return;
 
-                // Show fields based on role
+                // Show grade level ONLY if student is selected
                 if (selectedRole.value === "student") {
                     gradeWrapper.style.display = "block";
-                    lrnWrapper.style.display = "block";
-                } else if (selectedRole.value === "teacher") {
-                    employeeIdWrapper.style.display = "block";
                 }
             }
 

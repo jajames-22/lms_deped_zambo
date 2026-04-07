@@ -28,6 +28,7 @@ class AuthController extends Controller
     }
     
     // 🔹 Handle Registration
+    // 🔹 Handle Registration
     public function register(Request $request)
     {
         $validated = $request->validate([
@@ -35,6 +36,16 @@ class AuthController extends Controller
             'middle_name' => 'nullable|string|max:255',
             'last_name' => 'required|string|max:255',
             'suffix' => 'nullable|string|max:255',
+            
+            // 👈 UPDATED: Strict Username Validation
+            'username' => [
+                'required',
+                'string',
+                'max:30', // Max 30 characters
+                'regex:/^[a-zA-Z0-9._]+$/', // Only letters, numbers, periods, and underscores
+                'unique:users,username'
+            ],
+            
             'email' => 'required|email|unique:users',
             'password' => [
                 'required',
@@ -52,24 +63,9 @@ class AuthController extends Controller
                 'string',
                 'max:50'
             ],
-
-            // 👈 NEW: Require LRN only if the user is a student
-            'lrn' => [
-                Rule::requiredIf($request->role === 'student'),
-                'nullable',
-                'string',
-                'max:50',
-                'unique:users,lrn'
-            ],
-
-            // 👈 NEW: Require Employee ID only if the user is a teacher
-            'employee_id' => [
-                Rule::requiredIf($request->role === 'teacher'),
-                'nullable',
-                'string',
-                'max:50',
-                'unique:users,employee_id'
-            ],
+        ], [
+            // 👈 NEW: Friendly error message if they use invalid characters
+            'username.regex' => 'Your username may only contain letters, numbers, periods, and underscores.'
         ]);
 
         $user = User::create([
@@ -77,13 +73,9 @@ class AuthController extends Controller
             'middle_name' => $validated['middle_name'] ?? null,
             'last_name' => $validated['last_name'],
             'suffix' => $validated['suffix'] ?? null,
+            'username' => $validated['username'], 
             'email' => $validated['email'],
             'password' => bcrypt($validated['password']),
-            
-            // 👈 NEW: Insert into the correct column based on role
-            'lrn' => $validated['lrn'] ?? null,
-            'employee_id' => $validated['employee_id'] ?? null,
-            
             'school_id' => $validated['school_id'],
             'grade_level' => $validated['grade_level'] ?? null,
             'role' => $validated['role'],
@@ -100,15 +92,26 @@ class AuthController extends Controller
     }
 
     // 🔹 Handle Login
+    // 🔹 Handle Login
     public function login(Request $request)
     {
-        $credentials = $request->validate([
-            'email' => ['required', 'email'],
+        // 1. Validate the generic login field
+        $request->validate([
+            'login_id' => ['required', 'string'],
             'password' => ['required'],
         ]);
 
+        // 2. Auto-detect if they typed an email or a username
+        $loginType = filter_var($request->login_id, FILTER_VALIDATE_EMAIL) ? 'email' : 'username';
+        
+        $credentials = [
+            $loginType => $request->login_id,
+            'password' => $request->password,
+        ];
+
         $remember = $request->boolean('remember');
 
+        // 3. Attempt Login
         if (Auth::attempt($credentials, $remember)) {
             $user = Auth::user();
 
@@ -117,8 +120,15 @@ class AuthController extends Controller
                 Auth::logout(); // Prevent access
                 
                 return back()->withErrors([
-                    'email' => 'Your account has been suspended. Please contact the administrator.'
-                ])->onlyInput('email');
+                    'login_id' => 'Your account has been suspended. Please contact the administrator.'
+                ])->onlyInput('login_id');
+            }
+
+            // NEW: Check if the user has no email in the database
+            if (empty($user->email)) {
+                $request->session()->regenerate();
+                // Redirect them to the page where they must attach an email
+                return redirect('/register-email'); 
             }
 
             // Check if email is verified
@@ -127,8 +137,8 @@ class AuthController extends Controller
                 Auth::logout(); // Prevent access
 
                 return back()->withErrors([
-                    'email' => 'You must verify your email first.'
-                ])->with('unverified_email', $unverifiedEmail)->onlyInput('email');
+                    'login_id' => 'You must verify your email first.'
+                ])->with('unverified_email', $unverifiedEmail)->onlyInput('login_id');
             }
 
             // If neither suspended nor unverified, regenerate session and log them in
@@ -138,8 +148,8 @@ class AuthController extends Controller
         }
 
         return back()->withErrors([
-            'email' => 'Invalid credentials.',
-        ])->onlyInput('email');
+            'login_id' => 'Invalid credentials.',
+        ])->onlyInput('login_id');
     }
 
     // 🔹 Handle Logout
@@ -151,5 +161,40 @@ class AuthController extends Controller
         $request->session()->regenerateToken(); // prevent csrf reuse
 
         return redirect('/login');
+    }
+
+    public function showRegisterEmail()
+    {
+        // Prevent users who already have an email from seeing this
+        if (!empty(auth()->user()->email)) {
+            return redirect()->intended('/dashboard');
+        }
+        return view('auth.register-email');
+    }
+
+    /**
+     * Store the provided email and trigger verification.
+     */
+    public function storeRegisterEmail(Request $request)
+    {
+        $validated = $request->validate([
+            'email' => ['required', 'email', 'max:255', 'unique:users,email'],
+        ]);
+
+        $user = auth()->user();
+        $user->update([
+            'email' => $validated['email']
+        ]);
+
+        // Trigger the verification email
+        event(new \Illuminate\Auth\Events\Registered($user));
+
+        // Log them out so they must verify their email to log back in
+        Auth::logout();
+
+        return redirect()->route('login')->with([
+            'show_verification_modal' => true,
+            'verify_email' => $validated['email']
+        ]);
     }
 }
