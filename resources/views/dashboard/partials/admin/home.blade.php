@@ -183,83 +183,102 @@
 </div>
 
 <script>
-    // Activity Line Chart
-    const ctxActivity = document.getElementById('activityChart').getContext('2d');
-    new Chart(ctxActivity, {
-        type: 'line',
-        data: {
-            labels: {!! json_encode($activityDates) !!},
-            datasets: [{
-                label: 'Active Users',
-                data: {!! json_encode($activityTrend) !!},
-                borderColor: '#3b82f6',
-                backgroundColor: 'rgba(59, 130, 246, 0.1)',
-                borderWidth: 3,
-                tension: 0.4,
-                fill: true,
-                pointBackgroundColor: '#ffffff',
-                pointBorderColor: '#3b82f6',
-                pointBorderWidth: 2,
-                pointRadius: 4,
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: { legend: { display: false } },
-            scales: {
-                y: { beginAtZero: true, grid: { borderDash: [4, 4] } },
-                x: { grid: { display: false } }
-            }
-        }
-    });
+    // 1. Create a global object to hold our chart instances so they persist between partial loads
+    window.dashboardCharts = window.dashboardCharts || {};
 
-    // Top Materials Doughnut Chart
-    const ctxMaterials = document.getElementById('materialsChart').getContext('2d');
-    new Chart(ctxMaterials, {
-        type: 'doughnut',
-        data: {
-            labels: {!! json_encode($topMaterialsLabels) !!},
-            datasets: [{
-                data: {!! json_encode($topMaterialsData) !!},
-                backgroundColor: ['#a52a2a', '#f59e0b', '#10b981', '#3b82f6', '#8b5cf6'],
-                borderWidth: 0,
-                hoverOffset: 4
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            cutout: '70%',
-            plugins: {
-                legend: { position: 'bottom', labels: { boxWidth: 10, font: { size: 10 } } }
-            }
-        }
-    });
+    function initDashboardCharts() {
+        // 2. Destroy existing charts if they exist to prevent "Canvas already in use" errors
+        if (window.dashboardCharts.activity) window.dashboardCharts.activity.destroy();
+        if (window.dashboardCharts.materials) window.dashboardCharts.materials.destroy();
+        if (window.dashboardCharts.schools) window.dashboardCharts.schools.destroy();
 
-    // Top Schools Horizontal Bar Chart
-    const ctxSchools = document.getElementById('schoolsChart').getContext('2d');
-    new Chart(ctxSchools, {
-        type: 'bar',
-        data: {
-            labels: {!! json_encode($topSchoolLabels) !!},
-            datasets: [{
-                label: 'Enrolled Students',
-                data: {!! json_encode($topSchoolData) !!},
-                backgroundColor: '#a52a2a',
-                borderRadius: 4,
-                barThickness: 16
-            }]
-        },
-        options: {
-            indexAxis: 'y',
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: { legend: { display: false } },
-            scales: {
-                x: { beginAtZero: true, grid: { borderDash: [4, 4] } },
-                y: { grid: { display: false }, ticks: { font: { size: 11 } } }
-            }
+        // 3. Activity Line Chart
+        const ctxActivity = document.getElementById('activityChart');
+        if (ctxActivity) {
+            window.dashboardCharts.activity = new Chart(ctxActivity.getContext('2d'), {
+                type: 'line',
+                data: {
+                    labels: {!! json_encode($activityDates ?? []) !!},
+                    datasets: [{
+                        label: 'Active Users',
+                        data: {!! json_encode($activityTrend ?? []) !!},
+                        borderColor: '#3b82f6',
+                        backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                        borderWidth: 3,
+                        tension: 0.4,
+                        fill: true,
+                        pointBackgroundColor: '#ffffff',
+                        pointBorderColor: '#3b82f6',
+                        pointBorderWidth: 2,
+                        pointRadius: 4,
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        y: { beginAtZero: true, grid: { borderDash: [4, 4] } },
+                        x: { grid: { display: false } }
+                    }
+                }
+            });
         }
-    });
+
+        // 4. Top Materials Doughnut Chart
+        const ctxMaterials = document.getElementById('materialsChart');
+        if (ctxMaterials) {
+            window.dashboardCharts.materials = new Chart(ctxMaterials.getContext('2d'), {
+                type: 'doughnut',
+                data: {
+                    labels: {!! json_encode($topMaterialsLabels ?? []) !!},
+                    datasets: [{
+                        data: {!! json_encode($topMaterialsData ?? []) !!},
+                        backgroundColor: ['#a52a2a', '#f59e0b', '#10b981', '#3b82f6', '#8b5cf6'],
+                        borderWidth: 0,
+                        hoverOffset: 4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    cutout: '70%',
+                    plugins: {
+                        legend: { position: 'bottom', labels: { boxWidth: 10, font: { size: 10 } } }
+                    }
+                }
+            });
+        }
+
+        // 5. Top Schools Horizontal Bar Chart
+        const ctxSchools = document.getElementById('schoolsChart');
+        if (ctxSchools) {
+            window.dashboardCharts.schools = new Chart(ctxSchools.getContext('2d'), {
+                type: 'bar',
+                data: {
+                    labels: {!! json_encode($topSchoolLabels ?? []) !!},
+                    datasets: [{
+                        label: 'Enrolled Students',
+                        data: {!! json_encode($topSchoolData ?? []) !!},
+                        backgroundColor: '#a52a2a',
+                        borderRadius: 4,
+                        barThickness: 16
+                    }]
+                },
+                options: {
+                    indexAxis: 'y',
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        x: { beginAtZero: true, grid: { borderDash: [4, 4] } },
+                        y: { grid: { display: false }, ticks: { font: { size: 11 } } }
+                    }
+                }
+            });
+        }
+    }
+
+    // Initialize charts immediately when this script loads via loadPartial
+    initDashboardCharts();
 </script>
