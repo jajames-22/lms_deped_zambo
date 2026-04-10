@@ -176,7 +176,7 @@ class TeacherController extends Controller
             'Content-Disposition' => 'attachment; filename="Teacher_Import_Template.csv"',
         ];
 
-        // The exact columns required for the import
+        // 👈 NEW: Added 'status' to the columns
         $columns = [
             'employee_id', 
             'first_name', 
@@ -186,7 +186,8 @@ class TeacherController extends Controller
             'username', 
             'email', 
             'password', 
-            'school_id'
+            'school_id',
+            'status' // <--- Added
         ];
 
         $callback = function () use ($columns) {
@@ -199,7 +200,7 @@ class TeacherController extends Controller
             fputcsv($file, [
                 '1234567', 'Juan', 'Pedro', 'Dela Cruz', '', 
                 'juan_teacher', 'juan@deped.gov.ph', 'Teacher123!', 
-                '123456' // Remind them to use the DepEd School ID
+                '123456', 'verified' // <--- Added
             ]);
             
             fclose($file);

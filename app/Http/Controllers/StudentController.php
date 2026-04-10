@@ -215,7 +215,7 @@ class StudentController extends Controller
             'Content-Disposition' => 'attachment; filename="Student_Import_Template.csv"',
         ];
 
-        // 👈 NEW: Added 'username' to the headers array
+        // 👈 NEW: Added 'status' to the headers array
         $columns = [
             'lrn', 
             'first_name', 
@@ -226,18 +226,19 @@ class StudentController extends Controller
             'email', 
             'password', 
             'grade_level', 
-            'school_id'
+            'school_id',
+            'status' // <--- Added
         ];
 
         $callback = function () use ($columns) {
             $file = fopen('php://output', 'w');
             fputcsv($file, $columns);
             
-            // 👈 NEW: Added 'juan_delacruz' as the sample username
+            // 👈 NEW: Added 'verified' as the sample status
             fputcsv($file, [
                 '123456789012','Juan', 'Pedro', 'Dela Cruz', 'Jr.', 
                 'juan_delacruz', 'juan@deped.gov.ph', 'SecretPass!', 
-                'Grade 10', '123456'
+                'Grade 10', '123456', 'verified' // <--- Added
             ]);
             
             fclose($file);

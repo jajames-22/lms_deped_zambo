@@ -1,4 +1,11 @@
 <div>
+    <style>
+        /* Ensures the icon background and color change properly when the hidden radio is checked */
+        input[value="pending"]:checked + div .status-icon { background-color: #f59e0b !important; color: white !important; }
+        input[value="verified"]:checked + div .status-icon { background-color: #10b981 !important; color: white !important; }
+        input[value="suspended"]:checked + div .status-icon { background-color: #ef4444 !important; color: white !important; }
+    </style>
+
     <div class="max-w-5xl mx-auto space-y-6 pb-10 relative animate-float-in">
         
         <div class="flex items-center gap-4 mb-3">
@@ -64,7 +71,7 @@
                     </div>
                 </div>
 
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-5 mb-8">
                     <div class="space-y-1.5">
                         <label class="text-xs font-bold text-gray-600 uppercase">Username <span class="text-red-500">*</span></label>
                         <input type="text" name="username" required placeholder="e.g. maria_santos"
@@ -93,14 +100,51 @@
                             </button>
                         </div>
                     </div>
+                </div>
 
-                    <div class="space-y-1.5 md:col-span-2">
-                        <label class="text-xs font-bold text-gray-600 uppercase">Account Status <span class="text-red-500">*</span></label>
-                        <select name="status" required class="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#a52a2a]/20 focus:border-[#a52a2a] outline-none transition-all text-sm">
-                            <option value="pending">Pending</option>
-                            <option value="verified" selected>Verified</option>
-                            <option value="suspended">Suspended</option>
-                        </select>
+                <div class="space-y-2 pt-4 border-t border-gray-100">
+                    <label class="text-xs font-bold text-gray-600 uppercase">Account Status <span class="text-red-500">*</span></label>
+                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-2">
+                        
+                        <label class="relative cursor-pointer">
+                            <input type="radio" name="status" value="pending" class="peer sr-only">
+                            <div class="p-4 border-2 border-gray-100 rounded-xl bg-white transition-all duration-300 peer-checked:border-amber-500 peer-checked:bg-amber-50 peer-checked:shadow-sm hover:border-gray-200 flex items-center gap-3">
+                                <div class="status-icon w-10 h-10 rounded-full flex items-center justify-center bg-gray-100 text-gray-400 transition-colors duration-300 shrink-0">
+                                    <i class="fas fa-clock text-lg"></i>
+                                </div>
+                                <div>
+                                    <p class="font-bold text-sm text-gray-900">Pending</p>
+                                    <p class="text-[10px] text-gray-500 leading-tight">Requires admin review</p>
+                                </div>
+                            </div>
+                        </label>
+
+                        <label class="relative cursor-pointer">
+                            <input type="radio" name="status" value="verified" class="peer sr-only" checked>
+                            <div class="p-4 border-2 border-gray-100 rounded-xl bg-white transition-all duration-300 peer-checked:border-green-500 peer-checked:bg-green-50 peer-checked:shadow-sm hover:border-gray-200 flex items-center gap-3">
+                                <div class="status-icon w-10 h-10 rounded-full flex items-center justify-center bg-gray-100 text-gray-400 transition-colors duration-300 shrink-0">
+                                    <i class="fas fa-check-circle text-lg"></i>
+                                </div>
+                                <div>
+                                    <p class="font-bold text-sm text-gray-900">Verified</p>
+                                    <p class="text-[10px] text-gray-500 leading-tight">Active dashboard access</p>
+                                </div>
+                            </div>
+                        </label>
+
+                        <label class="relative cursor-pointer">
+                            <input type="radio" name="status" value="suspended" class="peer sr-only">
+                            <div class="p-4 border-2 border-gray-100 rounded-xl bg-white transition-all duration-300 peer-checked:border-red-500 peer-checked:bg-red-50 peer-checked:shadow-sm hover:border-gray-200 flex items-center gap-3">
+                                <div class="status-icon w-10 h-10 rounded-full flex items-center justify-center bg-gray-100 text-gray-400 transition-colors duration-300 shrink-0">
+                                    <i class="fas fa-ban text-lg"></i>
+                                </div>
+                                <div>
+                                    <p class="font-bold text-sm text-gray-900">Suspended</p>
+                                    <p class="text-[10px] text-gray-500 leading-tight">Account is blocked</p>
+                                </div>
+                            </div>
+                        </label>
+
                     </div>
                 </div>
             </div>

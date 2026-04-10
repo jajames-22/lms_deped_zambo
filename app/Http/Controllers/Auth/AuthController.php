@@ -115,35 +115,31 @@ class AuthController extends Controller
         if (Auth::attempt($credentials, $remember)) {
             $user = Auth::user();
 
-            // Check if the account is suspended
+            // ⛔ KICK OUT SUSPENDED USERS
             if ($user->status === 'suspended') {
                 Auth::logout(); // Prevent access
-                
                 return back()->withErrors([
                     'login_id' => 'Your account has been suspended. Please contact the administrator.'
                 ])->onlyInput('login_id');
             }
 
-            // NEW: Check if the user has no email in the database
+            // Check if the user has no email in the database
             if (empty($user->email)) {
                 $request->session()->regenerate();
-                // Redirect them to the page where they must attach an email
                 return redirect('/register-email'); 
             }
 
             // Check if email is verified
             if (!$user->hasVerifiedEmail()) {
-                $unverifiedEmail = $user->email; // Capture the email
-                Auth::logout(); // Prevent access
-
+                $unverifiedEmail = $user->email; 
+                Auth::logout(); 
                 return back()->withErrors([
                     'login_id' => 'You must verify your email first.'
                 ])->with('unverified_email', $unverifiedEmail)->onlyInput('login_id');
             }
 
-            // If neither suspended nor unverified, regenerate session and log them in
+            // ✅ ALLOW PENDING & ACTIVE USERS TO PROCEED
             $request->session()->regenerate();
-            
             return redirect()->intended('/dashboard');
         }
 

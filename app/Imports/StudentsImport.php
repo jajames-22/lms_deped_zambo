@@ -3,7 +3,7 @@
 namespace App\Imports;
 
 use App\Models\User;
-use App\Models\School; // <-- Added the School model
+use App\Models\School; 
 use Illuminate\Support\Facades\Hash;
 use Maatwebsite\Excel\Concerns\ToModel;
 use Maatwebsite\Excel\Concerns\WithHeadingRow;
@@ -41,6 +41,12 @@ class StudentsImport implements ToModel, WithHeadingRow
             }
         }
 
+        // 👈 NEW: Safely grab the status and default to 'pending' if left blank or invalid
+        $status = !empty($row['status']) ? strtolower(trim($row['status'])) : 'pending';
+        if (!in_array($status, ['pending', 'verified', 'suspended'])) {
+            $status = 'pending';
+        }
+
         return new User([
             'lrn'         => $row['lrn'] ?? null,
             'first_name'  => $row['first_name'],
@@ -51,7 +57,7 @@ class StudentsImport implements ToModel, WithHeadingRow
             'email'       => $row['email'] ?? null, 
             'password'    => Hash::make($row['password'] ?? 'Student123!'), 
             'role'        => 'student',
-            'status'      => 'verified', 
+            'status'      => $status, // 👈 SAVES THE STATUS
             'grade_level' => $row['grade_level'] ?? null,
             'school_id'   => $mappedSchoolId,
         ]);

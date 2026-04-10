@@ -21,7 +21,7 @@
             <div class="relative flex items-center bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 focus-within:border-[#a52a2a] focus-within:ring-2 focus-within:ring-[#a52a2a]/20 transition-all">
                 <i class="fas fa-search text-gray-400 mr-3"></i>
                 <input type="text" id="material-search" oninput="window.debounceSearch(this.value)" placeholder="Search material by title or instructor name..." class="w-full bg-transparent border-none outline-none text-sm text-gray-900">
-                <i id="search-spinner" class="fas fa-spinner fa-spin text-[#a52a2a] hidden ml-3"></i>
+                <i id="search-spinner" class="fas fa-spinner fa-spin text-[#a52a2a] ml-3" style="display: none;"></i>
             </div>
             
             {{-- Search Results Dropdown --}}
@@ -280,6 +280,7 @@
     // FEATURED MATERIALS MANAGER
     // ==========================================
     window.exploreSearchTimeout = null;
+    window.exploreSearchReqId = 0; // Tracks the active search ticket
 
     window.debounceSearch = function(query) {
         clearTimeout(window.exploreSearchTimeout);
@@ -288,20 +289,29 @@
 
         if (!resultsBox) return;
 
+        // 1. If cleared, instantly hide spinner and invalidate old searches
         if (query.trim().length < 2) {
+            window.exploreSearchReqId++; 
             resultsBox.classList.add('hidden');
+            if (spinner) spinner.style.display = 'none';
             return;
         }
-
-        if(spinner) spinner.classList.remove('hidden');
         
         window.exploreSearchTimeout = setTimeout(async () => {
+            const currentReqId = ++window.exploreSearchReqId; // Generate new ticket
+            
+            // Show spinner ONLY when fetch begins
+            if (spinner) spinner.style.display = 'inline-block';
+            
             try {
                 const response = await fetch(`{{ url('/dashboard/explore-layout/search-materials') }}?q=${encodeURIComponent(query)}`, {
                     headers: { 'X-Requested-With': 'XMLHttpRequest' }
                 });
-                const materials = await response.json();
                 
+                // Safety Check: Ignore this result if a newer search was started
+                if (currentReqId !== window.exploreSearchReqId) return;
+
+                const materials = await response.json();
                 resultsBox.innerHTML = '';
 
                 if (materials.length === 0) {
@@ -329,9 +339,12 @@
                 }
                 resultsBox.classList.remove('hidden');
             } catch (error) {
-                console.error("Search failed", error);
+                if (currentReqId === window.exploreSearchReqId) console.error("Search failed", error);
             } finally {
-                if(spinner) spinner.classList.add('hidden');
+                // ALWAYS hide spinner, BUT ONLY if this is still the active search!
+                if (currentReqId === window.exploreSearchReqId) {
+                    if (spinner) spinner.style.display = 'none';
+                }
             }
         }, 400); 
     };

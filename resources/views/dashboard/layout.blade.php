@@ -83,23 +83,31 @@
 
         <main class="flex-1 flex flex-col min-w-0 h-full overflow-hidden">
             <header
-                class="bg-white border-b border-gray-200 h-16 flex items-center justify-between px-4 md:px-8 shrink-0 z-20 relative">
-                <div class="flex items-center gap-4 flex-1">
-                    <button onclick="toggleSidebar()" class="md:hidden p-2 rounded-lg text-gray-600 hover:bg-gray-100">
-                        <i class="fas fa-bars text-xl" styles="margin-top: 1px;"></i>
+                class="bg-white border-b border-gray-200 h-16 flex items-center justify-between px-4 md:px-8 shrink-0 z-20 relative gap-2 sm:gap-4">
+                
+                <div class="flex items-center gap-2 sm:gap-4 flex-1 min-w-0">
+                    <button onclick="toggleSidebar()" class="md:hidden p-2 -ml-2 rounded-lg text-gray-600 hover:bg-gray-100 shrink-0">
+                        <i class="fas fa-bars text-xl" style="margin-top: 1px;"></i>
                     </button>
-                    <div
-                        class="flex items-center bg-gray-100 px-3 py-2 rounded-lg w-full max-w-md hidden sm:flex border border-transparent focus-within:border-[#a52a2a]/30 transition">
-                        <i class="fas fa-search text-gray-400 mr-2"></i>
-                        <input type="text" placeholder="Search..."
-                            class="bg-transparent border-none outline-none text-sm w-full focus:ring-0">
+                    
+                    <div class="relative w-full max-w-md z-[100] min-w-0" id="globalSearchContainer">
+                        <div class="flex items-center bg-gray-100 px-3 py-1.5 md:py-2 rounded-lg border border-transparent focus-within:border-[#a52a2a]/30 focus-within:bg-white focus-within:shadow-sm transition-all">
+                            <i class="fas fa-search text-gray-400 mr-2 text-sm md:text-base shrink-0"></i>
+                            <input type="text" id="globalSearchInput" placeholder="Search..." autocomplete="off"
+                                class="bg-transparent border-none outline-none text-sm w-full focus:ring-0 p-0 min-w-0">
+                            <i id="globalSearchSpinner" class="fas fa-spinner fa-spin text-[#a52a2a] ml-2 shrink-0" style="display: none;"></i>
+                        </div>
+
+                        <div id="globalSearchDropdown" class="absolute top-full left-0 mt-2 w-[280px] sm:w-full right-0 bg-white rounded-xl shadow-2xl border border-gray-100 overflow-hidden hidden transform transition-all flex flex-col max-h-96">
+                            <div id="globalSearchResults" class="overflow-y-auto sidebar-scroll pb-2"></div>
+                        </div>
                     </div>
                 </div>
 
-                <div class="flex items-center space-x-2 sm:space-x-4 relative">
+                <div class="flex items-center space-x-2 sm:space-x-4 relative shrink-0">
                     
                     <div class="relative" id="notificationContainer">
-                        <button onclick="toggleNotifications()" class="relative text-gray-600 hover:bg-gray-100 p-2 z-100 rounded-full focus:outline-none transition-colors flex items-center justify-center h-10 w-10">
+                        <button onclick="toggleNotifications()" class="relative text-gray-600 hover:bg-gray-100 p-2 z-100 rounded-full focus:outline-none transition-colors flex items-center justify-center h-10 w-10 shrink-0">
                             <i class="fas fa-bell text-xl"></i>
                             <span id="notificationBadge" class="hidden absolute top-0 right-0 h-3 w-3 bg-red-600 rounded-full border-2 border-white shadow-sm"></span>
                         </button>
@@ -122,15 +130,16 @@
                                 </div>
                             </div>
 
-                            <div class="w-full flex items-center p-4">
-                                <p class="text-xs text-center text-gray-500">Notifications that are more than 30 days will automatically be deleted</p>
+                            <div class="w-full flex items-center p-4 shrink-0">
+                                <p class="text-xs text-center text-gray-500 w-full">Notifications that are more than 30 days will automatically be deleted</p>
                             </div>
                         </div>
                     </div>
-                    <div class="flex items-center space-x-3 border-l pl-4 border-gray-200 cursor-pointer 
+
+                    <div class="flex items-center space-x-3 border-l pl-2 sm:pl-4 border-gray-200 cursor-pointer 
                             hover:bg-gray-100 p-1.5 
                             rounded-none hover:rounded-xl 
-                            transition-all duration-300 ease-in-out"
+                            transition-all duration-300 ease-in-out shrink-0"
                         onclick="loadPartial('{{ url('/dashboard/profile') }}', document.getElementById('nav-profile-btn'))">
 
                         <div class="text-right hidden sm:block">
@@ -148,7 +157,7 @@
                 </div>
             </header>
 
-            <div id="content-area" class="flex-1 overflow-y-auto bg-gray-50 p-5 md:p-8"></div>
+            <div id="content-area" class="flex-1 overflow-y-auto bg-gray-50 p-4 sm:p-5 md:p-8"></div>
         </main>
     </div>
 
@@ -267,22 +276,19 @@
 
                     let targetBtn = element;
                     if (!targetBtn || !targetBtn.classList) {
-                        const roleIsStudent = document.getElementById('nav-explore-btn') !== null;
-                        if (roleIsStudent) {
-                            if (url.includes('/explore') || url.includes('/materials')) targetBtn = document.getElementById('nav-explore-btn');
-                            else if (url.includes('/enrolled')) targetBtn = document.getElementById('nav-enrolled-btn');
-                            else if (url.includes('/home')) targetBtn = document.getElementById('nav-student-home-btn') || document.querySelector('.nav-btn');
-                        } else {
-                            if (url.includes('/materials')) targetBtn = document.getElementById('nav-materials-btn'); 
-                            else if (url.includes('/assessment')) targetBtn = document.getElementById('nav-assessment-btn');
-                            else if (url.includes('/explore-layout')) targetBtn = document.getElementById('nav-explore-layout-btn');
-                            else if (url.includes('/schools')) targetBtn = document.getElementById('nav-schools-btn');
-                            else if (url.includes('/feedback')) targetBtn = document.getElementById('nav-feedback-btn');
-                            else if (url.includes('/teachers')) targetBtn = document.getElementById('nav-teachers-btn');
-                            else if (url.includes('/students')) targetBtn = document.getElementById('nav-students-btn');
-                            else if (url.includes('/profile')) targetBtn = document.getElementById('nav-profile-btn');
-                            else if (url.includes('/home')) targetBtn = document.querySelector('.nav-btn');
-                        }
+                        // Unified matching logic for all roles
+                        if (url.includes('/profile')) targetBtn = document.getElementById('nav-profile-btn');
+                        else if (url.includes('/analytics')) targetBtn = document.getElementById('nav-analytics-btn');
+                        else if (url.includes('/certificates')) targetBtn = document.getElementById('nav-certificates-btn');
+                        else if (url.includes('/materials') || url.includes('/explore')) targetBtn = document.getElementById('nav-explore-btn') || document.getElementById('nav-materials-btn');
+                        else if (url.includes('/enrolled')) targetBtn = document.getElementById('nav-enrolled-btn');
+                        else if (url.includes('/assessment')) targetBtn = document.getElementById('nav-assessment-btn');
+                        else if (url.includes('/explore-layout')) targetBtn = document.getElementById('nav-explore-layout-btn');
+                        else if (url.includes('/schools')) targetBtn = document.getElementById('nav-schools-btn');
+                        else if (url.includes('/feedback')) targetBtn = document.getElementById('nav-feedback-btn');
+                        else if (url.includes('/teachers')) targetBtn = document.getElementById('nav-teachers-btn');
+                        else if (url.includes('/students')) targetBtn = document.getElementById('nav-students-btn');
+                        else if (url.includes('/home')) targetBtn = document.getElementById('nav-home-btn') || document.querySelector('.nav-btn');
                     }
 
                     if (targetBtn) {
@@ -362,7 +368,6 @@
         }
 
         async function markAsReadAndGo(notifId, targetUrl, isRead) {
-            // Only ping the server if the notification hasn't been read yet
             if (!isRead) {
                 try {
                     await fetch(`{{ url('/dashboard/notifications') }}/${notifId}/read`, {
@@ -379,8 +384,6 @@
             
             toggleNotifications(); 
             
-            // --- NEW: FULL PAGE VS PARTIAL LOGIC ---
-            // Define URL keywords that belong to standalone, full-page views
             const fullPageKeywords = [
                 '/show', 
                 '/study', 
@@ -390,14 +393,11 @@
                 '/exam'
             ];
 
-            // Check if the targetUrl contains any of the keywords
             const requiresFullReload = fullPageKeywords.some(keyword => targetUrl.includes(keyword));
 
             if (requiresFullReload) {
-                // Do a standard, hard browser redirect
                 window.location.href = targetUrl;
             } else {
-                // Inject smoothly via SPA loader
                 loadPartial(targetUrl, null); 
             }
         }
@@ -464,6 +464,121 @@
             const container = document.getElementById('notificationContainer');
             if (isNotificationOpen && container && !container.contains(event.target)) {
                 toggleNotifications();
+            }
+        });
+    </script>
+
+    <script>
+        const globalSearchInput = document.getElementById('globalSearchInput');
+        const globalSearchDropdown = document.getElementById('globalSearchDropdown');
+        const globalSearchResults = document.getElementById('globalSearchResults');
+        const globalSearchSpinner = document.getElementById('globalSearchSpinner');
+        
+        let globalSearchTimeout = null;
+        let globalSearchReqId = 0; // Tracks the active search ticket
+
+        if (globalSearchInput) {
+            globalSearchInput.addEventListener('input', function() {
+                clearTimeout(globalSearchTimeout);
+                const query = this.value.trim();
+
+                // 1. If empty or too short, instantly kill any active fetches
+                if (query.length < 2) {
+                    globalSearchReqId++; // Invalidate old searches
+                    if (globalSearchDropdown) globalSearchDropdown.classList.add('hidden');
+                    if (globalSearchSpinner) globalSearchSpinner.style.display = 'none';
+                    return;
+                }
+
+                // 2. Wait 400ms for user to stop typing
+                globalSearchTimeout = setTimeout(async () => {
+                    const currentReqId = ++globalSearchReqId; // Generate new ticket
+                    
+                    // Show spinner ONLY when actual fetch begins
+                    if (globalSearchSpinner) globalSearchSpinner.style.display = 'inline-block';
+                    
+                    try {
+                        const response = await fetch(`{{ url('/dashboard/search') }}?q=${encodeURIComponent(query)}`, {
+                            headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' }
+                        });
+                        
+                        // Safety Check: If a newer search was started while we waited, ignore this result!
+                        if (currentReqId !== globalSearchReqId) return;
+
+                        const data = await response.json();
+                        globalSearchResults.innerHTML = '';
+
+                        if (data.materials.length === 0 && data.users.length === 0) {
+                            globalSearchResults.innerHTML = '<div class="p-5 text-center text-sm text-gray-500"><i class="fas fa-search text-gray-300 text-2xl mb-2 block"></i> No results found.</div>';
+                        } else {
+                            // Render Materials
+                            if (data.materials.length > 0) {
+                                globalSearchResults.innerHTML += '<div class="px-4 py-2 mt-2 text-[10px] font-black text-gray-400 uppercase tracking-widest">Materials</div>';
+                                const userRole = '{{ auth()->user()->role ?? "student" }}';
+
+                                data.materials.forEach(mat => {
+                                    const instructorName = mat.instructor ? `${mat.instructor.first_name} ${mat.instructor.last_name}` : 'Unknown Instructor';
+                                    const thumbnailHtml = mat.thumbnail 
+                                        ? `<img src="/storage/${mat.thumbnail}" class="w-8 h-8 rounded-lg object-cover shrink-0 border border-gray-200">`
+                                        : `<div class="w-8 h-8 rounded-lg bg-red-50 text-[#a52a2a] flex items-center justify-center shrink-0 border border-red-100"><i class="fas fa-book text-xs"></i></div>`;
+
+                                    let linkAction = (userRole === 'admin' || userRole === 'teacher') 
+                                        ? `href="javascript:void(0)" onclick="closeGlobalSearch(); loadPartial('/dashboard/materials/${mat.id}/manage', document.getElementById('nav-materials-btn'))"` 
+                                        : `href="/dashboard/materials/${mat.id}/show"`;
+
+                                    globalSearchResults.innerHTML += `
+                                        <a ${linkAction} class="flex items-center gap-3 p-3 hover:bg-gray-50 transition cursor-pointer">
+                                            ${thumbnailHtml}
+                                            <div class="min-w-0 flex-1">
+                                                <p class="text-sm font-bold text-gray-900 truncate">${mat.title}</p>
+                                                <p class="text-[10px] text-gray-500 truncate">By ${instructorName}</p>
+                                            </div>
+                                        </a>`;
+                                });
+                            }
+
+                            // Render Users (If Admin)
+                            if (data.users && data.users.length > 0) {
+                                globalSearchResults.innerHTML += '<div class="px-4 py-2 mt-2 border-t border-gray-50 text-[10px] font-black text-gray-400 uppercase tracking-widest">Users</div>';
+                                data.users.forEach(user => {
+                                    const roleRoute = user.role === 'teacher' ? '/dashboard/teachers' : '/dashboard/students';
+                                    const roleBtn = user.role === 'teacher' ? 'nav-teachers-btn' : 'nav-students-btn';
+                                    
+                                    globalSearchResults.innerHTML += `
+                                        <a href="javascript:void(0)" onclick="closeGlobalSearch(); loadPartial('${roleRoute}', document.getElementById('${roleBtn}'))" class="flex items-center gap-3 p-3 hover:bg-gray-50 transition cursor-pointer">
+                                            <div class="w-8 h-8 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center shrink-0 border border-blue-100"><i class="fas fa-user text-xs"></i></div>
+                                            <div class="min-w-0 flex-1">
+                                                <p class="text-sm font-bold text-gray-900 truncate">${user.first_name} ${user.last_name}</p>
+                                                <p class="text-[10px] text-gray-500 uppercase">${user.role}</p>
+                                            </div>
+                                        </a>`;
+                                });
+                            }
+                        }
+                        if (globalSearchDropdown) globalSearchDropdown.classList.remove('hidden');
+                        
+                    } catch (error) {
+                        if (currentReqId === globalSearchReqId) console.error("Search error:", error);
+                    } finally {
+                        // ALWAYS hide spinner, BUT ONLY if this is still the active search!
+                        if (currentReqId === globalSearchReqId) {
+                            if (globalSearchSpinner) globalSearchSpinner.style.display = 'none';
+                        }
+                    }
+                }, 400); 
+            });
+        }
+
+        function closeGlobalSearch() {
+            globalSearchReqId++; // Instantly invalidate pending fetches
+            if (globalSearchDropdown) globalSearchDropdown.classList.add('hidden');
+            if (globalSearchInput) globalSearchInput.value = '';
+            if (globalSearchSpinner) globalSearchSpinner.style.display = 'none';
+        }
+
+        document.addEventListener('click', (e) => {
+            if (!e.target.closest('#globalSearchContainer')) {
+                if(globalSearchDropdown) globalSearchDropdown.classList.add('hidden');
             }
         });
     </script>

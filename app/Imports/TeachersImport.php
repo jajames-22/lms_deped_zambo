@@ -41,6 +41,12 @@ class TeachersImport implements ToModel, WithHeadingRow
             }
         }
 
+        // 👈 NEW: Safely grab the status and default to 'pending' if left blank or invalid
+        $status = !empty($row['status']) ? strtolower(trim($row['status'])) : 'pending';
+        if (!in_array($status, ['pending', 'verified', 'suspended'])) {
+            $status = 'pending';
+        }
+
         return new User([
             'employee_id' => $row['employee_id'],
             'first_name'  => $row['first_name'],
@@ -49,9 +55,9 @@ class TeachersImport implements ToModel, WithHeadingRow
             'suffix'      => $row['suffix'] ?? null,
             'username'    => $row['username'], 
             'email'       => $row['email'] ?? null, 
-            'password'    => Hash::make($row['password'] ?? 'Teacher123!'), // Default password if blank
+            'password'    => Hash::make($row['password'] ?? 'Teacher123!'),
             'role'        => 'teacher',
-            'status'      => 'verified', 
+            'status'      => $status, // 👈 SAVES THE STATUS
             'school_id'   => $mappedSchoolId,
         ]);
     }

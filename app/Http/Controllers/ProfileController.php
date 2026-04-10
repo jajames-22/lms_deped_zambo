@@ -173,7 +173,7 @@ class ProfileController extends Controller
             $sender->notify(new \App\Notifications\LmsAlertNotification(
                 'Feedback Replied',
                 'An admin has replied to your report: "' . $feedback->subject . '".',
-                route('dashboard.profile') . '?ticket=' . $feedback->id, // 👈 CHANGED THIS to dashboard.profile
+                route('dashboard.profile') . '?ticket=' . $feedback->id,
                 'fas fa-reply',
                 'text-green-500'
             ));
