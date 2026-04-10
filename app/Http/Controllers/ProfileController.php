@@ -34,12 +34,6 @@ class ProfileController extends Controller
             'middle_name' => ['nullable', 'string', 'max:255'],
             'last_name' => ['required', 'string', 'max:255'],
             'suffix' => ['nullable', 'string', 'max:255'],
-            'email' => [
-                'required', 
-                'email', 
-                'max:255', 
-                Rule::unique('users')->ignore($user->id) // Ensures email is unique, ignoring their own
-            ],
         ]);
 
         $user->update($validated);
@@ -179,7 +173,7 @@ class ProfileController extends Controller
             $sender->notify(new \App\Notifications\LmsAlertNotification(
                 'Feedback Replied',
                 'An admin has replied to your report: "' . $feedback->subject . '".',
-                route('profile') . '?ticket=' . $feedback->id, // Add Ticket ID here
+                route('dashboard.profile') . '?ticket=' . $feedback->id,
                 'fas fa-reply',
                 'text-green-500'
             ));

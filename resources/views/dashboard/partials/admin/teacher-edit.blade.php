@@ -1,121 +1,202 @@
-<div class="max-w-4xl mx-auto space-y-6 pb-10 relative">
-    <div class="flex items-center justify-between">
-        <div class="flex items-center">
+<div>
+    <style>
+        /* Ensures the icon background and color change properly when the hidden radio is checked */
+        input[value="pending"]:checked + div .status-icon { background-color: #f59e0b !important; color: white !important; }
+        input[value="verified"]:checked + div .status-icon { background-color: #10b981 !important; color: white !important; }
+        input[value="suspended"]:checked + div .status-icon { background-color: #ef4444 !important; color: white !important; }
+    </style>
+
+    <div class="max-w-5xl mx-auto space-y-6 pb-10 relative animate-float-in">
+        
+        <div class="flex items-center gap-4 mb-3">
             <button type="button" onclick="loadPartial('{{ route('dashboard.teachers') }}', document.getElementById('nav-teachers-btn'))"
-                class="flex items-center gap-2 px-4 py-2 text-gray-600 bg-white border border-gray-200 hover:bg-gray-50 rounded-xl transition-all self-stretch">
+                class="w-10 h-10 rounded-full bg-white border border-gray-200 text-gray-600 hover:text-[#a52a2a] hover:border-red-200 hover:bg-red-50 transition flex items-center justify-center shadow-sm shrink-0">
                 <i class="fas fa-arrow-left"></i>
             </button>
-            <div class="ml-3">
+            <div>
                 <h1 class="text-2xl font-bold text-gray-900">Edit Teacher</h1>
                 <p class="text-sm text-gray-500">Update details for {{ $teacher->first_name }} {{ $teacher->last_name }}.</p>
             </div>
         </div>
-    </div>
 
-    <form action="{{ route('teachers.update', $teacher->id) }}" method="POST" id="editTeacherForm" class="space-y-6">
-        @csrf
-        @method('PUT')
+        <form action="{{ route('teachers.update', $teacher->id) }}" method="POST" id="editTeacherForm" class="space-y-6">
+            @csrf
+            @method('PUT')
 
-        <div class="bg-white p-8 rounded-3xl border border-gray-100 shadow-sm space-y-8">
-            
-            <div>
-                <h3 class="text-sm font-bold text-gray-900 mb-4 border-b border-gray-100 pb-2">Personal Information</h3>
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div>
-                        <label class="text-xs font-black text-gray-400 uppercase tracking-widest block mb-2">First Name <span class="text-red-500">*</span></label>
-                        <input type="text" name="first_name" required value="{{ $teacher->first_name }}"
-                            class="w-full px-4 py-3 bg-gray-50 border border-transparent focus:border-[#a52a2a] focus:bg-white rounded-xl transition-all outline-none">
+            {{-- 1. PERSONAL INFO --}}
+            <div class="bg-white p-6 md:p-8 rounded-2xl border border-gray-100 shadow-sm">
+                <div class="flex items-center gap-3 mb-6">
+                    <div class="w-10 h-10 rounded-full bg-red-50 text-[#a52a2a] flex items-center justify-center text-lg shrink-0">
+                        <i class="fas fa-id-card"></i>
                     </div>
                     <div>
-                        <label class="text-xs font-black text-gray-400 uppercase tracking-widest block mb-2">Middle Name</label>
-                        <input type="text" name="middle_name" value="{{ $teacher->middle_name }}"
-                            class="w-full px-4 py-3 bg-gray-50 border border-transparent focus:border-[#a52a2a] focus:bg-white rounded-xl transition-all outline-none">
-                    </div>
-                    <div>
-                        <label class="text-xs font-black text-gray-400 uppercase tracking-widest block mb-2">Last Name <span class="text-red-500">*</span></label>
-                        <input type="text" name="last_name" required value="{{ $teacher->last_name }}"
-                            class="w-full px-4 py-3 bg-gray-50 border border-transparent focus:border-[#a52a2a] focus:bg-white rounded-xl transition-all outline-none">
+                        <h2 class="text-lg font-bold text-gray-900">Personal Information</h2>
+                        <p class="text-xs text-gray-500">Teacher's legal name details.</p>
                     </div>
                 </div>
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
-                    <div class="md:col-span-1">
-                        <label class="text-xs font-black text-gray-400 uppercase tracking-widest block mb-2">Suffix</label>
-                        <input type="text" name="suffix" value="{{ $teacher->suffix }}" placeholder="e.g. Jr., Sr., III"
-                            class="w-full px-4 py-3 bg-gray-50 border border-transparent focus:border-[#a52a2a] focus:bg-white rounded-xl transition-all outline-none">
+
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-5">
+                    <div class="space-y-1.5">
+                        <label class="text-xs font-bold text-gray-600 uppercase">First Name <span class="text-red-500">*</span></label>
+                        <input type="text" name="first_name" required value="{{ $teacher->first_name }}"
+                            class="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#a52a2a]/20 focus:border-[#a52a2a] outline-none transition-all text-sm">
+                    </div>
+                    <div class="space-y-1.5">
+                        <label class="text-xs font-bold text-gray-600 uppercase">Middle Name</label>
+                        <input type="text" name="middle_name" value="{{ $teacher->middle_name }}" placeholder="Optional"
+                            class="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#a52a2a]/20 focus:border-[#a52a2a] outline-none transition-all text-sm">
+                    </div>
+                    <div class="space-y-1.5">
+                        <label class="text-xs font-bold text-gray-600 uppercase">Last Name <span class="text-red-500">*</span></label>
+                        <input type="text" name="last_name" required value="{{ $teacher->last_name }}"
+                            class="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#a52a2a]/20 focus:border-[#a52a2a] outline-none transition-all text-sm">
+                    </div>
+                </div>
+                
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-5 mt-5">
+                    <div class="md:col-span-1 space-y-1.5">
+                        <label class="text-xs font-bold text-gray-600 uppercase">Suffix</label>
+                        <input type="text" name="suffix" value="{{ $teacher->suffix }}" placeholder="e.g. Jr., II"
+                            class="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#a52a2a]/20 focus:border-[#a52a2a] outline-none transition-all text-sm">
                     </div>
                 </div>
             </div>
 
-            <div>
-                <h3 class="text-sm font-bold text-gray-900 mb-4 border-b border-gray-100 pb-2">Account Details</h3>
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                        <label class="text-xs font-black text-gray-400 uppercase tracking-widest block mb-2">Employee ID (User ID) <span class="text-red-500">*</span></label>
-                        <input type="text" name="employee_id" required value="{{ $teacher->employee_id }}"
-                            class="w-full px-4 py-3 bg-gray-50 border border-transparent focus:border-blue-500 focus:bg-white rounded-xl transition-all outline-none font-mono text-blue-700">
+            {{-- 2. ACCOUNT SECURITY & STATUS --}}
+            <div class="bg-white p-6 md:p-8 rounded-2xl border border-gray-100 shadow-sm">
+                <div class="flex items-center gap-3 mb-6">
+                    <div class="w-10 h-10 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center text-lg shrink-0">
+                        <i class="fas fa-user-shield"></i>
                     </div>
                     <div>
-                        <label class="text-xs font-black text-gray-400 uppercase tracking-widest block mb-2">Email Address <span class="text-red-500">*</span></label>
-                        <input type="email" name="email" required value="{{ $teacher->email }}"
-                            class="w-full px-4 py-3 bg-gray-50 border border-transparent focus:border-[#a52a2a] focus:bg-white rounded-xl transition-all outline-none">
+                        <h2 class="text-lg font-bold text-gray-900">Account Security & Status</h2>
+                        <p class="text-xs text-gray-500">Login IDs and system access.</p>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-5 mb-8">
+                    <div class="space-y-1.5">
+                        <label class="text-xs font-bold text-gray-600 uppercase">Username <span class="text-red-500">*</span></label>
+                        <input type="text" name="username" required value="{{ $teacher->username }}"
+                            class="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#a52a2a]/20 focus:border-[#a52a2a] outline-none transition-all text-sm">
+                    </div>
+
+                    <div class="space-y-1.5">
+                        <label class="text-xs font-bold text-gray-600 uppercase">Email Address</label>
+                        <input type="email" name="email" value="{{ $teacher->email }}"
+                            class="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#a52a2a]/20 focus:border-[#a52a2a] outline-none transition-all text-sm">
                     </div>
                     
-                    <div>
-                        <label class="text-xs font-black text-gray-400 uppercase tracking-widest block mb-2">Reset Password</label>
+                    <div class="space-y-1.5 md:col-span-2 max-w-md">
+                        <label class="text-xs font-bold text-gray-600 uppercase">Reset Password</label>
                         <div class="relative w-full">
-                            <input type="password" name="password" id="passwordInput" placeholder="Leave blank to keep current password"
-                                class="w-full px-4 py-3 bg-gray-50 border border-transparent focus:border-[#a52a2a] focus:bg-white rounded-xl transition-all outline-none">
+                            <input type="password" name="password" id="passwordInput" placeholder="Leave blank to keep current"
+                                class="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#a52a2a]/20 focus:border-[#a52a2a] outline-none transition-all text-sm pr-10">
                             <button type="button" onclick="togglePassword()" class="absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600">
                                 <i class="fas fa-eye" id="eyeIcon"></i>
                             </button>
                         </div>
                     </div>
+                </div>
 
-                    <div>
-                        <label class="text-xs font-black text-gray-400 uppercase tracking-widest block mb-2">Account Status <span class="text-red-500">*</span></label>
-                        <select name="status" required class="w-full px-4 py-3 bg-gray-50 border-transparent focus:border-[#a52a2a] focus:bg-white rounded-xl outline-none transition-all">
-                            <option value="pending" {{ $teacher->status == 'pending' ? 'selected' : '' }}>Pending</option>
-                            <option value="verified" {{ $teacher->status == 'verified' ? 'selected' : '' }}>Verified</option>
-                            <option value="suspended" {{ $teacher->status == 'suspended' ? 'selected' : '' }}>Suspended</option>
-                        </select>
-                        <p class="text-[10px] text-gray-400 mt-1">Suspended accounts will not be able to log in.</p>
+                <div class="space-y-2 pt-4 border-t border-gray-100">
+                    <label class="text-xs font-bold text-gray-600 uppercase">Account Status <span class="text-red-500">*</span></label>
+                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-2">
+                        
+                        <label class="relative cursor-pointer">
+                            <input type="radio" name="status" value="pending" class="peer sr-only" {{ $teacher->status == 'pending' ? 'checked' : '' }}>
+                            <div class="p-4 border-2 border-gray-100 rounded-xl bg-white transition-all duration-300 peer-checked:border-amber-500 peer-checked:bg-amber-50 peer-checked:shadow-sm hover:border-gray-200 flex items-center gap-3">
+                                <div class="status-icon w-10 h-10 rounded-full flex items-center justify-center bg-gray-100 text-gray-400 transition-colors duration-300 shrink-0">
+                                    <i class="fas fa-clock text-lg"></i>
+                                </div>
+                                <div>
+                                    <p class="font-bold text-sm text-gray-900">Pending</p>
+                                    <p class="text-[10px] text-gray-500 leading-tight">Requires admin review with limited controls</p>
+                                </div>
+                            </div>
+                        </label>
+
+                        <label class="relative cursor-pointer">
+                            <input type="radio" name="status" value="verified" class="peer sr-only" {{ $teacher->status == 'verified' ? 'checked' : '' }}>
+                            <div class="p-4 border-2 border-gray-100 rounded-xl bg-white transition-all duration-300 peer-checked:border-green-500 peer-checked:bg-green-50 peer-checked:shadow-sm hover:border-gray-200 flex items-center gap-3">
+                                <div class="status-icon w-10 h-10 rounded-full flex items-center justify-center bg-gray-100 text-gray-400 transition-colors duration-300 shrink-0">
+                                    <i class="fas fa-check-circle text-lg"></i>
+                                </div>
+                                <div>
+                                    <p class="font-bold text-sm text-gray-900">Verified</p>
+                                    <p class="text-[10px] text-gray-500 leading-tight">Active controls</p>
+                                </div>
+                            </div>
+                        </label>
+
+                        <label class="relative cursor-pointer">
+                            <input type="radio" name="status" value="suspended" class="peer sr-only" {{ $teacher->status == 'suspended' ? 'checked' : '' }}>
+                            <div class="p-4 border-2 border-gray-100 rounded-xl bg-white transition-all duration-300 peer-checked:border-red-500 peer-checked:bg-red-50 peer-checked:shadow-sm hover:border-gray-200 flex items-center gap-3">
+                                <div class="status-icon w-10 h-10 rounded-full flex items-center justify-center bg-gray-100 text-gray-400 transition-colors duration-300 shrink-0">
+                                    <i class="fas fa-ban text-lg"></i>
+                                </div>
+                                <div>
+                                    <p class="font-bold text-sm text-gray-900">Suspended</p>
+                                    <p class="text-[10px] text-gray-500 leading-tight">Account is blocked</p>
+                                </div>
+                            </div>
+                        </label>
+
                     </div>
                 </div>
             </div>
 
-            <div>
-                <h3 class="text-sm font-bold text-gray-900 mb-4 border-b border-gray-100 pb-2">School Assignment</h3>
-                <div class="w-full md:max-w-md">
-                    <label class="text-xs font-black text-gray-400 uppercase tracking-widest block mb-2">Assign to School <span class="text-red-500">*</span></label>
-                    <select name="school_id" required class="w-full px-4 py-3 bg-gray-50 border-transparent focus:border-[#a52a2a] rounded-xl outline-none">
-                        <option value="" disabled>Select an institution...</option>
-                        @foreach ($schools as $school)
-                            <option value="{{ $school->id }}" {{ $teacher->school_id == $school->id ? 'selected' : '' }}>
-                                {{ $school->name }} (ID: {{ $school->school_id }})
-                            </option>
-                        @endforeach
-                    </select>
+            {{-- 3. EMPLOYMENT PROFILE --}}
+            <div class="bg-white p-6 md:p-8 rounded-2xl border border-gray-100 shadow-sm">
+                <div class="flex items-center gap-3 mb-6">
+                    <div class="w-10 h-10 rounded-full bg-purple-50 text-purple-600 flex items-center justify-center text-lg shrink-0">
+                        <i class="fas fa-school"></i>
+                    </div>
+                    <div>
+                        <h2 class="text-lg font-bold text-gray-900">Employment Profile</h2>
+                        <p class="text-xs text-gray-500">Employee ID and school assignment.</p>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+                    <div class="space-y-1.5">
+                        <label class="text-xs font-bold text-gray-600 uppercase">Employee ID <span class="text-red-500">*</span></label>
+                        <input type="text" name="employee_id" required value="{{ $teacher->employee_id }}" placeholder="e.g. 1234567"
+                            class="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500 outline-none transition-all text-sm font-mono text-purple-700">
+                    </div>
+
+                    <div class="space-y-1.5">
+                        <label class="text-xs font-bold text-gray-600 uppercase">Assigned School <span class="text-red-500">*</span></label>
+                        <select name="school_id" required class="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#a52a2a]/20 focus:border-[#a52a2a] outline-none transition-all text-sm">
+                            @foreach ($schools as $school)
+                                <option value="{{ $school->id }}" {{ $teacher->school_id == $school->id ? 'selected' : '' }}>
+                                    {{ $school->name }} (ID: {{ $school->school_id }})
+                                </option>
+                            @endforeach
+                        </select>
+                    </div>
                 </div>
             </div>
 
-        </div>
+            <div class="flex justify-end pt-2">
+                <button type="submit" id="submitBtn"
+                    class="px-8 py-3.5 bg-gray-900 text-white font-bold rounded-xl shadow-md hover:bg-gray-800 transition-all flex items-center justify-center gap-2 disabled:opacity-75 disabled:cursor-not-allowed">
+                    <i class="fas fa-save" id="submitIcon"></i> <span id="submitText">Save Changes</span>
+                </button>
+            </div>
+        </form>
+    </div>
 
-        <button type="submit" id="submitBtn"
-            class="w-full py-4 bg-[#a52a2a] text-white font-bold rounded-2xl shadow-xl shadow-red-900/20 hover:bg-red-800 transition-all flex items-center justify-center gap-3 disabled:opacity-75 disabled:cursor-not-allowed">
-            <i class="fas fa-save"></i> <span>Save Changes</span>
-        </button>
-    </form>
-
-    <div id="successModal" class="fixed inset-0 z-50 hidden flex items-center justify-center">
-        <div class="absolute inset-0 bg-gray-900/60 backdrop-blur-sm"></div>
-        <div class="relative bg-white rounded-3xl shadow-2xl max-w-sm w-full p-8 text-center transform transition-all border border-gray-100 z-10 animate-fade-in-up">
+    <div id="successModal" class="fixed inset-0 z-[9999] hidden flex items-center justify-center p-4">
+        <div class="absolute inset-0 bg-gray-900/60 transition-opacity duration-300"></div>
+        <div id="successModalBox" class="relative bg-white rounded-3xl shadow-2xl max-w-sm w-full p-8 text-center transform scale-95 opacity-0 transition-all duration-300 border border-gray-100 z-10">
             <div class="w-20 h-20 bg-green-50 text-green-500 rounded-full flex items-center justify-center mx-auto mb-5 shadow-inner">
                 <i class="fas fa-check text-4xl"></i>
             </div>
             <h3 class="text-2xl font-black text-gray-900 mb-2">Updated!</h3>
-            <p class="text-gray-500 mb-8 text-sm">The teacher's details have been successfully updated.</p>
+            <p class="text-gray-500 mb-8 text-sm">The educator's details have been successfully updated.</p>
             <button type="button" onclick="loadPartial('{{ route('dashboard.teachers') }}', document.getElementById('nav-teachers-btn'))" 
-                class="w-full px-4 py-3 bg-[#a52a2a] text-white font-bold rounded-xl shadow-lg shadow-red-900/20 hover:bg-red-800 transition">
+                class="w-full px-4 py-3 bg-[#a52a2a] text-white font-bold rounded-xl shadow-lg hover:bg-red-800 transition">
                 Return to Directory
             </button>
         </div>
@@ -123,7 +204,6 @@
 </div>
 
 <script>
-    // --- Password Toggle Logic ---
     function togglePassword() {
         var pwdInput = document.getElementById('passwordInput');
         var eyeIcon = document.getElementById('eyeIcon');
@@ -138,7 +218,18 @@
         }
     }
 
-    // --- AJAX Form Submission Logic ---
+    function closeSuccessModal() {
+        var modal = document.getElementById('successModal');
+        var box = document.getElementById('successModalBox');
+
+        box.classList.remove('scale-100', 'opacity-100');
+        box.classList.add('scale-95', 'opacity-0');
+
+        setTimeout(() => {
+            modal.classList.add('hidden');
+        }, 300);
+    }
+
     var teacherEditForm = document.getElementById('editTeacherForm');
     var teacherSubmitBtn = document.getElementById('submitBtn');
     
@@ -150,12 +241,12 @@
             e.preventDefault();
 
             var currentSubmitBtn = document.getElementById('submitBtn');
-            var submitIcon = currentSubmitBtn.querySelector('i');
-            var submitText = currentSubmitBtn.querySelector('span');
+            var submitIcon = document.getElementById('submitIcon');
+            var submitText = document.getElementById('submitText');
 
             currentSubmitBtn.disabled = true;
             submitIcon.className = 'fas fa-spinner fa-spin';
-            submitText.textContent = 'Updating database...';
+            submitText.textContent = 'Updating account...';
 
             var formData = new FormData(this);
             formData.append('_method', 'PUT'); 
@@ -173,10 +264,15 @@
                 return response.json();
             })
             .then(data => {
-                document.getElementById('successModal').classList.remove('hidden');
+                var modal = document.getElementById('successModal');
+                var box = document.getElementById('successModalBox');
+
+                modal.classList.remove('hidden');
+                
                 setTimeout(() => {
-                    loadPartial('{{ route('dashboard.teachers') }}', document.getElementById('nav-teachers-btn'));
-                }, 2000);
+                    box.classList.remove('scale-95', 'opacity-0');
+                    box.classList.add('scale-100', 'opacity-100');
+                }, 10);
             })
             .catch(error => {
                 console.error("Submission error:", error);

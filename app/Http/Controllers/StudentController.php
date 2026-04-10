@@ -9,6 +9,9 @@ use App\Models\School;
 use App\Models\Material;
 use App\Models\Tag;
 use App\Models\ExplorePageSection;
+use App\Imports\StudentsImport;
+use Maatwebsite\Excel\Facades\Excel;
+
 
 
 class StudentController extends Controller
@@ -49,11 +52,8 @@ class StudentController extends Controller
             'middle_name' => 'nullable|string|max:255',
             'last_name' => 'required|string|max:255',
             'suffix' => 'nullable|string|max:50',
-            
-            // 👈 CHANGED: 'user_id' is now 'lrn'
-            'lrn' => 'required|string|max:255|unique:users,lrn', 
-            
-            'email' => 'required|email|max:255|unique:users,email',
+            'lrn' => 'nullable|string|max:255|unique:users,lrn',            
+            'email' => 'nullable|email|max:255|unique:users,email',
             'password' => 'required|string|min:6',
             'school_id' => 'required|exists:schools,id',
             'grade_level' => 'required|string|max:50', 
@@ -93,11 +93,8 @@ class StudentController extends Controller
             'middle_name' => 'nullable|string|max:255',
             'last_name' => 'required|string|max:255',
             'suffix' => 'nullable|string|max:50',
-            
-            // 👈 CHANGED: 'user_id' is now 'lrn'
-            'lrn' => 'required|string|max:255|unique:users,lrn,' . $student->id,
-            
-            'email' => 'required|email|max:255|unique:users,email,' . $student->id,
+            'lrn' => 'nullable|string|max:255|unique:users,lrn,' . $student->id,          
+            'email' => 'nullable|email|max:255|unique:users,email,' . $student->id,
             'password' => 'nullable|string|min:6', 
             'school_id' => 'required|exists:schools,id',
             'grade_level' => 'required|string|max:50',
@@ -185,5 +182,83 @@ class StudentController extends Controller
     public function incrementDownload(Material $material) {
         $material->increment('downloads');
         return response()->json(['success' => true]);
+    }
+
+    public function import(Request $request)
+    {
+        // Added 'txt' to the allowed mimes to fix the CSV plain-text detection issue
+        $request->validate([
+            'file' => 'required|mimes:xlsx,xls,csv,txt|max:5120' // Also bumped to 5MB just in case
+        ]);
+
+        try {
+            // Process the excel file using the StudentsImport class
+            Excel::import(new StudentsImport, $request->file('file'));
+
+            return response()->json([
+                'success' => true, 
+                'message' => 'Students imported successfully!'
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false, 
+                'message' => 'Import failed. Check your file format. Error: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    public function downloadTemplate()
+    {
+        $headers = [
+            'Content-Type' => 'text/csv',
+            'Content-Disposition' => 'attachment; filename="Student_Import_Template.csv"',
+        ];
+
+        // 👈 NEW: Added 'status' to the headers array
+        $columns = [
+            'lrn', 
+            'first_name', 
+            'middle_name', 
+            'last_name', 
+            'suffix', 
+            'username', 
+            'email', 
+            'password', 
+            'grade_level', 
+            'school_id',
+            'status' // <--- Added
+        ];
+
+        $callback = function () use ($columns) {
+            $file = fopen('php://output', 'w');
+            fputcsv($file, $columns);
+            
+            // 👈 NEW: Added 'verified' as the sample status
+            fputcsv($file, [
+                '123456789012','Juan', 'Pedro', 'Dela Cruz', 'Jr.', 
+                'juan_delacruz', 'juan@deped.gov.ph', 'SecretPass!', 
+                'Grade 10', '123456', 'verified' // <--- Added
+            ]);
+            
+            fclose($file);
+        };
+
+        return response()->stream($callback, 200, $headers);
+    }
+
+    public function bulkDestroy(\Illuminate\Http\Request $request)
+    {
+        $request->validate([
+            'ids' => 'required|array',
+            'ids.*' => 'exists:users,id' // Ensure all IDs actually exist
+        ]);
+
+        \App\Models\User::whereIn('id', $request->ids)->delete();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'The selected students have been successfully removed.'
+        ]);
     }
 }

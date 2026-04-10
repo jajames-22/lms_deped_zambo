@@ -366,7 +366,8 @@ class DashboardController extends Controller
 
     public function loadProfilePartial()
     {
-        return view('dashboard.partials.shared.profile');
+        $schools = \App\Models\School::orderBy('name', 'asc')->get();
+        return view('dashboard.partials.admin.profile', compact('schools'));
     }
 
     public function loadAssignmentsPartial()
@@ -1027,5 +1028,66 @@ class DashboardController extends Controller
         return view('dashboard.partials.admin.feedback');
     }
 
-    
+    /**
+     * Handle global navigation search (AJAX)
+     */
+    public function globalSearch(\Illuminate\Http\Request $request)
+    {
+        $query = $request->input('q');
+        $user = auth()->user();
+
+        if (!$query || strlen($query) < 2) {
+            return response()->json(['materials' => [], 'users' => []]);
+        }
+
+        // 1. Search Materials (Base Query isolating the text search)
+        $materialsQuery = \App\Models\Material::with('instructor:id,first_name,last_name')
+            ->where(function($q) use ($query) {
+                $q->where('title', 'LIKE', "%{$query}%")
+                  ->orWhere('description', 'LIKE', "%{$query}%");
+            });
+
+        // --- PRIVACY & ENROLLMENT LOGIC ---
+        // Admins bypass this and see everything. 
+        if ($user->role !== 'admin') {
+            $materialsQuery->where(function($q) use ($user) {
+                
+                // Condition A: Material is public 
+                // ⚠️ NOTE: Change 'is_public' to match your actual database column 
+                // (e.g., if you use a string, change to ->where('visibility', 'public') )
+                $q->where('is_public', true) 
+                  
+                  // Condition B: The user is the teacher who created the material
+                  ->orWhere('instructor_id', $user->id);
+
+                // Condition C: The user is a student who is currently enrolled
+                if ($user->role === 'student') {
+                    // ⚠️ NOTE: Change 'enrollments' to match the relationship name in your Material.php model
+                    $q->orWhereHas('enrollments', function($eq) use ($user) {
+                        $eq->where('user_id', $user->id);
+                    });
+                }
+            });
+        }
+
+        // Execute query
+        $materials = $materialsQuery->limit(5)->get(['id', 'title', 'thumbnail', 'instructor_id']);
+
+        $users = [];
+
+        // 2. If Admin, also search Users (Students/Teachers)
+        if ($user->role === 'admin') {
+            $users = \App\Models\User::where('first_name', 'LIKE', "%{$query}%")
+                ->orWhere('last_name', 'LIKE', "%{$query}%")
+                ->orWhere('employee_id', 'LIKE', "%{$query}%")
+                ->orWhere('lrn', 'LIKE', "%{$query}%")
+                ->limit(5)
+                ->get(['id', 'first_name', 'last_name', 'role']);
+        }
+
+        return response()->json([
+            'materials' => $materials,
+            'users' => $users
+        ]);
+    }
 }

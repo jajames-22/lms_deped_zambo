@@ -29,6 +29,7 @@ class User extends Authenticatable implements MustVerifyEmail
     }
 
     protected $fillable = [
+        'username',
         'first_name',
         'middle_name',
         'last_name',
@@ -84,8 +85,7 @@ class User extends Authenticatable implements MustVerifyEmail
     public function markEmailAsVerified()
     {
         $this->forceFill([
-            'email_verified_at' => $this->freshTimestamp(),
-            'status' => 'verified', // 👈 NEW: Automatically switch status!
+            'email_verified_at' => $this->freshTimestamp(), 
         ])->save();
 
         return true;
