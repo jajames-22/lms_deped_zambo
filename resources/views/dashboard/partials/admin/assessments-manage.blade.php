@@ -208,20 +208,33 @@
                             <input type="checkbox" class="lrn-checkbox w-4 h-4 text-[#a52a2a] bg-white border-gray-300 rounded focus:ring-[#a52a2a]" value="{{ $access->id }}" onclick="updateBulkDeleteBtn()">
                         </td>
                         <td class="px-6 py-4 font-mono font-bold text-gray-900 lrn-cell">{{ $access->lrn }}</td>
-                        <td class="px-6 py-4 font-semibold text-gray-800 name-cell" data-value="{{ $access->student ? ($access->student->first_name . ' ' . $access->student->last_name) : 'ZZZ' }}">
-                            @if($access->student)
-                                {{ $access->student->first_name ?? '' }} {{ $access->student->last_name ?? '' }}
+                        
+                        {{-- FIXED: Hide Name if Status is Offline --}}
+                        <td class="px-6 py-4 font-semibold text-gray-800 name-cell" data-value="{{ ($access->status !== 'offline' && $access->student) ? ($access->student->first_name . ' ' . $access->student->last_name) : 'ZZZ' }}">
+                            @if($access->status !== 'offline')
+                                @if($access->student)
+                                    {{ $access->student->first_name ?? '' }} {{ $access->student->last_name ?? '' }}
+                                @else
+                                    <span class="italic text-gray-400 text-xs">No account registered</span>
+                                @endif
                             @else
-                                <span class="italic text-gray-400 text-xs">No account registered</span>
+                                <span class="italic text-gray-400 text-xs" title="Hidden until student joins the lobby">No account registered</span>
                             @endif
                         </td>
+                        
+                        {{-- FIXED: Hide School if Status is Offline --}}
                         <td class="px-6 py-4 text-gray-500">
-                            @if($access->student && $access->student->school)
-                                {{ $access->student->school->name ?? '-' }}
+                            @if($access->status !== 'offline')
+                                @if($access->student && $access->student->school)
+                                    {{ $access->student->school->name ?? '-' }}
+                                @else
+                                    <span class="text-gray-400 text-xs">-</span>
+                                @endif
                             @else
                                 <span class="text-gray-400 text-xs">-</span>
                             @endif
                         </td>
+
                         <td class="px-6 py-4 status-cell" data-value="{{ $access->status }}">
                             @if($access->status === 'taking_exam')
                                 <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-blue-100 text-blue-700 text-xs font-bold">
@@ -298,7 +311,7 @@
         </button>
     </div>
 
-    {{-- FIXED: Modals and Snackbars will be automatically moved to the body to prevent layout clipping --}}
+    {{-- Modals and Snackbars --}}
     <div id="assessment-delete-modal" class="fixed inset-0 z-[100] hidden h-full">
         <div class="absolute inset-0 bg-gray-900/60 backdrop-blur-sm" onclick="window.closeAssessmentDeleteModal()"></div>
         <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-sm p-6">
@@ -365,7 +378,6 @@
         });
     }, 50);
 
-    // Optional: Lock background scrolling when modals are open
     window.toggleBodyScroll = function(disable) {
         if (disable) document.body.classList.add('overflow-hidden');
         else document.body.classList.remove('overflow-hidden');
@@ -389,11 +401,9 @@
             });
 
             const data = await response.json();
-if (response.ok && data.success) {
+            if (response.ok && data.success) {
                 showSnackbar(data.message, 'success');
                 
-                // The visual track and knob state are handled automatically by CSS :checked!
-
                 // Update the visual status badge state
                 const isLive = data.new_status === 'published';
                 const badge = document.getElementById('status-badge');

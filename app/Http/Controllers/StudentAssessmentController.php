@@ -33,17 +33,23 @@ class StudentAssessmentController extends Controller
         }
 
         // 2. Check if the logged-in student has access (AssessmentAccess)
-        // 👈 CHANGED: auth()->user()->user_id is now auth()->user()->lrn
-        $hasAccess = \App\Models\AssessmentAccess::where('assessment_id', $assessment->id)
+        // Fetch the record instead of using exists() so we can update it
+        $access = \App\Models\AssessmentAccess::where('assessment_id', $assessment->id)
                         ->where('lrn', auth()->user()->lrn) 
-                        ->exists();
+                        ->first();
 
-        if (!$hasAccess) {
+        if (!$access) {
             return response()->json([
                 'status' => 'error', 
                 'message' => 'You are not authorized to take this assessment. Please contact your teacher.'
             ], 403); // 403 Forbidden
         }
+
+        // --- NEW: UPDATE STATUS TO LOBBY IMMEDIATELY ON VERIFICATION ---
+        if ($access->status === 'offline') {
+            $access->update(['status' => 'lobby']);
+        }
+        // ---------------------------------------------------------------
 
         // 3. Success - Redirection
         return response()->json([
@@ -73,8 +79,7 @@ class StudentAssessmentController extends Controller
             return redirect()->route('student.assessment.results', $access_key);
         }
 
-        // --- NEW: UPDATE STATUS TO LOBBY ---
-        // 👈 CHANGED: $user->user_id is now $user->lrn
+        // Fallback update just in case they navigated here directly
         $access = \App\Models\AssessmentAccess::where('assessment_id', $assessment->id)
             ->where('lrn', $user->lrn)
             ->first();
@@ -82,7 +87,6 @@ class StudentAssessmentController extends Controller
         if ($access && $access->status !== 'finished' && $access->status !== 'taking_exam') {
             $access->update(['status' => 'lobby']);
         }
-        // -----------------------------------
 
         return view('dashboard.partials.student.assessmentExam.assessment-lobby', compact('assessment'));
     }
@@ -141,8 +145,7 @@ class StudentAssessmentController extends Controller
             ->get()
             ->keyBy('question_id');
 
-        // --- NEW: UPDATE STATUS TO TAKING EXAM ---
-        // 👈 CHANGED: $user->user_id is now $user->lrn
+        // UPDATE STATUS TO TAKING EXAM
         $access = \App\Models\AssessmentAccess::where('assessment_id', $assessment->id)
             ->where('lrn', $user->lrn)
             ->first();
@@ -150,9 +153,7 @@ class StudentAssessmentController extends Controller
         if ($access && $access->status !== 'finished') {
             $access->update(['status' => 'taking_exam']);
         }
-        // -----------------------------------------
 
-        // 👈 ADD 'access' to compact() here
         return view('dashboard.partials.student.assessmentExam.assessment-exam', 
             compact('assessment', 'currentCategory', 'session', 'existingAnswers', 'access')
         );
@@ -195,7 +196,7 @@ class StudentAssessmentController extends Controller
                 }
             }
 
-            // 3. 👈 ADD THIS: Save the pauses left to the database
+            // 3. Save the pauses left to the database
             if ($request->has('pauses_left')) {
                 $access = \App\Models\AssessmentAccess::where('assessment_id', $assessment->id)
                     ->where('lrn', $user->lrn)
@@ -262,8 +263,7 @@ class StudentAssessmentController extends Controller
             return redirect()->route('student.assessment.exam', ['access_key' => $access_key, 'category_id' => $nextCategory->id]);
         } else {
             
-            // --- NEW: UPDATE STATUS TO FINISHED ---
-            // 👈 CHANGED: $user->user_id is now $user->lrn
+            // UPDATE STATUS TO FINISHED
             $access = \App\Models\AssessmentAccess::where('assessment_id', $assessment->id)
                 ->where('lrn', $user->lrn)
                 ->first();
@@ -271,7 +271,6 @@ class StudentAssessmentController extends Controller
             if ($access) {
                 $access->update(['status' => 'finished']);
             }
-            // --------------------------------------
 
             return redirect()->route('student.assessment.results', $access_key)
                              ->with('success', 'Assessment fully completed!');
@@ -295,8 +294,6 @@ class StudentAssessmentController extends Controller
 
         $score = 0;
         $totalQuestions = 0;
-        
-        // --- CHANGED: Group results by category ---
         $detailedResultsByCategory = []; 
 
         // 3. Loop through every question to grade it
@@ -308,13 +305,13 @@ class StudentAssessmentController extends Controller
 
             foreach ($category->questions as $question) {
                 
-                // --- CHANGED: Handle Instructions (Skip Grading entirely) ---
+                // Handle Instructions (Skip Grading entirely)
                 if ($question->type === 'instruction') {
                     $categoryData['items'][] = (object) [
                         'is_instruction' => true,
                         'question' => $question,
                     ];
-                    continue; // Skip the rest of the grading loop
+                    continue; 
                 }
 
                 $totalQuestions++;
@@ -324,14 +321,12 @@ class StudentAssessmentController extends Controller
                 $isPending = false;
                 $correctAnswerText = '';
                 
-                // Get clean student text
                 $studentAnswerText = $studentAnswer ? trim($studentAnswer->answer_text) : '';
                 $displayStudentAnswer = $studentAnswerText !== '' ? $studentAnswerText : 'No answer provided';
 
                 // Handle Short Answer / Text Questions
                 if ($question->type === 'text') {
                     
-                    // Filter out any empty correct options saved by the admin
                     $correctOptions = $question->options->where('is_correct', true)->filter(function ($option) {
                         return trim($option->option_text) !== '';
                     });
@@ -394,11 +389,9 @@ class StudentAssessmentController extends Controller
                 ];
             }
 
-            // Add the compiled category to the main array
             $detailedResultsByCategory[] = (object) $categoryData;
         }
 
-        // 5. Return the view
         return view('dashboard.partials.student.assessmentExam.assessment-result', compact(
             'assessment', 'score', 'totalQuestions', 'detailedResultsByCategory'
         ));
