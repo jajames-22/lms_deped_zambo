@@ -626,6 +626,19 @@ class DashboardController extends Controller
     }
 
 
+    public function publicMaterialShow($id)
+    {
+        // Fetch the material, ensuring it is public and published
+        $material = \App\Models\Material::with(['instructor', 'tags', 'lessons.contents', 'exams'])
+            ->where('is_public', true)
+            ->where('status', 'published')
+            ->findOrFail($id);
+
+        // Point straight to the new standalone view in the root resources/views folder
+        // Note: No need to pass $isEnrolled anymore, as it's hardcoded for guests!
+        return view('materials-show-public', compact('material'));
+    }
+
     private function loadAdminAnalytics()
     {
         // ==========================================

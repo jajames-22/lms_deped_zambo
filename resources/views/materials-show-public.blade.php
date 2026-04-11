@@ -119,11 +119,6 @@
                     {{ $material->title }}
                 </div>
 
-                <div class="flex items-center gap-3 relative z-10">
-                    <a href="{{ route('login') }}" class="px-5 py-2 bg-gray-100 text-[#a52a2a] text-sm font-bold rounded-lg hover:bg-gray-200 transition border border-gray-200 shadow-sm">
-                        Log In
-                    </a>
-                </div>
             </div>
         </header>
 

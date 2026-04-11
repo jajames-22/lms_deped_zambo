@@ -32,7 +32,17 @@
         {{-- CONTAINER A: MAIN EXPLORE VIEW --}}
         <div id="main-explore-content" class="max-w-7xl mx-auto space-y-12 pb-24 relative px-4 sm:px-6 transition-opacity duration-300">
 
-        <button onclick="navigateBack()" class="cursor-pointer flex items-center text-gray-500 hover:text-[#a52a2a] font-bold transition-colors group px-2 py-1 rounded-lg hover:bg-red-50 relative z-10"> <i class="fas fa-arrow-left mr-2 group-hover:-translate-x-1 transition-transform"></i> <span class="hidden sm:inline">Back</span> </button>
+            {{-- BACK BUTTON & PAGE HEADER --}}
+            <div class="flex flex-col gap-4 mb-2">
+                <button onclick="navigateBack()" class="cursor-pointer flex items-center w-fit text-gray-500 hover:text-[#a52a2a] font-bold transition-colors group px-2 py-1 rounded-lg hover:bg-red-50 relative z-10"> 
+                    <i class="fas fa-arrow-left mr-2 group-hover:-translate-x-1 transition-transform"></i> <span class="hidden sm:inline">Back</span> 
+                </button>
+                
+                <div class="px-2">
+                    <h1 class="text-4xl md:text-5xl font-black text-gray-900 tracking-tight">Public Materials</h1>
+                    <p class="text-gray-500 mt-2 text-base md:text-lg">Explore open-access learning resources from DepEd Zamboanga.</p>
+                </div>
+            </div>
             
             {{-- 1. FEATURED BANNER CAROUSEL (Admin Selected) --}}
             @if($featuredMaterials->isNotEmpty())
@@ -147,14 +157,14 @@
                 </div>
             </section>
 
-            {{-- 4. GUEST CTA (Call to Action) --}}
-            <section class="mt-12 bg-[#a52a2a]/5 border border-[#a52a2a]/20 rounded-3xl p-8 md:p-12 text-center">
-                <i class="fas fa-school text-5xl text-[#a52a2a] mb-6"></i>
-                <h2 class="text-3xl font-extrabold text-gray-900 tracking-tight mb-4">Want to see materials specific to your school?</h2>
-                <p class="text-gray-600 max-w-2xl mx-auto mb-8 text-lg">Create a free student account today to access tailored modules, track your learning progress, and earn certificates from instructors at your registered school.</p>
-                <div class="flex flex-col sm:flex-row justify-center gap-4">
-                    <a href="{{ route('register') }}" class="px-8 py-3 bg-[#a52a2a] hover:bg-red-800 text-white font-bold rounded-xl shadow-lg transition-all">Create Account</a>
-                    <a href="{{ route('login') }}" class="px-8 py-3 bg-white text-[#a52a2a] border border-[#a52a2a]/30 hover:bg-gray-50 font-bold rounded-xl shadow-sm transition-all">I already have an account</a>
+            {{-- 4. GUEST CTA (Smaller Version) --}}
+            <section class="mt-8 bg-[#a52a2a]/5 border border-[#a52a2a]/20 rounded-2xl p-6 md:p-8 text-center max-w-4xl mx-auto">
+                <i class="fas fa-school text-3xl text-[#a52a2a] mb-3"></i>
+                <h2 class="text-xl md:text-2xl font-extrabold text-gray-900 tracking-tight mb-2">Want to see materials specific to your school?</h2>
+                <p class="text-gray-600 max-w-xl mx-auto mb-6 text-sm md:text-base">Create a free student account today to access tailored modules, track your learning progress, and earn certificates from instructors at your registered school.</p>
+                <div class="flex flex-col sm:flex-row justify-center gap-3">
+                    <a href="{{ route('register') }}" class="px-6 py-2.5 bg-[#a52a2a] hover:bg-red-800 text-white text-sm font-bold rounded-lg shadow-md transition-all">Create Account</a>
+                    <a href="{{ route('login') }}" class="px-6 py-2.5 bg-white text-[#a52a2a] border border-[#a52a2a]/30 hover:bg-gray-50 text-sm font-bold rounded-lg shadow-sm transition-all">I already have an account</a>
                 </div>
             </section>
 
@@ -181,21 +191,21 @@
 
     {{-- SCRIPTS --}}
     <script>
-function navigateBack() {
-    console.log("clicked");
+        function navigateBack() {
+            console.log("clicked");
 
-    const wrapper = document.getElementById('page-wrapper');
+            const wrapper = document.getElementById('page-wrapper');
 
-    if (wrapper) {
-        wrapper.classList.remove('animate-slide-in');
-        wrapper.classList.add('animate-slide-out');
-    }
+            if (wrapper) {
+                wrapper.classList.remove('animate-slide-in');
+                wrapper.classList.add('animate-slide-out');
+            }
 
-    setTimeout(() => {
-        window.location.href = "/";
-    }, 300);
-}
-</script>
+            setTimeout(() => {
+                window.location.href = "/";
+            }, 300);
+        }
+    </script>
     <script>
         // Carousel Logic
         @if(isset($featuredMaterials) && $featuredMaterials->count() > 1)
