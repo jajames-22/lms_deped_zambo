@@ -23,12 +23,12 @@ class ExamImport implements ToCollection, WithHeadingRow
 
         try {
             foreach ($rows as $row) {
-                // Skip rows where the question is blank
+                // Skip rows where the question text is missing
                 if (empty($row['question'])) {
                     continue;
                 }
 
-                // 1. Process Category
+                // 1. UPSERT CATEGORY
                 $categoryTitle = $row['category'] ?? 'Imported Section';
 
                 $category = DB::table('assessment_categories')
@@ -36,74 +36,70 @@ class ExamImport implements ToCollection, WithHeadingRow
                     ->where('title', $categoryTitle)
                     ->first();
 
+                $categoryData = [
+                    'assessment_id' => $this->assessmentId,
+                    'title' => $categoryTitle,
+                    'time_limit' => $row['time_limit'] ?? 0,
+                    'updated_at' => now(),
+                ];
+
                 if (!$category) {
-                    $categoryId = DB::table('assessment_categories')->insertGetId([
-                        'assessment_id' => $this->assessmentId,
-                        'title' => $categoryTitle,
-                        'time_limit' => $row['time_limit'] ?? 0,
-                        'created_at' => now(),
-                        'updated_at' => now(),
-                    ]);
+                    $categoryData['created_at'] = now();
+                    $categoryId = DB::table('assessment_categories')->insertGetId($categoryData);
                 } else {
+                    DB::table('assessment_categories')->where('id', $category->id)->update($categoryData);
                     $categoryId = $category->id;
                 }
 
-                // 2. Process Question
-                $questionType = strtolower(trim($row['type'] ?? 'mcq'));
+                // 2. UPSERT QUESTION
                 
-                // NEW: Check for an image_url or media_url column in the spreadsheet
-                $mediaUrl = null;
-                if (!empty($row['image_url']) && trim($row['image_url']) !== '') {
-                    $mediaUrl = trim($row['image_url']);
-                } elseif (!empty($row['media_url']) && trim($row['media_url']) !== '') {
-                    $mediaUrl = trim($row['media_url']);
-                }
+                $questionType = strtolower(trim($row['type'] ?? 'mcq'));
+                $mediaUrl = !empty($row['image_url']) ? trim($row['image_url']) : (!empty($row['media_url']) ? trim($row['media_url']) : null);
 
-                $questionId = DB::table('assessment_questions')->insertGetId([
+                // Check if this specific question already exists in this category
+                $existingQuestion = DB::table('assessment_questions')
+                    ->where('category_id', $categoryId)
+                    ->where('question_text', $row['question'])
+                    ->first();
+
+                $questionData = [
                     'category_id' => $categoryId,
                     'type' => $questionType,
                     'question_text' => $row['question'],
-                    'media_url' => $mediaUrl, // <-- Saves the URL from the spreadsheet
+                    'media_url' => $mediaUrl,
                     'is_case_sensitive' => false,
-                    'created_at' => now(),
                     'updated_at' => now(),
-                ]);
+                ];
 
-                // 3. Process Options
+                if ($existingQuestion) {
+                    // Update question metadata and refresh options
+                    DB::table('assessment_questions')->where('id', $existingQuestion->id)->update($questionData);
+                    $questionId = $existingQuestion->id;
+                    DB::table('assessment_options')->where('question_id', $questionId)->delete();
+                } else {
+                    // Insert brand new question
+                    $questionData['created_at'] = now();
+                    $questionId = DB::table('assessment_questions')->insertGetId($questionData);
+                }
+
+                // 3. REFRESH OPTIONS
                 if ($questionType === 'true_false') {
                     $correctAnswer = strtolower(trim($row['correct_answer'] ?? ''));
-                    
-                    DB::table('assessment_options')->insert([
-                        'question_id' => $questionId,
-                        'option_text' => 'True',
-                        'is_correct' => ($correctAnswer === 'true' || $correctAnswer === 'option 1'),
-                        'created_at' => now(),
-                        'updated_at' => now(),
-                    ]);
 
                     DB::table('assessment_options')->insert([
-                        'question_id' => $questionId,
-                        'option_text' => 'False',
-                        'is_correct' => ($correctAnswer === 'false' || $correctAnswer === 'option 2'),
-                        'created_at' => now(),
-                        'updated_at' => now(),
+                        ['question_id' => $questionId, 'option_text' => 'True', 'is_correct' => ($correctAnswer === 'true' || $correctAnswer === 'option 1'), 'created_at' => now(), 'updated_at' => now()],
+                        ['question_id' => $questionId, 'option_text' => 'False', 'is_correct' => ($correctAnswer === 'false' || $correctAnswer === 'option 2'), 'created_at' => now(), 'updated_at' => now()]
                     ]);
-
                 } else {
                     for ($i = 1; $i <= 4; $i++) {
-                        $optionColumnName = 'option_' . $i;
-
-                        if (!isset($row[$optionColumnName]) || trim($row[$optionColumnName]) === '') {
+                        $col = 'option_' . $i;
+                        if (!isset($row[$col]) || trim($row[$col]) === '')
                             continue;
-                        }
-
-                        $correctAnswerTarget = strtolower(trim($row['correct_answer'] ?? ''));
-                        $isCorrect = ($correctAnswerTarget === 'option ' . $i);
 
                         DB::table('assessment_options')->insert([
                             'question_id' => $questionId,
-                            'option_text' => trim($row[$optionColumnName]),
-                            'is_correct' => $isCorrect,
+                            'option_text' => trim($row[$col]),
+                            'is_correct' => (strtolower(trim($row['correct_answer'] ?? '')) === 'option ' . $i),
                             'created_at' => now(),
                             'updated_at' => now(),
                         ]);
@@ -115,7 +111,7 @@ class ExamImport implements ToCollection, WithHeadingRow
 
         } catch (Exception $e) {
             DB::rollBack();
-            throw $e; 
+            throw $e;
         }
     }
 }

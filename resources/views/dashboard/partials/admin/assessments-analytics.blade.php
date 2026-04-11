@@ -9,7 +9,7 @@
                 Back to Assessment
             </button>
             <h2 class="text-3xl font-bold text-gray-900">{{ $assessment->title }}</h2>
-            <p class="text-gray-500 mt-1">Division-Level Performance and Assessment Analysis.</p>
+            <p class="text-gray-500 mt-1">Student Performance and Assessment Analysis.</p>
         </div>
         <button onclick="toggleExportModal()" class="bg-[#a52a2a] text-white px-5 py-2.5 rounded-xl shadow-sm hover:bg-red-900 flex items-center gap-2 transition-all text-sm font-bold border-0 whitespace-nowrap">
             <i class="fas fa-file-export text-white/80"></i> Generate Report

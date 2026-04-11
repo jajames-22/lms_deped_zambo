@@ -31,9 +31,34 @@
         </div>
     </div>
 
-    <div id="assessment-grid" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 items-stretch relative">
+    <div id="assessment-grid" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5 items-stretch relative">
         @forelse($assessments as $assessment)
-            @php $isLive = ($assessment->status === 'published'); @endphp
+            @php 
+                $isLive = ($assessment->status === 'published'); 
+                
+                // Bulletproof Database Counts
+                $dbCatCount = $assessment->categories_count ?? $assessment->categories()->count();
+                $dbQCount = $assessment->questions_count ?? $assessment->questions()->count();
+
+                $displayCatCount = $dbCatCount;
+                $displayQCount = $dbQCount;
+
+                // Dynamic Draft JSON counting
+                if (!$isLive && !empty($assessment->draft_json)) {
+                    $draftData = json_decode($assessment->draft_json, true);
+                    if (is_array($draftData) && isset($draftData['categories'])) {
+                        $jsonCatCount = count($draftData['categories']);
+                        $jsonQCount = 0;
+                        foreach ($draftData['categories'] as $cat) {
+                            if (isset($cat['questions']) && is_array($cat['questions'])) {
+                                $jsonQCount += count($cat['questions']);
+                            }
+                        }
+                        $displayCatCount = $jsonCatCount > 0 ? $jsonCatCount : $dbCatCount;
+                        $displayQCount = $jsonQCount > 0 ? $jsonQCount : $dbQCount;
+                    }
+                }
+            @endphp
 
             <div id="assessment-card-{{ $assessment->id }}"
                 onclick="loadPartial('{{ route('dashboard.assessments.manage', $assessment->id) }}', document.getElementById('nav-assessment-btn'))"
@@ -41,87 +66,94 @@
 
                 <button
                     onclick="event.stopPropagation(); AssessmentManager.delete('{{ $assessment->id }}', '{{ route('dashboard.assessments.destroy', $assessment->id) }}')"
-                    class="absolute top-4 right-4 h-8 w-8 rounded-full bg-gray-50 text-gray-400 opacity-0 group-hover:opacity-100 transition-all flex items-center justify-center hover:bg-red-100 hover:text-red-600 z-10"
+                    class="absolute top-3 right-3 h-7 w-7 rounded-full bg-gray-50 text-gray-400 opacity-0 group-hover:opacity-100 transition-all flex items-center justify-center hover:bg-red-100 hover:text-red-600 z-10"
                     title="Delete Assessment">
-                    <i class="fas fa-trash-alt text-sm"></i>
+                    <i class="fas fa-trash-alt text-[11px]"></i>
                 </button>
 
-                <div class="p-6 flex-1 flex flex-col">
-                    <div class="flex justify-between items-start mb-4 pr-8">
-                        <div class="flex items-center gap-3">
+                <div class="p-5 flex-1 flex flex-col">
+                    <div class="flex justify-between items-start mb-3 pr-6">
+                        <div class="flex items-center gap-2">
                             <div
-                                class="{{ $isLive ? 'bg-green-50 text-green-600' : 'bg-amber-50 text-amber-600' }} p-3 rounded-xl flex items-center justify-center">
-                                <i class="fas {{ $isLive ? 'fa-file-signature' : 'fa-tools' }} text-xl"></i>
+                                class="{{ $isLive ? 'bg-green-50 text-green-600' : 'bg-amber-50 text-amber-600' }} p-2 rounded-lg flex items-center justify-center">
+                                <i class="fas {{ $isLive ? 'fa-file-signature' : 'fa-tools' }} text-lg"></i>
                             </div>
                             <span
-                                class="px-2.5 py-1 {{ $isLive ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700' }} text-[10px] font-bold rounded-md uppercase tracking-wide">
+                                class="px-2 py-0.5 {{ $isLive ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700' }} text-[9px] font-bold rounded uppercase tracking-wide">
                                 {{ $isLive ? 'Published' : 'Draft' }}
                             </span>
                         </div>
                     </div>
 
-                    <h4 class="test-title text-lg font-bold text-gray-900 mb-2 line-clamp-1"
+                    <h4 class="test-title text-base font-bold text-gray-900 mb-1 line-clamp-1"
                         title="{{ $assessment->title }}">{{ $assessment->title }}</h4>
 
-                    <p class="text-sm text-gray-500 mb-5 line-clamp-2 flex-1">
+                    <p class="text-xs text-gray-500 mb-3 line-clamp-2 flex-1 leading-relaxed">
                         {{ $assessment->description ?? 'No description provided for this assessment.' }}
                     </p>
 
-                    @if($isLive)
-                        <div class="bg-gray-50 rounded-xl p-4 mb-2 space-y-2 text-xs text-gray-600 border border-gray-100">
-                            <div class="flex items-center justify-between">
-                                <span class="flex items-center gap-2 text-gray-500"><i class="fas fa-key"></i> Access
-                                    Key:</span>
-                                <b class="tracking-widest text-[#a52a2a] font-mono">{{ $assessment->access_key }}</b>
-                            </div>
-                            <div class="flex items-center justify-between">
-                                <span class="flex items-center gap-2 text-gray-500"><i class="fas fa-layer-group"></i>
-                                    Sections:</span>
-                                <b class="text-gray-900">{{ $assessment->categories_count ?? 0 }}</b>
-                            </div>
+                    {{-- STATS BLOCK --}}
+                    <div class="bg-gray-50 rounded-xl p-3 mb-2 space-y-1.5 text-[11px] text-gray-600 border border-gray-100">
+                        <div class="flex items-center justify-between">
+                            <span class="flex items-center gap-1.5 text-gray-500"><i class="fas fa-key w-3.5 text-center"></i> Access Key:</span>
+                            @if($assessment->access_key)
+                                <b class="tracking-widest text-[#a52a2a] font-mono text-xs">{{ $assessment->access_key }}</b>
+                            @else
+                                <b class="text-gray-400 italic">Pending</b>
+                            @endif
                         </div>
-                    @else
-                        <div
-                            class="bg-amber-50/50 rounded-xl p-4 mb-2 text-xs text-amber-600/80 border border-amber-100/50 flex items-center justify-center border-dashed">
-                            <i class="fas fa-pencil-ruler mr-2"></i> Continue building this test
+                        <div class="flex items-center justify-between">
+                            <span class="flex items-center gap-1.5 text-gray-500"><i class="fas fa-layer-group w-3.5 text-center"></i> Sections:</span>
+                            <b class="text-gray-900 text-xs">{{ $displayCatCount }}</b>
+                        </div>
+                        <div class="flex items-center justify-between">
+                            <span class="flex items-center gap-1.5 text-gray-500"><i class="fas fa-list-ol w-3.5 text-center"></i> Total Items:</span>
+                            <b class="text-gray-900 text-xs">{{ $displayQCount }}</b>
+                        </div>
+                    </div>
+
+                    {{-- DRAFT INDICATOR --}}
+                    @if(!$isLive)
+                        <div class="bg-amber-50/50 rounded-xl p-2 mb-2 text-[11px] font-medium text-amber-600/80 border border-amber-100/50 flex items-center justify-center border-dashed">
+                            <i class="fas fa-pencil-ruler mr-1.5"></i> Continue building this test
                         </div>
                     @endif
 
-                    <div class="flex gap-3 mt-4 pt-4 border-t border-gray-100">
+                    <div class="flex gap-2 mt-3 pt-3 border-t border-gray-100">
                         <button
                             onclick="event.stopPropagation(); loadPartial('{{ route('dashboard.assessments.builder', $assessment->id) }}',document.getElementById('nav-assessment-btn'))"
-                            class="flex-1 py-2.5 bg-white border border-gray-200 text-gray-700 text-sm font-bold rounded-xl hover:bg-gray-50 hover:border-[#a52a2a]/30 hover:text-[#a52a2a] transition-all shadow-sm">
+                            class="flex-1 py-2 bg-white border border-gray-200 text-gray-700 text-xs font-bold rounded-xl hover:bg-gray-50 hover:border-[#a52a2a]/30 hover:text-[#a52a2a] transition-all shadow-sm">
                             <i class="fas {{ $isLive ? 'fa-edit' : 'fa-play' }} mr-1"></i>
                             {{ $isLive ? 'Edit' : 'Resume' }}
                         </button>
 
-                        @if($isLive)<button
-                                 onclick="event.stopPropagation(); loadPartial('{{ route('dashboard.assessments.analytics', $assessment->id) }}', document.getElementById('nav-assessment-btn'))"
+                        @if($isLive)
+                            <button
+                                onclick="event.stopPropagation(); loadPartial('{{ route('dashboard.assessments.analytics', $assessment->id) }}', document.getElementById('nav-assessment-btn'))"
                                 id="analytics-btn"
-                                class="flex-1 py-2.5 bg-[#a52a2a] text-white text-sm font-bold rounded-xl hover:bg-red-800 transition-all shadow-md shadow-[#a52a2a]/20">
+                                class="flex-1 py-2 bg-[#a52a2a] text-white text-xs font-bold rounded-xl hover:bg-red-800 transition-all shadow-sm shadow-[#a52a2a]/20">
                                 <i class="fas fa-chart-pie mr-1"></i>
-                                View Analytics
+                                Analytics
                             </button>
                         @endif
                     </div>
                 </div>
             </div>
         @empty
-            <div
-                class="col-span-full py-16 flex flex-col items-center justify-center bg-white rounded-2xl border border-dashed border-gray-300">
-                <div class="h-16 w-16 rounded-full bg-gray-50 flex items-center justify-center text-gray-400 mb-4">
-                    <i class="fas fa-clipboard-list text-2xl"></i>
+            <div class="col-span-full py-12 flex flex-col items-center justify-center bg-white rounded-2xl border border-dashed border-gray-300">
+                <div class="h-14 w-14 rounded-full bg-gray-50 flex items-center justify-center text-gray-400 mb-3">
+                    <i class="fas fa-clipboard-list text-xl"></i>
                 </div>
-                <h3 class="text-lg font-bold text-gray-900 mb-1">No assessment found, try adding one!</h3>
+                <h3 class="text-base font-bold text-gray-900 mb-1">No assessment found, try adding one!</h3>
             </div>
         @endforelse
 
         <div id="dynamic-empty-state" style="display: none;"
-            class="col-span-full py-16 flex flex-col items-center justify-center bg-white rounded-2xl border border-dashed border-gray-300">
-            <div class="h-16 w-16 rounded-full bg-gray-50 flex items-center justify-center text-gray-400 mb-4">
-                <i class="fas fa-search-minus text-2xl"></i>
+            class="col-span-full py-12 flex flex-col items-center justify-center bg-white rounded-2xl border border-dashed border-gray-300">
+            <div class="h-14 w-14 rounded-full bg-gray-50 flex items-center justify-center text-gray-400 mb-3">
+                <i class="fas fa-search-minus text-xl"></i>
             </div>
-            <h3 class="text-lg font-bold text-gray-900 mb-1">No assessment found, try adding one!</h3>
+            <h3 class="text-base font-bold text-gray-900 mb-1">No assessment found, try adding one!</h3>
         </div>
     </div>
 </div>

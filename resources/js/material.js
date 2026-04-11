@@ -147,9 +147,10 @@ MaterialBuilder.initBuilder = function () {
     }, 500);
 };
 
+// UPDATED: Render Existing Categories with IDs
 MaterialBuilder.renderExistingCategory = function (catData) {
     const sectionType = catData.section_type || "lesson";
-    MaterialBuilder.addSection(sectionType);
+    MaterialBuilder.addSection(sectionType, null, catData.id); // Pass ID
 
     const latestCat = document.querySelector(".category-block:last-child");
     latestCat.querySelector(".c-title").value = catData.title || "";
@@ -178,6 +179,8 @@ MaterialBuilder.renderExistingCategory = function (catData) {
                 qContainer.id.split("-").pop(),
                 mainType,
                 subType,
+                null,
+                q.id // Pass Question ID
             );
 
             const latestQ = qContainer.querySelector(
@@ -201,27 +204,19 @@ MaterialBuilder.renderExistingCategory = function (catData) {
                         opt.is_correct == 1 || opt.is_correct === true,
                         opt.text || opt.option_text || "",
                         isCaseSensitive,
+                        opt.id // Pass Option ID
                     );
                 });
             } else if (subType === "true_false" && mainType !== "content") {
-                MaterialBuilder.addOptionToQuestion(
-                    latestQ.id,
-                    "true_false",
-                    false,
-                    "True",
-                );
-                MaterialBuilder.addOptionToQuestion(
-                    latestQ.id,
-                    "true_false",
-                    false,
-                    "False",
-                );
+                MaterialBuilder.addOptionToQuestion(latestQ.id, "true_false", false, "True");
+                MaterialBuilder.addOptionToQuestion(latestQ.id, "true_false", false, "False");
             }
         });
     }
 };
 
-MaterialBuilder.addSection = function (type = "lesson", afterElement = null) {
+// UPDATED: Template to store ID
+MaterialBuilder.addSection = function (type = "lesson", afterElement = null, existingId = null) {
     const container = document.getElementById("builder-container");
     if (!container) return;
 
@@ -262,8 +257,9 @@ MaterialBuilder.addSection = function (type = "lesson", afterElement = null) {
             </div>
         </div>`;
 
+    // ADDED data-id
     const html = `
-        <div class="bg-white rounded-2xl shadow-sm border ${borderColor} category-block transition-all mb-4" id="${catId}" data-section-type="${type}">
+        <div class="bg-white rounded-2xl shadow-sm border ${borderColor} category-block transition-all mb-4" id="${catId}" data-section-type="${type}" data-id="${existingId || ''}">
             <div class="category-header p-4 bg-gray-50/50 flex items-center justify-between cursor-pointer transition-all" onclick="MaterialBuilder.toggleCategory('${catId}', event)">
                 <div class="flex items-center gap-4 flex-1">
                     <div class="h-8 w-8 rounded-lg ${badgeColor} flex items-center justify-center font-bold text-sm cat-number-badge">
@@ -313,11 +309,13 @@ MaterialBuilder.addSection = function (type = "lesson", afterElement = null) {
     MaterialBuilder.handleAutosaveTrigger();
 };
 
+// UPDATED: Template to store ID
 MaterialBuilder.addItem = function (
     cId,
     mainType,
     subType = "content",
     afterElement = null,
+    existingId = null // Added param
 ) {
     const container = document.getElementById(`q-container-${cId}`);
     if (!container) return;
@@ -336,8 +334,9 @@ MaterialBuilder.addItem = function (
             ? "Lesson Content Block"
             : `${mainType === "quiz" ? "Practice Quiz" : "Exam Question"}: ${subType.toUpperCase()}`;
 
+    // ADDED data-id
     const html = `
-        <div class="p-4 rounded-xl border border-gray-100 question-block relative group ${bgClass}" id="${qId}" data-main-type="${mainType}" data-sub-type="${subType}">
+        <div class="p-4 rounded-xl border border-gray-100 question-block relative group ${bgClass}" id="${qId}" data-main-type="${mainType}" data-sub-type="${subType}" data-id="${existingId || ''}">
             <div class="flex justify-between items-start mb-2 cursor-pointer" onclick="MaterialBuilder.toggleQuestion('${qId}', event)">
                 <div class="flex items-center gap-2 overflow-hidden pr-2">
                     <div class="h-6 w-6 flex items-center justify-center text-gray-400 group-hover:text-gray-600 transition q-chevron-icon shrink-0"><i class="fas fa-chevron-up text-xs"></i></div>
@@ -368,25 +367,15 @@ MaterialBuilder.addItem = function (
     if (afterElement) afterElement.insertAdjacentHTML("afterend", html);
     else container.insertAdjacentHTML("beforeend", html);
 
-    if (mainType !== "content") {
+    if (mainType !== "content" && !existingId) {
         if (subType === "mcq" || subType === "checkbox") {
             MaterialBuilder.addOptionToQuestion(qId, subType, true, "");
             MaterialBuilder.addOptionToQuestion(qId, subType, false, "");
         } else if (subType === "text")
             MaterialBuilder.addOptionToQuestion(qId, "text", true, "");
         else if (subType === "true_false") {
-            MaterialBuilder.addOptionToQuestion(
-                qId,
-                "true_false",
-                false,
-                "True",
-            );
-            MaterialBuilder.addOptionToQuestion(
-                qId,
-                "true_false",
-                false,
-                "False",
-            );
+            MaterialBuilder.addOptionToQuestion(qId, "true_false", false, "True");
+            MaterialBuilder.addOptionToQuestion(qId, "true_false", false, "False");
         }
     }
     MaterialBuilder.initSortable();
@@ -401,21 +390,26 @@ MaterialBuilder.toggleDropdown = function (btn) {
     menu.classList.toggle("hidden");
 };
 
+// UPDATED: Template to store ID
 MaterialBuilder.addOptionToQuestion = function (
     qId,
     type,
     isCorrect = false,
     text = "",
     isCaseSensitive = false,
+    existingId = null // Added param
 ) {
     const list = document.querySelector(`#${qId} .options-list`);
     if (!list) return;
     const optCount = list.querySelectorAll(".option-row").length + 1;
     let optHtml = "";
 
+    // Common row class with data-id
+    const rowBase = `class="flex items-center justify-between gap-3 bg-white px-3 py-2 rounded-lg border border-gray-200 option-row transition" data-id="${existingId || ''}"`;
+
     if (type === "mcq" || type === "true_false") {
         optHtml = `
-            <div class="flex items-center justify-between gap-3 bg-white px-3 py-2 rounded-lg border border-gray-200 option-row transition">
+            <div ${rowBase}>
                 <input type="text" class="option-input w-full bg-transparent outline-none text-sm" value="${text}" ${type === "true_false" ? "readonly" : ""}>
                 <div class="flex items-center gap-3 border-l border-gray-100 pl-3 shrink-0">
                     <label class="flex items-center gap-1.5 cursor-pointer text-gray-500 hover:text-green-600 transition"><input type="radio" name="correct-${qId}" class="is-correct-input h-4 w-4" ${isCorrect ? "checked" : ""}><span class="text-[10px] font-bold uppercase">Correct</span></label>
@@ -424,7 +418,7 @@ MaterialBuilder.addOptionToQuestion = function (
             </div>`;
     } else if (type === "checkbox") {
         optHtml = `
-            <div class="flex items-center justify-between gap-3 bg-white px-3 py-2 rounded-lg border border-gray-200 option-row transition">
+            <div ${rowBase}>
                 <input type="text" class="option-input w-full bg-transparent outline-none text-sm" value="${text}">
                 <div class="flex items-center gap-3 border-l border-gray-100 pl-3 shrink-0">
                     <label class="flex items-center gap-1.5 cursor-pointer text-gray-500 hover:text-green-600 transition"><input type="checkbox" class="is-correct-input h-4 w-4" ${isCorrect ? "checked" : ""}><span class="text-[10px] font-bold uppercase">Correct</span></label>
@@ -433,7 +427,7 @@ MaterialBuilder.addOptionToQuestion = function (
             </div>`;
     } else if (type === "text") {
         optHtml = `
-            <div class="flex items-center gap-3 bg-green-50/50 px-3 py-2 rounded-lg border border-green-200 option-row transition">
+            <div class="flex items-center gap-3 bg-green-50/50 px-3 py-2 rounded-lg border border-green-200 option-row transition" data-id="${existingId || ''}">
                 <input type="text" class="option-input w-full bg-transparent outline-none text-sm font-medium" value="${text}">
                 <input type="hidden" class="is-correct-input" value="true">
                 <label class="flex items-center gap-1.5 cursor-pointer text-gray-500 border-l border-green-200 pl-3 shrink-0"><input type="checkbox" class="case-sensitive-input h-4 w-4" ${isCaseSensitive ? "checked" : ""}><span class="text-[10px] font-bold uppercase">Case Sensitive</span></label>
@@ -461,10 +455,8 @@ MaterialBuilder.toggleCategory = function (id, event) {
         const body = block.querySelector(".category-body");
         const header = block.querySelector(".category-header");
         
-        // 1. Toggle the visibility of the content body
         body.classList.toggle("hidden");
         
-        // 2. Toggle the bottom border radius on the header
         if (body.classList.contains("hidden")) {
             header.classList.add("rounded-b-2xl");
         } else {
@@ -494,6 +486,8 @@ MaterialBuilder.updateCatDisplay = function (input, fallback) {
         .querySelector(".category-display-title").innerText =
         input.value || fallback;
 };
+
+// UPDATED: getPayload to scrape IDs
 MaterialBuilder.getPayload = function (status) {
     const categories = [];
     document.querySelectorAll(".category-block").forEach((cat) => {
@@ -504,6 +498,7 @@ MaterialBuilder.getPayload = function (status) {
                 q.querySelectorAll(".option-row").forEach((opt) => {
                     const check = opt.querySelector(".is-correct-input");
                     options.push({
+                        id: opt.dataset.id || null, // SCRAPE OPTION ID
                         text: opt.querySelector(".option-input").value,
                         is_correct:
                             check.type === "radio" || check.type === "checkbox"
@@ -515,6 +510,7 @@ MaterialBuilder.getPayload = function (status) {
                 });
             }
             questions.push({
+                id: q.dataset.id || null, // SCRAPE QUESTION ID
                 type: q.dataset.subType,
                 text: q.querySelector(".q-text").value,
                 media_url: q.querySelector(".q-media-url").value,
@@ -524,6 +520,7 @@ MaterialBuilder.getPayload = function (status) {
             });
         });
         categories.push({
+            id: cat.dataset.id || null, // SCRAPE LESSON ID
             section_type: cat.dataset.sectionType,
             title: cat.querySelector(".c-title").value,
             time_limit: parseInt(cat.querySelector(".c-time").value) || 0,
@@ -613,12 +610,9 @@ MaterialBuilder.clearSelectedMedia = function () {
     document.getElementById("start-media-upload-btn").disabled = true;
 };
 
-// Add this state variable at the top of your file near the others
 MaterialBuilder.currentUploadXhr = null;
 
-// Replaces the existing closeMediaModal function
 MaterialBuilder.closeMediaModal = function () {
-    // 1. Abort any ongoing upload when modal closes
     if (MaterialBuilder.currentUploadXhr) {
         MaterialBuilder.currentUploadXhr.abort();
         MaterialBuilder.currentUploadXhr = null;
@@ -626,7 +620,6 @@ MaterialBuilder.closeMediaModal = function () {
     
     document.getElementById("media-upload-modal").classList.add("hidden");
     
-    // 2. Reset UI states safely
     const progressContainer = document.getElementById("upload-progress-container");
     if (progressContainer) progressContainer.classList.add("hidden");
     
@@ -637,7 +630,6 @@ MaterialBuilder.closeMediaModal = function () {
     }
 };
 
-// Replaces the existing executeMediaUpload function
 MaterialBuilder.executeMediaUpload = function () {
     const wrapper = document.getElementById("material-wrapper");
     const btn = document.getElementById("start-media-upload-btn");
@@ -651,7 +643,6 @@ MaterialBuilder.executeMediaUpload = function () {
     const originalHtml = btn.innerHTML;
     btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> <span>Uploading...</span>';
 
-    // Show progress bar
     if (progressContainer) {
         progressContainer.classList.remove("hidden");
         progressBar.style.width = "0%";
@@ -664,7 +655,6 @@ MaterialBuilder.executeMediaUpload = function () {
     const xhr = new XMLHttpRequest();
     MaterialBuilder.currentUploadXhr = xhr;
 
-    // Track Progress
     xhr.upload.addEventListener("progress", function (e) {
         if (e.lengthComputable && progressContainer) {
             const percentComplete = Math.round((e.loaded / e.total) * 100);
@@ -673,7 +663,6 @@ MaterialBuilder.executeMediaUpload = function () {
         }
     });
 
-    // Handle Response
     xhr.addEventListener("load", function () {
         MaterialBuilder.currentUploadXhr = null;
         if (xhr.status >= 200 && xhr.status < 300) {
@@ -710,7 +699,6 @@ MaterialBuilder.executeMediaUpload = function () {
 
     xhr.addEventListener("abort", function () {
         MaterialBuilder.currentUploadXhr = null;
-        // Aborted silently, reset the UI
         resetUI();
     });
 
@@ -725,12 +713,12 @@ MaterialBuilder.executeMediaUpload = function () {
         if (progressContainer) progressContainer.classList.add("hidden");
     }
 };
+
 MaterialBuilder.setMediaPreview = function (qId, url, type = null, originalName = null) {
     const block = document.getElementById(qId);
     block.querySelector(".q-media-url").value = url;
     const previewDiv = document.getElementById(`preview-${qId}`);
     
-    // Extract display name from originalName or fallback to URL
     const displayFileName = originalName || url.split('/').pop().split('?')[0]; 
     const lowerUrl = url.toLowerCase();
 
@@ -739,7 +727,6 @@ MaterialBuilder.setMediaPreview = function (qId, url, type = null, originalName 
 
     let mediaHtml = "";
 
-    // Comprehensive Type Detection
     if (type === "audio" || lowerUrl.endsWith('.mp3') || lowerUrl.endsWith('.wav')) {
         mediaHtml = `<audio controls src="${url}" class="w-full mt-2"></audio>`;
     } else if (type === "video" || lowerUrl.endsWith('.mp4') || lowerUrl.endsWith('.webm')) {
@@ -760,7 +747,6 @@ MaterialBuilder.setMediaPreview = function (qId, url, type = null, originalName 
                         <a href="${url}" target="_blank" class="text-xs text-blue-600 hover:underline mt-1 font-medium">Download Archive</a>
                      </div>`;
     } else {
-        // Assume Image for everything else
         mediaHtml = `<img src="${url}" class="max-h-64 object-contain rounded-lg shadow-sm">
                      <span class="text-xs font-medium text-gray-500 mt-2">${displayFileName}</span>`;
     }
@@ -1030,7 +1016,6 @@ MaterialBuilder.silentlyDeleteAndExit = async function () {
     }
 };
 
-// Make sure we also update the click outside behavior for back-modal
 const matBackModal = document.getElementById("back-modal");
 if (matBackModal) {
     matBackModal.addEventListener("click", function (e) {
@@ -1040,7 +1025,6 @@ if (matBackModal) {
     });
 }
 
-// Warns the user if they try to close the entire browser tab with unsaved/un-published work
 window.addEventListener("beforeunload", (event) => {
     if (MaterialBuilder.hasChanged || MaterialBuilder.sessionDirty) {
         event.preventDefault();

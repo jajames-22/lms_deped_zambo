@@ -54,11 +54,10 @@
                     @endphp
                     <img src="{{ $logoPath }}" height="40" alt="LMS Logo" style="margin-bottom: 5px;">
                     
-                    <div class="title">Division Achievement Report</div>
+                    <div class="title">{{ $assessment->title }}</div>
                     <div class="subtitle">Generated on: {{ now()->format('F j, Y - g:i A') }}</div>
                 </td>
                 <td style="width: 40%; text-align: right; vertical-align: bottom; padding-bottom: 8px;">
-                    <strong style="font-size: 14px; color: #111;">{{ $assessment->title }}</strong><br>
                     <span style="font-size: 10px; text-transform: uppercase; color: #888; letter-spacing: 1px;">Status: {{ ucfirst($assessment->status) }}</span>
                 </td>
             </tr>
