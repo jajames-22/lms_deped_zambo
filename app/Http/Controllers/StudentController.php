@@ -179,6 +179,35 @@ class StudentController extends Controller
         ));
     }
 
+public function viewByTagJson($tag)
+{
+    // 1. Decode the input. It might be a single string or a JSON array.
+    $decodedTags = json_decode(urldecode($tag), true);
+    
+    // If it's not JSON (just a single string), put it into an array
+    $searchTags = is_array($decodedTags) ? $decodedTags : [trim(urldecode($tag))];
+
+    // 2. Query materials
+    $materials = \App\Models\Material::with('instructor')
+        ->where('status', 'published')
+        ->where('is_public', true)
+        ->whereHas('tags', function ($query) use ($searchTags) {
+            // Search for materials matching ANY of the tags in the list
+            $query->whereIn('name', $searchTags);
+            
+            // Fallback: Check if any tag IDs were passed
+            foreach($searchTags as $t) {
+                if (is_numeric($t)) {
+                    $query->orWhere('tags.id', $t);
+                }
+            }
+        })
+        ->latest()
+        ->get();
+
+    return response()->json($materials);
+}
+    
     public function incrementDownload(Material $material) {
         $material->increment('downloads');
         return response()->json(['success' => true]);

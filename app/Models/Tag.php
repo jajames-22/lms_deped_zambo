@@ -10,6 +10,6 @@ class Tag extends Model
 
     public function materials()
     {
-        return $this->belongsToMany(Material::class);
+        return $this->belongsToMany(Material::class, 'material_tag', 'tag_id', 'material_id');
     }
 }

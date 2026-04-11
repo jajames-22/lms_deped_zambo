@@ -488,11 +488,129 @@ class DashboardController extends Controller
         return response()->json(['success' => 'School deleted successfully!']);
     }
 
-    public function loadExplorePartial()
+    public function loadExplorePartial(\Illuminate\Http\Request $request)
     {
-        // This looks for: resources/views/partials/student/explore.blade.php
-        return view('dashboard.partials.student.explore');
+        // 1. Featured Materials
+        $featuredMaterials = \App\Models\Material::with('instructor')
+            ->where('is_featured', true)
+            ->where('status', 'published')
+            ->where('is_public', true)
+            ->latest()
+            ->get();
+
+        // 2. Popular Materials
+        $popularMaterials = \App\Models\Material::with('instructor')
+            ->where('status', 'published')
+            ->where('is_public', true)
+            ->orderBy('views', 'desc')
+            ->take(10)
+            ->get();
+
+        // 3. Dynamic Sections
+        $dynamicSections = \App\Models\ExplorePageSection::where('is_active', true)
+            ->orderBy('order', 'asc')
+            ->get()
+            ->map(function ($section) {
+                // Decode the JSON array of tags
+                $tagsArray = json_decode($section->tag_name, true);
+                if (!is_array($tagsArray)) $tagsArray = [$section->tag_name];
+
+                $section->materials = \App\Models\Material::with('instructor')
+                    ->whereHas('tags', function($q) use ($tagsArray) {
+                        $q->whereIn('name', $tagsArray);
+                    })
+                    ->where('status', 'published')
+                    ->where('is_public', true)
+                    ->inRandomOrder()
+                    ->take(10)
+                    ->get();
+                
+                return $section;
+            });
+
+        // 4. School Materials
+        // Since this route is for public guests, they don't have a school. 
+        // We pass an empty collection so the Blade file doesn't throw an "undefined variable" error.
+        $schoolMaterials = collect(); 
+
+        return view('dashboard.partials.student.explore', compact(
+            'featuredMaterials', 
+            'popularMaterials', 
+            'dynamicSections', 
+            'schoolMaterials'
+        ));
     }
+
+    public function publicExplore()
+    {
+        // 1. Featured Materials
+        $featuredMaterials = \App\Models\Material::with('instructor')
+            ->where('is_featured', true)
+            ->where('status', 'published')
+            ->where('is_public', true)
+            ->latest()
+            ->get();
+
+        // 2. Popular Materials
+        $popularMaterials = \App\Models\Material::with('instructor')
+            ->where('status', 'published')
+            ->where('is_public', true)
+            ->orderBy('views', 'desc')
+            ->take(10)
+            ->get();
+
+        // 3. Dynamic Sections
+        $dynamicSections = \App\Models\ExplorePageSection::where('is_active', true)
+            ->orderBy('order', 'asc')
+            ->get()
+            ->map(function ($section) {
+                $tagsArray = json_decode($section->tag_name, true);
+                if (!is_array($tagsArray)) $tagsArray = [$section->tag_name];
+
+                $section->materials = \App\Models\Material::with('instructor')
+                    ->whereHas('tags', function($q) use ($tagsArray) {
+                        $q->whereIn('name', $tagsArray);
+                    })
+                    ->where('status', 'published')
+                    ->where('is_public', true)
+                    ->inRandomOrder()
+                    ->take(10)
+                    ->get();
+                
+                return $section;
+            });
+
+        return view('explore-public', compact('featuredMaterials', 'popularMaterials', 'dynamicSections'));
+    }
+
+    public function viewByTagJson($tag)
+{
+    // 1. Decode the input. It might be a single string or a JSON array.
+    $decodedTags = json_decode(urldecode($tag), true);
+    
+    // If it's not JSON (just a single string), put it into an array
+    $searchTags = is_array($decodedTags) ? $decodedTags : [trim(urldecode($tag))];
+
+    // 2. Query materials
+    $materials = \App\Models\Material::with('instructor')
+        ->where('status', 'published')
+        ->where('is_public', true)
+        ->whereHas('tags', function ($query) use ($searchTags) {
+            // Search for materials matching ANY of the tags in the list
+            $query->whereIn('name', $searchTags);
+            
+            // Fallback: Check if any tag IDs were passed
+            foreach($searchTags as $t) {
+                if (is_numeric($t)) {
+                    $query->orWhere('tags.id', $t);
+                }
+            }
+        })
+        ->latest()
+        ->get();
+
+    return response()->json($materials);
+}
 
     public function loadAnalyticsPartial()
     {
