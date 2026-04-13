@@ -6,7 +6,7 @@ AssessmentBuilder.state = {
     description: "",
     categories: [],
 };
-
+AssessmentBuilder.isPublished = false; // Add this line
 AssessmentBuilder.hasChanged = false;
 AssessmentBuilder.catCount = 0;
 AssessmentBuilder.isInitializing = false;
@@ -65,6 +65,7 @@ AssessmentBuilder.calculateTotalTime = function () {
 };
 
 // Initialize the Builder
+// Initialize the Builder
 AssessmentBuilder.initBuilder = function () {
     AssessmentBuilder.isInitializing = true;
     AssessmentBuilder.catCount = 0;
@@ -77,41 +78,39 @@ AssessmentBuilder.initBuilder = function () {
     const container = document.getElementById("builder-container");
 
     if (!wrapper || !container) return;
+    
+    // Set Published state
+    AssessmentBuilder.isPublished = wrapper.dataset.isPublished === 'true';
 
-    container.innerHTML = "";
-    const id = wrapper.dataset.assessmentId;
-
-    const existingDataEl = document.getElementById("existing-data");
+    // --- RESTORED PARSING LOGIC ---
     let existingData = [];
-
-    if (existingDataEl && existingDataEl.value) {
-        try {
-            existingData = JSON.parse(existingDataEl.value);
-        } catch (e) {
-            console.error("Failed to parse existing data", e);
+    const serverDraftInput = document.getElementById("server-draft-data");
+    const existingDataInput = document.getElementById("existing-data");
+    
+    try {
+        // Priority 1: Local Storage Draft (if newer/exists and not published)
+        const localDraft = localStorage.getItem("assessment_draft_" + wrapper.dataset.assessmentId);
+        if (localDraft && !AssessmentBuilder.isPublished) {
+            const parsedDraft = JSON.parse(localDraft);
+            existingData = parsedDraft.categories || [];
+            if (parsedDraft.title) document.getElementById("setup-title").value = parsedDraft.title;
+            if (parsedDraft.year_level) document.getElementById("setup-year").value = parsedDraft.year_level;
+            if (parsedDraft.description) document.getElementById("setup-desc").value = parsedDraft.description;
+        } 
+        // Priority 2: Server Draft (if no local draft)
+        else if (serverDraftInput && serverDraftInput.value) {
+            const parsedServerDraft = JSON.parse(serverDraftInput.value);
+            existingData = parsedServerDraft.categories || [];
+        } 
+        // Priority 3: Existing Published/Saved Data
+        else if (existingDataInput && existingDataInput.value) {
+            existingData = JSON.parse(existingDataInput.value);
         }
+    } catch (e) {
+        console.error("Error parsing existing data:", e);
+        existingData = [];
     }
-
-    const serverDraftEl = document.getElementById("server-draft-data");
-    if (serverDraftEl && serverDraftEl.value) {
-        try {
-            const serverDraft = JSON.parse(serverDraftEl.value);
-            if (serverDraft && serverDraft.categories) {
-                existingData = serverDraft.categories;
-                if (serverDraft.title)
-                    document.getElementById("setup-title").value =
-                        serverDraft.title;
-                if (serverDraft.year_level)
-                    document.getElementById("setup-year").value =
-                        serverDraft.year_level;
-                if (serverDraft.description)
-                    document.getElementById("setup-desc").value =
-                        serverDraft.description;
-            }
-        } catch (e) {
-            console.warn("Invalid server draft JSON");
-        }
-    }
+    // ------------------------------
 
     if (existingData && existingData.length > 0) {
         existingData.forEach((cat) => {
@@ -124,24 +123,30 @@ AssessmentBuilder.initBuilder = function () {
         }
     }
 
-    wrapper.addEventListener("input", (e) => {
-        if (["INPUT", "TEXTAREA", "SELECT"].includes(e.target.tagName)) {
-            AssessmentBuilder.handleAutosaveTrigger();
-        }
-    });
+    // Only attach input listeners if not published
+    if (!AssessmentBuilder.isPublished) {
+        wrapper.addEventListener("input", (e) => {
+            if (["INPUT", "TEXTAREA", "SELECT"].includes(e.target.tagName)) {
+                AssessmentBuilder.handleAutosaveTrigger();
+            }
+        });
 
-    if (!AssessmentBuilder.activityListenersAdded) {
-        const resetTimer = () => AssessmentBuilder.resetIdleTimer();
-        window.addEventListener("mousemove", resetTimer);
-        window.addEventListener("keydown", resetTimer);
-        window.addEventListener("mousedown", resetTimer);
-        window.addEventListener("touchstart", resetTimer);
-        window.addEventListener("scroll", resetTimer, true);
-        AssessmentBuilder.activityListenersAdded = true;
+        if (!AssessmentBuilder.activityListenersAdded) {
+            const resetTimer = () => AssessmentBuilder.resetIdleTimer();
+            window.addEventListener("mousemove", resetTimer);
+            window.addEventListener("keydown", resetTimer);
+            window.addEventListener("mousedown", resetTimer);
+            window.addEventListener("touchstart", resetTimer);
+            window.addEventListener("scroll", resetTimer, true);
+            AssessmentBuilder.activityListenersAdded = true;
+        }
+        AssessmentBuilder.initSortable();
+        AssessmentBuilder.updateAutosaveIndicator("Ready");
+    } else {
+        AssessmentBuilder.updateAutosaveIndicator('<i class="fas fa-eye text-blue-500"></i> Preview Mode');
+        AssessmentBuilder.applyPreviewMode();
     }
 
-    AssessmentBuilder.updateAutosaveIndicator("Ready");
-    AssessmentBuilder.initSortable();
     AssessmentBuilder.calculateTotalTime();
 
     setTimeout(() => {
@@ -149,6 +154,7 @@ AssessmentBuilder.initBuilder = function () {
         AssessmentBuilder.hasChanged = false;
     }, 500);
 };
+
 
 // UPDATED: Render Existing Categories with IDs
 AssessmentBuilder.renderExistingCategory = function (catData) {
@@ -579,7 +585,7 @@ AssessmentBuilder.getPayload = function (status) {
 };
 
 AssessmentBuilder.handleAutosaveTrigger = function () {
-    if (AssessmentBuilder.isInitializing) return;
+    if (AssessmentBuilder.isInitializing || AssessmentBuilder.isPublished) return; // Add isPublished check
 
     AssessmentBuilder.hasChanged = true;
     AssessmentBuilder.sessionDirty = true; 
@@ -1160,4 +1166,46 @@ AssessmentBuilder.handleAssessmentBackButton = async function (btn) {
             AssessmentBuilder.goToUrl(manageUrl);
         }
     }
+};
+
+AssessmentBuilder.applyPreviewMode = function () {
+    if (!AssessmentBuilder.isPublished) return;
+
+    // 1. Change Titles & Hide Global Actions
+    const mainTitle = document.getElementById('builder-main-title');
+    if(mainTitle) mainTitle.innerText = "Assessment Preview";
+    
+    const discardBtn = document.getElementById('header-discard-btn');
+    if(discardBtn) discardBtn.style.display = 'none';
+
+    const actionBtns = document.getElementById('builder-action-buttons');
+    if(actionBtns) actionBtns.style.display = 'none';
+
+    const footerBtns = document.getElementById('builder-footer-buttons');
+    if(footerBtns) footerBtns.style.display = 'none';
+
+    // 2. Disable all inputs and textareas
+    document.querySelectorAll('#assessment-wrapper input, #assessment-wrapper textarea').forEach(el => {
+        el.disabled = true;
+        el.classList.add('cursor-not-allowed', 'opacity-80');
+    });
+
+    // 3. Hide all specific action buttons and drag handles inside the builder
+    const elementsToHide = [
+        '.drag-handle-cat', 
+        '.drag-handle-q', 
+        'button[title="Delete Section"]', 
+        'button[title="Delete Question"]', 
+        'button[title="Add Section Below"]', 
+        'button[title="Add Question Below"]', 
+        'button[title="Upload Media"]',
+        '.options-list button', // Remove choice buttons
+        'button[onclick*="addQuestion"]', // Add question dropdown trigger
+        'button[onclick*="addOptionToQuestion"]', // Add choice text buttons
+        '.group\\/dropdown' // The entire add question dropdown wrapper
+    ].join(', ');
+
+    document.querySelectorAll(elementsToHide).forEach(el => {
+        el.style.display = 'none';
+    });
 };

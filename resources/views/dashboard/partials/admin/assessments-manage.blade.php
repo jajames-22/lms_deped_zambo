@@ -88,10 +88,10 @@
             </div>
 
             <div class="flex flex-col sm:flex-row md:flex-col gap-3 shrink-0 md:w-48">
-                <button onclick="loadPartial('{{ route('dashboard.assessments.builder', $assessment->id) }}', document.getElementById('nav-assessment-btn'))"
+                <button id="edit-content-btn" onclick="loadPartial('{{ route('dashboard.assessments.builder', $assessment->id) }}', document.getElementById('nav-assessment-btn'))"
                     class="w-full py-3 px-4 bg-white border-2 border-[#a52a2a] text-[#a52a2a] font-bold rounded-xl hover:bg-[#a52a2a] hover:text-white transition-all flex items-center justify-center gap-2 group shadow-sm">
-                    <i class="fas fa-tools group-hover:rotate-12 transition-transform"></i>
-                    Edit Content
+                    <i id="edit-content-icon" class="fas {{ $isLive ? 'fa-eye' : 'fa-tools' }} group-hover:rotate-12 transition-transform"></i>
+                    <span id="edit-content-text">{{ $isLive ? 'View Preview' : 'Edit Content' }}</span>
                 </button>
 
                 <button onclick="loadPartial('{{ route('dashboard.assessments.analytics', $assessment->id) }}', document.getElementById('nav-assessment-btn'))"
@@ -354,6 +354,27 @@
         </div>
     </div>
 
+    <div id="draft-warning-modal" class="fixed inset-0 z-[100] hidden h-full">
+    <div class="absolute inset-0 bg-gray-900/60 backdrop-blur-sm" onclick="window.closeDraftWarningModal()"></div>
+    <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-sm p-6">
+        <div class="bg-white rounded-2xl shadow-2xl overflow-hidden border border-gray-100 p-6 text-center">
+            <div class="h-16 w-16 bg-amber-50 text-amber-500 rounded-full flex items-center justify-center mx-auto mb-4 text-3xl">
+                <i class="fas fa-exclamation-triangle"></i>
+            </div>
+            <h3 class="text-xl font-bold text-gray-900 mb-2">Revert to Draft?</h3>
+            <p class="text-gray-500 text-sm mb-6">This assessment has already been published. Reverting it to a draft will close the exam and prevent students from accessing it until you publish it again. Are you sure?</p>
+            <div class="flex gap-3 mt-2">
+                <button type="button" onclick="window.closeDraftWarningModal()" class="w-full py-3 bg-gray-100 text-gray-700 font-bold rounded-xl hover:bg-gray-200 transition active:scale-95">
+                    Cancel
+                </button>
+                <button type="button" id="confirm-draft-btn" class="w-full py-3 bg-amber-500 text-white font-bold rounded-xl hover:bg-amber-600 transition active:scale-95 shadow-md flex items-center justify-center gap-2">
+                    <i class="fas fa-undo"></i> Revert
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
     <div id="custom-snackbar" class="fixed bg-[#a52a2a] bottom-6 right-6 z-[200] transform translate-y-24 opacity-0 transition-all duration-300 flex items-center gap-3 px-5 py-4 rounded-xl shadow-2xl font-medium text-sm text-white">
         <div id="snackbar-icon" class="text-xl"></div>
         <span id="snackbar-message"></span>
@@ -384,11 +405,37 @@
     };
 
     // --- Toggle Status Logic ---
-    window.toggleAssessmentStatus = async function(checkbox) {
+    window.closeDraftWarningModal = function() {
+        document.getElementById('draft-warning-modal').classList.add('hidden');
+        window.toggleBodyScroll(false);
+    };
+
+    window.toggleAssessmentStatus = function(checkbox) {
+        const isGoingLive = checkbox.checked;
+        
+        // If unchecking (Published -> Draft), intercept and show warning
+        if (!isGoingLive) {
+            checkbox.checked = true; // Temporarily revert visual state
+            document.getElementById('draft-warning-modal').classList.remove('hidden');
+            window.toggleBodyScroll(true);
+            
+            document.getElementById('confirm-draft-btn').onclick = function() {
+                window.closeDraftWarningModal();
+                executeToggle(checkbox, false);
+            };
+            return;
+        }
+
+        // If checking (Draft -> Published), proceed immediately
+        executeToggle(checkbox, true);
+    };
+
+    async function executeToggle(checkbox, targetState) {
         const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || '{{ csrf_token() }}';
         
-        // Temporarily disable to prevent spam clicking
         checkbox.disabled = true;
+        // Set the actual check state to what we are attempting to execute
+        checkbox.checked = targetState; 
 
         try {
             const response = await fetch('{{ route("dashboard.assessments.toggle-status", $assessment->id) }}', {
@@ -404,43 +451,54 @@
             if (response.ok && data.success) {
                 showSnackbar(data.message, 'success');
                 
-                // Update the visual status badge state
                 const isLive = data.new_status === 'published';
                 const badge = document.getElementById('status-badge');
                 const text = document.getElementById('status-text');
                 const dot = document.getElementById('status-dot');
                 const ping = document.getElementById('status-ping');
-                const analyticsBtn = document.getElementById('analytics-btn'); // Get the button
+                const analyticsBtn = document.getElementById('analytics-btn');
+                
+                // Edit / Preview Button Elements
+                const editBtn = document.getElementById('edit-content-btn');
+                const editIcon = document.getElementById('edit-content-icon');
+                const editText = document.getElementById('edit-content-text');
 
                 if (isLive) {
                     badge.className = "px-3 py-1.5 bg-green-100 text-green-700 text-xs font-bold rounded-lg uppercase tracking-wider flex items-center gap-2 transition-colors";
                     text.innerText = "Published";
                     dot.className = "relative inline-flex rounded-full h-2 w-2 bg-green-500";
                     ping.className = "animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75";
+                    if(analyticsBtn) analyticsBtn.classList.remove('hidden');
                     
-                    if(analyticsBtn) analyticsBtn.classList.remove('hidden'); // Show button
+                    // Switch to View Preview
+                    editIcon.className = "fas fa-eye group-hover:rotate-12 transition-transform";
+                    editText.innerText = "View Preview";
                 } else {
                     badge.className = "px-3 py-1.5 bg-amber-100 text-amber-700 text-xs font-bold rounded-lg uppercase tracking-wider flex items-center gap-2 transition-colors";
                     text.innerText = "Draft Mode";
                     dot.className = "relative inline-flex rounded-full h-2 w-2 bg-amber-500";
                     ping.className = "animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75 hidden";
+                    if(analyticsBtn) analyticsBtn.classList.add('hidden');
                     
-                    if(analyticsBtn) analyticsBtn.classList.add('hidden'); // Hide button
+                    // Switch to Edit Content
+                    editIcon.className = "fas fa-tools group-hover:rotate-12 transition-transform";
+                    editText.innerText = "Edit Content";
                 }
                 
-            }else {
-                // If API failed, revert the visual checkbox state to match reality
-                checkbox.checked = !checkbox.checked;
+            } else {
+                checkbox.checked = !targetState;
                 throw new Error(data.message || 'Failed to update status.');
             }
         } catch (error) {
             console.error(error);
             showSnackbar(error.message || 'A network error occurred.', 'error');
+            checkbox.checked = !targetState;
         } finally {
             checkbox.disabled = false;
         }
-    };
+    }
 
+    
     window.toggleShowResults = async function(checkbox) {
         const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || '{{ csrf_token() }}';
         

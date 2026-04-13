@@ -1,5 +1,6 @@
 <div id="assessment-wrapper" data-assessment-id="{{ $assessment->id ?? '' }}"
     data-is-new="{{ isset($isNew) && $isNew ? 'true' : 'false' }}"
+    data-is-published="{{ isset($assessment) && $assessment->status === 'published' ? 'true' : 'false' }}"
     data-manage-url="{{ isset($assessment) && isset($assessment->id) ? route('dashboard.assessments.manage', $assessment->id) : '#' }}"
     data-builder-url="{{ isset($assessment) && isset($assessment->id) ? route('dashboard.assessments.builder', $assessment->id) : '#' }}"
     data-autosave-url="{{ isset($assessment) && isset($assessment->id) ? route('dashboard.assessments.autosave', $assessment->id) : '#' }}"
@@ -26,7 +27,7 @@
                     class="h-10 w-10 flex items-center justify-center rounded-xl bg-white border border-gray-200 text-gray-500 hover:text-[#a52a2a] transition shadow-sm">
                     <i class="fas fa-arrow-left"></i>
                 </button>
-                <h2 class="text-xl font-bold text-gray-900">Assessment Settings</h2>
+                <h2 id="builder-main-title" class="text-xl font-bold text-gray-900">Assessment Settings</h2>
             </div>
             <div class="flex items-center gap-3">
                 <div id="total-time-display" class="text-xs text-blue-600 font-bold px-3 py-1 bg-blue-50 border border-blue-100 rounded-lg flex items-center">
@@ -37,7 +38,7 @@
                     class="text-xs text-gray-400 italic font-medium px-3 py-1 bg-white border border-gray-100 rounded-lg">
                     Ready</div>
                 <button type="button" onclick="AssessmentBuilder.deleteAssessmentFromBuilder()"
-                    class="h-10 px-4 flex items-center gap-2 rounded-xl bg-red-50 text-red-600 hover:bg-red-100 transition text-sm font-bold">
+                    class="h-10 px-4 flex items-center gap-2 rounded-xl bg-red-50 text-red-600 hover:bg-red-100 transition text-sm font-bold" id="header-discard-btn"> 
                     <i class="fas fa-trash-alt"></i> Discard
                 </button>
             </div>
@@ -79,7 +80,7 @@
 
     <div id="builder-container" class="space-y-4"></div>
 
-    <div class="mt-6 grid grid-cols-1 md:grid-cols-3 gap-4">
+    <div id="builder-action-buttons" class="mt-6 grid grid-cols-1 md:grid-cols-3 gap-4">
         <button type="button" onclick="AssessmentBuilder.addCategory()"
             class="md:col-span-2 px-4 py-5 border-2 border-dashed border-gray-200 text-gray-500 font-bold rounded-2xl hover:bg-gray-50 hover:border-[#a52a2a]/30 hover:text-[#a52a2a] transition flex items-center justify-center gap-3 group">
             <div
@@ -101,7 +102,7 @@
         </div>
     </div>
 
-    <div class="mt-10 pt-6 border-t border-gray-200 flex justify-end gap-4">
+    <div id="builder-footer-buttons" class="mt-10 pt-6 border-t border-gray-200 flex justify-end gap-4">
         <button type="button" onclick="AssessmentBuilder.saveCompleteExam(this, 'draft')"
             class="px-8 py-4 bg-white border border-gray-200 text-gray-700 font-bold rounded-2xl hover:bg-gray-50 transition shadow-sm active:scale-95">
             Save as Draft

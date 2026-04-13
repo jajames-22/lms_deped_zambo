@@ -228,6 +228,12 @@
                         <i class="fas fa-pen group-hover:rotate-12 transition-transform"></i> Edit Content
                     </button>
                 @endif
+                
+                {{-- NEW PREVIEW BUTTON --}}
+                <button onclick="window.location.href='{{ route('dashboard.materials.preview', $material->id) }}'"
+                    class="w-full py-3 px-4 bg-indigo-50 border-2 border-indigo-200 text-indigo-700 font-bold rounded-xl hover:bg-indigo-600 hover:text-white hover:border-indigo-600 transition-all flex items-center justify-center gap-2 group shadow-sm" title="Preview Material & Answers">
+                    <i class="fas fa-desktop group-hover:scale-110 transition-transform"></i> View Preview
+                </button>
 
                 {{-- NEW: VIEW EVALUATION REPORT BUTTON (Only when published) --}}
                 @if($isLive && (!empty($material->evaluation_json) || !empty($material->admin_remarks)))

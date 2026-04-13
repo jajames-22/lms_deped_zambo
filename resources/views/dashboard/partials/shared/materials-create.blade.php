@@ -126,11 +126,6 @@
             class="px-8 py-4 bg-white border border-gray-200 text-gray-700 font-bold rounded-2xl hover:bg-gray-50 transition shadow-sm active:scale-95">
             Save as Draft
         </button>
-        <button type="button" onclick="MaterialBuilder.saveCompleteMaterial(this, 'published')"
-            class="px-10 py-4 bg-[#a52a2a] text-white font-bold rounded-2xl hover:bg-red-800 transition shadow-lg shadow-[#a52a2a]/20 flex items-center gap-2 active:scale-95">
-            <span>Publish Module</span>
-            <i class="fas fa-upload"></i>
-        </button>
     </div>
 </div>
 
@@ -161,11 +156,6 @@
                 <p class="text-gray-500 text-sm mb-6">How would you like to exit? Your progress is currently stored as a temporary draft.</p>
 
                 <div class="space-y-3">
-                    <button type="button" onclick="MaterialBuilder.saveCompleteMaterial(this, 'published')"
-                        class="w-full py-4 bg-[#a52a2a] text-white font-bold rounded-2xl hover:bg-red-800 transition flex items-center justify-center gap-2">
-                        <i class="fas fa-upload text-sm"></i>
-                        <span>Publish & Exit</span>
-                    </button>
                     <button type="button" onclick="MaterialBuilder.saveCompleteMaterial(this, 'draft')"
                         class="w-full py-4 bg-white border border-gray-200 text-gray-700 font-bold rounded-2xl hover:bg-gray-50 transition flex items-center justify-center gap-2">
                         <i class="fas fa-file-alt text-sm text-gray-400"></i>

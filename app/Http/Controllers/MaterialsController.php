@@ -41,15 +41,15 @@ class MaterialsController extends Controller
                     $query->where('section_type', 'lesson');
                 }
             ])
-            ->where(function($query) use ($user) {
+            ->where(function ($query) use ($user) {
                 // 1. Admins can see ALL pending and published materials
                 $query->whereIn('status', ['pending', 'published'])
-                
-                // 2. OR they can see drafts ONLY if they are the instructor
-                      ->orWhere(function($subQuery) use ($user) {
-                          $subQuery->where('status', 'draft')
-                                   ->where('instructor_id', $user->id);
-                      });
+
+                    // 2. OR they can see drafts ONLY if they are the instructor
+                    ->orWhere(function ($subQuery) use ($user) {
+                    $subQuery->where('status', 'draft')
+                        ->where('instructor_id', $user->id);
+                });
             })
             ->orderBy('updated_at', 'desc')
             ->get();
@@ -331,12 +331,12 @@ class MaterialsController extends Controller
             $material = \App\Models\Material::with('instructor')->findOrFail($id);
 
             if (auth()->user()->role === 'teacher' && $targetStatus === 'published') {
-                $targetStatus = 'pending'; 
+                $targetStatus = 'pending';
             }
 
             // 2. Prepare the database update array
             $updateData = [
-                'status' => $targetStatus, 
+                'status' => $targetStatus,
                 'updated_at' => now()
             ];
 
@@ -392,22 +392,24 @@ class MaterialsController extends Controller
             }
 
             $statusText = 'in Draft Mode';
-            if ($targetStatus === 'published') $statusText = 'Published and Live';
-            if ($targetStatus === 'pending') $statusText = 'Submitted for Admin Approval';
+            if ($targetStatus === 'published')
+                $statusText = 'Published and Live';
+            if ($targetStatus === 'pending')
+                $statusText = 'Submitted for Admin Approval';
 
             return response()->json([
                 'success' => true,
                 'new_status' => $targetStatus,
                 'message' => 'Module is now ' . $statusText,
                 // Redirect Admin to the new evaluation results page
-                'redirect_url' => auth()->user()->role === 'admin' && $request->has('evaluation_details') 
-                    ? route('dashboard.materials.evaluation-result', $id) 
+                'redirect_url' => auth()->user()->role === 'admin' && $request->has('evaluation_details')
+                    ? route('dashboard.materials.evaluation-result', $id)
                     : null
             ]);
-            
+
         } catch (\Exception $e) {
             return response()->json([
-                'success' => false, 
+                'success' => false,
                 'message' => 'Error updating status: ' . $e->getMessage()
             ], 500);
         }
@@ -419,7 +421,7 @@ class MaterialsController extends Controller
     public function evaluationResult($id)
     {
         $material = Material::with('instructor')->findOrFail($id);
-        
+
         // Decode the JSON so the Blade view can loop through it
         $evaluationData = $material->evaluation_json ? json_decode($material->evaluation_json, true) : null;
 
@@ -466,202 +468,203 @@ class MaterialsController extends Controller
     }
 
     public function store(Request $request, $id)
-{
-    DB::beginTransaction();
-    try {
-        // 1. Update main Material info
-        DB::table('materials')->where('id', $id)->update([
-            'title' => $request->input('title', 'Untitled Material'),
-            'description' => $request->input('description', ''),
-            'status' => $request->input('status', 'draft'),
-            'draft_json' => null,
-            'updated_at' => now()
-        ]);
+    {
+        DB::beginTransaction();
+        try {
+            // 1. Update main Material info
+            DB::table('materials')->where('id', $id)->update([
+                'title' => $request->input('title', 'Untitled Material'),
+                'description' => $request->input('description', ''),
+                'status' => $request->input('status', 'draft'),
+                'draft_json' => null,
+                'updated_at' => now()
+            ]);
 
-        if ($request->hasFile('thumbnail')) {
-            $path = $request->file('thumbnail')->store('materials_thumbnails', 'public');
-            DB::table('materials')->where('id', $id)->update(['thumbnail' => $path]);
-        }
+            if ($request->hasFile('thumbnail')) {
+                $path = $request->file('thumbnail')->store('materials_thumbnails', 'public');
+                DB::table('materials')->where('id', $id)->update(['thumbnail' => $path]);
+            }
 
-        $categories = $request->input('categories');
-        if (is_string($categories)) {
-            $categories = json_decode($categories, true);
-        }
-        $categories = $categories ?? [];
+            $categories = $request->input('categories');
+            if (is_string($categories)) {
+                $categories = json_decode($categories, true);
+            }
+            $categories = $categories ?? [];
 
-        // Tracking arrays for Targeted Cleanup
-        $keptLessonIds = [];
-        $keptQuizIds = [];
-        $keptQuizOptionIds = [];
-        $keptExamIds = [];
-        $keptExamOptionIds = [];
+            // Tracking arrays for Targeted Cleanup
+            $keptLessonIds = [];
+            $keptQuizIds = [];
+            $keptQuizOptionIds = [];
+            $keptExamIds = [];
+            $keptExamOptionIds = [];
 
-        $hasProcessedExam = false; 
+            $hasProcessedExam = false;
 
-        foreach ($categories as $index => $cat) {
-            $sectionType = $cat['section_type'] ?? ($cat['type'] ?? 'lesson');
+            foreach ($categories as $index => $cat) {
+                $sectionType = $cat['section_type'] ?? ($cat['type'] ?? 'lesson');
 
-            if ($sectionType === 'exam') {
-                if ($hasProcessedExam) continue;
-                $hasProcessedExam = true;
+                if ($sectionType === 'exam') {
+                    if ($hasProcessedExam)
+                        continue;
+                    $hasProcessedExam = true;
 
-                foreach ($cat['questions'] ?? [] as $qIndex => $q) {
-                    $examId = (isset($q['id']) && is_numeric($q['id'])) ? $q['id'] : null;
+                    foreach ($cat['questions'] ?? [] as $qIndex => $q) {
+                        $examId = (isset($q['id']) && is_numeric($q['id'])) ? $q['id'] : null;
 
-                    $examData = [
-                        'material_id' => $id,
-                        'type' => $q['type'] ?? 'mcq',
-                        'question_text' => $q['text'] ?? '',
-                        'media_url' => $q['media_url'] ?? null,
-                        'is_case_sensitive' => $q['is_case_sensitive'] ?? false,
-                        'sort_order' => $qIndex + 1,
-                        'updated_at' => now(),
-                    ];
-
-                    // UPSERT EXAM QUESTION
-                    if ($examId && DB::table('exams')->where('id', $examId)->exists()) {
-                        DB::table('exams')->where('id', $examId)->update($examData);
-                    } else {
-                        $examData['created_at'] = now();
-                        $examId = DB::table('exams')->insertGetId($examData);
-                    }
-                    $keptExamIds[] = $examId;
-
-                    foreach ($q['options'] ?? [] as $opt) {
-                        $optId = (isset($opt['id']) && is_numeric($opt['id'])) ? $opt['id'] : null;
-                        $optData = [
-                            'exam_id' => $examId,
-                            'option_text' => $opt['text'] ?? '',
-                            'is_correct' => $opt['is_correct'] ?? false,
+                        $examData = [
+                            'material_id' => $id,
+                            'type' => $q['type'] ?? 'mcq',
+                            'question_text' => $q['text'] ?? '',
+                            'media_url' => $q['media_url'] ?? null,
+                            'is_case_sensitive' => $q['is_case_sensitive'] ?? false,
+                            'sort_order' => $qIndex + 1,
                             'updated_at' => now(),
                         ];
 
-                        // UPSERT EXAM OPTION
-                        if ($optId && DB::table('exam_options')->where('id', $optId)->exists()) {
-                            DB::table('exam_options')->where('id', $optId)->update($optData);
+                        // UPSERT EXAM QUESTION
+                        if ($examId && DB::table('exams')->where('id', $examId)->exists()) {
+                            DB::table('exams')->where('id', $examId)->update($examData);
                         } else {
-                            $optData['created_at'] = now();
-                            $optId = DB::table('exam_options')->insertGetId($optData);
+                            $examData['created_at'] = now();
+                            $examId = DB::table('exams')->insertGetId($examData);
                         }
-                        $keptExamOptionIds[] = $optId;
+                        $keptExamIds[] = $examId;
+
+                        foreach ($q['options'] ?? [] as $opt) {
+                            $optId = (isset($opt['id']) && is_numeric($opt['id'])) ? $opt['id'] : null;
+                            $optData = [
+                                'exam_id' => $examId,
+                                'option_text' => $opt['text'] ?? '',
+                                'is_correct' => $opt['is_correct'] ?? false,
+                                'updated_at' => now(),
+                            ];
+
+                            // UPSERT EXAM OPTION
+                            if ($optId && DB::table('exam_options')->where('id', $optId)->exists()) {
+                                DB::table('exam_options')->where('id', $optId)->update($optData);
+                            } else {
+                                $optData['created_at'] = now();
+                                $optId = DB::table('exam_options')->insertGetId($optData);
+                            }
+                            $keptExamOptionIds[] = $optId;
+                        }
                     }
-                }
-            } else {
-                // IT IS A LESSON
-                $lessonId = (isset($cat['id']) && is_numeric($cat['id'])) ? $cat['id'] : null;
-
-                $lessonData = [
-                    'material_id' => $id,
-                    'section_type' => 'lesson',
-                    'title' => $cat['title'] ?? 'New Lesson',
-                    'time_limit' => $cat['time_limit'] ?? 0,
-                    'sort_order' => $index + 1,
-                    'updated_at' => now(),
-                ];
-
-                // UPSERT LESSON
-                if ($lessonId && DB::table('lessons')->where('id', $lessonId)->exists()) {
-                    DB::table('lessons')->where('id', $lessonId)->update($lessonData);
                 } else {
-                    $lessonData['created_at'] = now();
-                    $lessonId = DB::table('lessons')->insertGetId($lessonData);
-                }
-                $keptLessonIds[] = $lessonId;
+                    // IT IS A LESSON
+                    $lessonId = (isset($cat['id']) && is_numeric($cat['id'])) ? $cat['id'] : null;
 
-                foreach ($cat['questions'] ?? [] as $qIndex => $q) {
-                    $quizId = (isset($q['id']) && is_numeric($q['id'])) ? $q['id'] : null;
-
-                    $quizData = [
-                        'lesson_id' => $lessonId,
-                        'type' => $q['type'] ?? 'mcq',
-                        'question_text' => $q['text'] ?? '',
-                        'media_url' => $q['media_url'] ?? null,
-                        'is_case_sensitive' => $q['is_case_sensitive'] ?? false,
-                        'sort_order' => $qIndex + 1,
+                    $lessonData = [
+                        'material_id' => $id,
+                        'section_type' => 'lesson',
+                        'title' => $cat['title'] ?? 'New Lesson',
+                        'time_limit' => $cat['time_limit'] ?? 0,
+                        'sort_order' => $index + 1,
                         'updated_at' => now(),
                     ];
 
-                    // UPSERT LESSON CONTENT (QUIZ)
-                    if ($quizId && DB::table('lesson_contents')->where('id', $quizId)->exists()) {
-                        DB::table('lesson_contents')->where('id', $quizId)->update($quizData);
+                    // UPSERT LESSON
+                    if ($lessonId && DB::table('lessons')->where('id', $lessonId)->exists()) {
+                        DB::table('lessons')->where('id', $lessonId)->update($lessonData);
                     } else {
-                        $quizData['created_at'] = now();
-                        $quizId = DB::table('lesson_contents')->insertGetId($quizData);
+                        $lessonData['created_at'] = now();
+                        $lessonId = DB::table('lessons')->insertGetId($lessonData);
                     }
-                    $keptQuizIds[] = $quizId;
+                    $keptLessonIds[] = $lessonId;
 
-                    foreach ($q['options'] ?? [] as $opt) {
-                        $optId = (isset($opt['id']) && is_numeric($opt['id'])) ? $opt['id'] : null;
-                        $optData = [
-                            'quiz_id' => $quizId,
-                            'option_text' => $opt['text'] ?? '',
-                            'is_correct' => $opt['is_correct'] ?? false,
+                    foreach ($cat['questions'] ?? [] as $qIndex => $q) {
+                        $quizId = (isset($q['id']) && is_numeric($q['id'])) ? $q['id'] : null;
+
+                        $quizData = [
+                            'lesson_id' => $lessonId,
+                            'type' => $q['type'] ?? 'mcq',
+                            'question_text' => $q['text'] ?? '',
+                            'media_url' => $q['media_url'] ?? null,
+                            'is_case_sensitive' => $q['is_case_sensitive'] ?? false,
+                            'sort_order' => $qIndex + 1,
                             'updated_at' => now(),
                         ];
 
-                        // UPSERT QUIZ OPTION
-                        if ($optId && DB::table('quiz_options')->where('id', $optId)->exists()) {
-                            DB::table('quiz_options')->where('id', $optId)->update($optData);
+                        // UPSERT LESSON CONTENT (QUIZ)
+                        if ($quizId && DB::table('lesson_contents')->where('id', $quizId)->exists()) {
+                            DB::table('lesson_contents')->where('id', $quizId)->update($quizData);
                         } else {
-                            $optData['created_at'] = now();
-                            $optId = DB::table('quiz_options')->insertGetId($optData);
+                            $quizData['created_at'] = now();
+                            $quizId = DB::table('lesson_contents')->insertGetId($quizData);
                         }
-                        $keptQuizOptionIds[] = $optId;
+                        $keptQuizIds[] = $quizId;
+
+                        foreach ($q['options'] ?? [] as $opt) {
+                            $optId = (isset($opt['id']) && is_numeric($opt['id'])) ? $opt['id'] : null;
+                            $optData = [
+                                'quiz_id' => $quizId,
+                                'option_text' => $opt['text'] ?? '',
+                                'is_correct' => $opt['is_correct'] ?? false,
+                                'updated_at' => now(),
+                            ];
+
+                            // UPSERT QUIZ OPTION
+                            if ($optId && DB::table('quiz_options')->where('id', $optId)->exists()) {
+                                DB::table('quiz_options')->where('id', $optId)->update($optData);
+                            } else {
+                                $optData['created_at'] = now();
+                                $optId = DB::table('quiz_options')->insertGetId($optData);
+                            }
+                            $keptQuizOptionIds[] = $optId;
+                        }
                     }
                 }
             }
+
+            // 2. TARGETED CLEANUP (Delete only what was removed from the UI)
+
+            // Delete removed Exam Options
+            DB::table('exam_options')
+                ->whereIn('exam_id', function ($query) use ($id) {
+                    $query->select('id')->from('exams')->where('material_id', $id);
+                })
+                ->whereNotIn('id', $keptExamOptionIds)
+                ->delete();
+
+            // Delete removed Exam Questions
+            DB::table('exams')
+                ->where('material_id', $id)
+                ->whereNotIn('id', $keptExamIds)
+                ->delete();
+
+            // Delete removed Quiz Options
+            DB::table('quiz_options')
+                ->whereIn('quiz_id', function ($query) use ($id) {
+                    $query->select('id')->from('lesson_contents')
+                        ->whereIn('lesson_id', function ($sub) use ($id) {
+                            $sub->select('id')->from('lessons')->where('material_id', $id);
+                        });
+                })
+                ->whereNotIn('id', $keptQuizOptionIds)
+                ->delete();
+
+            // Delete removed Lesson Contents (Quizzes)
+            DB::table('lesson_contents')
+                ->whereIn('lesson_id', function ($query) use ($id) {
+                    $query->select('id')->from('lessons')->where('material_id', $id);
+                })
+                ->whereNotIn('id', $keptQuizIds)
+                ->delete();
+
+            // Delete removed Lessons
+            DB::table('lessons')
+                ->where('material_id', $id)
+                ->whereNotIn('id', $keptLessonIds)
+                ->delete();
+
+            DB::commit();
+            return response()->json(['success' => true]);
+        } catch (Exception $e) {
+            DB::rollBack();
+            Log::error('Material Store Error: ' . $e->getMessage());
+            return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
         }
-
-        // 2. TARGETED CLEANUP (Delete only what was removed from the UI)
-
-        // Delete removed Exam Options
-        DB::table('exam_options')
-            ->whereIn('exam_id', function ($query) use ($id) {
-                $query->select('id')->from('exams')->where('material_id', $id);
-            })
-            ->whereNotIn('id', $keptExamOptionIds)
-            ->delete();
-
-        // Delete removed Exam Questions
-        DB::table('exams')
-            ->where('material_id', $id)
-            ->whereNotIn('id', $keptExamIds)
-            ->delete();
-
-        // Delete removed Quiz Options
-        DB::table('quiz_options')
-            ->whereIn('quiz_id', function ($query) use ($id) {
-                $query->select('id')->from('lesson_contents')
-                    ->whereIn('lesson_id', function($sub) use ($id) {
-                        $sub->select('id')->from('lessons')->where('material_id', $id);
-                    });
-            })
-            ->whereNotIn('id', $keptQuizOptionIds)
-            ->delete();
-
-        // Delete removed Lesson Contents (Quizzes)
-        DB::table('lesson_contents')
-            ->whereIn('lesson_id', function ($query) use ($id) {
-                $query->select('id')->from('lessons')->where('material_id', $id);
-            })
-            ->whereNotIn('id', $keptQuizIds)
-            ->delete();
-
-        // Delete removed Lessons
-        DB::table('lessons')
-            ->where('material_id', $id)
-            ->whereNotIn('id', $keptLessonIds)
-            ->delete();
-
-        DB::commit();
-        return response()->json(['success' => true]);
-    } catch (Exception $e) {
-        DB::rollBack();
-        Log::error('Material Store Error: ' . $e->getMessage());
-        return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
     }
-}
-    
+
     public function autosave(Request $request, $id)
     {
         try {
@@ -1116,7 +1119,7 @@ class MaterialsController extends Controller
         return view('dashboard.partials.student.materials-study', compact('material', 'savedProgress'));
     }
 
-    
+
     public function unenroll(Request $request, Material $material)
     {
         $user = auth()->user();
@@ -1507,4 +1510,22 @@ class MaterialsController extends Controller
 
         return response()->json(['success' => true, 'message' => 'Already read']);
     }
+
+    public function preview($id)
+    {
+        $material = Material::with([
+            'instructor',        // For the mock certificate
+            'lessons.contents',  // For the timeline (Lessons & Quizzes)
+            'exams'              // For the timeline (Final Exam)
+        ])->findOrFail($id);
+
+        // Optional: Add authorization to ensure only the owner or an admin can preview
+        if (auth()->id() !== $material->instructor_id && auth()->user()->role !== 'admin') {
+            abort(403, 'Unauthorized action.');
+        }
+
+        // Return the preview view (adjust the view path if your folders are structured differently)
+        return view('dashboard.partials.shared.materials-preview', compact('material'));
+    }
+
 }
