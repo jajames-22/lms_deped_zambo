@@ -9,6 +9,7 @@ use App\Models\Assessment;
 use App\Models\School;
 use App\Models\User;
 use App\Models\Material;
+use Illuminate\Support\Facades\Storage;
 
 class DashboardController extends Controller
 {
@@ -1088,6 +1089,38 @@ class DashboardController extends Controller
         return response()->json([
             'materials' => $materials,
             'users' => $users
+        ]);
+    }
+
+    public function loadCriteriaPartial()
+    {
+        $rubricData = [];
+        
+        // Read the global rubric JSON file if it exists
+        if (\Illuminate\Support\Facades\Storage::exists('global_rubric.json')) {
+            $rubricData = json_decode(\Illuminate\Support\Facades\Storage::get('global_rubric.json'), true);
+        }
+
+        // Pass the entire data object (which contains 'rubric' and 'passing_rate')
+        return view('dashboard.partials.admin.criteria', ['rubric' => $rubricData]);
+    }
+
+    public function storeCriteria(\Illuminate\Http\Request $request)
+    {
+        $request->validate([
+            'rubric' => 'required|array',
+            'passing_rate' => 'required|numeric|min:1|max:100' // Added validation for passing rate
+        ]);
+
+        // Save the entire request payload (both passing_rate and rubric)
+        \Illuminate\Support\Facades\Storage::put(
+            'global_rubric.json', 
+            json_encode($request->all(), JSON_PRETTY_PRINT)
+        );
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Criteria and Passing Rate updated successfully!'
         ]);
     }
 }

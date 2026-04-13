@@ -181,7 +181,8 @@
                     </button>
                     <form method="POST" action="{{ route('logout') }}" class="flex-1">
                         @csrf
-                        <button type="submit" onclick="sessionStorage.clear();"
+                        {{-- ADDED window.onbeforeunload = null; to bypass the browser warning! --}}
+                        <button type="submit" onclick="window.onbeforeunload = null; sessionStorage.clear();"
                             class="w-full px-4 py-2.5 bg-[#a52a2a] text-white font-semibold rounded-xl hover:opacity-90 transition shadow-lg shadow-[#a52a2a]/30 text-sm">
                             Yes, Logout
                         </button>
@@ -289,6 +290,7 @@
                         else if (url.includes('/teachers')) targetBtn = document.getElementById('nav-teachers-btn');
                         else if (url.includes('/students')) targetBtn = document.getElementById('nav-students-btn');
                         else if (url.includes('/home')) targetBtn = document.getElementById('nav-home-btn') || document.querySelector('.nav-btn');
+                        else if (url.includes('/criteria')) targetBtn = document.getElementById('nav-criteria-btn');
                     }
 
                     if (targetBtn) {

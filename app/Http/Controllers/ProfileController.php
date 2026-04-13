@@ -27,16 +27,60 @@ class ProfileController extends Controller
      */
     public function update(Request $request)
     {
-        $user = $request->user();
+        // 1. Fetch a totally fresh instance from the database
+        $user = \App\Models\User::find(auth()->id());
 
-        $validated = $request->validate([
+        // --- BACKEND 30-DAY SECURITY CHECK (Simplified Logic) ---
+        $hoursSinceUpdate = $user->updated_at->diffInHours(now());
+        $requiredHours = 30 * 24; // 720 hours
+
+        if ($hoursSinceUpdate < $requiredHours) {
+            $daysLeft = ceil(($requiredHours - $hoursSinceUpdate) / 24);
+            return response()->json([
+                'message' => "Update Restricted. You cannot change your personal details for another {$daysLeft} day(s)."
+            ], 422);
+        }
+
+        // --- BASE VALIDATION RULES ---
+        $rules = [
+            'username' => [
+                'required',
+                'string',
+                'max:30',
+                'regex:/^(?=.*[a-zA-Z].*[a-zA-Z].*[a-zA-Z])[a-zA-Z0-9._]+$/',
+                \Illuminate\Validation\Rule::unique('users', 'username')->ignore($user->id),
+            ],
             'first_name' => ['required', 'string', 'max:255'],
             'middle_name' => ['nullable', 'string', 'max:255'],
             'last_name' => ['required', 'string', 'max:255'],
             'suffix' => ['nullable', 'string', 'max:255'],
+        ];
+
+        // --- CONDITIONAL VALIDATION (STUDENTS ONLY) ---
+        if ($user->role === 'student') {
+            $rules['grade_level'] = ['required', 'string', 'max:50'];
+            $rules['school_id'] = ['required', 'exists:schools,id'];
+        }
+
+        $validated = $request->validate($rules, [
+            'username.regex' => 'Username must contain at least 3 letters and can only include letters, numbers, periods, and underscores.'
         ]);
 
-        $user->update($validated);
+        // --- SAVE DATA DIRECTLY TO DATABASE ---
+        $user->username = $validated['username'];
+        $user->first_name = $validated['first_name'];
+        $user->middle_name = $validated['middle_name'];
+        $user->last_name = $validated['last_name'];
+        $user->suffix = $validated['suffix'];
+
+        if ($user->role === 'student') {
+            $user->grade_level = $validated['grade_level'];
+            $user->school_id = $validated['school_id'];
+        }
+
+        // Force updated_at to the exact current time
+        $user->updated_at = now();
+        $user->save();
 
         return response()->json([
             'success' => true,

@@ -14,13 +14,15 @@
     </div>
 
     <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-        <div class="flex items-center space-x-1 bg-gray-200/50 p-1 rounded-xl w-fit shrink-0">
+        <div class="flex items-center space-x-1 bg-gray-200/50 p-1 rounded-xl w-full md:w-fit overflow-x-auto no-scrollbar shrink-0">
             <button onclick="MaterialTableManager.filterStatus('all', this)"
-                class="material-tab px-6 py-2 text-sm font-bold rounded-lg transition-all bg-white text-[#a52a2a] shadow-sm">All</button>
+                class="material-tab px-6 py-2 text-sm font-bold rounded-lg transition-all bg-white text-[#a52a2a] shadow-sm whitespace-nowrap">All</button>
             <button onclick="MaterialTableManager.filterStatus('published', this)"
-                class="material-tab px-6 py-2 text-sm font-bold rounded-lg transition-all text-gray-500 hover:text-gray-700">Published</button>
+                class="material-tab px-6 py-2 text-sm font-bold rounded-lg transition-all text-gray-500 hover:text-gray-700 whitespace-nowrap">Published</button>
+            <button onclick="MaterialTableManager.filterStatus('pending', this)"
+                class="material-tab px-6 py-2 text-sm font-bold rounded-lg transition-all text-gray-500 hover:text-gray-700 whitespace-nowrap">Pending</button>
             <button onclick="MaterialTableManager.filterStatus('draft', this)"
-                class="material-tab px-6 py-2 text-sm font-bold rounded-lg transition-all text-gray-500 hover:text-gray-700">Drafts</button>
+                class="material-tab px-6 py-2 text-sm font-bold rounded-lg transition-all text-gray-500 hover:text-gray-700 whitespace-nowrap">Drafts</button>
         </div>
 
         <div class="relative w-full max-w-md">
@@ -53,14 +55,38 @@
                 </thead>
                 <tbody class="divide-y divide-gray-50">
                     @forelse($materials as $material)
-                        @php $isLive = ($material->status === 'published'); @endphp
+                        @php 
+                            $statusStr = strtolower($material->status ?? 'draft'); 
+                            
+                            // Set Dynamic Styling based on Status
+                            if ($statusStr === 'published') {
+                                $statusColor = 'bg-green-50 text-green-700 border-green-200';
+                                $indicatorColor = 'bg-green-500';
+                                $statusLabel = 'Published';
+                                $btnIcon = 'fa-edit';
+                                $btnTooltip = 'Manage Material';
+                            } elseif ($statusStr === 'pending') {
+                                $statusColor = 'bg-amber-50 text-amber-700 border-amber-200';
+                                $indicatorColor = 'bg-amber-400';
+                                $statusLabel = 'Pending Review';
+                                $btnIcon = 'fa-search';
+                                $btnTooltip = 'Review Submission';
+                            } else {
+                                $statusColor = 'bg-gray-100 text-gray-600 border-gray-200';
+                                $indicatorColor = 'bg-gray-400';
+                                $statusLabel = 'Draft Mode';
+                                $btnIcon = 'fa-pen';
+                                $btnTooltip = 'Resume Draft';
+                            }
+                        @endphp
+
                         <tr class="hover:bg-gray-50/50 transition material-row cursor-pointer" 
-                            data-status="{{ $material->status }}"
+                            data-status="{{ $statusStr }}"
                             onclick="loadPartial('{{ route('dashboard.materials.manage', $material->id) }}', document.getElementById('nav-materials-btn'))">
                             
                             <td class="px-4 py-3">
                                 <div class="w-12 h-12 rounded-lg bg-gray-100 border border-gray-200 overflow-hidden flex items-center justify-center shadow-sm mx-auto relative">
-                                    <div class="absolute bottom-0 left-0 w-full h-1 {{ $isLive ? 'bg-green-500' : 'bg-amber-400' }} z-10"></div>
+                                    <div class="absolute bottom-0 left-0 w-full h-1 {{ $indicatorColor }} z-10"></div>
                                     @if($material->thumbnail)
                                         <img src="{{ asset('storage/' . $material->thumbnail) }}" class="w-full h-full object-cover">
                                     @else
@@ -79,8 +105,8 @@
                             </td>
 
                             <td class="px-4 py-3">
-                                <span class="px-2.5 py-1 text-[10px] font-bold rounded-md border uppercase tracking-tighter material-status-text {{ $isLive ? 'bg-green-50 text-green-700 border-green-200' : 'bg-amber-50 text-amber-700 border-amber-200' }}">
-                                    {{ $isLive ? 'Published' : 'Draft' }}
+                                <span class="px-2.5 py-1 text-[10px] font-bold rounded-md border uppercase tracking-tighter material-status-text {{ $statusColor }}">
+                                    {{ $statusLabel }}
                                 </span>
                             </td>
 
@@ -103,8 +129,8 @@
                                 <div class="flex items-center justify-center gap-2">
                                     <button onclick="loadPartial('{{ route('dashboard.materials.edit', $material->id) }}', document.getElementById('nav-materials-btn'))"
                                         class="w-8 h-8 flex items-center justify-center text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition shadow-none"
-                                        title="{{ $isLive ? 'Edit Content' : 'Resume Draft' }}">
-                                        <i class="fas {{ $isLive ? 'fa-edit' : 'fa-play' }} text-sm"></i>
+                                        title="{{ $btnTooltip }}">
+                                        <i class="fas {{ $btnIcon }} text-sm"></i>
                                     </button>
                                     <button onclick="MaterialTableManager.confirmDelete({{ $material->id }}, '{{ route('dashboard.materials.destroy', $material->id) }}', this)" 
                                         class="w-8 h-8 flex items-center justify-center text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition shadow-none" title="Delete">

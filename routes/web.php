@@ -145,6 +145,14 @@ Route::middleware(['auth', 'verified', CheckAccountStatus::class])->group(functi
         Route::get('/feedback', [ProfileController::class, 'loadFeedbackPartial'])->name('dashboard.feedback');
         Route::post('/feedback/store', [ProfileController::class, 'storeFeedback'])->name('feedback.store');
         Route::post('/feedback/{id}/reply', [ProfileController::class, 'replyToFeedback'])->name('dashboard.feedback.reply');
+
+        Route::get('/criteria', [DashboardController::class, 'loadCriteriaPartial'])->name('dashboard.criteria');
+        Route::get('/criteria', [DashboardController::class, 'loadCriteriaPartial'])->name('dashboard.criteria');
+        Route::post('/criteria', [DashboardController::class, 'storeCriteria'])->name('dashboard.criteria.store');
+
+        Route::get('/materials/{material}/evaluate', [MaterialsController::class, 'evaluateMaterial'])->name('dashboard.materials.evaluate');
+
+        Route::get('/materials/{id}/evaluation-result', [MaterialsController::class, 'evaluationResult'])->name('dashboard.materials.evaluation-result');
     });
 
     Route::get('/get-districts/{quadrantId}', [DashboardController::class, 'getDistricts'])->name('districts.get');

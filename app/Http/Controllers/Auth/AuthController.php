@@ -42,7 +42,7 @@ class AuthController extends Controller
                 'required',
                 'string',
                 'max:30', // Max 30 characters
-                'regex:/^[a-zA-Z0-9._]+$/', // Only letters, numbers, periods, and underscores
+                'regex:/^(?=.*[a-zA-Z].*[a-zA-Z].*[a-zA-Z])[a-zA-Z0-9._]+$/', // At least 3 letters, only allowed chars
                 'unique:users,username'
             ],
             
@@ -64,8 +64,8 @@ class AuthController extends Controller
                 'max:50'
             ],
         ], [
-            // 👈 NEW: Friendly error message if they use invalid characters
-            'username.regex' => 'Your username may only contain letters, numbers, periods, and underscores.'
+            // 👈 NEW: Friendly error message for the complex regex rule
+            'username.regex' => 'Username must contain at least 3 letters and can only include letters, numbers, periods, and underscores.'
         ]);
 
         $user = User::create([

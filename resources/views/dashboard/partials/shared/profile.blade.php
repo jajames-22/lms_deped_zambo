@@ -1,5 +1,6 @@
 @php
-    $user = auth()->user();
+    // Fetch fresh user data directly from DB
+    $user = \App\Models\User::find(auth()->id()); 
     $initials = strtoupper(substr($user->first_name, 0, 1) . substr($user->last_name, 0, 1));
     $roleColors = [
         'admin' => 'bg-purple-100 text-purple-700 border-purple-200',
@@ -8,10 +9,8 @@
     ];
     $roleColor = $roleColors[$user->role] ?? 'bg-gray-100 text-gray-700 border-gray-200';
     
-    // Fetch the user's feedbacks directly
     $userFeedbacks = \App\Models\Feedback::where('user_id', $user->id)->orderBy('created_at', 'desc')->get();
     
-    // Pre-format the feedbacks into JSON so JS can easily load the full view
     $ticketsJson = $userFeedbacks->map(function($f) {
         return [
             'id' => $f->id,
@@ -25,8 +24,17 @@
         ];
     })->keyBy('id');
 
-    // Fetch all schools directly
     $schools = \App\Models\School::orderBy('name', 'asc')->get();
+
+    // --- YOUR NEW 30-DAY RESTRICTION LOGIC ---
+    $hoursSinceUpdate = $user->updated_at->diffInHours(now());
+    $requiredHours = 30 * 24; // 720 hours
+    $daysLeftToUpdate = 0;
+    
+    if ($hoursSinceUpdate < $requiredHours) {
+        // Calculate remaining days (ceil rounds up, so 1.2 days becomes 2 days)
+        $daysLeftToUpdate = ceil(($requiredHours - $hoursSinceUpdate) / 24);
+    }
 @endphp
 
 <div class="space-y-6 w-full max-w-6xl mx-auto pb-12 animate-float-in">
@@ -81,7 +89,7 @@
             <div class="mt-4 flex flex-wrap items-center justify-center md:justify-start gap-3">
                 <div class="px-4 py-2 bg-gray-50 rounded-xl border border-gray-100 text-xs font-bold text-gray-600 flex items-center gap-2">
                     <i class="fas fa-id-badge text-gray-400"></i>
-                    {{ $user->lrn ?? $user->employee_id ?? 'ID: ' . $user->id }}
+                    {{ $user->lrn ?? $user->employee_id ?? 'Not provided' }}
                 </div>
                 <div class="px-4 py-2 bg-gray-50 rounded-xl border border-gray-100 text-xs font-bold text-gray-600 flex items-center gap-2">
                     <i class="fas fa-calendar-alt text-gray-400"></i>
@@ -118,6 +126,16 @@
                         @method('PATCH')
                         
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            
+                            <div class="md:col-span-2">
+                                <label class="block text-sm font-bold text-gray-700 mb-1.5">Username <span class="text-red-500">*</span></label>
+                                <input type="text" name="username" value="{{ $user->username }}" required 
+                                    class="w-full px-4 py-3 rounded-xl bg-gray-50 border border-gray-200 focus:ring-2 focus:ring-[#a52a2a]/20 focus:border-[#a52a2a] transition-all text-sm outline-none">
+                                <p class="text-[10px] text-gray-500 mt-1 leading-tight">
+                                    Max 30 chars. Must contain at least 3 letters. Only letters, numbers, periods (.), or underscores (_) allowed.
+                                </p>
+                            </div>
+
                             <div>
                                 <label class="block text-sm font-bold text-gray-700 mb-1.5">First Name <span class="text-red-500">*</span></label>
                                 <input type="text" name="first_name" value="{{ $user->first_name }}" required 
@@ -167,7 +185,7 @@
                                 </div>
                                 <div>
                                     <label class="block text-sm font-bold text-gray-700 mb-1.5">Institution / School <span class="text-red-500">*</span></label>
-                                    <select name="school_id" required class="w-full px-4 py-3 rounded-xl bg-gray-50 border border-gray-200 focus:ring-2 focus:ring-[#a52a2a]/20 focus:border-[#a52a2a] transition-all text-sm outline-none cursor-pointer">
+                                    <select name="school_id" id="schoolSelect" required class="w-full px-4 py-3 rounded-xl bg-gray-50 border border-gray-200 focus:ring-2 focus:ring-[#a52a2a]/20 focus:border-[#a52a2a] transition-all text-sm outline-none cursor-pointer">
                                         <option value="" disabled {{ empty($user->school_id) ? 'selected' : '' }}>Select your school...</option>
                                         @foreach($schools as $school)
                                             <option value="{{ $school->id }}" {{ $user->school_id == $school->id ? 'selected' : '' }}>
@@ -370,10 +388,37 @@
 </div>
 
 <script>
-    // --- LOAD TICKET DATA FOR THE MODAL VIEWER ---
+    // --- TOM SELECT INITIALIZATION (FOR SEARCHABLE SCHOOL DROPDOWN) ---
+    (function initTomSelect() {
+        const schoolSelect = document.getElementById('schoolSelect');
+        if (schoolSelect) {
+            if (typeof TomSelect !== 'undefined') {
+                new TomSelect("#schoolSelect", { create: false, sortField: { field: "text", direction: "asc" } });
+            } else {
+                const script = document.createElement('script');
+                script.src = "https://cdn.jsdelivr.net/npm/tom-select/dist/js/tom-select.complete.min.js";
+                script.onload = () => {
+                    new TomSelect("#schoolSelect", { create: false, sortField: { field: "text", direction: "asc" } });
+                };
+                document.head.appendChild(script);
+                
+                if(!document.getElementById('tomSelectCss')) {
+                    const link = document.createElement('link');
+                    link.id = 'tomSelectCss';
+                    link.rel = 'stylesheet';
+                    link.href = 'https://cdn.jsdelivr.net/npm/tom-select/dist/css/tom-select.css';
+                    document.head.appendChild(link);
+                }
+            }
+        }
+    })();
+
+    // --- EXACT 30 DAY PROFILE UPDATE RESTRICTION VARIABLE ---
+    // Note: Attached to window to prevent redeclaration errors in SPA navigation
+    window.daysLeftToUpdate = {{ max(0, $daysLeftToUpdate) }};
+
     const userTicketsData = @json($ticketsJson);
 
-    // --- SUPPORT MODAL & TAB LOGIC ---
     function openSupportModal() {
         const modal = document.getElementById('supportModal');
         const box = document.getElementById('supportModalBox');
@@ -471,7 +516,6 @@
         switchSupportTab('view');
     }
 
-    // --- NOTIFICATION AUTO-OPEN LOGIC ---
     (function() {
         const activeUrl = sessionStorage.getItem('lastActiveTab') || window.location.href;
         const urlObj = new URL(activeUrl, window.location.origin);
@@ -485,7 +529,6 @@
         }
     })();
 
-    // --- VANILLA JS TAB SWITCHING (MAIN PROFILE) ---
     function switchProfileTab(tabId) {
         document.querySelectorAll('.profile-tab-btn').forEach(btn => {
             btn.className = 'profile-tab-btn text-gray-600 hover:bg-gray-100 hover:text-gray-900 w-full flex items-center gap-3 px-4 py-3 rounded-xl font-bold transition-all text-left text-sm';
@@ -506,7 +549,6 @@
         }
     }
 
-    // --- DYNAMIC GLOBAL MODAL LOGIC ---
     let reloadPageOnModalClose = false;
 
     function showProfileModal(title, message, type = 'success') {
@@ -549,13 +591,11 @@
         setTimeout(() => {
             modal.classList.add('hidden');
             if (reloadPageOnModalClose) {
-                // Strips the ?ticket= from the URL so it doesn't auto-open again on save
                 loadPartial('{{ route('dashboard.profile') }}', document.getElementById('nav-profile-btn') || document.body);
             }
         }, 300);
     }
 
-    // --- FORM SUBMISSION HANDLERS ---
     function submitAvatarForm() {
         const form = document.getElementById('avatarForm');
         const formData = new FormData(form);
@@ -576,6 +616,17 @@
 
     function submitProfileForm(e, form) {
         e.preventDefault();
+
+        // 👈 Check global window variable instead of const
+        if (window.daysLeftToUpdate > 0) {
+            showProfileModal(
+                'Update Restricted', 
+                `You recently updated your profile. You cannot change your personal details for another ${window.daysLeftToUpdate} day(s).`, 
+                'error'
+            );
+            return;
+        }
+
         const btn = form.querySelector('button[type="submit"]');
         const originalHtml = btn.innerHTML;
         btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
@@ -634,7 +685,7 @@
         btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Submitting...';
         btn.disabled = true;
 
-        closeSupportModal(); // Hide modal while loading
+        closeSupportModal(); 
 
         fetch(form.action, {
             method: 'POST',

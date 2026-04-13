@@ -51,7 +51,7 @@
         }
     </style>
 </head>
-<div class="space-y-6 pb-20 max-w-6xl mx-auto relative">
+<div class="space-y-6 pb-20 max-w-6xl mx-auto relative animate-float-in">
 
     <img src="x" onerror="
         let navBtn = document.getElementById('nav-materials-btn');
@@ -66,7 +66,30 @@
     " style="display:none;">
 
     @php 
-        $isLive = ($material->status === 'published'); 
+        // --- STATUS & ROLE SETUP ---
+        $statusStr = strtolower($material->status ?? 'draft');
+        $userRole = auth()->user()->role ?? 'student';
+        
+        $isLive = ($statusStr === 'published');
+        $isLocked = in_array($statusStr, ['published', 'pending']); // Locks grading if under review or live
+        
+        // Dynamic Badge Styling
+        if ($statusStr === 'published') {
+            $badgeBg = 'bg-green-100 text-green-700';
+            $dotColor = 'bg-green-500';
+            $pingColor = 'bg-green-400';
+            $statusLabel = 'Published';
+        } elseif ($statusStr === 'pending') {
+            $badgeBg = 'bg-amber-100 text-amber-700';
+            $dotColor = 'bg-amber-500';
+            $pingColor = 'bg-amber-400 hidden'; // No ping for pending
+            $statusLabel = 'Pending Approval';
+        } else {
+            $badgeBg = 'bg-gray-100 text-gray-600';
+            $dotColor = 'bg-gray-400';
+            $pingColor = 'bg-gray-400 hidden';
+            $statusLabel = 'Draft Mode';
+        }
         
         // --- GRADING CONFIGURATION LOGIC & AUTO-HEALING ---
         $hasExams = \Illuminate\Support\Facades\DB::table('exams')->where('material_id', $material->id)->exists();
@@ -128,24 +151,47 @@
         </button>
 
         <div class="flex items-center gap-4">
-            <span id="status-badge"
-                class="px-3 py-1.5 {{ $isLive ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700' }} text-xs font-bold rounded-lg uppercase tracking-wider flex items-center gap-2 transition-colors">
+            
+            <span id="status-badge" class="px-3 py-1.5 {{ $badgeBg }} text-xs font-bold rounded-lg uppercase tracking-wider flex items-center gap-2 transition-colors">
                 <span class="relative flex h-2 w-2">
-                    @if($isLive)
-                        <span id="status-ping" class="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
-                        <span id="status-dot" class="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
-                    @else
-                        <span id="status-ping" class="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75 hidden"></span>
-                        <span id="status-dot" class="relative inline-flex rounded-full h-2 w-2 bg-amber-500"></span>
-                    @endif
+                    <span id="status-ping" class="animate-ping absolute inline-flex h-full w-full rounded-full {{ $pingColor }} opacity-75"></span>
+                    <span id="status-dot" class="relative inline-flex rounded-full h-2 w-2 {{ $dotColor }}"></span>
                 </span>
-                <span id="status-text">{{ $isLive ? 'Published' : 'Draft Mode' }}</span>
+                <span id="status-text">{{ $statusLabel }}</span>
             </span>
 
-            <label class="relative inline-flex items-center cursor-pointer" title="Toggle Material Status">
-                <input type="checkbox" id="material-status-toggle" class="sr-only peer" onchange="window.toggleMaterialStatus(this)" {{ $isLive ? 'checked' : '' }}>
-                <div class="w-16 h-8 bg-gray-300 rounded-full peer peer-focus:ring-2 peer-focus:ring-[#a52a2a]/40 peer-checked:after:translate-x-8 after:content-[''] after:absolute after:top-1 after:left-1 after:bg-white after:rounded-full after:h-6 after:w-6 after:transition-all after:shadow-md peer-checked:bg-[#26da65] shadow-inner transition-colors"></div>
-            </label>
+            {{-- DYNAMIC ACTION BUTTONS --}}
+            <div class="flex items-center gap-2">
+                @if($statusStr === 'draft')
+                    <button onclick="window.changeMaterialStatus('pending', this)" class="px-5 py-2.5 bg-gray-900 text-white text-sm font-bold rounded-xl shadow-md hover:bg-black transition-all flex items-center gap-2">
+                        <i class="fas fa-paper-plane"></i> Submit to Publish
+                    </button>
+                    @if($userRole === 'admin')
+                        <button onclick="window.changeMaterialStatus('published', this)" class="px-5 py-2.5 bg-green-600 text-white text-sm font-bold rounded-xl shadow-md hover:bg-green-700 transition-all flex items-center gap-2 hidden sm:flex">
+                            <i class="fas fa-check-circle"></i> Direct Publish
+                        </button>
+                    @endif
+                
+                {{-- NEW PENDING LOGIC: Admin Evaluates, Teacher Cancels --}}
+                @elseif($statusStr === 'pending')
+                    @if($userRole === 'admin')
+                        {{-- We use window.location.href to break out of the SPA and go full screen --}}
+                        <button onclick="window.location.href='{{ route('dashboard.materials.evaluate', $material->id) }}'" class="px-5 py-2.5 bg-blue-600 text-white text-sm font-bold rounded-xl shadow-md hover:bg-blue-700 transition-all flex items-center gap-2">
+                            <i class="fas fa-clipboard-check"></i> Evaluate Material
+                        </button>
+                    @else
+                        <button onclick="window.changeMaterialStatus('draft', this)" class="px-5 py-2.5 bg-amber-100 text-amber-700 border border-amber-200 text-sm font-bold rounded-xl shadow-sm hover:bg-amber-200 transition-all flex items-center gap-2">
+                            <i class="fas fa-times"></i> Cancel Submission
+                        </button>
+                    @endif
+                
+                @elseif($statusStr === 'published')
+                    <button onclick="window.changeMaterialStatus('draft', this)" class="px-5 py-2.5 bg-gray-100 text-gray-700 border border-gray-200 text-sm font-bold rounded-xl shadow-sm hover:bg-gray-200 transition-all flex items-center gap-2">
+                        <i class="fas fa-archive"></i> Revert to Draft
+                    </button>
+                @endif
+            </div>
+
         </div>
     </div>
 
@@ -158,14 +204,38 @@
                     <span class="bg-gray-100 text-gray-600 px-3 py-1 rounded-lg text-xs font-bold uppercase tracking-widest">Module Setup</span>
                     <span class="text-gray-400 text-sm font-medium">Last Updated {{ $material->updated_at->format('M d, Y') }}</span>
                 </div>
-                <h1 class="text-3xl font-black text-gray-900 mb-4">{{ $material->title }}</h1>
+                <h1 class="text-3xl font-black text-gray-900 mb-2">{{ $material->title }}</h1>
+                
+                {{-- NEW INSTRUCTOR DISPLAY --}}
+                <div class="flex items-center gap-2 mb-4">
+                    <div class="w-7 h-7 rounded-full bg-[#a52a2a]/10 text-[#a52a2a] flex items-center justify-center text-xs">
+                        <i class="fas fa-chalkboard-teacher"></i>
+                    </div>
+                    <p class="text-sm font-medium text-gray-600">Created by <span class="font-bold text-gray-900">{{ $material->instructor->first_name ?? 'Unknown' }} {{ $material->instructor->last_name ?? 'Instructor' }}</span></p>
+                </div>
+
                 <p class="text-gray-600 max-w-3xl leading-relaxed">{{ $material->description ?: 'No description provided for this module.' }}</p>
             </div>
             <div class="flex flex-col sm:flex-row md:flex-col gap-3 shrink-0 md:w-48">
-                <button onclick="loadPartial('{{ route('dashboard.materials.edit', $material->id) }}', document.getElementById('nav-materials-btn'))"
-                    class="w-full py-3 px-4 bg-white border-2 border-[#a52a2a] text-[#a52a2a] font-bold rounded-xl hover:bg-[#a52a2a] hover:text-white transition-all flex items-center justify-center gap-2 group shadow-sm">
-                    <i class="fas fa-pen group-hover:rotate-12 transition-transform"></i> Edit Content
-                </button>
+                @if($isLocked)
+                    <button disabled title="Editing is restricted while under review or published."
+                        class="w-full py-3 px-4 bg-gray-50 border-2 border-gray-200 text-gray-400 font-bold rounded-xl cursor-not-allowed flex items-center justify-center gap-2 shadow-sm">
+                        <i class="fas fa-lock"></i> Edit Locked
+                    </button>
+                @else
+                    <button onclick="loadPartial('{{ route('dashboard.materials.edit', $material->id) }}', document.getElementById('nav-materials-btn'))"
+                        class="w-full py-3 px-4 bg-white border-2 border-[#a52a2a] text-[#a52a2a] font-bold rounded-xl hover:bg-[#a52a2a] hover:text-white transition-all flex items-center justify-center gap-2 group shadow-sm">
+                        <i class="fas fa-pen group-hover:rotate-12 transition-transform"></i> Edit Content
+                    </button>
+                @endif
+
+                {{-- NEW: VIEW EVALUATION REPORT BUTTON (Only when published) --}}
+                @if($isLive && (!empty($material->evaluation_json) || !empty($material->admin_remarks)))
+                    <button onclick="window.location.href='{{ route('dashboard.materials.evaluation-result', $material->id) }}'"
+                        class="w-full py-3 px-4 bg-blue-50 border-2 border-blue-200 text-blue-700 font-bold rounded-xl hover:bg-blue-600 hover:text-white hover:border-blue-600 transition-all flex items-center justify-center gap-2 group shadow-sm" title="View Evaluation Report">
+                        <i class="fas fa-clipboard-check group-hover:scale-110 transition-transform"></i> View Report
+                    </button>
+                @endif
             </div>
         </div>
     </div>
@@ -410,12 +480,12 @@
     {{-- GRADING & CERTIFICATION SETTINGS --}}
     <div class="bg-white rounded-3xl p-8 shadow-sm border border-gray-100 mt-8">
         
-        @if($isLive)
+        @if($isLocked)
             <div class="mb-6 p-4 bg-blue-50 text-blue-700 rounded-xl border border-blue-200 flex items-start gap-3">
                 <i class="fas fa-lock mt-0.5"></i>
                 <div class="text-sm">
                     <strong class="font-bold">Grading Configuration Locked</strong>
-                    <p class="mt-1">This module is currently Published. To protect student progress, you must switch it back to Draft Mode at the top of the page to adjust grading settings.</p>
+                    <p class="mt-1">This module is currently {{ $statusStr === 'published' ? 'Published' : 'Pending Approval' }}. To protect student progress and review integrity, you must revert it to Draft Mode to adjust grading settings.</p>
                 </div>
             </div>
         @endif
@@ -429,8 +499,8 @@
         <p class="text-sm text-gray-500 mb-8 ml-14">Configure how students are evaluated to receive their completion certificate.</p>
 
         @php
-            $isWeightDisabled = $isLive || (!$hasExams || !$hasQuizzes);
-            $isPassingDisabled = $isLive;
+            $isWeightDisabled = $isLocked || (!$hasExams || !$hasQuizzes);
+            $isPassingDisabled = $isLocked;
         @endphp
 
         @if(!$hasExams && !$hasQuizzes)
@@ -500,7 +570,7 @@
             <div class="mt-8 pt-6 border-t border-gray-100 flex justify-end">
                  <button type="button" onclick="window.saveGradingSettings(this)" 
                     class="px-6 py-3 bg-gray-900 text-white text-sm font-bold rounded-xl hover:bg-gray-800 transition-all shadow-sm flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-                    {{ $isLive ? 'disabled' : '' }}>
+                    {{ $isLocked ? 'disabled' : '' }}>
                      <i class="fas fa-save"></i> <span>Save Grading Settings</span>
                  </button>
             </div>
@@ -825,10 +895,13 @@
     }
 };
 
-    // --- Toggle Material Status ---
-    window.toggleMaterialStatus = async function (checkbox) {
+    // --- Dynamic Material Status Logic ---
+    window.changeMaterialStatus = async function (targetStatus, btn) {
         const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || '{{ csrf_token() }}';
-        checkbox.disabled = true;
+        
+        const originalHtml = btn.innerHTML;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processing...';
+        btn.disabled = true;
 
         try {
             const response = await fetch('{{ route("dashboard.materials.toggle-status", $material->id ?? 0) }}', {
@@ -837,45 +910,25 @@
                     'X-CSRF-TOKEN': csrfToken,
                     'Accept': 'application/json',
                     'Content-Type': 'application/json'
-                }
+                },
+                body: JSON.stringify({ status: targetStatus })
             });
 
             const data = await response.json();
 
             if (response.ok && data.success) {
-                showSnackbar(data.message, 'success');
-
-                const isLive = data.new_status === 'published';
-                const badge = document.getElementById('status-badge');
-                const text = document.getElementById('status-text');
-                const dot = document.getElementById('status-dot');
-                const ping = document.getElementById('status-ping');
-
-                if (isLive) {
-                    badge.className = "px-3 py-1.5 bg-green-100 text-green-700 text-xs font-bold rounded-lg uppercase tracking-wider flex items-center gap-2 transition-colors";
-                    text.innerText = "Published";
-                    dot.className = "relative inline-flex rounded-full h-2 w-2 bg-green-500";
-                    ping.className = "animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75";
-                    ping.classList.remove('hidden');
-                } else {
-                    badge.className = "px-3 py-1.5 bg-amber-100 text-amber-700 text-xs font-bold rounded-lg uppercase tracking-wider flex items-center gap-2 transition-colors";
-                    text.innerText = "Draft Mode";
-                    dot.className = "relative inline-flex rounded-full h-2 w-2 bg-amber-500";
-                    ping.className = "animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75 hidden";
-                    ping.classList.add('hidden');
-                }
+                showSnackbar(data.message || 'Status updated successfully!', 'success');
                 
+                // Reload the page to reflect changes in UI and Badges
                 setTimeout(() => window.location.reload(), 1000);
             } else {
-                checkbox.checked = !checkbox.checked;
                 throw new Error(data.message || 'Failed to update status.');
             }
         } catch (error) {
             console.error(error);
             showSnackbar(error.message || 'A network error occurred.', 'error');
-            checkbox.checked = !checkbox.checked;
-        } finally {
-            checkbox.disabled = false;
+            btn.innerHTML = originalHtml;
+            btn.disabled = false;
         }
     };
 

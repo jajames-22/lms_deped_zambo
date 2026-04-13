@@ -33,16 +33,51 @@ class MaterialsController extends Controller
      */
     public function adminIndex()
     {
+        $user = Auth::user();
+
         $materials = Material::with('instructor')
             ->withCount([
                 'lessons' => function ($query) {
                     $query->where('section_type', 'lesson');
                 }
             ])
+            ->where(function($query) use ($user) {
+                // 1. Admins can see ALL pending and published materials
+                $query->whereIn('status', ['pending', 'published'])
+                
+                // 2. OR they can see drafts ONLY if they are the instructor
+                      ->orWhere(function($subQuery) use ($user) {
+                          $subQuery->where('status', 'draft')
+                                   ->where('instructor_id', $user->id);
+                      });
+            })
             ->orderBy('updated_at', 'desc')
             ->get();
 
         return view('dashboard.partials.admin.materials', compact('materials'));
+    }
+
+    public function evaluateMaterial(Material $material)
+    {
+        // 1. Security Check: Only allow Admins to access the evaluation mode
+        if (auth()->user()->role !== 'admin') {
+            abort(403, 'Unauthorized access. Only Admins can evaluate materials.');
+        }
+
+        // 2. Eager load all the necessary relationships needed for the Evaluation View
+        // We load instructor, tags, lessons, and all options to display the answer keys
+        $material->load([
+            'instructor',
+            'tags',
+            'lessons' => function ($query) {
+                $query->orderBy('sort_order', 'asc'); // Ensure lessons are in the correct order
+            },
+            'lessons.contents.options',
+            'exams.options'
+        ]);
+
+        // 3. Return the specific evaluate view
+        return view('dashboard.partials.admin.evaluate-material', compact('material'));
     }
 
     // ==========================================
@@ -285,21 +320,110 @@ class MaterialsController extends Controller
     public function toggleStatus(Request $request, $id)
     {
         try {
-            $material = DB::table('materials')->where('id', $id)->first();
-            $newStatus = $material->status === 'published' ? 'draft' : 'published';
+            // 1. Validate the basic status
+            $request->validate([
+                'status' => 'required|in:draft,pending,published'
+            ]);
 
-            DB::table('materials')
+            $targetStatus = $request->status;
+
+            // Fetch the material BEFORE updating so we can check ownership and titles
+            $material = \App\Models\Material::with('instructor')->findOrFail($id);
+
+            if (auth()->user()->role === 'teacher' && $targetStatus === 'published') {
+                $targetStatus = 'pending'; 
+            }
+
+            // 2. Prepare the database update array
+            $updateData = [
+                'status' => $targetStatus, 
+                'updated_at' => now()
+            ];
+
+            // 3. If the Admin is evaluating, capture the Rubric Breakdown & Remarks
+            if ($request->has('evaluation_details')) {
+                $updateData['admin_remarks'] = $request->admin_remarks;
+                $updateData['evaluation_json'] = json_encode([
+                    'score_percentage' => $request->score_percentage,
+                    'details' => $request->evaluation_details
+                ]);
+            }
+
+            \Illuminate\Support\Facades\DB::table('materials')
                 ->where('id', $id)
-                ->update(['status' => $newStatus, 'updated_at' => now()]);
+                ->update($updateData);
+
+            // 4. --- NOTIFICATION LOGIC ---
+            // If the user making the change is NOT the owner of the material, send a notification
+            if (auth()->id() !== $material->instructor_id && $material->instructor) {
+                $notifTitle = '';
+                $notifMessage = '';
+                $notifIcon = 'fas fa-info-circle';
+                $notifColor = 'text-blue-600';
+
+                // Customize notification based on the target status
+                if ($targetStatus === 'published') {
+                    $notifTitle = 'Module Approved!';
+                    $notifMessage = 'Congratulations! Your module "' . $material->title . '" has been evaluated and published.';
+                    $notifIcon = 'fas fa-check-circle';
+                    $notifColor = 'text-green-600';
+                } elseif ($targetStatus === 'draft' && $request->has('evaluation_details')) {
+                    $notifTitle = 'Module Revision Required';
+                    $notifMessage = 'Your module "' . $material->title . '" was returned to Draft. Please review the evaluation remarks.';
+                    $notifIcon = 'fas fa-undo';
+                    $notifColor = 'text-red-600';
+                } elseif ($targetStatus === 'draft') {
+                    $notifTitle = 'Module Reverted to Draft';
+                    $notifMessage = 'An Admin reverted your module "' . $material->title . '" to Draft mode.';
+                    $notifIcon = 'fas fa-archive';
+                    $notifColor = 'text-amber-600';
+                }
+
+                // Fire the notification if a relevant status change occurred
+                if ($notifTitle !== '') {
+                    $material->instructor->notify(new \App\Notifications\LmsAlertNotification(
+                        $notifTitle,
+                        $notifMessage,
+                        route('dashboard.materials.manage', $material->id),
+                        $notifIcon,
+                        $notifColor
+                    ));
+                }
+            }
+
+            $statusText = 'in Draft Mode';
+            if ($targetStatus === 'published') $statusText = 'Published and Live';
+            if ($targetStatus === 'pending') $statusText = 'Submitted for Admin Approval';
 
             return response()->json([
                 'success' => true,
-                'new_status' => $newStatus,
-                'message' => 'Module is now ' . ($newStatus === 'published' ? 'Published' : 'in Draft Mode')
+                'new_status' => $targetStatus,
+                'message' => 'Module is now ' . $statusText,
+                // Redirect Admin to the new evaluation results page
+                'redirect_url' => auth()->user()->role === 'admin' && $request->has('evaluation_details') 
+                    ? route('dashboard.materials.evaluation-result', $id) 
+                    : null
             ]);
-        } catch (Exception $e) {
-            return response()->json(['success' => false, 'message' => 'Error updating status: ' . $e->getMessage()], 500);
+            
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false, 
+                'message' => 'Error updating status: ' . $e->getMessage()
+            ], 500);
         }
+    }
+
+    /**
+     * Show the final evaluation report after an Admin grades a material
+     */
+    public function evaluationResult($id)
+    {
+        $material = Material::with('instructor')->findOrFail($id);
+        
+        // Decode the JSON so the Blade view can loop through it
+        $evaluationData = $material->evaluation_json ? json_decode($material->evaluation_json, true) : null;
+
+        return view('dashboard.partials.shared.evaluation-result', compact('material', 'evaluationData'));
     }
 
     public function importAccess(Request $request, $id)

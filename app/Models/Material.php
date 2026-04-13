@@ -22,7 +22,9 @@ class Material extends Model
         'downloads',           
         'is_public',
         'is_featured',
-        'draft_json'
+        'draft_json',
+        'admin_remarks',     
+        'evaluation_json'
     ];
 
     protected $casts = [

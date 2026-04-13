@@ -13,16 +13,18 @@
     </div>
 
     <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-        <div class="flex items-center space-x-1 bg-gray-200/50 p-1 rounded-xl w-fit shrink-0">
+        <div class="flex items-center space-x-1 bg-gray-200/50 p-1 rounded-xl w-full lg:w-fit overflow-x-auto no-scrollbar shrink-0">
             <button onclick="MaterialManager.filter('all', this)"
-                class="material-tab px-6 py-2 text-sm font-bold rounded-lg transition-all bg-white text-[#a52a2a] shadow-sm">All</button>
+                class="material-tab px-6 py-2 text-sm font-bold rounded-lg transition-all bg-white text-[#a52a2a] shadow-sm whitespace-nowrap">All</button>
             <button onclick="MaterialManager.filter('published', this)"
-                class="material-tab px-6 py-2 text-sm font-bold rounded-lg transition-all text-gray-500 hover:text-gray-700">Published</button>
+                class="material-tab px-6 py-2 text-sm font-bold rounded-lg transition-all text-gray-500 hover:text-gray-700 whitespace-nowrap">Published</button>
+            <button onclick="MaterialManager.filter('pending', this)"
+                class="material-tab px-6 py-2 text-sm font-bold rounded-lg transition-all text-gray-500 hover:text-gray-700 whitespace-nowrap">Pending</button>
             <button onclick="MaterialManager.filter('draft', this)"
-                class="material-tab px-6 py-2 text-sm font-bold rounded-lg transition-all text-gray-500 hover:text-gray-700">Drafts</button>
+                class="material-tab px-6 py-2 text-sm font-bold rounded-lg transition-all text-gray-500 hover:text-gray-700 whitespace-nowrap">Drafts</button>
         </div>
 
-        <div class="relative w-full max-w-md">
+        <div class="relative w-full max-w-md shrink-0">
             <i class="fas fa-search absolute left-4 top-1/2 -translate-y-1/2 text-gray-400"></i>
             <input type="text" id="material-search" onkeyup="MaterialManager.search()"
                 placeholder="Search materials by title..."
@@ -32,14 +34,40 @@
 
     <div id="material-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-5 items-stretch relative">
         @forelse($materials as $material)
-            @php $isLive = ($material->status === 'published'); @endphp
+            @php 
+                $statusStr = strtolower($material->status ?? 'draft'); 
+                
+                // Set Dynamic Styling based on Status
+                if ($statusStr === 'published') {
+                    $statusColor = 'bg-green-500';
+                    $statusText = 'text-green-800';
+                    $statusBg = 'bg-green-100/95';
+                    $statusLabel = 'Published';
+                    $btnIcon = 'fa-layer-group';
+                    $btnText = 'Manage Material';
+                } elseif ($statusStr === 'pending') {
+                    $statusColor = 'bg-amber-500';
+                    $statusText = 'text-amber-800';
+                    $statusBg = 'bg-amber-100/95';
+                    $statusLabel = 'Pending Review';
+                    $btnIcon = 'fa-search';
+                    $btnText = 'Review Submission';
+                } else {
+                    $statusColor = 'bg-gray-400';
+                    $statusText = 'text-gray-700';
+                    $statusBg = 'bg-gray-100/95';
+                    $statusLabel = 'Draft Mode';
+                    $btnIcon = 'fa-pen';
+                    $btnText = 'Resume Draft';
+                }
+            @endphp
 
             <div id="material-card-{{ $material->id }}"
                 onclick="loadPartial('{{ route('dashboard.materials.manage', $material->id) }}', document.getElementById('nav-materials-btn'))"
-                class="material-card {{ $isLive ? 'published' : 'draft' }} flex flex-col h-full bg-white rounded-xl border border-gray-200 shadow-sm hover:shadow-md transition-all duration-200 group overflow-hidden relative cursor-pointer">
+                class="material-card {{ $statusStr }} flex flex-col h-full bg-white rounded-xl border border-gray-200 shadow-sm hover:shadow-md transition-all duration-200 group overflow-hidden relative cursor-pointer">
 
                 <div class="w-full h-36 bg-gray-50 relative border-b border-gray-100">
-                    <div class="absolute top-0 left-0 w-full h-1 {{ $isLive ? 'bg-green-500' : 'bg-amber-400' }} z-10"></div>
+                    <div class="absolute top-0 left-0 w-full h-1 {{ $statusColor }} z-10"></div>
 
                     @if($material->thumbnail)
                         <img src="{{ asset('storage/' . $material->thumbnail) }}" alt="{{ $material->title }}" class="w-full h-full object-cover">
@@ -57,8 +85,8 @@
                     </button>
 
                     <div class="absolute top-3 left-3 flex items-center">
-                        <span class="px-2 py-1 {{ $isLive ? 'bg-green-500/90 text-white' : 'bg-amber-100/95 text-amber-700' }} backdrop-blur-sm text-[9px] font-bold rounded uppercase tracking-wider shadow-sm">
-                            {{ $isLive ? 'Published' : 'Draft' }}
+                        <span class="px-2 py-1 {{ $statusBg }} {{ $statusText }} backdrop-blur-sm text-[9px] font-bold rounded uppercase tracking-wider shadow-sm border border-white/40">
+                            {{ $statusLabel }}
                         </span>
                     </div>
                 </div>
@@ -81,10 +109,10 @@
                         </div>
                     </div>
 
-                    <button onclick="event.stopPropagation(); loadPartial('{{ route('dashboard.materials.edit', $material->id) }}', document.getElementById('nav-materials-btn'))"
+                    <button onclick="event.stopPropagation(); loadPartial('{{ route('dashboard.materials.manage', $material->id) }}', document.getElementById('nav-materials-btn'))"
                         class="w-full py-2 bg-white border border-gray-200 text-gray-700 text-xs font-bold rounded-lg hover:bg-gray-50 hover:border-[#a52a2a]/30 hover:text-[#a52a2a] transition-all shadow-sm flex items-center justify-center gap-1.5">
-                        <i class="fas {{ $isLive ? 'fa-edit' : 'fa-play' }}"></i>
-                        {{ $isLive ? 'Edit Content' : 'Resume Draft' }}
+                        <i class="fas {{ $btnIcon }}"></i>
+                        {{ $btnText }}
                     </button>
                 </div>
             </div>
