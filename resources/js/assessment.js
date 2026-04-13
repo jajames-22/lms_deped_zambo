@@ -150,9 +150,9 @@ AssessmentBuilder.initBuilder = function () {
     }, 500);
 };
 
-// Render Existing Categories
+// UPDATED: Render Existing Categories with IDs
 AssessmentBuilder.renderExistingCategory = function (catData) {
-    AssessmentBuilder.addCategory();
+    AssessmentBuilder.addCategory(null, catData.id); 
     const latestCat = document.querySelector(".category-block:last-child");
 
     latestCat.querySelector(".c-title").value = catData.title || "";
@@ -166,7 +166,7 @@ AssessmentBuilder.renderExistingCategory = function (catData) {
     if (catData.questions && catData.questions.length > 0) {
         catData.questions.forEach((q) => {
             const type = q.type || "mcq";
-            AssessmentBuilder.addQuestion(qContainer.id.split("-").pop(), type);
+            AssessmentBuilder.addQuestion(qContainer.id.split("-").pop(), type, null, q.id);
 
             const latestQ = qContainer.querySelector(
                 ".question-block:last-child",
@@ -191,6 +191,7 @@ AssessmentBuilder.renderExistingCategory = function (catData) {
                         opt.is_correct == 1 || opt.is_correct === true,
                         opt.text || opt.option_text || "",
                         isCaseSensitive,
+                        opt.id
                     );
                 });
             } else if (type === "true_false") {
@@ -211,7 +212,8 @@ AssessmentBuilder.renderExistingCategory = function (catData) {
     }
 };
 
-AssessmentBuilder.addCategory = function (afterElement = null) {
+// UPDATED: Add Category Template to store ID
+AssessmentBuilder.addCategory = function (afterElement = null, existingId = null) {
     const container = document.getElementById("builder-container");
     if (!container) return;
 
@@ -219,7 +221,7 @@ AssessmentBuilder.addCategory = function (afterElement = null) {
     const catId = `cat-${AssessmentBuilder.catCount}`;
 
     const html = `
-        <div class="bg-white rounded-2xl shadow-sm border border-gray-200 category-block transition-all mb-6 relative" id="${catId}">
+        <div class="bg-white rounded-2xl shadow-sm border border-gray-200 category-block transition-all mb-6 relative" id="${catId}" data-id="${existingId || ''}">
             <div class="p-4 bg-gray-50/50 flex items-center justify-between cursor-pointer group/header" onclick="AssessmentBuilder.toggleCategory('${catId}', event)">
                 <div class="flex items-center gap-4 flex-1">
                     <div class="h-8 w-8 rounded-lg bg-[#a52a2a]/10 text-[#a52a2a] flex items-center justify-center font-bold text-sm cat-number-badge">
@@ -288,11 +290,8 @@ AssessmentBuilder.addCategory = function (afterElement = null) {
     AssessmentBuilder.calculateTotalTime();
 };
 
-AssessmentBuilder.addQuestion = function (
-    cId,
-    type = "mcq",
-    afterElement = null,
-) {
+// UPDATED: Add Question Template to store ID
+AssessmentBuilder.addQuestion = function (cId, type = "mcq", afterElement = null, existingId = null) {
     const container = document.getElementById(`q-container-${cId}`);
     if (!container) return;
 
@@ -308,7 +307,7 @@ AssessmentBuilder.addQuestion = function (
     }
 
     const html = `
-        <div class="p-4 rounded-xl border border-gray-100 question-block relative group ${bgClass}" id="${qId}" data-type="${type}">
+        <div class="p-4 rounded-xl border border-gray-100 question-block relative group ${bgClass}" id="${qId}" data-type="${type}" data-id="${existingId || ''}">
             
             <div class="flex justify-between items-start mb-2 cursor-pointer" onclick="AssessmentBuilder.toggleQuestion('${qId}', event)">
                 <div class="flex items-center gap-2 overflow-hidden pr-2">
@@ -366,19 +365,21 @@ AssessmentBuilder.addQuestion = function (
 
     AssessmentBuilder.initSortable();
 
-    if (type === "mcq" || type === "checkbox") {
-        AssessmentBuilder.addOptionToQuestion(qId, type, true, "");
-        AssessmentBuilder.addOptionToQuestion(qId, type, false, "");
-    } else if (type === "text") {
-        AssessmentBuilder.addOptionToQuestion(qId, "text", true, "");
-    } else if (type === "true_false") {
-        AssessmentBuilder.addOptionToQuestion(qId, "true_false", false, "True");
-        AssessmentBuilder.addOptionToQuestion(
-            qId,
-            "true_false",
-            false,
-            "False",
-        );
+    if (!existingId) {
+        if (type === "mcq" || type === "checkbox") {
+            AssessmentBuilder.addOptionToQuestion(qId, type, true, "");
+            AssessmentBuilder.addOptionToQuestion(qId, type, false, "");
+        } else if (type === "text") {
+            AssessmentBuilder.addOptionToQuestion(qId, "text", true, "");
+        } else if (type === "true_false") {
+            AssessmentBuilder.addOptionToQuestion(qId, "true_false", false, "True");
+            AssessmentBuilder.addOptionToQuestion(
+                qId,
+                "true_false",
+                false,
+                "False",
+            );
+        }
     }
 };
 
@@ -390,22 +391,26 @@ AssessmentBuilder.toggleDropdown = function (btn) {
     menu.classList.toggle("hidden");
 };
 
+// UPDATED: Add Option Template to store ID
 AssessmentBuilder.addOptionToQuestion = function (
     qId,
     type,
     isCorrect = false,
     text = "",
     isCaseSensitive = false,
+    existingId = null
 ) {
     const list = document.querySelector(`#${qId} .options-list`);
     if (!list) return;
 
     const optCount = list.querySelectorAll(".option-row").length + 1;
     let optHtml = "";
+    
+    const baseRowAttr = `class="flex items-center justify-between gap-3 bg-white px-3 py-2 rounded-lg border border-gray-200 option-row transition" data-id="${existingId || ''}"`;
 
     if (type === "mcq") {
         optHtml = `
-            <div class="flex items-center justify-between gap-3 bg-white px-3 py-2 rounded-lg border border-gray-200 option-row transition">
+            <div ${baseRowAttr}>
                 <input type="text" class="option-input w-full bg-transparent outline-none text-sm" placeholder="Choice ${optCount}..." value="${text}">
                 <div class="flex items-center gap-3 border-l border-gray-100 pl-3 shrink-0">
                     <label class="flex items-center gap-1.5 cursor-pointer text-gray-500 hover:text-green-600 transition">
@@ -417,7 +422,7 @@ AssessmentBuilder.addOptionToQuestion = function (
             </div>`;
     } else if (type === "checkbox") {
         optHtml = `
-            <div class="flex items-center justify-between gap-3 bg-white px-3 py-2 rounded-lg border border-gray-200 option-row transition">
+            <div ${baseRowAttr}>
                 <input type="text" class="option-input w-full bg-transparent outline-none text-sm" placeholder="Choice ${optCount}..." value="${text}">
                 <div class="flex items-center gap-3 border-l border-gray-100 pl-3 shrink-0">
                     <label class="flex items-center gap-1.5 cursor-pointer text-gray-500 hover:text-green-600 transition">
@@ -429,7 +434,7 @@ AssessmentBuilder.addOptionToQuestion = function (
             </div>`;
     } else if (type === "text") {
         optHtml = `
-            <div class="flex items-center gap-3 bg-green-50/50 px-3 py-2 rounded-lg border border-green-200 option-row transition">
+            <div class="flex items-center gap-3 bg-green-50/50 px-3 py-2 rounded-lg border border-green-200 option-row transition" data-id="${existingId || ''}">
                 <span class="text-[10px] font-bold text-green-600 uppercase shrink-0"><i class="fas fa-check mr-1"></i> Exact Match:</span>
                 <input type="text" class="option-input w-full bg-transparent outline-none text-sm font-medium" placeholder="Type exact answer..." value="${text}">
                 <input type="hidden" class="is-correct-input" value="true" checked>
@@ -440,7 +445,7 @@ AssessmentBuilder.addOptionToQuestion = function (
             </div>`;
     } else if (type === "true_false") {
         optHtml = `
-            <div class="flex items-center justify-between gap-3 bg-white px-3 py-2 rounded-lg border border-gray-200 option-row transition">
+            <div ${baseRowAttr}>
                 <input type="text" class="option-input w-full bg-transparent outline-none text-sm font-bold text-gray-700 cursor-default" value="${text}" readonly>
                 <div class="flex items-center gap-3 border-l border-gray-100 pl-3 shrink-0">
                     <label class="flex items-center gap-1.5 cursor-pointer text-gray-500 hover:text-green-600 transition">
@@ -523,6 +528,7 @@ AssessmentBuilder.updateCatDisplay = function (input) {
     title.innerText = input.value || "New Section";
 };
 
+// UPDATED: getPayload to include IDs in the JSON
 AssessmentBuilder.getPayload = function (status) {
     const categories = [];
     document.querySelectorAll(".category-block").forEach((cat) => {
@@ -537,11 +543,13 @@ AssessmentBuilder.getPayload = function (status) {
                         ? isCorrectInput.checked
                         : true;
                 options.push({
+                    id: opt.dataset.id || null,
                     text: opt.querySelector(".option-input").value,
                     is_correct: isCorrect ? 1 : 0,
                 });
             });
             questions.push({
+                id: q.dataset.id || null,
                 type: q.dataset.type,
                 text: q.querySelector(".q-text").value,
                 media_url: q.querySelector(".q-media-url")
@@ -554,6 +562,7 @@ AssessmentBuilder.getPayload = function (status) {
             });
         });
         categories.push({
+            id: cat.dataset.id || null,
             title: cat.querySelector(".c-title").value,
             time_limit: parseInt(cat.querySelector(".c-time").value) || 0,
             questions: questions,
@@ -573,7 +582,7 @@ AssessmentBuilder.handleAutosaveTrigger = function () {
     if (AssessmentBuilder.isInitializing) return;
 
     AssessmentBuilder.hasChanged = true;
-    AssessmentBuilder.sessionDirty = true; // Add this line
+    AssessmentBuilder.sessionDirty = true; 
 
     AssessmentBuilder.updateAutosaveIndicator(
         '<i class="fas fa-circle-notch text-amber-500"></i> Unsaved changes...',
@@ -664,7 +673,6 @@ AssessmentBuilder.clearSelectedMedia = function () {
 };
 
 AssessmentBuilder.closeMediaModal = function () {
-    // 1. Abort any ongoing upload when modal closes
     if (AssessmentBuilder.currentUploadXhr) {
         AssessmentBuilder.currentUploadXhr.abort();
         AssessmentBuilder.currentUploadXhr = null;
@@ -673,7 +681,6 @@ AssessmentBuilder.closeMediaModal = function () {
     document.getElementById("media-upload-modal").classList.add("hidden");
     AssessmentBuilder.currentMediaUploadQId = null;
 
-    // 2. Reset UI states safely
     const progressContainer = document.getElementById(
         "upload-progress-container",
     );
@@ -707,7 +714,6 @@ AssessmentBuilder.executeMediaUpload = function () {
     btn.innerHTML =
         '<i class="fas fa-spinner fa-spin"></i> <span>Uploading...</span>';
 
-    // Show progress bar
     if (progressContainer) {
         progressContainer.classList.remove("hidden");
         progressBar.style.width = "0%";
@@ -720,7 +726,6 @@ AssessmentBuilder.executeMediaUpload = function () {
     const xhr = new XMLHttpRequest();
     AssessmentBuilder.currentUploadXhr = xhr;
 
-    // Track Progress
     xhr.upload.addEventListener("progress", function (e) {
         if (e.lengthComputable && progressContainer) {
             const percentComplete = Math.round((e.loaded / e.total) * 100);
@@ -729,7 +734,6 @@ AssessmentBuilder.executeMediaUpload = function () {
         }
     });
 
-    // Handle Response
     xhr.addEventListener("load", function () {
         AssessmentBuilder.currentUploadXhr = null;
         if (xhr.status >= 200 && xhr.status < 300) {
@@ -767,7 +771,6 @@ AssessmentBuilder.executeMediaUpload = function () {
 
     xhr.addEventListener("abort", function () {
         AssessmentBuilder.currentUploadXhr = null;
-        // Aborted silently, reset the UI
         resetUI();
     });
 
@@ -819,31 +822,31 @@ AssessmentBuilder.setMediaPreview = function (
     if (type === "audio") {
         mediaHtml = `<audio controls src="${url}" class="w-full mt-2 outline-none"></audio>`;
     } else if (type === "video") {
-        mediaHtml = `<div class="w-full bg-black rounded-lg overflow-hidden">
-                        <video controls src="${url}" class="max-h-64 w-full"></video>
+        mediaHtml = `<div class=\"w-full bg-black rounded-lg overflow-hidden\">
+                        <video controls src=\"${url}\" class=\"max-h-64 w-full\"></video>
                      </div>
-                     <span class="text-xs font-medium text-gray-500 mt-2">${displayFileName}</span>`;
+                     <span class=\"text-xs font-medium text-gray-500 mt-2\">${displayFileName}</span>`;
     } else if (type === "pdf") {
-        mediaHtml = `<div class="flex flex-col items-center p-4">
-                        <i class="fas fa-file-pdf text-4xl text-red-500 mb-2"></i>
-                        <span class="text-sm font-bold text-gray-700 mt-2">${displayFileName}</span>
-                        <a href="${url}" target="_blank" class="text-xs text-blue-600 hover:underline mt-1 font-medium">View PDF</a>
+        mediaHtml = `<div class=\"flex flex-col items-center p-4\">
+                        <i class=\"fas fa-file-pdf text-4xl text-red-500 mb-2\"></i>
+                        <span class=\"text-sm font-bold text-gray-700 mt-2\">${displayFileName}</span>
+                        <a href=\"${url}\" target=\"_blank\" class=\"text-xs text-blue-600 hover:underline mt-1 font-medium\">View PDF</a>
                      </div>`;
     } else if (type === "archive") {
-        mediaHtml = `<div class="flex flex-col items-center p-4">
-                        <i class="fas fa-file-archive text-4xl text-yellow-500 mb-2"></i>
-                        <span class="text-sm font-bold text-gray-700 mt-2">${displayFileName}</span>
-                        <a href="${url}" target="_blank" class="text-xs text-blue-600 hover:underline mt-1 font-medium">Download Archive</a>
+        mediaHtml = `<div class=\"flex flex-col items-center p-4\">
+                        <i class=\"fas fa-file-archive text-4xl text-yellow-500 mb-2\"></i>
+                        <span class=\"text-sm font-bold text-gray-700 mt-2\">${displayFileName}</span>
+                        <a href=\"${url}\" target=\"_blank\" class=\"text-xs text-blue-600 hover:underline mt-1 font-medium\">Download Archive</a>
                      </div>`;
     } else {
-        mediaHtml = `<img src="${url}" class="max-h-64 object-contain rounded-lg shadow-sm">
-                     <span class="text-xs font-medium text-gray-500 mt-2">${displayFileName}</span>`;
+        mediaHtml = `<img src=\"${url}\" class=\"max-h-64 object-contain rounded-lg shadow-sm\">
+                     <span class=\"text-xs font-medium text-gray-500 mt-2\">${displayFileName}</span>`;
     }
 
     previewDiv.innerHTML = `
         ${mediaHtml}
-        <button type="button" onclick="AssessmentBuilder.removeQuestionMedia('${qId}')" class="absolute top-2 right-2 h-8 w-8 bg-red-500/80 hover:bg-red-600 transition text-white rounded shadow-sm flex items-center justify-center">
-            <i class="fas fa-trash"></i>
+        <button type=\"button\" onclick=\"AssessmentBuilder.removeQuestionMedia('${qId}')\" class=\"absolute top-2 right-2 h-8 w-8 bg-red-500/80 hover:bg-red-600 transition text-white rounded shadow-sm flex items-center justify-center\">
+            <i class=\"fas fa-trash\"></i>
         </button>
     `;
 
@@ -1143,7 +1146,6 @@ AssessmentBuilder.handleAssessmentBackButton = async function (btn) {
     const manageUrl = wrapper.dataset.manageUrl;
     const redirectUrl = wrapper.dataset.redirectUrl;
 
-    // FIX: Now checks sessionDirty so the modal shows even after autosaves
     if (AssessmentBuilder.hasChanged || AssessmentBuilder.sessionDirty) {
         const backModal = document.getElementById("back-modal");
         if (backModal) backModal.classList.remove("hidden");

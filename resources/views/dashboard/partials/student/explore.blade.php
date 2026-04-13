@@ -10,7 +10,9 @@
     }
 </style>
 
-<div class="max-w-7xl mx-auto space-y-12 pb-24 relative">
+{{-- CONTAINER A: MAIN EXPLORE VIEW --}}
+<div id="main-explore-content" class="max-w-7xl mx-auto space-y-12 pb-24 relative transition-opacity duration-300">
+    
     {{-- 1. FEATURED BANNER CAROUSEL (Admin Selected) --}}
     @if($featuredMaterials->isNotEmpty())
         <div class="relative w-full h-80 md:h-[450px] rounded-2xl overflow-hidden shadow-2xl group" id="featured-carousel">
@@ -68,14 +70,13 @@
                     window.currentSlide = 0;
                     window.totalSlides = {{ $featuredMaterials->count() }};
                     
-                    // Clear interval if it already exists from a previous page visit
                     if (window.carouselInterval) clearInterval(window.carouselInterval);
 
                     window.updateCarousel = function() {
                         const track = document.getElementById('carousel-track');
                         const dots = document.querySelectorAll('.carousel-dot');
                         
-                        if (!track) return; // Safety check
+                        if (!track) return; 
                         
                         track.style.transform = `translateX(-${window.currentSlide * 100}%)`;
                         dots.forEach((dot, index) => {
@@ -110,7 +111,6 @@
                         window.startInterval();
                     }
 
-                    // Initialize the carousel
                     setTimeout(() => {
                         window.updateCarousel();
                         window.startInterval();
@@ -131,7 +131,11 @@
                             <p class="text-sm text-gray-500">{{ $section->subtitle }}</p>
                         @endif
                     </div>
-                    <a href="{{ route('dashboard.explore.tag', json_decode($section->tag_name)[0] ?? $section->tag_name) }}" class="text-xs font-bold text-[#a52a2a] uppercase tracking-widest hover:underline">See All</a>
+                    
+                    <button onclick="showCategory('{{ addslashes($section->tag_name) }}', '{{ addslashes($section->title) }}')"
+                            class="text-xs font-bold text-[#a52a2a] uppercase tracking-widest hover:underline cursor-pointer">
+                        See All
+                    </button>
                 </div>
 
                 <div class="flex overflow-x-auto no-scrollbar gap-6 pb-6 snap-x px-2">
@@ -233,3 +237,90 @@
             @endforelse
         </div>
     </section>
+</div>
+
+{{-- CONTAINER B: FILTERED "SEE ALL" VIEW (Hidden by Default) --}}
+<div id="filtered-explore-content" class="max-w-7xl mx-auto hidden pb-24 transition-opacity duration-300">
+    <div class="flex items-center gap-4 mb-10 px-2">
+        <button onclick="resetExploreView()" class="h-12 w-12 flex items-center justify-center rounded-full bg-white border border-gray-200 text-gray-500 hover:text-[#a52a2a] transition shadow-sm group">
+            <i class="fas fa-arrow-left group-hover:-translate-x-1 transition-transform"></i>
+        </button>
+        <div>
+            <p class="text-[10px] text-[#a52a2a] font-black uppercase tracking-[0.2em] mb-1">Browsing Category</p>
+            <h1 id="selected-category-title" class="text-4xl font-black text-gray-900 tracking-tight"></h1>
+        </div>
+    </div>
+
+    <div id="filtered-materials-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 px-2">
+        {{-- Populated dynamically via JS --}}
+    </div>
+</div>
+
+{{-- JAVASCRIPT FOR SEE ALL TOGGLE --}}
+<script>
+    function showCategory(tagName, displayName) {
+        const mainContent = document.getElementById('main-explore-content');
+        const filteredContent = document.getElementById('filtered-explore-content');
+        const categoryTitle = document.getElementById('selected-category-title');
+        const materialsGrid = document.getElementById('filtered-materials-grid');
+
+        // Swap visibility
+        mainContent.classList.add('hidden');
+        filteredContent.classList.remove('hidden');
+
+        // Set UI State
+        categoryTitle.innerText = displayName;
+        materialsGrid.innerHTML = `
+            <div class="col-span-full py-20 text-center">
+                <i class="fas fa-circle-notch fa-spin text-4xl text-[#a52a2a]/30"></i>
+                <p class="mt-4 text-gray-400 font-medium">Loading materials...</p>
+            </div>
+        `;
+
+        // Scroll to top
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+
+        // Fetch materials via AJAX - Using the new Dashboard Route
+        fetch(`/dashboard/explore/tags/${encodeURIComponent(tagName)}/json`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.length === 0) {
+                    materialsGrid.innerHTML = '<div class="col-span-full py-20 text-center"><p class="text-gray-500">No materials found in this category.</p></div>';
+                    return;
+                }
+
+                // Generate HTML for each material card
+                materialsGrid.innerHTML = data.map(material => {
+                    const imgUrl = material.thumbnail ? '/storage/' + material.thumbnail : 'https://images.unsplash.com/photo-1509228468518-180dd4864904?q=80&w=400';
+                    const instName = material.instructor ? material.instructor.first_name + ' ' + (material.instructor.last_name || '') : 'Instructor';
+                    const desc = material.description || '';
+                    
+                    return `
+                        <div class="group bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-all cursor-pointer flex flex-col"
+                             onclick="window.location.href = '/dashboard/materials/${material.id}/show';">
+                            <div class="relative aspect-[4/3] overflow-hidden w-full">
+                                <img src="${imgUrl}" class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500">
+                                <div class="absolute inset-0 bg-black/20 group-hover:bg-black/40 transition-colors duration-500"></div>
+                            </div>
+                            <div class="p-5 flex-1 flex flex-col">
+                                <h3 class="font-bold text-gray-900 line-clamp-1 group-hover:text-[#a52a2a] transition-colors">${material.title}</h3>
+                                <p class="text-[10px] text-[#a52a2a] font-bold uppercase tracking-wider mt-1.5 flex items-center gap-1.5">
+                                    <i class="fas fa-chalkboard-user"></i> ${instName}
+                                </p>
+                                <p class="text-xs text-gray-500 mt-2 line-clamp-2">${desc}</p>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+            })
+            .catch(error => {
+                materialsGrid.innerHTML = '<div class="col-span-full py-20 text-center text-red-500">Failed to load materials. Please try again.</div>';
+            });
+    }
+
+    function resetExploreView() {
+        document.getElementById('main-explore-content').classList.remove('hidden');
+        document.getElementById('filtered-explore-content').classList.add('hidden');
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+</script>

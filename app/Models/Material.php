@@ -50,9 +50,13 @@ class Material extends Model
 
     public function tags()
     {
-        return $this->belongsToMany(Tag::class);
+        // This tells Laravel: 
+        // 1. Connect to the Tag model
+        // 2. Use the 'material_tag' pivot table
+        // 3. Match 'material_id' to 'tag_id'
+        return $this->belongsToMany(Tag::class, 'material_tag', 'material_id', 'tag_id');
     }
-
+    
     public function exams()
     {
         return $this->hasMany(Exam::class, 'material_id');

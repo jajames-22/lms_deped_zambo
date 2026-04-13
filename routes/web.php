@@ -11,12 +11,7 @@ use App\Http\Controllers\MaterialsController;
 use App\Http\Controllers\ExploreLayoutController;
 
 // 👈 NEW: Import the middleware we created
-use App\Http\Middleware\CheckAccountStatus; 
-
-// Note: Ensure you import these if you haven't already!
-// use App\Http\Controllers\CourseController;
-// use App\Http\Controllers\LessonController;
-// use App\Http\Controllers\QuizController;
+use App\Http\Middleware\CheckAccountStatus;
 
 // 1. GUEST ROUTE
 Route::get('/', function () {
@@ -49,7 +44,7 @@ Route::middleware(['auth', 'verified', CheckAccountStatus::class])->group(functi
         Route::get('/materials', [DashboardController::class, 'loadMaterialsPartial'])->name('dashboard.materials');
         Route::get('/teachers', [DashboardController::class, 'loadTeachersPartial'])->name('dashboard.teachers');
         Route::get('/students', [StudentController::class, 'loadStudentsPartial'])->name('dashboard.students');
-        
+
         // FIXED: Removed extra /dashboard from these paths since they are already inside the prefix
         Route::get('/profile', [ProfileController::class, 'show'])->name('dashboard.profile');
         Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
@@ -78,7 +73,7 @@ Route::middleware(['auth', 'verified', CheckAccountStatus::class])->group(functi
         Route::post('/students/store', [StudentController::class, 'storeStudent'])->name('students.store');
         Route::get('/students/import-template', [StudentController::class, 'downloadTemplate'])->name('students.import.template');
         Route::post('/students/import', [StudentController::class, 'import'])->name('students.import');
-        
+
         Route::get('/students/{student}/edit', [StudentController::class, 'editStudentPartial'])->name('students.edit');
         Route::put('/students/{student}', [StudentController::class, 'updateStudent'])->name('students.update');
         Route::delete('/students/{student}', [StudentController::class, 'destroyStudent'])->name('students.destroy');
@@ -93,7 +88,7 @@ Route::middleware(['auth', 'verified', CheckAccountStatus::class])->group(functi
         Route::post('/teachers/store', [TeacherController::class, 'storeTeacher'])->name('teachers.store');
         Route::get('/teachers/import-template', [TeacherController::class, 'downloadTemplate'])->name('teachers.import.template');
         Route::post('/teachers/import', [TeacherController::class, 'import'])->name('teachers.import');
-        
+
         Route::get('/teachers/{teacher}/edit', [TeacherController::class, 'editTeacherPartial'])->name('teachers.edit');
         Route::put('/teachers/{teacher}', [TeacherController::class, 'updateTeacher'])->name('teachers.update');
         Route::delete('/teachers/{teacher}', [TeacherController::class, 'destroyTeacher'])->name('teachers.destroy');
@@ -136,6 +131,7 @@ Route::middleware(['auth', 'verified', CheckAccountStatus::class])->group(functi
         Route::get('/materials/{material}/result', [MaterialsController::class, 'result'])->name('dashboard.materials.result');
         Route::post('/materials/{material}/retake', [MaterialsController::class, 'retake'])->name('dashboard.materials.retake');
         Route::get('/materials/{material}/certificate', [MaterialsController::class, 'certificate'])->name('dashboard.materials.certificate');
+        
 
         Route::get('/notifications', [MaterialsController::class, 'getNotifications'])->name('dashboard.notifications');
         Route::post('/notifications/{id}/read', [MaterialsController::class, 'markNotificationRead']);
@@ -156,10 +152,10 @@ Route::middleware(['auth', 'verified', CheckAccountStatus::class])->group(functi
     });
 
     Route::get('/get-districts/{quadrantId}', [DashboardController::class, 'getDistricts'])->name('districts.get');
-    
+
     // EXPLORE ROUTES outside prefix
     Route::get('/dashboard/explore', [StudentController::class, 'explore'])->name('dashboard.explore');
-    Route::get('/dashboard/explore/tags/{tag}', [StudentController::class, 'viewByTag'])->name('dashboard.explore.tag');
+    Route::get('/dashboard/explore/tags/{tag}/json', [App\Http\Controllers\StudentController::class, 'viewByTagJson'])->name('dashboard.explore.tag.json');
     Route::get('/dashboard/materials/{material}/view', [StudentController::class, 'viewMaterial'])->name('dashboard.materials.view');
 
     // ANALYTICS EXPORTS
@@ -168,6 +164,19 @@ Route::middleware(['auth', 'verified', CheckAccountStatus::class])->group(functi
     Route::get('/analytics/export/teacher', [DashboardController::class, 'exportTeacherAnalyticsPdf'])->name('analytics.export.teacher');
 
 });
+
+
+// 1. GUEST ROUTE
+Route::get('/', function () {
+    return view('index');
+})->middleware('guest')->name('index');
+
+// 👇 NEW: Publicly accessible Explore Route
+Route::get('/explore', [App\Http\Controllers\DashboardController::class, 'publicExplore'])->name('explore.public');
+Route::get('/explore/materials/{id}/show', [App\Http\Controllers\DashboardController::class, 'publicMaterialShow'])->name('explore.materials.show');
+// web.php (Guest Section)
+Route::get('/explore/tags/{tag}/json', [App\Http\Controllers\DashboardController::class, 'viewByTagJson'])->name('explore.tag.json');
+// Note: Depending on how 'loadExplorePartial' is written, you may need to ensure it doesn't call Auth::user() directly, or create a duplicate method dedicated to guests.
 
 /*
 |--------------------------------------------------------------------------

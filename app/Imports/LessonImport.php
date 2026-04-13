@@ -26,21 +26,17 @@ class LessonImport implements ToCollection, WithHeadingRow
                 // 1. Extract Question/Content Text
                 $contentText = $row['content_text'] ?? $row['question'] ?? null;
                 
-                // Skip blank rows
-                if (empty($contentText)) {
-                    continue; 
-                }
+                if (empty($contentText)) continue; 
 
-                // 2. Identify Section Title (Ultra-forgiving keys)
+                // 2. Identify Section Title
                 $sectionTitle = $row['section_title'] ?? $row['lesson_title'] ?? $row['category'] ?? 'Imported Section';
                 
-                // 3. SMART SECTION MATCHING (Lesson vs Exam)
+                // 3. SMART SECTION MATCHING
                 $rawSectionType = strtolower(trim($row['section_type'] ?? $row['sectiontype'] ?? $row['section'] ?? ''));
                 $rawItemType = strtolower(trim($row['type'] ?? $row['item_type'] ?? ''));
                 $rawSectionTitle = strtolower(trim($sectionTitle));
 
-                $sectionType = 'lesson'; // Default
-
+                $sectionType = 'lesson'; 
                 if (str_contains($rawSectionType, 'exam') || str_contains($rawItemType, 'exam') || str_contains($rawSectionTitle, 'exam')) {
                     $sectionType = 'exam';
                 }
@@ -53,60 +49,53 @@ class LessonImport implements ToCollection, WithHeadingRow
                     $itemType = 'mcq'; 
                 }
 
-                // CRITICAL: Exams cannot have "Lesson Content" reading blocks. Force it to be a short text question.
                 if ($sectionType === 'exam' && $itemType === 'content') {
                     $itemType = 'text'; 
                 }
                 
                 // 5. Extract Media
                 $mediaUrl = null;
-                if (!empty($row['media_url']) && trim($row['media_url']) !== '') {
+                if (!empty($row['media_url'])) {
                     $mediaUrl = trim($row['media_url']);
-                } elseif (!empty($row['image_url']) && trim($row['image_url']) !== '') {
+                } elseif (!empty($row['image_url'])) {
                     $mediaUrl = trim($row['image_url']);
                 }
 
                 // --------------------------------------------------------
-                // BRANCH A: EXAM IMPORT LOGIC
+                // BRANCH A: EXAM IMPORT LOGIC (Upsert based on Question Text)
                 // --------------------------------------------------------
                 if ($sectionType === 'exam') {
-                    $examId = DB::table('exams')->insertGetId([
+                    // Check if this question already exists in this material's exam
+                    $existingExam = DB::table('exams')
+                        ->where('material_id', $this->materialId)
+                        ->where('question_text', $contentText)
+                        ->first();
+
+                    $examData = [
                         'material_id' => $this->materialId,
                         'type' => $itemType,
                         'question_text' => $contentText,
                         'media_url' => $mediaUrl,
                         'is_case_sensitive' => false,
-                        'created_at' => now(),
                         'updated_at' => now(),
-                    ]);
+                    ];
+
+                    if ($existingExam) {
+                        DB::table('exams')->where('id', $existingExam->id)->update($examData);
+                        $examId = $existingExam->id;
+                        // Clear old options to refresh them from the new file
+                        DB::table('exam_options')->where('exam_id', $examId)->delete();
+                    } else {
+                        $examData['created_at'] = now();
+                        $examId = DB::table('exams')->insertGetId($examData);
+                    }
 
                     if ($itemType !== 'content') {
-                        if ($itemType === 'true_false') {
-                            $correctAnswer = strtolower(trim($row['correct_answer'] ?? ''));
-                            DB::table('exam_options')->insert([
-                                ['exam_id' => $examId, 'option_text' => 'True', 'is_correct' => ($correctAnswer === 'true' || $correctAnswer === 'option 1'), 'created_at' => now(), 'updated_at' => now()],
-                                ['exam_id' => $examId, 'option_text' => 'False', 'is_correct' => ($correctAnswer === 'false' || $correctAnswer === 'option 2'), 'created_at' => now(), 'updated_at' => now()]
-                            ]);
-                        } else {
-                            for ($i = 1; $i <= 4; $i++) {
-                                $optionColumnName = 'option_' . $i;
-                                if (!isset($row[$optionColumnName]) || trim($row[$optionColumnName]) === '') continue;
-
-                                $isCorrect = (strtolower(trim($row['correct_answer'] ?? '')) === 'option ' . $i);
-
-                                DB::table('exam_options')->insert([
-                                    'exam_id' => $examId,
-                                    'option_text' => trim($row[$optionColumnName]),
-                                    'is_correct' => $isCorrect,
-                                    'created_at' => now(),
-                                    'updated_at' => now(),
-                                ]);
-                            }
-                        }
+                        $this->insertExamOptions($examId, $itemType, $row);
                     }
                 } 
                 // --------------------------------------------------------
-                // BRANCH B: STANDARD LESSON IMPORT LOGIC
+                // BRANCH B: STANDARD LESSON IMPORT LOGIC (Upsert based on Title & Question Text)
                 // --------------------------------------------------------
                 else {
                     $lesson = DB::table('lessons')
@@ -127,40 +116,33 @@ class LessonImport implements ToCollection, WithHeadingRow
                         $lessonId = $lesson->id;
                     }
 
-                    // FIX: Replaced outdated 'quizzes' table with 'lesson_contents'
-                    $quizId = DB::table('lesson_contents')->insertGetId([
+                    // Check if this content/quiz already exists in this lesson
+                    $existingContent = DB::table('lesson_contents')
+                        ->where('lesson_id', $lessonId)
+                        ->where('question_text', $contentText)
+                        ->first();
+
+                    $contentData = [
                         'lesson_id' => $lessonId,
                         'type' => $itemType,
                         'question_text' => $contentText,
                         'media_url' => $mediaUrl,
                         'is_case_sensitive' => false,
-                        'created_at' => now(),
                         'updated_at' => now(),
-                    ]);
+                    ];
+
+                    if ($existingContent) {
+                        DB::table('lesson_contents')->where('id', $existingContent->id)->update($contentData);
+                        $quizId = $existingContent->id;
+                        // Clear old options to refresh
+                        DB::table('quiz_options')->where('quiz_id', $quizId)->delete();
+                    } else {
+                        $contentData['created_at'] = now();
+                        $quizId = DB::table('lesson_contents')->insertGetId($contentData);
+                    }
 
                     if ($itemType !== 'content') {
-                        if ($itemType === 'true_false') {
-                            $correctAnswer = strtolower(trim($row['correct_answer'] ?? ''));
-                            DB::table('quiz_options')->insert([
-                                ['quiz_id' => $quizId, 'option_text' => 'True', 'is_correct' => ($correctAnswer === 'true' || $correctAnswer === 'option 1'), 'created_at' => now(), 'updated_at' => now()],
-                                ['quiz_id' => $quizId, 'option_text' => 'False', 'is_correct' => ($correctAnswer === 'false' || $correctAnswer === 'option 2'), 'created_at' => now(), 'updated_at' => now()]
-                            ]);
-                        } else {
-                            for ($i = 1; $i <= 4; $i++) {
-                                $optionColumnName = 'option_' . $i;
-                                if (!isset($row[$optionColumnName]) || trim($row[$optionColumnName]) === '') continue;
-
-                                $isCorrect = (strtolower(trim($row['correct_answer'] ?? '')) === 'option ' . $i);
-
-                                DB::table('quiz_options')->insert([
-                                    'quiz_id' => $quizId,
-                                    'option_text' => trim($row[$optionColumnName]),
-                                    'is_correct' => $isCorrect,
-                                    'created_at' => now(),
-                                    'updated_at' => now(),
-                                ]);
-                            }
-                        }
+                        $this->insertQuizOptions($quizId, $itemType, $row);
                     }
                 }
             }
@@ -170,6 +152,56 @@ class LessonImport implements ToCollection, WithHeadingRow
         } catch (Exception $e) {
             DB::rollBack();
             throw $e; 
+        }
+    }
+
+    /**
+     * Helper to handle Exam Options
+     */
+    private function insertExamOptions($examId, $itemType, $row)
+    {
+        if ($itemType === 'true_false') {
+            $correctAnswer = strtolower(trim($row['correct_answer'] ?? ''));
+            DB::table('exam_options')->insert([
+                ['exam_id' => $examId, 'option_text' => 'True', 'is_correct' => ($correctAnswer === 'true' || $correctAnswer === 'option 1'), 'created_at' => now(), 'updated_at' => now()],
+                ['exam_id' => $examId, 'option_text' => 'False', 'is_correct' => ($correctAnswer === 'false' || $correctAnswer === 'option 2'), 'created_at' => now(), 'updated_at' => now()]
+            ]);
+        } else {
+            for ($i = 1; $i <= 4; $i++) {
+                $col = 'option_' . $i;
+                if (!isset($row[$col]) || trim($row[$col]) === '') continue;
+                DB::table('exam_options')->insert([
+                    'exam_id' => $examId,
+                    'option_text' => trim($row[$col]),
+                    'is_correct' => (strtolower(trim($row['correct_answer'] ?? '')) === 'option ' . $i),
+                    'created_at' => now(), 'updated_at' => now(),
+                ]);
+            }
+        }
+    }
+
+    /**
+     * Helper to handle Quiz Options
+     */
+    private function insertQuizOptions($quizId, $itemType, $row)
+    {
+        if ($itemType === 'true_false') {
+            $correctAnswer = strtolower(trim($row['correct_answer'] ?? ''));
+            DB::table('quiz_options')->insert([
+                ['quiz_id' => $quizId, 'option_text' => 'True', 'is_correct' => ($correctAnswer === 'true' || $correctAnswer === 'option 1'), 'created_at' => now(), 'updated_at' => now()],
+                ['quiz_id' => $quizId, 'option_text' => 'False', 'is_correct' => ($correctAnswer === 'false' || $correctAnswer === 'option 2'), 'created_at' => now(), 'updated_at' => now()]
+            ]);
+        } else {
+            for ($i = 1; $i <= 4; $i++) {
+                $col = 'option_' . $i;
+                if (!isset($row[$col]) || trim($row[$col]) === '') continue;
+                DB::table('quiz_options')->insert([
+                    'quiz_id' => $quizId,
+                    'option_text' => trim($row[$col]),
+                    'is_correct' => (strtolower(trim($row['correct_answer'] ?? '')) === 'option ' . $i),
+                    'created_at' => now(), 'updated_at' => now(),
+                ]);
+            }
         }
     }
 }
