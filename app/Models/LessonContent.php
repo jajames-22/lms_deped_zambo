@@ -14,6 +14,7 @@ class LessonContent extends Model
         'type',
         'question_text',
         'media_url',
+        'media_name',
         'is_case_sensitive'
     ];
 

@@ -65,7 +65,6 @@ AssessmentBuilder.calculateTotalTime = function () {
 };
 
 // Initialize the Builder
-// Initialize the Builder
 AssessmentBuilder.initBuilder = function () {
     AssessmentBuilder.isInitializing = true;
     AssessmentBuilder.catCount = 0;
@@ -155,7 +154,6 @@ AssessmentBuilder.initBuilder = function () {
     }, 500);
 };
 
-
 // UPDATED: Render Existing Categories with IDs
 AssessmentBuilder.renderExistingCategory = function (catData) {
     AssessmentBuilder.addCategory(null, catData.id); 
@@ -182,7 +180,8 @@ AssessmentBuilder.renderExistingCategory = function (catData) {
 
             const mediaUrl = q.media_url || q.image_url;
             if (mediaUrl) {
-                AssessmentBuilder.setMediaPreview(latestQ.id, mediaUrl);
+                // ADDED: pass q.media_name as the fourth parameter
+                AssessmentBuilder.setMediaPreview(latestQ.id, mediaUrl, null, q.media_name);
             }
 
             latestQ.querySelector(".options-list").innerHTML = "";
@@ -296,7 +295,7 @@ AssessmentBuilder.addCategory = function (afterElement = null, existingId = null
     AssessmentBuilder.calculateTotalTime();
 };
 
-// UPDATED: Add Question Template to store ID
+// UPDATED: Add Question Template to store ID and media_name
 AssessmentBuilder.addQuestion = function (cId, type = "mcq", afterElement = null, existingId = null) {
     const container = document.getElementById(`q-container-${cId}`);
     if (!container) return;
@@ -336,7 +335,9 @@ AssessmentBuilder.addQuestion = function (cId, type = "mcq", afterElement = null
             <div class="question-body">
                 <div class="relative mb-3">
                     <textarea class="q-text w-full pl-3 pr-10 py-2 bg-white border border-gray-200 rounded-lg outline-none font-medium text-sm focus:border-[#a52a2a] resize-y min-h-[44px]" placeholder="${placeholder}"></textarea>
+                    
                     <input type="hidden" class="q-media-url" value="">
+                    <input type="hidden" class="q-media-name" value=""> 
                     
                     <button type="button" onclick="AssessmentBuilder.openMediaModal('${qId}')" title="Upload Media" class="absolute right-2 top-2 h-7 w-7 flex items-center justify-center text-gray-400 hover:text-[#a52a2a] hover:bg-gray-100 rounded transition">
                         <i class="fas fa-photo-video"></i>
@@ -534,7 +535,7 @@ AssessmentBuilder.updateCatDisplay = function (input) {
     title.innerText = input.value || "New Section";
 };
 
-// UPDATED: getPayload to include IDs in the JSON
+// UPDATED: getPayload to include IDs and media_name in the JSON
 AssessmentBuilder.getPayload = function (status) {
     const categories = [];
     document.querySelectorAll(".category-block").forEach((cat) => {
@@ -560,6 +561,10 @@ AssessmentBuilder.getPayload = function (status) {
                 text: q.querySelector(".q-text").value,
                 media_url: q.querySelector(".q-media-url")
                     ? q.querySelector(".q-media-url").value
+                    : null,
+                // ADDED: Capture the media_name from the hidden input
+                media_name: q.querySelector(".q-media-name")
+                    ? q.querySelector(".q-media-name").value
                     : null,
                 is_case_sensitive: q.querySelector(".case-sensitive-input")
                     ? q.querySelector(".case-sensitive-input").checked
@@ -750,8 +755,8 @@ AssessmentBuilder.executeMediaUpload = function () {
                         AssessmentBuilder.currentMediaUploadQId,
                         data.media_url,
                         data.media_type,
-                        data.original_name ||
-                            AssessmentBuilder.selectedMediaFile.name,
+                        // ADDED: Fallback through media_name -> original_name -> local file name
+                        data.media_name || data.original_name || AssessmentBuilder.selectedMediaFile.name,
                     );
                     AssessmentBuilder.closeMediaModal();
                     AssessmentBuilder.handleAutosaveTrigger();
@@ -792,76 +797,86 @@ AssessmentBuilder.executeMediaUpload = function () {
     }
 };
 
+// UPDATED: Added mediaName param and logic to store in hidden input
 AssessmentBuilder.setMediaPreview = function (
     qId,
     url,
-    explicitType = null,
-    originalName = null,
+    type = null,
+    mediaName = null,
 ) {
     const block = document.getElementById(qId);
-    const mediaInput =
-        block.querySelector(".q-media-url") ||
-        block.querySelector(".q-image-url");
+
+    // Ensure the hidden input exists before trying to set its value
+    // (Retained .q-image-url fallback specifically for AssessmentBuilder)
+    const mediaInput = block.querySelector(".q-media-url") || block.querySelector(".q-image-url");
     if (mediaInput) mediaInput.value = url;
 
     const previewDiv = document.getElementById(`preview-${qId}`);
-    const displayFileName = originalName || url.split("/").pop().split("?")[0];
-    const lowerUrl = url.toLowerCase();
 
-    let type = explicitType;
-    if (!type) {
-        if (lowerUrl.endsWith(".mp3") || lowerUrl.endsWith(".wav"))
-            type = "audio";
-        else if (lowerUrl.endsWith(".mp4") || lowerUrl.endsWith(".webm"))
-            type = "video";
-        else if (lowerUrl.endsWith(".pdf")) type = "pdf";
-        else if (lowerUrl.endsWith(".zip") || lowerUrl.endsWith(".rar"))
-            type = "archive";
-        else type = "image";
-    }
+    // Use the new mediaName parameter here
+    const displayFileName = mediaName || url.split("/").pop().split("?")[0];
+    
+    // Save the display name to the hidden input so getPayload sees it
+    const mediaNameInput = block.querySelector(".q-media-name");
+    if (mediaNameInput) mediaNameInput.value = displayFileName;
+
+    const lowerUrl = url.toLowerCase();
 
     previewDiv.className =
         "relative mt-3 mb-4 rounded-lg overflow-hidden border border-gray-200 flex flex-col items-center justify-center w-full bg-gray-50 p-2";
 
     let mediaHtml = "";
 
-    if (type === "audio") {
+    if (
+        type === "audio" ||
+        lowerUrl.endsWith(".mp3") ||
+        lowerUrl.endsWith(".wav")
+    ) {
         mediaHtml = `<audio controls src="${url}" class="w-full mt-2 outline-none"></audio>`;
-    } else if (type === "video") {
-        mediaHtml = `<div class=\"w-full bg-black rounded-lg overflow-hidden\">
-                        <video controls src=\"${url}\" class=\"max-h-64 w-full\"></video>
+    } else if (
+        type === "video" ||
+        lowerUrl.endsWith(".mp4") ||
+        lowerUrl.endsWith(".webm")
+    ) {
+        mediaHtml = `<div class="w-full bg-black rounded-lg overflow-hidden">
+                        <video controls src="${url}" class="max-h-64 w-full"></video>
                      </div>
-                     <span class=\"text-xs font-medium text-gray-500 mt-2\">${displayFileName}</span>`;
-    } else if (type === "pdf") {
-        mediaHtml = `<div class=\"flex flex-col items-center p-4\">
-                        <i class=\"fas fa-file-pdf text-4xl text-red-500 mb-2\"></i>
-                        <span class=\"text-sm font-bold text-gray-700 mt-2\">${displayFileName}</span>
-                        <a href=\"${url}\" target=\"_blank\" class=\"text-xs text-blue-600 hover:underline mt-1 font-medium\">View PDF</a>
+                     <span class="text-xs font-medium text-gray-500 mt-2">${displayFileName}</span>`;
+    } else if (type === "pdf" || lowerUrl.endsWith(".pdf")) {
+        mediaHtml = `<div class="flex flex-col items-center p-4">
+                        <i class="fas fa-file-pdf text-4xl text-red-500 mb-2"></i>
+                        <span class="text-sm font-bold text-gray-700 mt-2">${displayFileName}</span>
+                        <a href="${url}" target="_blank" class="text-xs text-blue-600 hover:underline mt-1 font-medium">View PDF</a>
                      </div>`;
-    } else if (type === "archive") {
-        mediaHtml = `<div class=\"flex flex-col items-center p-4\">
-                        <i class=\"fas fa-file-archive text-4xl text-yellow-500 mb-2\"></i>
-                        <span class=\"text-sm font-bold text-gray-700 mt-2\">${displayFileName}</span>
-                        <a href=\"${url}\" target=\"_blank\" class=\"text-xs text-blue-600 hover:underline mt-1 font-medium\">Download Archive</a>
+    } else if (
+        type === "zip" ||
+        type === "archive" ||
+        lowerUrl.endsWith(".zip") ||
+        lowerUrl.endsWith(".rar")
+    ) {
+        mediaHtml = `<div class="flex flex-col items-center p-4">
+                        <i class="fas fa-file-archive text-4xl text-yellow-500 mb-2"></i>
+                        <span class="text-sm font-bold text-gray-700 mt-2">${displayFileName}</span>
+                        <a href="${url}" target="_blank" class="text-xs text-blue-600 hover:underline mt-1 font-medium">Download Archive</a>
                      </div>`;
     } else {
-        mediaHtml = `<img src=\"${url}\" class=\"max-h-64 object-contain rounded-lg shadow-sm\">
-                     <span class=\"text-xs font-medium text-gray-500 mt-2\">${displayFileName}</span>`;
+        mediaHtml = `<img src="${url}" class="max-h-64 object-contain rounded-lg shadow-sm">
+                     <span class="text-xs font-medium text-gray-500 mt-2">${displayFileName}</span>`;
     }
 
-    previewDiv.innerHTML = `
-        ${mediaHtml}
-        <button type=\"button\" onclick=\"AssessmentBuilder.removeQuestionMedia('${qId}')\" class=\"absolute top-2 right-2 h-8 w-8 bg-red-500/80 hover:bg-red-600 transition text-white rounded shadow-sm flex items-center justify-center\">
-            <i class=\"fas fa-trash\"></i>
-        </button>
-    `;
-
+    // Explicitly using AssessmentBuilder.removeQuestionMedia here
+    previewDiv.innerHTML = `${mediaHtml}<button type="button" onclick="AssessmentBuilder.removeQuestionMedia('${qId}')" class="absolute top-2 right-2 h-8 w-8 bg-red-500/80 hover:bg-red-600 transition text-white rounded shadow-sm flex items-center justify-center"><i class="fas fa-trash"></i></button>`;
+    
     previewDiv.classList.remove("hidden");
 };
 
 AssessmentBuilder.removeQuestionMedia = function (qId) {
     const block = document.getElementById(qId);
     block.querySelector(".q-media-url").value = "";
+    
+    // ADDED: Also clear out the hidden media name input
+    const mediaNameInput = block.querySelector(".q-media-name");
+    if (mediaNameInput) mediaNameInput.value = "";
 
     const previewDiv = document.getElementById(`preview-${qId}`);
     if (previewDiv) {

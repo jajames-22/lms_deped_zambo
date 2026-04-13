@@ -22,7 +22,7 @@
     <div class="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
         <div class="border-b border-gray-100 p-6 flex items-center justify-between bg-gray-50/50">
             <div class="flex items-center gap-4">
-                <button type="button" 
+                <button type="button"
                     onclick="AssessmentBuilder.handleAssessmentBackButton(this, document.getElementById('nav-assessment-btn'))"
                     class="h-10 w-10 flex items-center justify-center rounded-xl bg-white border border-gray-200 text-gray-500 hover:text-[#a52a2a] transition shadow-sm">
                     <i class="fas fa-arrow-left"></i>
@@ -30,7 +30,8 @@
                 <h2 id="builder-main-title" class="text-xl font-bold text-gray-900">Assessment Settings</h2>
             </div>
             <div class="flex items-center gap-3">
-                <div id="total-time-display" class="text-xs text-blue-600 font-bold px-3 py-1 bg-blue-50 border border-blue-100 rounded-lg flex items-center">
+                <div id="total-time-display"
+                    class="text-xs text-blue-600 font-bold px-3 py-1 bg-blue-50 border border-blue-100 rounded-lg flex items-center">
                     <i class="far fa-clock mr-1"></i> 0 mins
                 </div>
 
@@ -38,7 +39,8 @@
                     class="text-xs text-gray-400 italic font-medium px-3 py-1 bg-white border border-gray-100 rounded-lg">
                     Ready</div>
                 <button type="button" onclick="AssessmentBuilder.deleteAssessmentFromBuilder()"
-                    class="h-10 px-4 flex items-center gap-2 rounded-xl bg-red-50 text-red-600 hover:bg-red-100 transition text-sm font-bold" id="header-discard-btn"> 
+                    class="h-10 px-4 flex items-center gap-2 rounded-xl bg-red-50 text-red-600 hover:bg-red-100 transition text-sm font-bold"
+                    id="header-discard-btn">
                     <i class="fas fa-trash-alt"></i> Discard
                 </button>
             </div>
@@ -54,7 +56,8 @@
                                 class="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#a52a2a]/20 focus:border-[#a52a2a] outline-none transition font-medium">
                         </div>
                         <div>
-                            <label class="block text-xs font-bold text-gray-500 uppercase mb-1 ml-1">Year / Grade Level: </label>
+                            <label class="block text-xs font-bold text-gray-500 uppercase mb-1 ml-1">Year / Grade Level:
+                            </label>
                             <input type="number" id="setup-year" value="{{ $assessment->year_level ?? '' }}"
                                 placeholder="ex. 7"
                                 class="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#a52a2a]/20 focus:border-[#a52a2a] outline-none transition font-medium">
@@ -70,9 +73,12 @@
                 <div
                     class="bg-[#a52a2a] rounded-2xl p-6 text-white relative overflow-hidden flex flex-col justify-center items-center shadow-lg shadow-[#a52a2a]/20">
                     <i class="fas fa-key absolute -right-2 -bottom-2 text-6xl text-white/10 rotate-12"></i>
-                    <span class="text-[10px] font-bold uppercase tracking-[0.2em] opacity-80 mb-1">Student Access Key</span>
-                    <div class="text-4xl font-mono font-black tracking-widest">{{ $assessment->access_key ?? 'PENDING' }}</div>
-                    <p class="text-[10px] mt-3 opacity-70 text-center">Share this key for students to begin the test.</p>
+                    <span class="text-[10px] font-bold uppercase tracking-[0.2em] opacity-80 mb-1">Student Access
+                        Key</span>
+                    <div class="text-4xl font-mono font-black tracking-widest">
+                        {{ $assessment->access_key ?? 'PENDING' }}</div>
+                    <p class="text-[10px] mt-3 opacity-70 text-center">Share this key for students to begin the test.
+                    </p>
                 </div>
             </div>
         </div>
@@ -116,15 +122,18 @@
 </div>
 
 <div id="quick-nav-widget" class="fixed bottom-8 right-8 z-[90] flex flex-col items-end gap-2 hidden">
-    <div id="quick-nav-menu" class="hidden flex-col gap-2 bg-white/95 backdrop-blur-md p-4 rounded-2xl shadow-2xl border border-gray-200 mb-2 w-72 max-h-[60vh] overflow-y-auto">
+    <div id="quick-nav-menu"
+        class="hidden flex-col gap-2 bg-white/95 backdrop-blur-md p-4 rounded-2xl shadow-2xl border border-gray-200 mb-2 w-72 max-h-[60vh] overflow-y-auto">
         <div class="flex items-center justify-between mb-2 px-1">
             <span class="text-xs font-bold text-gray-400 uppercase tracking-wider">Assessment Outline</span>
-            <span id="nav-category-count" class="text-xs bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full font-bold">0</span>
+            <span id="nav-category-count"
+                class="text-xs bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full font-bold">0</span>
         </div>
         <div id="quick-nav-list" class="flex flex-col gap-1">
-            </div>
+        </div>
     </div>
-    <button onclick="toggleQuickNav()" class="h-14 w-14 bg-gray-900 text-white rounded-full shadow-lg hover:bg-gray-800 hover:scale-105 transition-all flex items-center justify-center text-xl active:scale-95 group">
+    <button onclick="toggleQuickNav()"
+        class="h-14 w-14 bg-gray-900 text-white rounded-full shadow-lg hover:bg-gray-800 hover:scale-105 transition-all flex items-center justify-center text-xl active:scale-95 group">
         <i class="fas fa-list-ul group-hover:hidden"></i>
         <i class="fas fa-chevron-up hidden group-hover:block"></i>
     </button>
@@ -261,12 +270,13 @@
 
 <div id="media-upload-modal" class="fixed inset-0 z-[120] hidden">
     <div class="absolute inset-0 bg-gray-900/60 backdrop-blur-sm" onclick="AssessmentBuilder.closeMediaModal()"></div>
-    
+
     <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-md p-6">
         <div class="bg-white rounded-2xl shadow-2xl overflow-hidden border border-gray-100 p-6">
 
             <div class="text-center mb-6">
-                <div class="h-16 w-16 bg-[#a52a2a]/10 text-[#a52a2a] rounded-full flex items-center justify-center mx-auto mb-4 text-3xl">
+                <div
+                    class="h-16 w-16 bg-[#a52a2a]/10 text-[#a52a2a] rounded-full flex items-center justify-center mx-auto mb-4 text-3xl">
                     <i class="fas fa-photo-video"></i>
                 </div>
                 <h3 class="text-xl font-bold text-gray-900">Upload Media</h3>
@@ -274,7 +284,8 @@
             </div>
 
             <div class="mb-6">
-                <input type="file" id="media-file-input" class="hidden" onchange="AssessmentBuilder.handleMediaFileSelect(this)">
+                <input type="file" id="media-file-input" class="hidden"
+                    onchange="AssessmentBuilder.handleMediaFileSelect(this)">
 
                 <label for="media-file-input" id="media-dropzone"
                     class="cursor-pointer flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-gray-300 rounded-xl bg-gray-50 hover:bg-gray-100 hover:border-[#a52a2a]/50 transition">
@@ -288,7 +299,8 @@
                     class="hidden mt-4 p-3 bg-gray-50 border border-gray-200 rounded-lg items-center justify-between">
                     <div class="flex items-center gap-3 overflow-hidden">
                         <i class="fas fa-file-alt text-[#a52a2a] text-lg"></i>
-                        <span id="selected-media-name" class="font-mono text-sm text-gray-700 truncate font-medium">file.mp4</span>
+                        <span id="selected-media-name"
+                            class="font-mono text-sm text-gray-700 truncate font-medium">file.mp4</span>
                     </div>
                     <button type="button" onclick="AssessmentBuilder.clearSelectedMedia()"
                         class="text-gray-400 hover:text-red-500 transition px-2" title="Remove File">
@@ -296,13 +308,16 @@
                     </button>
                 </div>
 
-                <div id="upload-progress-container" class="hidden mt-4 p-4 bg-gray-50 border border-gray-200 rounded-xl">
+                <div id="upload-progress-container"
+                    class="hidden mt-4 p-4 bg-gray-50 border border-gray-200 rounded-xl">
                     <div class="flex justify-between text-xs mb-2">
-                        <span class="text-gray-600 font-bold flex items-center gap-2"><i class="fas fa-spinner fa-spin text-[#a52a2a]"></i> Uploading...</span>
+                        <span class="text-gray-600 font-bold flex items-center gap-2"><i
+                                class="fas fa-spinner fa-spin text-[#a52a2a]"></i> Uploading...</span>
                         <span id="upload-progress-text" class="text-[#a52a2a] font-black">0%</span>
                     </div>
                     <div class="w-full bg-gray-200 rounded-full h-2.5 overflow-hidden">
-                        <div id="upload-progress-bar" class="bg-[#a52a2a] h-2.5 rounded-full transition-all duration-150" style="width: 0%"></div>
+                        <div id="upload-progress-bar"
+                            class="bg-[#a52a2a] h-2.5 rounded-full transition-all duration-150" style="width: 0%"></div>
                     </div>
                 </div>
             </div>
@@ -312,7 +327,8 @@
                     class="w-full py-3.5 bg-gray-100 text-gray-700 font-bold rounded-xl hover:bg-gray-200 transition active:scale-95">
                     Cancel
                 </button>
-                <button type="button" id="start-media-upload-btn" onclick="AssessmentBuilder.executeMediaUpload()" disabled
+                <button type="button" id="start-media-upload-btn" onclick="AssessmentBuilder.executeMediaUpload()"
+                    disabled
                     class="w-full py-3.5 bg-[#a52a2a] text-white font-bold rounded-xl hover:bg-[#801f1f] transition disabled:opacity-50 disabled:cursor-not-allowed shadow-md flex justify-center items-center gap-2">
                     <i class="fas fa-upload"></i>
                     <span>Upload Media</span>
@@ -331,11 +347,7 @@
         clearSelectedFile();
         document.getElementById('excel-import-modal').classList.remove('hidden');
     }
-
-    function closeImportModal() {
-        document.getElementById('excel-import-modal').classList.add('hidden');
-    }
-
+    
     function handleFileSelect(input) {
         if (!input.files || input.files.length === 0) return;
         selectedFile = input.files[0];
@@ -354,10 +366,23 @@
         document.getElementById('selected-file-display').classList.remove('flex');
         document.getElementById('start-upload-btn').disabled = true;
     }
+    let assessmentImportAbortController = null;
+
+    function closeImportModal() {
+        if (assessmentImportAbortController) {
+            assessmentImportAbortController.abort();
+            assessmentImportAbortController = null;
+            console.log("Assessment import upload aborted.");
+        }
+        document.getElementById('excel-import-modal').classList.add('hidden');
+    }
 
     function executeExcelUpload() {
         if (!selectedFile) return;
-        
+
+        assessmentImportAbortController = new AbortController();
+        const { signal } = assessmentImportAbortController;
+
         let btn = document.getElementById('start-upload-btn');
         let originalHtml = btn.innerHTML;
 
@@ -366,12 +391,12 @@
 
         let payload = AssessmentBuilder.getPayload("draft");
         let formData = new FormData();
-        
-        formData.append('exam_file', selectedFile); 
+
+        formData.append('exam_file', selectedFile);
         formData.append('_token', document.querySelector('[data-csrf]').dataset.csrf);
         formData.append('title', payload.title);
         formData.append('description', payload.description);
-        formData.append('year_level', payload.year_level); 
+        formData.append('year_level', payload.year_level);
         formData.append('categories', JSON.stringify(payload.categories));
 
         let wrapper = document.getElementById('assessment-wrapper');
@@ -380,46 +405,38 @@
         fetch(`/dashboard/assessments/${assessmentId}/import`, {
             method: 'POST',
             headers: { 'Accept': 'application/json' },
-            body: formData
+            body: formData,
+            signal: signal // Attach the abort signal here
         })
-        .then(async response => {
-            if (!response.ok) {
-                let errorData = await response.json().catch(() => ({}));
-                let errorMessage = errorData.message || `Server error (${response.status})`;
-                if (errorData.errors) {
-                    const firstErrorKey = Object.keys(errorData.errors)[0];
-                    errorMessage = errorData.errors[firstErrorKey][0];
+            .then(async response => {
+                if (!response.ok) {
+                    let errorData = await response.json().catch(() => ({}));
+                    throw new Error(errorData.message || `Server error (${response.status})`);
                 }
-                throw new Error(errorMessage);
-            }
-            return response.json();
-        })
-        .then(data => {
-            if (data.success) {
-                closeImportModal();
-                showStatusModal('Success!', 'Your test has been updated with the imported questions.', 'success');
-
-                AssessmentBuilder.hasChanged = false;
-                localStorage.removeItem("assessment_draft_" + assessmentId);
-
-                setTimeout(() => {
-                    let buildUrl = wrapper.dataset.builderUrl;
-                    if (typeof loadPartial === 'function') {
-                        loadPartial(buildUrl);
-                    } else {
-                        window.location.href = buildUrl;
-                    }
-                }, 2000);
-            } else {
-                throw new Error(data.message || 'Import failed.');
-            }
-        })
-        .catch(error => {
-            btn.innerHTML = originalHtml;
-            btn.disabled = false;
-            showStatusModal('Import Failed', error.message, 'error');
-        });
+                return response.json();
+            })
+            .then(data => {
+                if (data.success) {
+                    closeImportModal();
+                    showStatusModal('Success!', 'Your test has been updated.', 'success');
+                    // ... (rest of your success logic)
+                }
+            })
+            .catch(error => {
+                if (error.name === 'AbortError') {
+                    // No need to show error modal for intentional cancellation
+                    console.log("Upload caught abort error.");
+                } else {
+                    showStatusModal('Import Failed', error.message, 'error');
+                }
+            })
+            .finally(() => {
+                assessmentImportAbortController = null;
+                btn.innerHTML = originalHtml;
+                btn.disabled = false;
+            });
     }
+
 
     function showStatusModal(title, message, type) {
         const modal = document.getElementById('status-modal');
@@ -453,7 +470,7 @@
         const container = document.getElementById('builder-container');
         // Grab the main content area to measure its padding
         const contentArea = document.getElementById('content-area');
-        
+
         if (!container) {
             setTimeout(initializeQuickNav, 100);
             return;
@@ -463,13 +480,13 @@
             const list = document.getElementById('quick-nav-list');
             const widget = document.getElementById('quick-nav-widget');
             const counter = document.getElementById('nav-category-count');
-            
-            if(!list || !widget || !counter) return;
 
-            list.innerHTML = ''; 
+            if (!list || !widget || !counter) return;
+
+            list.innerHTML = '';
 
             const sections = container.children;
-            
+
             if (sections.length > 0) {
                 widget.classList.remove('hidden');
                 counter.innerText = sections.length;
@@ -494,33 +511,33 @@
 
                 if (header) {
                     header.style.position = 'sticky';
-                    
+
                     // Set the top position to perfectly negative the padding gap
-                    header.style.top = '-' + gapOffset; 
+                    header.style.top = '-' + gapOffset;
                     header.style.zIndex = '40';
-                    
+
                     // 1. Remove old flat backgrounds
                     header.classList.remove('bg-gray-50/50', 'bg-white');
-                    
+
                     // 2. Apply Premium Glassmorphism (frosted glass blur effect)
-                    header.style.backgroundColor = 'rgba(255, 255, 255, 0.85)'; 
+                    header.style.backgroundColor = 'rgba(255, 255, 255, 0.85)';
                     header.style.backdropFilter = 'blur(12px)';
                     header.style.WebkitBackdropFilter = 'blur(12px)'; // Safari support
-                    
+
                     // 3. Add a distinct bottom border to separate from scrolling content
-                    header.style.borderBottom = '1px solid #e5e7eb'; 
-                    
+                    header.style.borderBottom = '1px solid #e5e7eb';
+
                     // 4. Match the rounded corners of the parent card
                     header.style.borderTopLeftRadius = '1rem';
                     header.style.borderTopRightRadius = '1rem';
-                    
+
                     // 5. Softer, more elevated floating shadow
-                    header.style.boxShadow = '0 10px 15px -3px rgba(0, 0, 0, 0.05), 0 4px 6px -2px rgba(0, 0, 0, 0.025)'; 
+                    header.style.boxShadow = '0 10px 15px -3px rgba(0, 0, 0, 0.05), 0 4px 6px -2px rgba(0, 0, 0, 0.025)';
                 }
 
                 const titleInput = section.querySelector('input[type="text"]');
                 let titleText = `Section ${index + 1}`;
-                
+
                 if (titleInput && titleInput.value) {
                     titleText = titleInput.value;
                 }
@@ -528,7 +545,7 @@
                 if (titleInput) {
                     titleInput.addEventListener('input', (e) => {
                         const btn = document.getElementById('jump-btn-' + index);
-                        if(btn) btn.innerHTML = `<i class="fas fa-circle text-[8px] text-gray-300"></i> <span class="truncate">${e.target.value || `Section ${index + 1}`}</span>`;
+                        if (btn) btn.innerHTML = `<i class="fas fa-circle text-[8px] text-gray-300"></i> <span class="truncate">${e.target.value || `Section ${index + 1}`}</span>`;
                     });
                 }
 
@@ -536,21 +553,21 @@
                 btn.id = 'jump-btn-' + index;
                 btn.className = 'w-full text-left px-3 py-2.5 text-sm text-gray-600 hover:bg-gray-50 hover:text-gray-900 rounded-lg transition flex items-center gap-3 font-medium border border-transparent hover:border-gray-200';
                 btn.innerHTML = `<i class="fas fa-circle text-[8px] text-gray-300"></i> <span class="truncate">${titleText}</span>`;
-                
+
                 btn.onclick = () => {
                     // Temporarily adjust the scroll position to account for the navbar
-                    const yOffset = -80; 
+                    const yOffset = -80;
                     const y = section.getBoundingClientRect().top + window.pageYOffset + yOffset;
-                    
-                    if(contentArea) {
-                        contentArea.scrollTo({top: section.offsetTop - 20, behavior: 'smooth'});
+
+                    if (contentArea) {
+                        contentArea.scrollTo({ top: section.offsetTop - 20, behavior: 'smooth' });
                     } else {
-                        window.scrollTo({top: y, behavior: 'smooth'});
+                        window.scrollTo({ top: y, behavior: 'smooth' });
                     }
 
                     section.classList.add('ring-4', 'ring-[#a52a2a]/30', 'transition-all', 'duration-500');
                     setTimeout(() => section.classList.remove('ring-4', 'ring-[#a52a2a]/30'), 1500);
-                    window.toggleQuickNav(); 
+                    window.toggleQuickNav();
                 };
                 list.appendChild(btn);
             });
@@ -565,10 +582,10 @@
         setTimeout(updateNavigationAndStickyHeaders, 500);
     })();
 
-    window.toggleQuickNav = function() {
+    window.toggleQuickNav = function () {
         const menu = document.getElementById('quick-nav-menu');
         if (!menu) return;
-        
+
         if (menu.classList.contains('hidden')) {
             menu.classList.remove('hidden');
             menu.classList.add('flex');

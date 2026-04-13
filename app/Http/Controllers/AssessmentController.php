@@ -145,6 +145,7 @@ class AssessmentController extends Controller
                         'type' => $q['type'] ?? 'mcq',
                         'question_text' => $q['text'] ?? '',
                         'media_url' => $q['media_url'] ?? null,
+                        'media_name' => $q['media_name'] ?? null,
                         'is_case_sensitive' => $q['is_case_sensitive'] ?? false,
                         'sort_order' => $qIndex + 1,
                         'updated_at' => now(),
@@ -234,8 +235,8 @@ class AssessmentController extends Controller
             return response()->json([
                 'success' => true,
                 'media_url' => $url,
-                'media_type' => $file->getClientOriginalExtension(),
-                'original_name' => $originalName, // This ensures the frontend keeps the real name
+                'media_type' => $file->getClientMimeType(),
+                'media_name' => $originalName,
             ]);
         }
 

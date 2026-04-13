@@ -10,7 +10,8 @@ class AssessmentQuestion extends Model
         'category_id',
         'text',
         'type',        // <-- ADD THIS
-        'media_url',  // <-- ADD THIS
+        'media_url',  // <-- ADD THIS    // <-- ADD THIS
+        'media_name'
     ];
 
     

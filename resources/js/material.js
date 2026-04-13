@@ -17,11 +17,13 @@ MaterialBuilder.currentMediaUploadQId = null;
 MaterialBuilder.selectedMediaFile = null;
 MaterialBuilder.activityListenersAdded = false;
 
-MaterialBuilder.enforceExamPosition = function() {
+MaterialBuilder.enforceExamPosition = function () {
     const container = document.getElementById("builder-container");
     if (!container) return;
-    const exams = container.querySelectorAll('.category-block[data-section-type="exam"]');
-    exams.forEach(exam => container.appendChild(exam));
+    const exams = container.querySelectorAll(
+        '.category-block[data-section-type="exam"]',
+    );
+    exams.forEach((exam) => container.appendChild(exam));
 };
 
 MaterialBuilder.initSortable = function () {
@@ -180,7 +182,7 @@ MaterialBuilder.renderExistingCategory = function (catData) {
                 mainType,
                 subType,
                 null,
-                q.id // Pass Question ID
+                q.id, // Pass Question ID
             );
 
             const latestQ = qContainer.querySelector(
@@ -189,8 +191,21 @@ MaterialBuilder.renderExistingCategory = function (catData) {
             latestQ.querySelector(".q-text").value =
                 q.text || q.question_text || "";
 
+            // Inside renderExistingCategory / renderExistingLesson:
             const mediaUrl = q.media_url || q.image_url;
-            if (mediaUrl) MaterialBuilder.setMediaPreview(latestQ.id, mediaUrl);
+
+            if (mediaUrl) {
+                // Grab the name from your server JSON data
+                const mediaName = q.media_name || null;
+
+                // Pass it as the 4th parameter!
+                MaterialBuilder.setMediaPreview(
+                    latestQ.id,
+                    mediaUrl,
+                    null,
+                    mediaName,
+                );
+            }
 
             latestQ.querySelector(".options-list").innerHTML = "";
 
@@ -204,40 +219,61 @@ MaterialBuilder.renderExistingCategory = function (catData) {
                         opt.is_correct == 1 || opt.is_correct === true,
                         opt.text || opt.option_text || "",
                         isCaseSensitive,
-                        opt.id // Pass Option ID
+                        opt.id, // Pass Option ID
                     );
                 });
             } else if (subType === "true_false" && mainType !== "content") {
-                MaterialBuilder.addOptionToQuestion(latestQ.id, "true_false", false, "True");
-                MaterialBuilder.addOptionToQuestion(latestQ.id, "true_false", false, "False");
+                MaterialBuilder.addOptionToQuestion(
+                    latestQ.id,
+                    "true_false",
+                    false,
+                    "True",
+                );
+                MaterialBuilder.addOptionToQuestion(
+                    latestQ.id,
+                    "true_false",
+                    false,
+                    "False",
+                );
             }
         });
     }
 };
 
 // UPDATED: Template to store ID
-MaterialBuilder.addSection = function (type = "lesson", afterElement = null, existingId = null) {
+MaterialBuilder.addSection = function (
+    type = "lesson",
+    afterElement = null,
+    existingId = null,
+) {
     const container = document.getElementById("builder-container");
     if (!container) return;
 
     MaterialBuilder.catCount++;
     const catId = `cat-${MaterialBuilder.catCount}`;
-    const badgeColor = type === "exam" ? "bg-red-100 text-red-600" : "bg-blue-100 text-blue-600";
+    const badgeColor =
+        type === "exam"
+            ? "bg-red-100 text-red-600"
+            : "bg-blue-100 text-blue-600";
     const borderColor = type === "exam" ? "border-red-200" : "border-blue-200";
     const titleDefault = type === "exam" ? "Final Exam" : "New Lesson";
     const icon = type === "exam" ? "fa-file-signature" : "fa-book-open";
     const defaultTime = type === "exam" ? "30" : "10";
 
-    const dragHandleHtml = type === "exam" 
-        ? "" 
-        : `<div class="cursor-grab active:cursor-grabbing text-gray-400 hover:text-gray-700 p-2 drag-handle-cat rounded hover:bg-gray-200 transition" title="Drag to reorder Section"><i class="fas fa-grip-vertical"></i></div>`;
+    const dragHandleHtml =
+        type === "exam"
+            ? ""
+            : `<div class="cursor-grab active:cursor-grabbing text-gray-400 hover:text-gray-700 p-2 drag-handle-cat rounded hover:bg-gray-200 transition" title="Drag to reorder Section"><i class="fas fa-grip-vertical"></i></div>`;
 
     const controlsHtml = `
         <div class="flex flex-col md:flex-row items-center gap-3">
-            ${type === "lesson" ? `
+            ${
+                type === "lesson"
+                    ? `
                 <button type="button" onclick="MaterialBuilder.addItem(${MaterialBuilder.catCount}, 'content')" class="flex-1 w-full py-3 text-blue-600 bg-blue-50 text-sm font-bold hover:bg-blue-100 transition rounded-xl border border-blue-100 flex items-center justify-center shadow-sm">
                     <i class="fas fa-align-left mr-2"></i> Add Lesson Content
-                </button>` : ""
+                </button>`
+                    : ""
             }
             
             <div class="flex items-center flex-1 w-full shadow-sm rounded-xl border border-${type === "exam" ? "red-100" : "purple-100"}">
@@ -259,7 +295,7 @@ MaterialBuilder.addSection = function (type = "lesson", afterElement = null, exi
 
     // ADDED data-id
     const html = `
-        <div class="bg-white rounded-2xl shadow-sm border ${borderColor} category-block transition-all mb-4" id="${catId}" data-section-type="${type}" data-id="${existingId || ''}">
+        <div class="bg-white rounded-2xl shadow-sm border ${borderColor} category-block transition-all mb-4" id="${catId}" data-section-type="${type}" data-id="${existingId || ""}">
             <div class="category-header p-4 bg-gray-50/50 flex items-center justify-between cursor-pointer transition-all" onclick="MaterialBuilder.toggleCategory('${catId}', event)">
                 <div class="flex items-center gap-4 flex-1">
                     <div class="h-8 w-8 rounded-lg ${badgeColor} flex items-center justify-center font-bold text-sm cat-number-badge">
@@ -289,12 +325,16 @@ MaterialBuilder.addSection = function (type = "lesson", afterElement = null, exi
                 <div class="mt-6 relative z-30">${controlsHtml}</div>
             </div>
 
-            ${type !== 'exam' ? `
+            ${
+                type !== "exam"
+                    ? `
             <div class="absolute -bottom-4 left-1/2 -translate-x-1/2 flex justify-center items-center h-8 w-32 opacity-0 hover:opacity-100 transition-opacity z-20">
                 <button type="button" onclick="MaterialBuilder.addSection('lesson', this.closest('.category-block'))" class="bg-[#a52a2a] text-white rounded-full h-8 w-8 flex items-center justify-center shadow-lg hover:scale-110 transition-transform border-2 border-white" title="Add Lesson Below">
                     <i class="fas fa-plus text-xs"></i>
                 </button>
-            </div>` : ""}
+            </div>`
+                    : ""
+            }
         </div>`;
 
     if (afterElement) {
@@ -315,7 +355,7 @@ MaterialBuilder.addItem = function (
     mainType,
     subType = "content",
     afterElement = null,
-    existingId = null // Added param
+    existingId = null, // Added param
 ) {
     const container = document.getElementById(`q-container-${cId}`);
     if (!container) return;
@@ -336,7 +376,7 @@ MaterialBuilder.addItem = function (
 
     // ADDED data-id
     const html = `
-        <div class="p-4 rounded-xl border border-gray-100 question-block relative group ${bgClass}" id="${qId}" data-main-type="${mainType}" data-sub-type="${subType}" data-id="${existingId || ''}">
+        <div class="p-4 rounded-xl border border-gray-100 question-block relative group ${bgClass}" id="${qId}" data-main-type="${mainType}" data-sub-type="${subType}" data-id="${existingId || ""}">
             <div class="flex justify-between items-start mb-2 cursor-pointer" onclick="MaterialBuilder.toggleQuestion('${qId}', event)">
                 <div class="flex items-center gap-2 overflow-hidden pr-2">
                     <div class="h-6 w-6 flex items-center justify-center text-gray-400 group-hover:text-gray-600 transition q-chevron-icon shrink-0"><i class="fas fa-chevron-up text-xs"></i></div>
@@ -352,6 +392,7 @@ MaterialBuilder.addItem = function (
                 <div class="relative mb-3">
                     <textarea class="q-text w-full pl-3 pr-10 py-3 bg-white border border-gray-200 rounded-lg outline-none font-medium text-sm focus:border-[#a52a2a] min-h-[60px]" placeholder="Enter content..."></textarea>
                     <input type="hidden" class="q-media-url" value="">
+    <input type="hidden" class="q-media-name" value="">
                     <button type="button" onclick="MaterialBuilder.openMediaModal('${qId}')" class="absolute right-2 top-2 h-8 w-8 flex items-center justify-center text-gray-400 hover:text-[#a52a2a] hover:bg-gray-100 rounded transition"><i class="fas fa-photo-video"></i></button>
                 </div>
                 <div id="preview-${qId}" class="hidden"></div>
@@ -374,13 +415,22 @@ MaterialBuilder.addItem = function (
         } else if (subType === "text")
             MaterialBuilder.addOptionToQuestion(qId, "text", true, "");
         else if (subType === "true_false") {
-            MaterialBuilder.addOptionToQuestion(qId, "true_false", false, "True");
-            MaterialBuilder.addOptionToQuestion(qId, "true_false", false, "False");
+            MaterialBuilder.addOptionToQuestion(
+                qId,
+                "true_false",
+                false,
+                "True",
+            );
+            MaterialBuilder.addOptionToQuestion(
+                qId,
+                "true_false",
+                false,
+                "False",
+            );
         }
     }
     MaterialBuilder.initSortable();
 };
-
 
 MaterialBuilder.toggleDropdown = function (btn) {
     const menu = btn.nextElementSibling;
@@ -397,7 +447,7 @@ MaterialBuilder.addOptionToQuestion = function (
     isCorrect = false,
     text = "",
     isCaseSensitive = false,
-    existingId = null // Added param
+    existingId = null, // Added param
 ) {
     const list = document.querySelector(`#${qId} .options-list`);
     if (!list) return;
@@ -405,7 +455,7 @@ MaterialBuilder.addOptionToQuestion = function (
     let optHtml = "";
 
     // Common row class with data-id
-    const rowBase = `class="flex items-center justify-between gap-3 bg-white px-3 py-2 rounded-lg border border-gray-200 option-row transition" data-id="${existingId || ''}"`;
+    const rowBase = `class="flex items-center justify-between gap-3 bg-white px-3 py-2 rounded-lg border border-gray-200 option-row transition" data-id="${existingId || ""}"`;
 
     if (type === "mcq" || type === "true_false") {
         optHtml = `
@@ -427,7 +477,7 @@ MaterialBuilder.addOptionToQuestion = function (
             </div>`;
     } else if (type === "text") {
         optHtml = `
-            <div class="flex items-center gap-3 bg-green-50/50 px-3 py-2 rounded-lg border border-green-200 option-row transition" data-id="${existingId || ''}">
+            <div class="flex items-center gap-3 bg-green-50/50 px-3 py-2 rounded-lg border border-green-200 option-row transition" data-id="${existingId || ""}">
                 <input type="text" class="option-input w-full bg-transparent outline-none text-sm font-medium" value="${text}">
                 <input type="hidden" class="is-correct-input" value="true">
                 <label class="flex items-center gap-1.5 cursor-pointer text-gray-500 border-l border-green-200 pl-3 shrink-0"><input type="checkbox" class="case-sensitive-input h-4 w-4" ${isCaseSensitive ? "checked" : ""}><span class="text-[10px] font-bold uppercase">Case Sensitive</span></label>
@@ -454,9 +504,9 @@ MaterialBuilder.toggleCategory = function (id, event) {
         const block = document.getElementById(id);
         const body = block.querySelector(".category-body");
         const header = block.querySelector(".category-header");
-        
+
         body.classList.toggle("hidden");
-        
+
         if (body.classList.contains("hidden")) {
             header.classList.add("rounded-b-2xl");
         } else {
@@ -514,6 +564,9 @@ MaterialBuilder.getPayload = function (status) {
                 type: q.dataset.subType,
                 text: q.querySelector(".q-text").value,
                 media_url: q.querySelector(".q-media-url").value,
+                media_name: q.querySelector(".q-media-name")
+                    ? q.querySelector(".q-media-name").value
+                    : null,
                 is_case_sensitive:
                     q.querySelector(".case-sensitive-input")?.checked || false,
                 options: options,
@@ -617,31 +670,41 @@ MaterialBuilder.closeMediaModal = function () {
         MaterialBuilder.currentUploadXhr.abort();
         MaterialBuilder.currentUploadXhr = null;
     }
-    
+
     document.getElementById("media-upload-modal").classList.add("hidden");
-    
-    const progressContainer = document.getElementById("upload-progress-container");
+
+    const progressContainer = document.getElementById(
+        "upload-progress-container",
+    );
     if (progressContainer) progressContainer.classList.add("hidden");
-    
+
     const btn = document.getElementById("start-media-upload-btn");
     if (btn) {
         btn.disabled = false;
-        btn.innerHTML = '<i class="fas fa-upload"></i><span>Upload Media</span>';
+        btn.innerHTML =
+            '<i class="fas fa-upload"></i><span>Upload Media</span>';
     }
 };
 
 MaterialBuilder.executeMediaUpload = function () {
     const wrapper = document.getElementById("material-wrapper");
     const btn = document.getElementById("start-media-upload-btn");
-    const progressContainer = document.getElementById("upload-progress-container");
+    const progressContainer = document.getElementById(
+        "upload-progress-container",
+    );
     const progressBar = document.getElementById("upload-progress-bar");
     const progressText = document.getElementById("upload-progress-text");
 
-    if (!MaterialBuilder.selectedMediaFile || !MaterialBuilder.currentMediaUploadQId) return;
+    if (
+        !MaterialBuilder.selectedMediaFile ||
+        !MaterialBuilder.currentMediaUploadQId
+    )
+        return;
 
     btn.disabled = true;
     const originalHtml = btn.innerHTML;
-    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> <span>Uploading...</span>';
+    btn.innerHTML =
+        '<i class="fas fa-spinner fa-spin"></i> <span>Uploading...</span>';
 
     if (progressContainer) {
         progressContainer.classList.remove("hidden");
@@ -673,7 +736,7 @@ MaterialBuilder.executeMediaUpload = function () {
                         MaterialBuilder.currentMediaUploadQId,
                         data.media_url,
                         data.media_type,
-                        data.original_name || MaterialBuilder.selectedMediaFile.name
+                        data.media_name,
                     );
                     MaterialBuilder.closeMediaModal();
                     MaterialBuilder.handleAutosaveTrigger();
@@ -714,12 +777,25 @@ MaterialBuilder.executeMediaUpload = function () {
     }
 };
 
-MaterialBuilder.setMediaPreview = function (qId, url, type = null, originalName = null) {
+MaterialBuilder.setMediaPreview = function (
+    qId,
+    url,
+    type = null,
+    mediaName = null,
+) {
     const block = document.getElementById(qId);
-    block.querySelector(".q-media-url").value = url;
+
+    // Ensure the hidden input exists before trying to set its value
+    const mediaInput = block.querySelector(".q-media-url");
+    if (mediaInput) mediaInput.value = url;
+
     const previewDiv = document.getElementById(`preview-${qId}`);
-    
-    const displayFileName = originalName || url.split('/').pop().split('?')[0]; 
+
+    // Use the new mediaName parameter here
+    const displayFileName = mediaName || url.split("/").pop().split("?")[0];
+    const mediaNameInput = block.querySelector(".q-media-name");
+    if (mediaNameInput) mediaNameInput.value = displayFileName;
+
     const lowerUrl = url.toLowerCase();
 
     previewDiv.className =
@@ -727,20 +803,33 @@ MaterialBuilder.setMediaPreview = function (qId, url, type = null, originalName 
 
     let mediaHtml = "";
 
-    if (type === "audio" || lowerUrl.endsWith('.mp3') || lowerUrl.endsWith('.wav')) {
+    if (
+        type === "audio" ||
+        lowerUrl.endsWith(".mp3") ||
+        lowerUrl.endsWith(".wav")
+    ) {
         mediaHtml = `<audio controls src="${url}" class="w-full mt-2"></audio>`;
-    } else if (type === "video" || lowerUrl.endsWith('.mp4') || lowerUrl.endsWith('.webm')) {
+    } else if (
+        type === "video" ||
+        lowerUrl.endsWith(".mp4") ||
+        lowerUrl.endsWith(".webm")
+    ) {
         mediaHtml = `<div class="w-full bg-black rounded-lg overflow-hidden">
                         <video controls src="${url}" class="max-h-64 w-full"></video>
                      </div>
                      <span class="text-xs font-medium text-gray-500 mt-2">${displayFileName}</span>`;
-    } else if (type === "pdf" || lowerUrl.endsWith('.pdf')) {
+    } else if (type === "pdf" || lowerUrl.endsWith(".pdf")) {
         mediaHtml = `<div class="flex flex-col items-center p-4">
                         <i class="fas fa-file-pdf text-4xl text-red-500 mb-2"></i>
                         <span class="text-sm font-bold text-gray-700 mt-2">${displayFileName}</span>
                         <a href="${url}" target="_blank" class="text-xs text-blue-600 hover:underline mt-1 font-medium">View PDF</a>
                      </div>`;
-    } else if (type === "zip" || type === "archive" || lowerUrl.endsWith('.zip') || lowerUrl.endsWith('.rar')) {
+    } else if (
+        type === "zip" ||
+        type === "archive" ||
+        lowerUrl.endsWith(".zip") ||
+        lowerUrl.endsWith(".rar")
+    ) {
         mediaHtml = `<div class="flex flex-col items-center p-4">
                         <i class="fas fa-file-archive text-4xl text-yellow-500 mb-2"></i>
                         <span class="text-sm font-bold text-gray-700 mt-2">${displayFileName}</span>
@@ -752,9 +841,8 @@ MaterialBuilder.setMediaPreview = function (qId, url, type = null, originalName 
     }
 
     previewDiv.innerHTML = `${mediaHtml}<button type="button" onclick="MaterialBuilder.removeQuestionMedia('${qId}')" class="absolute top-2 right-2 h-8 w-8 bg-red-500/80 hover:bg-red-600 transition text-white rounded shadow-sm flex items-center justify-center"><i class="fas fa-trash"></i></button>`;
-    previewDiv.classList.remove('hidden');
+    previewDiv.classList.remove("hidden");
 };
-
 
 MaterialBuilder.removeQuestionMedia = function (qId) {
     const block = document.getElementById(qId);
@@ -789,9 +877,10 @@ MaterialBuilder.saveCompleteMaterial = async function (btn, status) {
     formData.append("description", payload.description);
     formData.append("status", status);
     formData.append("categories", JSON.stringify(payload.categories));
-    
+
     const thumb = document.getElementById("thumbnail-upload");
-    if (thumb && thumb.files.length > 0) formData.append("thumbnail", thumb.files[0]);
+    if (thumb && thumb.files.length > 0)
+        formData.append("thumbnail", thumb.files[0]);
 
     try {
         const response = await fetch(wrapper.dataset.saveUrl, {
@@ -840,7 +929,7 @@ MaterialBuilder.discardChangesAndExit = function (btn) {
         "Are you sure you want to discard your unsaved work and exit? This cannot be undone.",
         async () => {
             const wrapper = document.getElementById("material-wrapper");
-            if (!wrapper) return; 
+            if (!wrapper) return;
 
             const backModal = document.getElementById("back-modal");
             if (backModal) backModal.classList.add("hidden");
@@ -992,7 +1081,7 @@ MaterialBuilder.goToUrl = function (url) {
     if (statusModal) statusModal.classList.add("hidden");
 
     if (typeof loadPartial === "function") {
-        loadPartial(url); 
+        loadPartial(url);
     } else if (typeof window.loadPartial === "function") {
         window.loadPartial(url);
     } else {
@@ -1002,7 +1091,7 @@ MaterialBuilder.goToUrl = function (url) {
 
 MaterialBuilder.silentlyDeleteAndExit = async function () {
     const wrapper = document.getElementById("material-wrapper");
-    if (!wrapper) return; 
+    if (!wrapper) return;
     try {
         await fetch(wrapper.dataset.deleteUrl, {
             method: "DELETE",

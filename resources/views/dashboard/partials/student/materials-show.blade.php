@@ -140,7 +140,8 @@
                     $mediaUrl = str_starts_with($item->media_url, 'http') ? $item->media_url : asset('storage/' . $item->media_url);
                     $pathForExt = parse_url($mediaUrl, PHP_URL_PATH) ?? $mediaUrl;
                     $ext = strtolower(pathinfo($pathForExt, PATHINFO_EXTENSION));
-                    $name = basename($pathForExt);
+                    // Use the media_name if it exists. If not, extract the raw filename from the URL as a fallback.
+$name = $item->media_name ?? basename(parse_url($mediaUrl, PHP_URL_PATH));
 
                     // Attempt to get file size safely
                     $size = 'Unknown Size';

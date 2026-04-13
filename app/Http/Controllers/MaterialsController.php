@@ -516,6 +516,7 @@ class MaterialsController extends Controller
                             'type' => $q['type'] ?? 'mcq',
                             'question_text' => $q['text'] ?? '',
                             'media_url' => $q['media_url'] ?? null,
+                            'media_name' => $q['media_name'] ?? null, // <--- ADDED HERE
                             'is_case_sensitive' => $q['is_case_sensitive'] ?? false,
                             'sort_order' => $qIndex + 1,
                             'updated_at' => now(),
@@ -579,6 +580,7 @@ class MaterialsController extends Controller
                             'type' => $q['type'] ?? 'mcq',
                             'question_text' => $q['text'] ?? '',
                             'media_url' => $q['media_url'] ?? null,
+                            'media_name' => $q['media_name'] ?? null, // <--- ADDED HERE
                             'is_case_sensitive' => $q['is_case_sensitive'] ?? false,
                             'sort_order' => $qIndex + 1,
                             'updated_at' => now(),
@@ -700,27 +702,31 @@ class MaterialsController extends Controller
 
     public function uploadMedia(Request $request)
     {
+        $request->validate([
+            'media_file' => 'required|file|max:10240',
+        ]);
+
         if ($request->hasFile('media_file')) {
             $file = $request->file('media_file');
 
-            // Capture the original name before saving
+            // 1. Grab the exact name the user uploaded it as
             $originalName = $file->getClientOriginalName();
 
-            // Save the file (this usually generates a new unique name like xyz123.pdf)
-            $path = $file->store('materials_media', 'public');
-            $url = asset('storage/' . $path);
+            // 2. Store it securely
+            $path = $file->store('materials/media', 'public');
 
-            // This is the JSON response your JavaScript receives
+            // 3. Return the payload to your frontend Builder
             return response()->json([
                 'success' => true,
-                'media_url' => $url,
-                'media_type' => $file->getClientOriginalExtension(),
-                'original_name' => $originalName, // ADD THIS LINE
+                'media_url' => asset('storage/' . $path),
+                'media_name' => $originalName, // Sending the correct key back
+                'media_type' => $file->getClientMimeType()
             ]);
         }
 
-        return response()->json(['success' => false, 'message' => 'No file uploaded'], 400);
+        return response()->json(['success' => false, 'message' => 'No file uploaded.'], 400);
     }
+
 
     public function destroy($id)
     {
@@ -755,91 +761,93 @@ class MaterialsController extends Controller
     }
 
     public function importLessons(Request $request, $id)
-    {
-        $request->validate(['module_file' => 'required|mimes:xlsx,csv,xls|max:5120']);
+{
+    $request->validate(['module_file' => 'required|mimes:xlsx,csv,xls|max:5120']);
 
-        DB::beginTransaction();
-        try {
-            DB::table('materials')->where('id', $id)->update([
-                'title' => $request->title ?? 'Untitled Material',
-                'description' => $request->description ?? '',
-                'status' => 'draft',
-                'draft_json' => null,
-                'updated_at' => now()
-            ]);
+    DB::beginTransaction();
+    try {
+        DB::table('materials')->where('id', $id)->update([
+            'title' => $request->title ?? 'Untitled Material',
+            'description' => $request->description ?? '',
+            'status' => 'draft',
+            'draft_json' => null,
+            'updated_at' => now()
+        ]);
 
-            if ($request->has('categories')) {
-                $categories = json_decode($request->categories, true);
+        if ($request->has('categories')) {
+            $categories = json_decode($request->categories, true);
 
-                foreach ($categories as $cat) {
-                    $sectionType = $cat['section_type'] ?? 'lesson';
+            foreach ($categories as $cat) {
+                $sectionType = $cat['section_type'] ?? 'lesson';
 
-                    if ($sectionType === 'exam') {
-                        foreach ($cat['questions'] ?? [] as $q) {
-                            $examId = DB::table('exams')->insertGetId([
-                                'material_id' => $id,
-                                'type' => $q['type'] ?? 'mcq',
-                                'question_text' => $q['text'] ?? '',
-                                'media_url' => $q['media_url'] ?? null,
-                                'is_case_sensitive' => $q['is_case_sensitive'] ?? false,
-                                'created_at' => now(),
-                                'updated_at' => now(),
-                            ]);
-
-                            foreach ($q['options'] ?? [] as $opt) {
-                                DB::table('exam_options')->insert([
-                                    'exam_id' => $examId,
-                                    'option_text' => $opt['text'] ?? '',
-                                    'is_correct' => $opt['is_correct'] ?? false,
-                                    'created_at' => now(),
-                                    'updated_at' => now(),
-                                ]);
-                            }
-                        }
-                    } else {
-                        $lessonId = DB::table('lessons')->insertGetId([
+                if ($sectionType === 'exam') {
+                    foreach ($cat['questions'] ?? [] as $q) {
+                        $examId = DB::table('exams')->insertGetId([
                             'material_id' => $id,
-                            'title' => $cat['title'] ?? 'New Lesson',
-                            'section_type' => 'lesson',
-                            'time_limit' => $cat['time_limit'] ?? 0,
+                            'type' => $q['type'] ?? 'mcq',
+                            'question_text' => $q['text'] ?? '',
+                            'media_url' => $q['media_url'] ?? null,
+                            'media_name' => $q['media_name'] ?? null, // <--- ADDED HERE
+                            'is_case_sensitive' => $q['is_case_sensitive'] ?? false,
                             'created_at' => now(),
                             'updated_at' => now(),
                         ]);
 
-                        foreach ($cat['questions'] ?? [] as $q) {
-                            $quizId = DB::table('lesson_contents')->insertGetId([
-                                'lesson_id' => $lessonId,
-                                'type' => $q['type'] ?? 'mcq',
-                                'question_text' => $q['text'] ?? '',
-                                'media_url' => $q['media_url'] ?? null,
-                                'is_case_sensitive' => $q['is_case_sensitive'] ?? false,
+                        foreach ($q['options'] ?? [] as $opt) {
+                            DB::table('exam_options')->insert([
+                                'exam_id' => $examId,
+                                'option_text' => $opt['text'] ?? '',
+                                'is_correct' => $opt['is_correct'] ?? false,
                                 'created_at' => now(),
                                 'updated_at' => now(),
                             ]);
+                        }
+                    }
+                } else {
+                    $lessonId = DB::table('lessons')->insertGetId([
+                        'material_id' => $id,
+                        'title' => $cat['title'] ?? 'New Lesson',
+                        'section_type' => 'lesson',
+                        'time_limit' => $cat['time_limit'] ?? 0,
+                        'created_at' => now(),
+                        'updated_at' => now(),
+                    ]);
 
-                            foreach ($q['options'] ?? [] as $opt) {
-                                DB::table('quiz_options')->insert([
-                                    'quiz_id' => $quizId,
-                                    'option_text' => $opt['text'] ?? '',
-                                    'is_correct' => $opt['is_correct'] ?? false,
-                                    'created_at' => now(),
-                                    'updated_at' => now(),
-                                ]);
-                            }
+                    foreach ($cat['questions'] ?? [] as $q) {
+                        $quizId = DB::table('lesson_contents')->insertGetId([
+                            'lesson_id' => $lessonId,
+                            'type' => $q['type'] ?? 'mcq',
+                            'question_text' => $q['text'] ?? '',
+                            'media_url' => $q['media_url'] ?? null,
+                            'media_name' => $q['media_name'] ?? null, // <--- ADDED HERE
+                            'is_case_sensitive' => $q['is_case_sensitive'] ?? false,
+                            'created_at' => now(),
+                            'updated_at' => now(),
+                        ]);
+
+                        foreach ($q['options'] ?? [] as $opt) {
+                            DB::table('quiz_options')->insert([
+                                'quiz_id' => $quizId,
+                                'option_text' => $opt['text'] ?? '',
+                                'is_correct' => $opt['is_correct'] ?? false,
+                                'created_at' => now(),
+                                'updated_at' => now(),
+                            ]);
                         }
                     }
                 }
             }
-
-            Excel::import(new LessonImport($id), $request->file('module_file'));
-            DB::commit();
-
-            return response()->json(['success' => true, 'message' => 'Lessons imported successfully!']);
-        } catch (Exception $e) {
-            DB::RollBack();
-            return response()->json(['success' => false, 'message' => 'Import failed: ' . $e->getMessage()], 500);
         }
+
+        Excel::import(new LessonImport($id), $request->file('module_file'));
+        DB::commit();
+
+        return response()->json(['success' => true, 'message' => 'Lessons imported successfully!']);
+    } catch (Exception $e) {
+        DB::RollBack();
+        return response()->json(['success' => false, 'message' => 'Import failed: ' . $e->getMessage()], 500);
     }
+}
 
     public function addTag(Request $request, Material $material)
     {

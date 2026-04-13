@@ -88,6 +88,24 @@
 </head>
 
 @php
+// --- ASSESSMENT DETECTION (Matching Manage Logic) ---
+    $hasExams = isset($material->exams) && $material->exams->count() > 0;
+    $hasQuizzes = false;
+    
+    if(isset($material->lessons)) {
+        foreach($material->lessons as $lesson) {
+            // Check if any lesson content is a graded type
+            if($lesson->contents->whereIn('type', ['mcq', 'checkbox', 'true_false', 'text'])->count() > 0) {
+                $hasQuizzes = true;
+                break;
+            }
+        }
+    }
+
+    // Determine if certification is even possible for this material
+    $isCertifiable = ($hasExams || $hasQuizzes);
+
+    // --- TIMELINE BUILDING ---
     $timeline = collect();
     if(isset($material->lessons)) {
         foreach($material->lessons as $lesson) {
@@ -420,8 +438,10 @@
 
     <script>
         const materialData = @json($timeline);
+        // Pass the certifiable status from PHP to JS
+        const isCertifiable = {{ $isCertifiable ? 'true' : 'false' }};
+
         let state = { lesson: 0, content: 0 };
-        
         let activeFullscreenId = null;
         let activeFullscreenType = null;
         let globalMediaIdleTimer = null;
@@ -433,11 +453,12 @@
         }
 
         function renderState() {
+            // Hide all containers first
             document.querySelectorAll('.lesson-container, .content-block').forEach(el => el.classList.remove('active'));
-            
+
             const activeLessonEl = document.getElementById(`lesson-${state.lesson}`);
             const activeContentEl = document.getElementById(`content-${state.lesson}-${state.content}`);
-            
+
             if (activeLessonEl) activeLessonEl.classList.add('active');
             if (activeContentEl) {
                 activeContentEl.classList.add('active');
@@ -446,7 +467,7 @@
 
             const currentData = materialData[state.lesson];
             const itemsCount = currentData.items ? currentData.items.length : 0;
-            
+
             const displayContentNum = itemsCount === 0 ? 0 : state.content + 1;
             const itemLabel = currentData.is_exam ? 'Question' : 'Item';
             document.getElementById('bottom-content-counter').innerText = `${currentData.title} • ${itemLabel} ${displayContentNum} of ${itemsCount}`;
@@ -458,12 +479,13 @@
             const btnNextIcon = document.getElementById('btn-next-icon');
 
             btnPrev.disabled = (state.lesson === 0 && state.content === 0);
-            btnPrev.className = btnPrev.disabled ? 'px-5 py-2.5 bg-gray-100 text-gray-400 font-bold rounded-xl cursor-not-allowed flex items-center gap-2' : 'px-5 py-2.5 bg-gray-100 text-gray-600 font-bold rounded-xl hover:bg-gray-200 transition flex items-center gap-2';
+            btnPrev.className = btnPrev.disabled 
+                ? 'px-5 py-2.5 bg-gray-100 text-gray-400 font-bold rounded-xl cursor-not-allowed flex items-center gap-2' 
+                : 'px-5 py-2.5 bg-gray-100 text-gray-600 font-bold rounded-xl hover:bg-gray-200 transition flex items-center gap-2';
 
-            // Correctly trigger Finish status if on the last item, OR if the last lesson is totally empty
             const isLast = (state.lesson === materialData.length - 1 && (itemsCount === 0 || state.content === itemsCount - 1));
-            
-            if(isLast) {
+
+            if (isLast) {
                 btnNextText.innerText = "Finish Preview";
                 btnNextIcon.className = "fas fa-flag-checkered";
                 btnNext.className = 'px-5 py-2.5 bg-[#a52a2a] text-white font-bold rounded-xl hover:bg-red-800 transition shadow-md flex items-center gap-2';
@@ -476,19 +498,20 @@
             // Sidebar TOC active state
             document.querySelectorAll('[id^="toc-btn-"]').forEach(b => {
                 b.classList.remove('bg-[#a52a2a]/10', 'border-[#a52a2a]/20', 'bg-red-50');
-                b.querySelector('.toc-icon').classList.replace('bg-[#a52a2a]', 'bg-gray-200');
-                b.querySelector('.toc-icon').classList.replace('text-white', 'text-gray-500');
+                const icon = b.querySelector('.toc-icon');
+                icon.classList.remove('bg-[#a52a2a]', 'text-white');
+                icon.classList.add('bg-gray-200', 'text-gray-500');
             });
 
             const activeBtn = document.getElementById(`toc-btn-${state.lesson}`);
             if (activeBtn) {
                 activeBtn.classList.add('bg-[#a52a2a]/10', 'border-[#a52a2a]/20');
-                activeBtn.querySelector('.toc-icon').classList.replace('bg-gray-200', 'bg-[#a52a2a]');
-                activeBtn.querySelector('.toc-icon').classList.replace('text-gray-500', 'text-white');
+                const icon = activeBtn.querySelector('.toc-icon');
+                icon.classList.remove('bg-gray-200', 'text-gray-500');
+                icon.classList.add('bg-[#a52a2a]', 'text-white');
             }
 
             document.getElementById('main-scroll-area').scrollTop = 0;
-            if (activeFullscreenId) updateFsNavButtons();
         }
 
         function navigateContent(dir) {
@@ -502,7 +525,12 @@
                     state.lesson++;
                     state.content = 0;
                 } else {
-                    showMockCertificate();
+                    // Determine completion screen based on assessment existence
+                    if (isCertifiable) {
+                        showMockCertificate();
+                    } else {
+                        showCompletionNoCert();
+                    }
                     return;
                 }
             } else {
@@ -524,24 +552,42 @@
             closeMediaFullscreen();
         }
 
-        function showMockCertificate() {
-            // Completely collapse and hide the App Header and the Preview Workspace
+        function hideMainPreview() {
             document.querySelector('header').style.display = 'none';
             document.getElementById('preview-workspace').style.display = 'none';
-            
-            // Allow the body to scroll normally
             document.body.classList.remove('h-screen', 'overflow-hidden');
             document.body.classList.add('overflow-y-auto');
-            
-            // Show the Mock Certificate as the primary layout view
-            document.getElementById('mock-certificate-screen').classList.remove('hidden');
-            document.getElementById('mock-certificate-screen').classList.add('flex');
-            
-            window.scrollTo(0, 0); // Reset scroll to top
-            
+        }
+
+        function showMockCertificate() {
+            hideMainPreview();
+            const screen = document.getElementById('mock-certificate-screen');
+            screen.classList.remove('hidden');
+            screen.classList.add('flex');
+
+            window.scrollTo(0, 0);
             if (typeof confetti === 'function') {
                 confetti({ particleCount: 150, spread: 80, origin: { y: 0.6 }, colors: ['#a52a2a', '#fbbf24', '#3b82f6', '#22c55e'] });
             }
+        }
+
+        function showCompletionNoCert() {
+            hideMainPreview();
+            const screen = document.getElementById('mock-certificate-screen');
+
+            // Modify the screen content to show completion without certificate
+            const headerTitle = screen.querySelector('h1');
+            const headerDesc = screen.querySelector('p');
+            const certCard = screen.querySelector('.cert-wrapper').parentElement;
+            const trophy = screen.querySelector('.from-red-400');
+
+            headerTitle.innerText = "Module Finished";
+            headerDesc.innerText = "You've reached the end of the preview. This module does not contain assessments, so no certificate is issued.";
+            certCard.classList.add('hidden');
+            trophy.innerHTML = '<i class="fas fa-check text-4xl text-white"></i>';
+
+            screen.classList.remove('hidden');
+            screen.classList.add('flex');
         }
 
         // --- FULLSCREEN MEDIA CONTROLS ---
