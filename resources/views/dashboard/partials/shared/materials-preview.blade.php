@@ -48,8 +48,11 @@
 
         .pdf-container { background: #e5e7eb; border-radius: 1rem; overflow: hidden; display: flex; flex-direction: column; height: 75vh; width: 100%; }
         .pdf-toolbar { background: #1f2937; color: white; padding: 0.75rem 1rem; display: flex; justify-content: space-between; align-items: center; }
-        .pdf-render-area { overflow-y: auto; padding: 1rem; flex-grow: 1; background: #d1d5db; position: relative; }
+        
+        /* FIX: Changed overflow-y to auto (both axes) and added text-align center */
+        .pdf-render-area { overflow: auto; padding: 1rem; flex-grow: 1; background: #d1d5db; position: relative; text-align: center; }
 
+        /* BULLETPROOF FULLSCREEN OVERRIDE */
         body.fs-active header,
         body.fs-active aside,
         body.fs-active #sidebar,
@@ -259,7 +262,7 @@
                                         <div class="bg-white rounded-3xl p-6 md:p-8 shadow-sm border-2 border-[#a52a2a]/30 relative overflow-hidden mx-auto max-w-2xl">
                                             <div class="absolute top-0 left-0 w-1.5 h-full bg-[#a52a2a]"></div>
                                             <div class="flex justify-between items-start gap-4 mb-4">
-                                                <h3 class="text-xl font-bold text-gray-900">{{ $block->question_text }}</h3>
+                                                <h3 class="whitespace-break-spaces text-xl font-bold text-gray-900">{{ $block->question_text }}</h3>
                                                 <span class="px-2 py-1 bg-[#a52a2a]/10 text-[#a52a2a] text-[10px] font-black uppercase tracking-widest rounded border border-[#a52a2a]/20 shrink-0">Answer Key</span>
                                             </div>
 
@@ -316,7 +319,6 @@
 
     {{-- MOCK CERTIFICATE SCREEN --}}
     <div id="mock-certificate-screen" class="hidden flex-col w-full bg-gray-50 z-[100] relative">
-        {{-- Notice justify-start and explicit top padding instead of justify-center to prevent clipping when scrolling --}}
         <div class="max-w-6xl mx-auto pt-16 sm:pt-24 pb-12 px-4 sm:px-6 relative flex flex-col items-center justify-start w-full min-h-screen">
             
             {{-- Subtle Background Glow --}}
@@ -675,9 +677,11 @@
 
                 for (let pageNum = 1; pageNum <= pdfDoc.numPages; pageNum++) {
                     const canvasWrapper = document.createElement('div');
-                    canvasWrapper.className = 'mb-6 w-full flex justify-center';
+                    // FIX: Ensure it is just a block element without flex row centering that causes squishing
+                    canvasWrapper.className = 'mb-6';
                     const canvas = document.createElement('canvas');
-                    canvas.className = 'shadow-lg rounded border border-gray-300 max-w-full bg-white';
+                    // FIX: Removed max-w-full and added inline-block for proper centering
+                    canvas.className = 'shadow-lg rounded border border-gray-300 bg-white inline-block';
                     canvas.id = `${id}-page-${pageNum}`;
                     canvasWrapper.appendChild(canvas);
                     renderAreaWrapper.appendChild(canvasWrapper);

@@ -53,7 +53,9 @@
 
         .pdf-container { background: #e5e7eb; border-radius: 1rem; overflow: hidden; display: flex; flex-direction: column; height: 75vh; width: 100%; }
         .pdf-toolbar { background: #1f2937; color: white; padding: 0.75rem 1rem; display: flex; justify-content: space-between; align-items: center; }
-        .pdf-render-area { overflow-y: auto; padding: 1rem; flex-grow: 1; background: #d1d5db; position: relative; }
+        
+        /* FIX: Changed overflow-y to auto (both axes) and added text-align center */
+        .pdf-render-area { overflow: auto; padding: 1rem; flex-grow: 1; background: #d1d5db; position: relative; text-align: center; }
         
         /* BULLETPROOF FULLSCREEN OVERRIDE: Completely destroys all layout constraints */
         body.fs-active header,
@@ -431,7 +433,15 @@
             <i class="fas fa-times text-xl"></i>
         </button>
 
-
+        <div class="absolute bottom-8 left-1/2 -translate-x-1/2 flex items-center gap-6 pointer-events-auto">
+            <button onclick="mediaFsNavigate(-1)" class="bg-black/60 hover:bg-red-900 text-white rounded-full h-14 w-14 flex items-center justify-center backdrop-blur transition-colors shadow-2xl border border-white/10" id="fs-btn-prev">
+                <i class="fas fa-chevron-left text-xl pr-1"></i>
+            </button>
+            
+            <button onclick="mediaFsNavigate(1)" class="bg-black/60 hover:bg-red-900 text-white rounded-full h-14 w-14 flex items-center justify-center backdrop-blur transition-colors shadow-2xl border border-white/10" id="fs-btn-next">
+                <i class="fas fa-chevron-right text-xl pl-1"></i>
+            </button>
+        </div>
     </div>
 
     {{-- SNACKBAR --}}
@@ -494,7 +504,6 @@
             }
         }
 
-        // --- SUBMISSION LOGIC ---
         // --- SUBMISSION LOGIC ---
         async function submitEvaluation(targetStatus) {
             const remarks = document.getElementById('admin-remarks').value.trim();
@@ -771,10 +780,12 @@
                 // Generate a canvas for every page in the document
                 for (let pageNum = 1; pageNum <= pdfDoc.numPages; pageNum++) {
                     const canvasWrapper = document.createElement('div');
-                    canvasWrapper.className = 'mb-6 w-full flex justify-center';
+                    // FIX: Removed 'w-full flex justify-center' so it defaults to block layout
+                    canvasWrapper.className = 'mb-6';
                     
                     const canvas = document.createElement('canvas');
-                    canvas.className = 'shadow-lg rounded border border-gray-300 max-w-full bg-white';
+                    // FIX: Removed max-w-full and added inline-block for centering
+                    canvas.className = 'shadow-lg rounded border border-gray-300 bg-white inline-block';
                     canvas.id = `${id}-page-${pageNum}`;
                     
                     canvasWrapper.appendChild(canvas);

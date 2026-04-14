@@ -54,12 +54,14 @@
 <body class="bg-gray-50 font-sans text-gray-900 h-screen overflow-hidden">
 
     <div class="flex h-full">
+        {{-- FIX: Elevated Sidebar Backdrop to z-[60] --}}
         <div id="sidebarBackdrop"
-            class="fixed inset-0 bg-black/50 z-40 opacity-0 pointer-events-none md:hidden transition-opacity duration-300"
+            class="fixed inset-0 bg-black/50 z-[60] opacity-0 pointer-events-none md:hidden transition-opacity duration-300"
             onclick="toggleSidebar()"></div>
 
+        {{-- FIX: Elevated Sidebar to z-[70] so it slides over the header --}}
         <aside id="sidebar"
-            class="fixed inset-y-0 left-0 w-64 bg-white border-r border-gray-200 z-50 transform -translate-x-full md:translate-x-0 md:relative transition-all flex flex-col h-full">
+            class="fixed inset-y-0 left-0 w-64 bg-white border-r border-gray-200 z-[70] transform -translate-x-full md:translate-x-0 md:relative transition-all flex flex-col h-full">
             <div class="px-6 py-8 flex items-center justify-between lg:justify-center shrink-0">
                 <div class="flex-shrink-0">
                     <a href="{{ url('/dashboard') }}">
@@ -82,8 +84,9 @@
         </aside>
 
         <main class="flex-1 flex flex-col min-w-0 h-full overflow-hidden">
+            {{-- FIX: Elevated Header to z-50 to absolutely guarantee it covers all dashboard content --}}
             <header
-                class="bg-white border-b border-gray-200 h-16 flex items-center justify-between px-4 md:px-8 shrink-0 z-20 relative gap-2 sm:gap-4">
+                class="bg-white border-b border-gray-200 h-16 flex items-center justify-between px-4 md:px-8 shrink-0 z-50 relative gap-2 sm:gap-4">
                 
                 <div class="flex items-center gap-2 sm:gap-4 flex-1 min-w-0">
                     <button onclick="toggleSidebar()" class="md:hidden p-2 -ml-2 rounded-lg text-gray-600 hover:bg-gray-100 shrink-0">
@@ -107,12 +110,14 @@
                 <div class="flex items-center space-x-2 sm:space-x-4 relative shrink-0">
                     
                     <div class="relative" id="notificationContainer">
-                        <button onclick="toggleNotifications()" class="relative text-gray-600 hover:bg-gray-100 p-2 z-100 rounded-full focus:outline-none transition-colors flex items-center justify-center h-10 w-10 shrink-0">
+                        <button onclick="toggleNotifications()" class="relative text-gray-600 hover:bg-gray-100 p-2 z-[1000] rounded-full focus:outline-none transition-colors flex items-center justify-center h-10 w-10 shrink-0">
                             <i class="fas fa-bell text-xl"></i>
                             <span id="notificationBadge" class="hidden absolute top-0 right-0 h-3 w-3 bg-red-600 rounded-full border-2 border-white shadow-sm"></span>
                         </button>
 
-                        <div id="notificationDropdown" class="hidden fixed inset-0 m-4 sm:m-0 sm:absolute sm:inset-auto sm:right-0 sm:top-full sm:mt-2 sm:w-[380px] bg-white rounded-2xl shadow-2xl border border-gray-100 flex flex-col z-[9999] transform opacity-0 sm:scale-95 transition-all duration-200 origin-top-right sm:max-h-[85vh] overflow-hidden">
+                        <div id="notif-backdrop" class="fixed inset-0 z-[998] hidden sm:hidden" onclick="toggleNotifications(); event.stopPropagation();"></div>
+
+                        <div id="notificationDropdown" class="hidden fixed inset-0 m-4 sm:m-0 sm:absolute sm:inset-auto sm:right-0 sm:top-full sm:mt-2 sm:w-[380px] bg-white rounded-2xl shadow-2xl border border-gray-100 flex flex-col z-[999] transform opacity-0 sm:scale-95 transition-all duration-200 origin-top-right sm:max-h-[85vh] overflow-hidden">
         
                             <div class="px-4 py-3 border-b border-gray-100 flex justify-between items-center shrink-0 bg-white shadow-sm z-10 relative">
                                 <div class="flex items-center gap-2">
@@ -181,7 +186,6 @@
                     </button>
                     <form method="POST" action="{{ route('logout') }}" class="flex-1">
                         @csrf
-                        {{-- ADDED window.onbeforeunload = null; to bypass the browser warning! --}}
                         <button type="submit" onclick="window.onbeforeunload = null; sessionStorage.clear();"
                             class="w-full px-4 py-2.5 bg-[#a52a2a] text-white font-semibold rounded-xl hover:opacity-90 transition shadow-lg shadow-[#a52a2a]/30 text-sm">
                             Yes, Logout
@@ -277,7 +281,6 @@
 
                     let targetBtn = element;
                     if (!targetBtn || !targetBtn.classList) {
-                        // Unified matching logic for all roles
                         if (url.includes('/profile')) targetBtn = document.getElementById('nav-profile-btn');
                         else if (url.includes('/analytics')) targetBtn = document.getElementById('nav-analytics-btn');
                         else if (url.includes('/certificates')) targetBtn = document.getElementById('nav-certificates-btn');
@@ -330,11 +333,13 @@
         const notificationBadge = document.getElementById('notificationBadge');
         const notificationList = document.getElementById('notificationList');
         const notificationCountText = document.getElementById('notificationCountText');
+        const notifBackdrop = document.getElementById('notif-backdrop');
         let isNotificationOpen = false;
 
         function toggleNotifications() {
             isNotificationOpen = !isNotificationOpen;
             if (isNotificationOpen) {
+                if (notifBackdrop) notifBackdrop.classList.remove('hidden');
                 notificationDropdown.classList.remove('hidden');
                 setTimeout(() => {
                     notificationDropdown.classList.remove('opacity-0', 'sm:scale-95');
@@ -344,7 +349,12 @@
             } else {
                 notificationDropdown.classList.remove('opacity-100', 'sm:scale-100');
                 notificationDropdown.classList.add('opacity-0', 'sm:scale-95');
-                setTimeout(() => notificationDropdown.classList.add('hidden'), 200);
+                setTimeout(() => {
+                    notificationDropdown.classList.add('hidden');
+                    setTimeout(() => {
+                        if (notifBackdrop) notifBackdrop.classList.add('hidden');
+                    }, 150);
+                }, 200);
             }
         }
 
@@ -392,7 +402,7 @@
                 '/result', 
                 '/certificate',
                 '/lobby',
-                '/exam'
+                '/exam',
             ];
 
             const requiresFullReload = fullPageKeywords.some(keyword => targetUrl.includes(keyword));
@@ -435,7 +445,12 @@
                 const iconOpacity = notif.is_read ? 'opacity-60' : 'opacity-100';
 
                 item.className = `px-4 py-3 hover:bg-gray-100 transition-colors cursor-pointer flex gap-3 group border-b border-gray-50 ${bgDefault}`;
-                item.onclick = () => markAsReadAndGo(notif.id, notif.url, notif.is_read);
+                
+                item.onclick = (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    markAsReadAndGo(notif.id, notif.url, notif.is_read);
+                };
 
                 const bgClass = notif.colorClass.replace('text-', 'bg-').replace('-600', '-500').replace('-500', '-500');
 
@@ -461,7 +476,7 @@
             });
         }
 
-        // Close dropdown when clicking outside
+        // Close dropdown when clicking outside on Desktop
         document.addEventListener('click', (event) => {
             const container = document.getElementById('notificationContainer');
             if (isNotificationOpen && container && !container.contains(event.target)) {

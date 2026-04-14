@@ -389,7 +389,6 @@
         </button>
     </div>
 </div>
-
 <script>
     // --- TOM SELECT INITIALIZATION ---
     (function initTomSelect() {
@@ -417,8 +416,8 @@
     })();
 
     window.daysLeftToUpdate = {{ max(0, $daysLeftToUpdate) }};
-
-    const userTicketsData = @json($ticketsJson);
+    window.userTicketsData = @json($ticketsJson);
+    window.reloadPageOnModalClose = false;
 
     function openSupportModal() {
         const modal = document.getElementById('supportModal');
@@ -466,6 +465,7 @@
     function openTicketView(id) {
         // Safe lookup: Find the specific ticket matching the ID
         const t = userTicketsData.find(ticket => ticket.id == id);
+        const t = window.userTicketsData[id];
         if(!t) return;
         
         let statusStyle = 'bg-gray-100 text-gray-600';
@@ -524,26 +524,21 @@
     }
 
     (function() {
+        // Grab the exact URL the SPA just loaded
         const activeUrl = sessionStorage.getItem('lastActiveTab') || window.location.href;
-        
-        if(activeUrl.includes('tab=history')) {
+        const urlObj = new URL(activeUrl, window.location.origin);
+        const ticketId = urlObj.searchParams.get('ticket');
+
+        if (ticketId) {
             openSupportModal();
             setTimeout(() => {
-                switchSupportTab('history');
+                openTicketView(ticketId);
+                
+                // Erase the ticket parameter from session storage so it doesn't loop
+                urlObj.searchParams.delete('ticket');
+                sessionStorage.setItem('lastActiveTab', urlObj.toString());
+                
             }, 350); 
-            sessionStorage.removeItem('lastActiveTab');
-        } else {
-            try {
-                const urlObj = new URL(activeUrl, window.location.origin);
-                const ticketId = urlObj.searchParams.get('ticket');
-        
-                if (ticketId) {
-                    openSupportModal();
-                    setTimeout(() => {
-                        openTicketView(ticketId);
-                    }, 350); 
-                }
-            } catch(e) {}
         }
     })();
 
@@ -567,8 +562,6 @@
         }
     }
 
-    let reloadPageOnModalClose = false;
-
     function showProfileModal(title, message, type = 'success') {
         document.getElementById('profileModalTitle').innerText = title;
         document.getElementById('profileModalMessage').innerText = message;
@@ -578,12 +571,12 @@
         const btn = document.getElementById('profileModalBtn');
 
         if (type === 'success') {
-            reloadPageOnModalClose = true; 
+            window.reloadPageOnModalClose = true; 
             iconBox.className = 'w-20 h-20 bg-green-50 text-green-500 rounded-full flex items-center justify-center mx-auto mb-5 shadow-inner';
             icon.className = 'fas fa-check text-4xl';
             btn.className = 'w-full px-4 py-3 bg-[#a52a2a] text-white font-bold rounded-xl shadow-md hover:bg-red-800 transition';
         } else {
-            reloadPageOnModalClose = false; 
+            window.reloadPageOnModalClose = false; 
             iconBox.className = 'w-20 h-20 bg-red-50 text-red-500 rounded-full flex items-center justify-center mx-auto mb-5 shadow-inner';
             icon.className = 'fas fa-exclamation-triangle text-4xl';
             btn.className = 'w-full px-4 py-3 bg-gray-900 text-white font-bold rounded-xl shadow-md hover:bg-black transition';
@@ -608,7 +601,7 @@
         
         setTimeout(() => {
             modal.classList.add('hidden');
-            if (reloadPageOnModalClose) {
+            if (window.reloadPageOnModalClose) {
                 loadPartial('{{ route('dashboard.profile') }}', document.getElementById('nav-profile-btn') || document.body);
             }
         }, 300);

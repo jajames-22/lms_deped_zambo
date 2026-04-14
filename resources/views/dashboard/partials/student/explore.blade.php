@@ -29,7 +29,7 @@
                         
                         <div class="absolute inset-0 z-20 flex flex-col justify-end p-8 md:p-16 w-full md:w-3/4">
                             <span class="px-3 py-1 bg-[#a52a2a] text-white text-[10px] font-black uppercase tracking-[0.2em] rounded-md w-max mb-4 shadow-md">Featured</span>
-                            <h1 class="text-4xl md:text-5xl lg:text-6xl font-black text-white mb-4 leading-tight drop-shadow-lg line-clamp-2">{{ $material->title }}</h1>
+                            <h1 class="text-4xl z-[10] md:text-5xl lg:text-6xl font-black text-white mb-4 leading-tight drop-shadow-lg line-clamp-2">{{ $material->title }}</h1>
                             
                             {{-- INSTRUCTOR ICON --}}
                             <p class="text-white font-bold text-xs md:text-sm uppercase tracking-widest mb-2 flex items-center gap-1.5 drop-shadow-md">
