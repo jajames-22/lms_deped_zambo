@@ -406,7 +406,7 @@
             method: 'POST',
             headers: { 'Accept': 'application/json' },
             body: formData,
-            signal: signal // Attach the abort signal here
+            signal: signal 
         })
             .then(async response => {
                 if (!response.ok) {
@@ -418,16 +418,19 @@
             .then(data => {
                 if (data.success) {
                     closeImportModal();
-                    showStatusModal('Success!', 'Your test has been updated.', 'success');
-                    // ... (rest of your success logic)
+                    // Use AssessmentBuilder's modal which supports callbacks!
+                    AssessmentBuilder.showModal('success', 'Import Successful!', 'Your test questions have been imported successfully.', () => {
+                        // Refresh the builder page to load the newly imported database records
+                        AssessmentBuilder.goToUrl(wrapper.dataset.builderUrl);
+                    });
                 }
             })
             .catch(error => {
                 if (error.name === 'AbortError') {
-                    // No need to show error modal for intentional cancellation
                     console.log("Upload caught abort error.");
                 } else {
-                    showStatusModal('Import Failed', error.message, 'error');
+                    // Use AssessmentBuilder's modal for errors too
+                    AssessmentBuilder.showModal('error', 'Import Failed', error.message);
                 }
             })
             .finally(() => {
@@ -436,7 +439,6 @@
                 btn.disabled = false;
             });
     }
-
 
     function showStatusModal(title, message, type) {
         const modal = document.getElementById('status-modal');
@@ -514,7 +516,7 @@
 
                     // Set the top position to perfectly negative the padding gap
                     header.style.top = '-' + gapOffset;
-                    header.style.zIndex = '40';
+                    header.style.zIndex = '10';
 
                     // 1. Remove old flat backgrounds
                     header.classList.remove('bg-gray-50/50', 'bg-white');
