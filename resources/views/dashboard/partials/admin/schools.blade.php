@@ -149,8 +149,8 @@
     </div>
 </div>
 
-<div id="deleteModal" class="fixed inset-0 z-50 hidden flex items-center justify-center">
-    <div class="absolute inset-0 bg-gray-900/60 backdrop-blur-sm"></div>
+<div id="deleteModal" class="fixed inset-0 z-100 hidden flex items-center justify-center">
+    <div class="absolute inset-0 bg-gray-900/60"></div>
     <div class="relative bg-white rounded-3xl shadow-2xl max-w-sm w-full p-8 text-center transform transition-all border border-gray-100 z-10 animate-fade-in-up">
         <div class="w-20 h-20 bg-red-50 text-red-500 rounded-full flex items-center justify-center mx-auto mb-5 shadow-inner">
             <i class="fas fa-exclamation-triangle text-4xl"></i>

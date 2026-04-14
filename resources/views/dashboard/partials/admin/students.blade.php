@@ -206,7 +206,7 @@
     </div>
 </div>
 
-<div id="deleteStudentModal" class="fixed inset-0 z-50 hidden flex items-center justify-center p-4">
+<div id="deleteStudentModal" class="fixed inset-0 z-100 hidden flex items-center justify-center p-4">
     <div class="absolute inset-0 bg-gray-900/60 transition-opacity" onclick="closeDeleteStudentModal()"></div>
     <div id="deleteStudentModalBox" class="relative bg-white rounded-3xl shadow-2xl max-w-sm w-full p-8 text-center transform scale-95 opacity-0 transition-all duration-300 border border-gray-100 z-10">
         <div class="w-20 h-20 bg-red-50 text-red-500 rounded-full flex items-center justify-center mx-auto mb-5 shadow-inner">

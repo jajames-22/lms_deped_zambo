@@ -138,7 +138,7 @@
 </div>
 
 <div id="assessmentModal"
-    class="fixed inset-0 z-50 opacity-0 pointer-events-none transition-opacity duration-300 flex items-center justify-center p-4">
+    class="fixed inset-0 z-100 opacity-0 pointer-events-none transition-opacity duration-300 flex items-center justify-center p-4">
     <div class="absolute inset-0 bg-gray-900/60" onclick="toggleAssessmentModal(false)"></div>
 
     <div id="assessmentModalBox"

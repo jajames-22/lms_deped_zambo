@@ -6,7 +6,7 @@
         input[value="suspended"]:checked + div .status-icon { background-color: #ef4444 !important; color: white !important; }
     </style>
 
-    <div class="max-w-5xl mx-auto space-y-6 pb-10 relative animate-float-in">
+    <div class="max-w-5xl mx-auto space-y-6 pb-10">
         
         <div class="flex items-center gap-4">
             <button type="button" onclick="loadPartial('{{ route('dashboard.students') }}', document.getElementById('nav-students-btn'))"
@@ -213,7 +213,7 @@
         </form>
 
         <div id="successModal" class="fixed inset-0 z-50 hidden flex items-center justify-center">
-            <div class="absolute inset-0 bg-gray-900/60 backdrop-blur-sm"></div>
+            <div class="absolute inset-0 bg-gray-900/60"></div>
             <div class="relative bg-white rounded-3xl shadow-2xl max-w-sm w-full p-8 text-center transform transition-all border border-gray-100 z-10 animate-fade-in-up">
                 <div class="w-20 h-20 bg-green-50 text-green-500 rounded-full flex items-center justify-center mx-auto mb-5 shadow-inner">
                     <i class="fas fa-check text-4xl"></i>
