@@ -463,65 +463,64 @@
     }
 
     function openTicketView(id) {
-        // Safe lookup: Find the specific ticket matching the ID
-        const t = userTicketsData.find(ticket => ticket.id == id);
-        const t = window.userTicketsData[id];
-        if(!t) return;
-        
-        let statusStyle = 'bg-gray-100 text-gray-600';
-        if(['open', 'waiting_on_support'].includes(t.status)) statusStyle = 'bg-amber-100 text-amber-700 border-amber-200';
-        else if(t.status === 'in_progress' || t.status === 'waiting_on_user') statusStyle = 'bg-blue-100 text-blue-700 border-blue-200';
-        else if(t.status === 'resolved') statusStyle = 'bg-green-100 text-green-700 border-green-200';
+    // Safe lookup: Find the specific ticket matching the ID
+    const t = window.userTicketsData.find(ticket => ticket.id == id);
+    if(!t) return;
+    
+    let statusStyle = 'bg-gray-100 text-gray-600';
+    if(['open', 'waiting_on_support'].includes(t.status)) statusStyle = 'bg-amber-100 text-amber-700 border-amber-200';
+    else if(t.status === 'in_progress' || t.status === 'waiting_on_user') statusStyle = 'bg-blue-100 text-blue-700 border-blue-200';
+    else if(t.status === 'resolved') statusStyle = 'bg-green-100 text-green-700 border-green-200';
 
-        let html = `
-            <div class="flex flex-col sm:flex-row sm:justify-between sm:items-start mb-4 gap-4">
-                <h4 class="font-black text-gray-900 text-2xl leading-tight">${t.subject}</h4>
-                <span class="shrink-0 text-[10px] uppercase tracking-widest font-black px-3 py-1.5 rounded-lg border ${statusStyle}">${t.status.replace(/_/g, ' ')}</span>
-            </div>
-            <div class="text-sm text-gray-700 mb-8 whitespace-pre-wrap leading-relaxed">${t.message}</div>
-        `;
-        
-        // Render Thread
-        if (t.messages && t.messages.length > 0) {
-            html += `<h4 class="text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-8 mb-4 border-b border-gray-100 pb-2">Ticket History</h4>`;
-            t.messages.forEach(msg => {
-                const isAdmin = msg.sender && msg.sender.role === 'admin';
-                if (isAdmin) {
-                    html += `<div class="mt-3 p-5 bg-[#a52a2a]/5 rounded-2xl border border-[#a52a2a]/20 relative overflow-hidden"><div class="absolute top-0 left-0 w-1 h-full bg-[#a52a2a]"></div><div class="flex items-center gap-2 mb-2 text-[#a52a2a]"><i class="fas fa-headset"></i><span class="text-xs font-black uppercase tracking-widest">Support Response</span></div><p class="text-sm text-gray-800 leading-relaxed whitespace-pre-wrap">${msg.message}</p></div>`;
-                } else {
-                    html += `<div class="mt-3 p-5 bg-gray-50 rounded-2xl border border-gray-200"><div class="flex items-center gap-2 mb-2 text-gray-600"><i class="fas fa-user"></i><span class="text-xs font-black uppercase tracking-widest">You</span></div><p class="text-sm text-gray-800 leading-relaxed whitespace-pre-wrap">${msg.message}</p></div>`;
-                }
-            });
-        }
-        
-        // Show 3-Day Warning if Resolved
-        if (t.status === 'resolved') {
-            html += `
-            <div class="mt-6 mb-4 p-4 bg-blue-50 border border-blue-200 rounded-xl flex items-start gap-3">
-                <i class="fas fa-info-circle text-blue-500 mt-0.5"></i>
-                <div>
-                    <p class="text-sm text-blue-800 font-bold">Ticket Resolved</p>
-                    <p class="text-xs text-blue-600 mt-1">If there are no further problems, this ticket will be permanently closed in 3 days. If you still need help, reply below to reopen it.</p>
-                </div>
-            </div>`;
-        }
-
-        // Append Reply Form if NOT Hard Closed
-        if (t.status !== 'closed') {
-            html += `
-            <form action="/dashboard/feedback/${t.id}/user-reply" method="POST" onsubmit="submitFeedbackReplyForm(event, this, ${t.id})" class="mt-4 pt-6 border-t border-gray-100">
-                <input type="hidden" name="_token" value="{{ csrf_token() }}">
-                <label class="block text-sm font-bold text-gray-700 mb-2">Send a Reply</label>
-                <textarea name="message" required rows="3" placeholder="Add more details or answer support's question..." class="w-full px-4 py-3 rounded-xl bg-gray-50 border border-gray-200 focus:ring-2 focus:ring-[#a52a2a]/20 focus:border-[#a52a2a] transition-all text-sm outline-none resize-none"></textarea>
-                <div class="mt-3 flex justify-end">
-                    <button type="submit" class="px-5 py-2 bg-gray-900 text-white font-bold rounded-xl shadow-md hover:bg-black transition flex items-center gap-2 text-sm"><i class="fas fa-reply"></i> Send Reply</button>
-                </div>
-            </form>`;
-        }
-
-        document.getElementById('ticket-view-content').innerHTML = html;
-        switchSupportTab('view');
+    let html = `
+        <div class="flex flex-col sm:flex-row sm:justify-between sm:items-start mb-4 gap-4">
+            <h4 class="font-black text-gray-900 text-2xl leading-tight">${t.subject}</h4>
+            <span class="shrink-0 text-[10px] uppercase tracking-widest font-black px-3 py-1.5 rounded-lg border ${statusStyle}">${t.status.replace(/_/g, ' ')}</span>
+        </div>
+        <div class="text-sm text-gray-700 mb-8 whitespace-pre-wrap leading-relaxed">${t.message}</div>
+    `;
+    
+    // Render Thread
+    if (t.messages && t.messages.length > 0) {
+        html += `<h4 class="text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-8 mb-4 border-b border-gray-100 pb-2">Ticket History</h4>`;
+        t.messages.forEach(msg => {
+            const isAdmin = msg.sender && msg.sender.role === 'admin';
+            if (isAdmin) {
+                html += `<div class="mt-3 p-5 bg-[#a52a2a]/5 rounded-2xl border border-[#a52a2a]/20 relative overflow-hidden"><div class="absolute top-0 left-0 w-1 h-full bg-[#a52a2a]"></div><div class="flex items-center gap-2 mb-2 text-[#a52a2a]"><i class="fas fa-headset"></i><span class="text-xs font-black uppercase tracking-widest">Support Response</span></div><p class="text-sm text-gray-800 leading-relaxed whitespace-pre-wrap">${msg.message}</p></div>`;
+            } else {
+                html += `<div class="mt-3 p-5 bg-gray-50 rounded-2xl border border-gray-200"><div class="flex items-center gap-2 mb-2 text-gray-600"><i class="fas fa-user"></i><span class="text-xs font-black uppercase tracking-widest">You</span></div><p class="text-sm text-gray-800 leading-relaxed whitespace-pre-wrap">${msg.message}</p></div>`;
+            }
+        });
     }
+    
+    // Show 3-Day Warning if Resolved
+    if (t.status === 'resolved') {
+        html += `
+        <div class="mt-6 mb-4 p-4 bg-blue-50 border border-blue-200 rounded-xl flex items-start gap-3">
+            <i class="fas fa-info-circle text-blue-500 mt-0.5"></i>
+            <div>
+                <p class="text-sm text-blue-800 font-bold">Ticket Resolved</p>
+                <p class="text-xs text-blue-600 mt-1">If there are no further problems, this ticket will be permanently closed in 3 days. If you still need help, reply below to reopen it.</p>
+            </div>
+        </div>`;
+    }
+
+    // Append Reply Form if NOT Hard Closed
+    if (t.status !== 'closed') {
+        html += `
+        <form action="/dashboard/feedback/${t.id}/user-reply" method="POST" onsubmit="submitFeedbackReplyForm(event, this, ${t.id})" class="mt-4 pt-6 border-t border-gray-100">
+            <input type="hidden" name="_token" value="{{ csrf_token() }}">
+            <label class="block text-sm font-bold text-gray-700 mb-2">Send a Reply</label>
+            <textarea name="message" required rows="3" placeholder="Add more details or answer support's question..." class="w-full px-4 py-3 rounded-xl bg-gray-50 border border-gray-200 focus:ring-2 focus:ring-[#a52a2a]/20 focus:border-[#a52a2a] transition-all text-sm outline-none resize-none"></textarea>
+            <div class="mt-3 flex justify-end">
+                <button type="submit" class="px-5 py-2 bg-gray-900 text-white font-bold rounded-xl shadow-md hover:bg-black transition flex items-center gap-2 text-sm"><i class="fas fa-reply"></i> Send Reply</button>
+            </div>
+        </form>`;
+    }
+
+    document.getElementById('ticket-view-content').innerHTML = html;
+    switchSupportTab('view');
+}
 
     (function() {
         // Grab the exact URL the SPA just loaded
