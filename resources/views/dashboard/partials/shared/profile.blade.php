@@ -1,6 +1,6 @@
 @php
     // Fetch fresh user data directly from DB
-    $user = \App\Models\User::find(auth()->id()); 
+    $user = \App\Models\User::find(\Illuminate\Support\Facades\Auth::id()); 
     $initials = strtoupper(substr($user->first_name, 0, 1) . substr($user->last_name, 0, 1));
     $roleColors = [
         'admin' => 'bg-purple-100 text-purple-700 border-purple-200',
@@ -9,7 +9,10 @@
     ];
     $roleColor = $roleColors[$user->role] ?? 'bg-gray-100 text-gray-700 border-gray-200';
     
-    $userFeedbacks = \App\Models\Feedback::where('user_id', $user->id)->orderBy('created_at', 'desc')->get();
+    // Fetch user feedbacks WITH threaded messages
+    $userFeedbacks = \App\Models\Feedback::with('messages.sender')
+        ->where('user_id', $user->id)
+        ->orderBy('created_at', 'desc')->get();
     
     $ticketsJson = $userFeedbacks->map(function($f) {
         return [
@@ -18,21 +21,20 @@
             'category' => ucwords(str_replace('_', ' ', $f->category)),
             'message' => $f->message,
             'status' => $f->status,
-            'admin_reply' => $f->admin_reply,
+            'messages' => $f->messages, // Pass the array of replies!
             'media_url' => $f->media_url ? asset('storage/' . $f->media_url) : null,
             'date' => $f->created_at->format('M d, Y h:i A')
         ];
-    })->keyBy('id');
-
+    })->values(); // Forces a clean Javascript array
+    
     $schools = \App\Models\School::orderBy('name', 'asc')->get();
 
-    // --- YOUR NEW 30-DAY RESTRICTION LOGIC ---
-    $hoursSinceUpdate = $user->updated_at->diffInHours(now());
+    // --- 30-DAY RESTRICTION LOGIC ---
+    $hoursSinceUpdate = $user->updated_at->diffInHours(\Carbon\Carbon::now());
     $requiredHours = 30 * 24; // 720 hours
     $daysLeftToUpdate = 0;
     
     if ($hoursSinceUpdate < $requiredHours) {
-        // Calculate remaining days (ceil rounds up, so 1.2 days becomes 2 days)
         $daysLeftToUpdate = ceil(($requiredHours - $hoursSinceUpdate) / 24);
     }
 @endphp
@@ -89,7 +91,7 @@
             <div class="mt-4 flex flex-wrap items-center justify-center md:justify-start gap-3">
                 <div class="px-4 py-2 bg-gray-50 rounded-xl border border-gray-100 text-xs font-bold text-gray-600 flex items-center gap-2">
                     <i class="fas fa-id-badge text-gray-400"></i>
-                    {{ $user->lrn ?? $user->employee_id ?? 'Not provided' }}
+                    {{ $user->email ?? 'Not provided' }}
                 </div>
                 <div class="px-4 py-2 bg-gray-50 rounded-xl border border-gray-100 text-xs font-bold text-gray-600 flex items-center gap-2">
                     <i class="fas fa-calendar-alt text-gray-400"></i>
@@ -332,10 +334,11 @@
                                     </div>
                                     <div class="shrink-0 flex items-center gap-4">
                                         <span class="text-[10px] uppercase tracking-widest font-black px-3 py-1.5 rounded-lg border 
-                                            {{ $feedback->status === 'pending' ? 'bg-amber-100 text-amber-700 border-amber-200' : '' }}
-                                            {{ $feedback->status === 'reviewed' ? 'bg-blue-100 text-blue-700 border-blue-200' : '' }}
-                                            {{ $feedback->status === 'resolved' ? 'bg-green-100 text-green-700 border-green-200' : '' }}">
-                                            {{ $feedback->status }}
+                                            {{ in_array($feedback->status, ['open', 'waiting_on_support']) ? 'bg-amber-100 text-amber-700 border-amber-200' : '' }}
+                                            {{ in_array($feedback->status, ['in_progress', 'waiting_on_user']) ? 'bg-blue-100 text-blue-700 border-blue-200' : '' }}
+                                            {{ $feedback->status === 'resolved' ? 'bg-green-100 text-green-700 border-green-200' : '' }}
+                                            {{ $feedback->status === 'closed' ? 'bg-gray-100 text-gray-600 border-gray-200' : '' }}">
+                                            {{ str_replace('_', ' ', $feedback->status) }}
                                         </span>
                                         <i class="fas fa-chevron-right text-gray-300 group-hover:text-[#a52a2a] transition-colors"></i>
                                     </div>
@@ -362,7 +365,7 @@
                     Back to List
                 </button>
                 <div id="ticket-view-content" class="bg-white p-6 md:p-8 rounded-2xl border border-gray-100 shadow-sm">
-                    </div>
+                </div>
             </div>
 
         </div>
@@ -388,7 +391,7 @@
 </div>
 
 <script>
-    // --- TOM SELECT INITIALIZATION (FOR SEARCHABLE SCHOOL DROPDOWN) ---
+    // --- TOM SELECT INITIALIZATION ---
     (function initTomSelect() {
         const schoolSelect = document.getElementById('schoolSelect');
         if (schoolSelect) {
@@ -413,8 +416,6 @@
         }
     })();
 
-    // --- EXACT 30 DAY PROFILE UPDATE RESTRICTION VARIABLE ---
-    // Note: Attached to window to prevent redeclaration errors in SPA navigation
     window.daysLeftToUpdate = {{ max(0, $daysLeftToUpdate) }};
 
     const userTicketsData = @json($ticketsJson);
@@ -463,69 +464,86 @@
     }
 
     function openTicketView(id) {
-        const t = userTicketsData[id];
+        // Safe lookup: Find the specific ticket matching the ID
+        const t = userTicketsData.find(ticket => ticket.id == id);
         if(!t) return;
         
-        let statusStyle = '';
-        if(t.status === 'pending') statusStyle = 'bg-amber-100 text-amber-700 border-amber-200';
-        else if(t.status === 'reviewed') statusStyle = 'bg-blue-100 text-blue-700 border-blue-200';
+        let statusStyle = 'bg-gray-100 text-gray-600';
+        if(['open', 'waiting_on_support'].includes(t.status)) statusStyle = 'bg-amber-100 text-amber-700 border-amber-200';
+        else if(t.status === 'in_progress' || t.status === 'waiting_on_user') statusStyle = 'bg-blue-100 text-blue-700 border-blue-200';
         else if(t.status === 'resolved') statusStyle = 'bg-green-100 text-green-700 border-green-200';
 
         let html = `
             <div class="flex flex-col sm:flex-row sm:justify-between sm:items-start mb-4 gap-4">
                 <h4 class="font-black text-gray-900 text-2xl leading-tight">${t.subject}</h4>
-                <span class="shrink-0 text-[10px] uppercase tracking-widest font-black px-3 py-1.5 rounded-lg border ${statusStyle}">${t.status}</span>
+                <span class="shrink-0 text-[10px] uppercase tracking-widest font-black px-3 py-1.5 rounded-lg border ${statusStyle}">${t.status.replace(/_/g, ' ')}</span>
             </div>
-            
-            <div class="flex items-center gap-3 mb-6 pb-4 border-b border-gray-100 text-xs font-bold text-gray-500 uppercase">
-                <span class="bg-gray-100 px-2 py-1 rounded"><i class="fas fa-tag mr-1"></i> ${t.category}</span>
-                <span class="bg-gray-100 px-2 py-1 rounded"><i class="fas fa-clock mr-1"></i> ${t.date}</span>
-            </div>
-
             <div class="text-sm text-gray-700 mb-8 whitespace-pre-wrap leading-relaxed">${t.message}</div>
         `;
         
-        if(t.media_url) {
-            html += `
-            <div class="mb-8 p-4 bg-gray-50 rounded-xl border border-gray-200 inline-block w-full sm:w-auto">
-                <p class="text-xs font-bold text-gray-500 uppercase mb-2"><i class="fas fa-paperclip"></i> Attached Media</p>
-                <a href="${t.media_url}" target="_blank" class="text-sm font-bold text-blue-600 hover:text-blue-800 flex items-center gap-2">
-                    <div class="w-10 h-10 bg-white rounded-lg border border-gray-200 shadow-sm flex items-center justify-center">
-                        <i class="fas fa-image text-gray-400"></i>
-                    </div>
-                    View Image / Screenshot
-                </a>
-            </div>`;
+        // Render Thread
+        if (t.messages && t.messages.length > 0) {
+            html += `<h4 class="text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-8 mb-4 border-b border-gray-100 pb-2">Ticket History</h4>`;
+            t.messages.forEach(msg => {
+                const isAdmin = msg.sender && msg.sender.role === 'admin';
+                if (isAdmin) {
+                    html += `<div class="mt-3 p-5 bg-[#a52a2a]/5 rounded-2xl border border-[#a52a2a]/20 relative overflow-hidden"><div class="absolute top-0 left-0 w-1 h-full bg-[#a52a2a]"></div><div class="flex items-center gap-2 mb-2 text-[#a52a2a]"><i class="fas fa-headset"></i><span class="text-xs font-black uppercase tracking-widest">Support Response</span></div><p class="text-sm text-gray-800 leading-relaxed whitespace-pre-wrap">${msg.message}</p></div>`;
+                } else {
+                    html += `<div class="mt-3 p-5 bg-gray-50 rounded-2xl border border-gray-200"><div class="flex items-center gap-2 mb-2 text-gray-600"><i class="fas fa-user"></i><span class="text-xs font-black uppercase tracking-widest">You</span></div><p class="text-sm text-gray-800 leading-relaxed whitespace-pre-wrap">${msg.message}</p></div>`;
+                }
+            });
         }
         
-        if(t.admin_reply) {
+        // Show 3-Day Warning if Resolved
+        if (t.status === 'resolved') {
             html += `
-            <div class="mt-4 p-6 bg-red-50/60 rounded-2xl border border-[#a52a2a]/20 shadow-sm relative overflow-hidden">
-                <div class="absolute top-0 left-0 w-1 h-full bg-[#a52a2a]"></div>
-                <div class="flex items-center gap-2 mb-3 text-[#a52a2a]">
-                    <div class="w-8 h-8 rounded-full bg-[#a52a2a] text-white flex items-center justify-center shadow-md">
-                        <i class="fas fa-user-shield text-xs"></i>
-                    </div>
-                    <span class="text-sm font-black uppercase tracking-widest">Administrator Reply</span>
+            <div class="mt-6 mb-4 p-4 bg-blue-50 border border-blue-200 rounded-xl flex items-start gap-3">
+                <i class="fas fa-info-circle text-blue-500 mt-0.5"></i>
+                <div>
+                    <p class="text-sm text-blue-800 font-bold">Ticket Resolved</p>
+                    <p class="text-xs text-blue-600 mt-1">If there are no further problems, this ticket will be permanently closed in 3 days. If you still need help, reply below to reopen it.</p>
                 </div>
-                <p class="text-sm text-gray-800 leading-relaxed whitespace-pre-wrap pl-10">${t.admin_reply}</p>
             </div>`;
         }
-        
+
+        // Append Reply Form if NOT Hard Closed
+        if (t.status !== 'closed') {
+            html += `
+            <form action="/dashboard/feedback/${t.id}/user-reply" method="POST" onsubmit="submitFeedbackReplyForm(event, this, ${t.id})" class="mt-4 pt-6 border-t border-gray-100">
+                <input type="hidden" name="_token" value="{{ csrf_token() }}">
+                <label class="block text-sm font-bold text-gray-700 mb-2">Send a Reply</label>
+                <textarea name="message" required rows="3" placeholder="Add more details or answer support's question..." class="w-full px-4 py-3 rounded-xl bg-gray-50 border border-gray-200 focus:ring-2 focus:ring-[#a52a2a]/20 focus:border-[#a52a2a] transition-all text-sm outline-none resize-none"></textarea>
+                <div class="mt-3 flex justify-end">
+                    <button type="submit" class="px-5 py-2 bg-gray-900 text-white font-bold rounded-xl shadow-md hover:bg-black transition flex items-center gap-2 text-sm"><i class="fas fa-reply"></i> Send Reply</button>
+                </div>
+            </form>`;
+        }
+
         document.getElementById('ticket-view-content').innerHTML = html;
         switchSupportTab('view');
     }
 
     (function() {
         const activeUrl = sessionStorage.getItem('lastActiveTab') || window.location.href;
-        const urlObj = new URL(activeUrl, window.location.origin);
-        const ticketId = urlObj.searchParams.get('ticket');
-
-        if (ticketId) {
+        
+        if(activeUrl.includes('tab=history')) {
             openSupportModal();
             setTimeout(() => {
-                openTicketView(ticketId);
+                switchSupportTab('history');
             }, 350); 
+            sessionStorage.removeItem('lastActiveTab');
+        } else {
+            try {
+                const urlObj = new URL(activeUrl, window.location.origin);
+                const ticketId = urlObj.searchParams.get('ticket');
+        
+                if (ticketId) {
+                    openSupportModal();
+                    setTimeout(() => {
+                        openTicketView(ticketId);
+                    }, 350); 
+                }
+            } catch(e) {}
         }
     })();
 
@@ -617,7 +635,6 @@
     function submitProfileForm(e, form) {
         e.preventDefault();
 
-        // 👈 Check global window variable instead of const
         if (window.daysLeftToUpdate > 0) {
             showProfileModal(
                 'Update Restricted', 
@@ -678,6 +695,41 @@
         });
     }
 
+    function submitFeedbackReplyForm(e, form, ticketId) {
+        e.preventDefault();
+        
+        const btn = form.querySelector('button[type="submit"]');
+        const originalHtml = btn.innerHTML;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Sending...';
+        btn.disabled = true;
+
+        closeSupportModal(); 
+
+        fetch(form.action, {
+            method: 'POST',
+            body: new FormData(form),
+            headers: { 'Accept': 'application/json' }
+        })
+        .then(async response => {
+            if(response.ok) {
+                sessionStorage.setItem('lastActiveTab', '/dashboard/profile?ticket=' + ticketId);
+                showProfileModal('Reply Sent!', 'Your message has been added to the ticket.', 'success');
+                form.reset();
+            } else {
+                const data = await response.json();
+                showProfileModal('Submission Failed', data.message || 'There was an error sending your reply.', 'error');
+            }
+        })
+        .catch(err => {
+            console.error(err);
+            showProfileModal('Network Error', 'A network error occurred while sending your reply.', 'error');
+        })
+        .finally(() => {
+            btn.innerHTML = originalHtml;
+            btn.disabled = false;
+        });
+    }
+
     function submitFeedbackForm(e, form) {
         e.preventDefault();
         const btn = form.querySelector('button[type="submit"]');
@@ -694,12 +746,17 @@
         })
         .then(async response => {
             if(response.ok) {
+                sessionStorage.setItem('lastActiveTab', '/dashboard/profile?tab=history'); 
                 showProfileModal('Ticket Submitted!', 'Your feedback has been sent to the admins.', 'success');
                 form.reset();
             } else {
                 const data = await response.json();
                 showProfileModal('Submission Failed', data.message || 'There was an error submitting your ticket.', 'error');
             }
+        })
+        .catch(err => {
+            console.error(err);
+            showProfileModal('Network Error', 'A network error occurred.', 'error');
         })
         .finally(() => {
             btn.innerHTML = originalHtml;

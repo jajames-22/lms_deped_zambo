@@ -36,6 +36,10 @@ class Feedback extends Model
         return $this->belongsTo(User::class, 'user_id');
     }
 
+    public function messages()
+    {
+        return $this->hasMany(FeedbackMessage::class)->orderBy('created_at', 'asc');
+    }
     /**
      * Get the admin who replied to this feedback.
      */

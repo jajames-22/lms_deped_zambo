@@ -5,7 +5,17 @@ use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schedule;
 use App\Models\Feedback;
+use Carbon\Carbon;
 
+Schedule::call(function () {
+    // Find tickets that have been resolved for more than 7 days
+    $staleDate = Carbon::now()->subDays(7);
+    
+    Feedback::where('status', 'resolved')
+        ->where('updated_at', '<', $staleDate)
+        ->update(['status' => 'closed']);
+        
+})->everyMinute();
 // Default Laravel inspire command
 Artisan::command('inspire', function () {
     $this->comment(Inspiring::quote());

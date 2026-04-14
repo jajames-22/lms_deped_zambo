@@ -156,7 +156,7 @@ class ProfileController extends Controller
         $feedback->category = $validated['category'];
         $feedback->subject = $validated['subject'];
         $feedback->message = $validated['message'];
-        $feedback->status = 'pending';
+        $feedback->status = 'open';
 
         if ($request->hasFile('media')) {
             $path = $request->file('media')->store('feedbacks', 'public');
@@ -185,10 +185,9 @@ class ProfileController extends Controller
 
     public function loadFeedbackPartial()
     {
-        // Fetch all feedbacks with their sender information
-        $feedbacks = \App\Models\Feedback::with('sender')->latest()->get();
+        $feedbacks = \App\Models\Feedback::with(['sender', 'messages.sender'])->latest()->get();
         
-        $pendingCount = $feedbacks->where('status', 'pending')->count();
+        $pendingCount = $feedbacks->whereIn('status', ['open', 'waiting_on_support'])->count();
         $resolvedCount = $feedbacks->where('status', 'resolved')->count();
         $bugCount = $feedbacks->where('category', 'bug_report')->count();
 
@@ -198,31 +197,101 @@ class ProfileController extends Controller
     /**
      * Handle Admin Reply to Feedback
      */
+    /**
+     * Handle Admin Reply to Feedback
+     */
+    /**
+     * Handle Admin Reply to Feedback
+     */
     public function replyToFeedback(\Illuminate\Http\Request $request, $id)
     {
         $request->validate([
-            'admin_reply' => 'required|string'
+            'admin_reply' => 'required|string',
+            'status' => 'required|in:in_progress,waiting_on_user,resolved' // Force admin to pick next step
         ]);
 
         $feedback = \App\Models\Feedback::findOrFail($id);
-        $feedback->admin_reply = $request->admin_reply;
-        $feedback->status = 'resolved';
-        $feedback->replied_by_admin_id = auth()->id();
-        $feedback->replied_at = now();
+        
+        // Prevent replies to Hard Closed tickets
+        if ($feedback->status === 'closed') {
+            return response()->json(['message' => 'This ticket is permanently closed.'], 422);
+        }
+
+        // 1. Create the message thread entry
+        $feedback->messages()->create([
+            'user_id' => auth()->id(),
+            'message' => $request->admin_reply,
+        ]);
+
+        // 2. Update the main ticket status
+        $feedback->status = $request->status;
         $feedback->save();
 
-        // --- TRIGGER EXISTING LARAVEL NOTIFICATION FOR THE SENDER ---
-        $sender = \App\Models\User::find($feedback->user_id);
+        // 3. Notify the sender with dynamic status context
+        $sender = User::find($feedback->user_id);
         if ($sender) {
+            
+            // Map the raw status to user-friendly text, icons, and colors
+            $statusText = '';
+            $icon = 'fas fa-reply';
+            $iconColor = 'text-blue-500';
+
+            switch ($request->status) {
+                case 'in_progress':
+                    $statusText = 'and is currently working on it (In Progress).';
+                    $icon = 'fas fa-spinner';
+                    $iconColor = 'text-blue-500';
+                    break;
+                case 'waiting_on_user':
+                    $statusText = 'and is waiting for your response.';
+                    $icon = 'fas fa-question-circle';
+                    $iconColor = 'text-amber-500';
+                    break;
+                case 'resolved':
+                    $statusText = 'and has marked the ticket as Resolved.';
+                    $icon = 'fas fa-check-circle';
+                    $iconColor = 'text-green-500';
+                    break;
+            }
+
             $sender->notify(new \App\Notifications\LmsAlertNotification(
-                'Feedback Replied',
-                'An admin has replied to your report: "' . $feedback->subject . '".',
+                'Ticket Update',
+                'Support replied to "' . $feedback->subject . '" ' . $statusText,
                 route('dashboard.profile') . '?ticket=' . $feedback->id,
-                'fas fa-reply',
-                'text-green-500'
+                $icon,
+                $iconColor
             ));
         }
 
-        return response()->json(['success' => true, 'message' => 'Reply sent and ticket resolved.']);
+        return response()->json(['success' => true, 'message' => 'Response sent successfully.']);
     }
+    /**
+     * Handle User Reply to Feedback
+     */
+    public function userReplyToFeedback(\Illuminate\Http\Request $request, $id)
+    {
+        $request->validate([
+            'message' => 'required|string',
+        ]);
+
+        $feedback = \App\Models\Feedback::where('user_id', auth()->id())->findOrFail($id);
+
+        if ($feedback->status === 'closed') {
+            return response()->json(['message' => 'This ticket is permanently closed.'], 422);
+        }
+
+        // Add the user's message to the thread
+        $feedback->messages()->create([
+            'user_id' => auth()->id(),
+            'message' => $request->message,
+        ]);
+
+        // PING-PONG: Ball is back in the admin's court! 
+        // Even if it was 'resolved', replying reopens it.
+        $feedback->status = 'waiting_on_support';
+        $feedback->save();
+
+        return response()->json(['success' => true, 'message' => 'Reply sent successfully.']);
+    }
+    
 }

@@ -140,6 +140,7 @@ Route::middleware(['auth', 'verified', CheckAccountStatus::class])->group(functi
 
         Route::get('/feedback', [ProfileController::class, 'loadFeedbackPartial'])->name('dashboard.feedback');
         Route::post('/feedback/store', [ProfileController::class, 'storeFeedback'])->name('feedback.store');
+        Route::post('/feedback/{id}/user-reply', [ProfileController::class, 'userReplyToFeedback'])->name('dashboard.feedback.user-reply');
         Route::post('/feedback/{id}/reply', [ProfileController::class, 'replyToFeedback'])->name('dashboard.feedback.reply');
 
         Route::get('/criteria', [DashboardController::class, 'loadCriteriaPartial'])->name('dashboard.criteria');
