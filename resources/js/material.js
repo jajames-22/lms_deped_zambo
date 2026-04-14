@@ -284,7 +284,7 @@ MaterialBuilder.addSection = function (
                     <button type="button" onclick="MaterialBuilder.toggleDropdown(this)" class="px-4 py-3 text-${type === "exam" ? "red-600 bg-red-50" : "purple-600 bg-purple-50"} hover:bg-${type === "exam" ? "red-100" : "purple-100"} transition rounded-r-xl">
                         <i class="fas fa-chevron-down text-xs"></i>
                     </button>
-                    <div class="hidden absolute bottom-full right-0 mb-2 w-48 bg-white border border-gray-100 rounded-xl shadow-lg z-50 py-1 dropdown-menu">
+                    <div class="hidden absolute bottom-full right-0 mt-2 w-48 bg-white border border-gray-100 rounded-xl shadow-lg z-[10] py-1 dropdown-menu">
                         <button type="button" onclick="MaterialBuilder.addItem(${MaterialBuilder.catCount}, '${type === "exam" ? "exam" : "quiz"}', 'checkbox'); MaterialBuilder.toggleDropdown(this.closest('.relative').querySelector('button'))" class="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"><i class="fas fa-check-square mr-2"></i> Checkboxes</button>
                         <button type="button" onclick="MaterialBuilder.addItem(${MaterialBuilder.catCount}, '${type === "exam" ? "exam" : "quiz"}', 'text'); MaterialBuilder.toggleDropdown(this.closest('.relative').querySelector('button'))" class="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"><i class="fas fa-pencil-alt mr-2"></i> Short Text</button>
                         <button type="button" onclick="MaterialBuilder.addItem(${MaterialBuilder.catCount}, '${type === "exam" ? "exam" : "quiz"}', 'true_false'); MaterialBuilder.toggleDropdown(this.closest('.relative').querySelector('button'))" class="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"><i class="fas fa-adjust mr-2"></i> True or False</button>
@@ -322,7 +322,7 @@ MaterialBuilder.addSection = function (
                 
                 <div id="q-container-${MaterialBuilder.catCount}" class="space-y-4 mb-4"></div>
                 
-                <div class="mt-6 relative z-30">${controlsHtml}</div>
+                <div class="mt-6 relative">${controlsHtml}</div>
             </div>
 
             ${
@@ -355,7 +355,7 @@ MaterialBuilder.addItem = function (
     mainType,
     subType = "content",
     afterElement = null,
-    existingId = null, // Added param
+    existingId = null, 
 ) {
     const container = document.getElementById(`q-container-${cId}`);
     if (!container) return;
@@ -374,7 +374,6 @@ MaterialBuilder.addItem = function (
             ? "Lesson Content Block"
             : `${mainType === "quiz" ? "Practice Quiz" : "Exam Question"}: ${subType.toUpperCase()}`;
 
-    // ADDED data-id
     const html = `
         <div class="p-4 rounded-xl border border-gray-100 question-block relative group ${bgClass}" id="${qId}" data-main-type="${mainType}" data-sub-type="${subType}" data-id="${existingId || ""}">
             <div class="flex justify-between items-start mb-2 cursor-pointer" onclick="MaterialBuilder.toggleQuestion('${qId}', event)">
@@ -392,12 +391,13 @@ MaterialBuilder.addItem = function (
                 <div class="relative mb-3">
                     <textarea class="q-text w-full pl-3 pr-10 py-3 bg-white border border-gray-200 rounded-lg outline-none font-medium text-sm focus:border-[#a52a2a] min-h-[60px]" placeholder="Enter content..."></textarea>
                     <input type="hidden" class="q-media-url" value="">
-    <input type="hidden" class="q-media-name" value="">
+                    <input type="hidden" class="q-media-name" value="">
                     <button type="button" onclick="MaterialBuilder.openMediaModal('${qId}')" class="absolute right-2 top-2 h-8 w-8 flex items-center justify-center text-gray-400 hover:text-[#a52a2a] hover:bg-gray-100 rounded transition"><i class="fas fa-photo-video"></i></button>
                 </div>
                 <div id="preview-${qId}" class="hidden"></div>
                 <div class="options-list space-y-2 mb-3"></div>
-                ${mainType !== "content" && (subType === "mcq" || subType === "checkbox") ? `<button type="button" onclick="MaterialBuilder.addOptionToQuestion('${qId}', '${subType}')" class="text-[10px] font-bold text-[#a52a2a] hover:underline uppercase flex items-center mt-2"><i class="fas fa-plus mr-1"></i> Add Choice</button>` : ""}
+                ${mainType !== "content" && (subType === "mcq" || subType === "checkbox") ? `<button type="button" onclick="MaterialBuilder.addOptionToQuestion('${qId}', '${subType}')" class="text-[10px] font-bold text-[#a52a2a] hover:underline uppercase flex items-center mt-2"><i class="fas fa-plus mr-1"></i> Add Option</button>` : ""}
+                ${mainType !== "content" && (subType === "text") ? `<button type="button" onclick="MaterialBuilder.addOptionToQuestion('${qId}', '${subType}')" class="text-[10px] font-bold text-[#a52a2a] hover:underline uppercase flex items-center mt-2"><i class="fas fa-plus mr-1"></i> Add Acceptable Answer</button>` : ""}
             </div>
             
             <div class="absolute -bottom-3.5 left-1/2 -translate-x-1/2 flex justify-center items-center h-8 w-24 opacity-0 hover:opacity-100 transition-opacity z-20">
@@ -447,14 +447,13 @@ MaterialBuilder.addOptionToQuestion = function (
     isCorrect = false,
     text = "",
     isCaseSensitive = false,
-    existingId = null, // Added param
+    existingId = null,
 ) {
     const list = document.querySelector(`#${qId} .options-list`);
     if (!list) return;
     const optCount = list.querySelectorAll(".option-row").length + 1;
     let optHtml = "";
 
-    // Common row class with data-id
     const rowBase = `class="flex items-center justify-between gap-3 bg-white px-3 py-2 rounded-lg border border-gray-200 option-row transition" data-id="${existingId || ""}"`;
 
     if (type === "mcq" || type === "true_false") {
@@ -478,14 +477,30 @@ MaterialBuilder.addOptionToQuestion = function (
     } else if (type === "text") {
         optHtml = `
             <div class="flex items-center gap-3 bg-green-50/50 px-3 py-2 rounded-lg border border-green-200 option-row transition" data-id="${existingId || ""}">
-                <input type="text" class="option-input w-full bg-transparent outline-none text-sm font-medium" value="${text}">
+                <span class="text-[10px] font-bold text-green-600 uppercase shrink-0"><i class="fas fa-check mr-1"></i> Acceptable Answer:</span>
+                <input type="text" class="option-input w-full bg-transparent outline-none text-sm font-medium" placeholder="Type exact answer..." value="${text}">
                 <input type="hidden" class="is-correct-input" value="true">
-                <label class="flex items-center gap-1.5 cursor-pointer text-gray-500 border-l border-green-200 pl-3 shrink-0"><input type="checkbox" class="case-sensitive-input h-4 w-4" ${isCaseSensitive ? "checked" : ""}><span class="text-[10px] font-bold uppercase">Case Sensitive</span></label>
+                <div class="flex items-center gap-3 border-l border-green-200 pl-3 shrink-0">
+                    <label class="flex items-center gap-1.5 cursor-pointer text-gray-500 hover:text-green-600 transition">
+                        <input type="checkbox" class="case-sensitive-input cursor-pointer h-4 w-4" ${isCaseSensitive ? "checked" : ""} onchange="MaterialBuilder.syncCaseSensitive('${qId}', this.checked)">
+                        <span class="text-[10px] font-bold uppercase">Case Sensitive</span>
+                    </label>
+                    <button type="button" onclick="MaterialBuilder.removeOption(this, '${qId}')" class="text-gray-400 hover:text-red-500 transition h-6 w-6 flex items-center justify-center"><i class="fas fa-times-circle"></i></button>
+                </div>
             </div>`;
     }
     list.insertAdjacentHTML("beforeend", optHtml);
     MaterialBuilder.handleAutosaveTrigger();
 };
+
+// ADD THIS NEW FUNCTION RIGHT BELOW IT
+MaterialBuilder.syncCaseSensitive = function(qId, isChecked) {
+    document.querySelectorAll(`#${qId} .case-sensitive-input`).forEach(cb => {
+        cb.checked = isChecked;
+    });
+    MaterialBuilder.handleAutosaveTrigger();
+};
+
 
 MaterialBuilder.removeOption = function (btn, qId) {
     btn.closest(".option-row").remove();

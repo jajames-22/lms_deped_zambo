@@ -728,32 +728,50 @@ class MaterialsController extends Controller
     }
 
 
+    
     public function destroy($id)
     {
+        \Illuminate\Support\Facades\DB::beginTransaction();
         try {
-            $lessonIds = DB::table('lessons')->where('material_id', $id)->pluck('id');
-
-            if ($lessonIds->isNotEmpty()) {
-                // FIX: Changed 'quizzes' to 'lesson_contents'
-                $quizIds = DB::table('lesson_contents')->whereIn('lesson_id', $lessonIds)->pluck('id');
-
-                if ($quizIds->isNotEmpty()) {
-                    DB::table('quiz_options')->whereIn('quiz_id', $quizIds)->delete();
-                }
-
-                // FIX: Changed 'quizzes' to 'lesson_contents'
-                DB::table('lesson_contents')->whereIn('lesson_id', $lessonIds)->delete();
-                DB::table('lessons')->where('material_id', $id)->delete();
+            // 1. Delete Exam dependencies (Answers, Options, and the Exams themselves)
+            $examIds = \Illuminate\Support\Facades\DB::table('exams')->where('material_id', $id)->pluck('id');
+            if ($examIds->isNotEmpty()) {
+                \Illuminate\Support\Facades\DB::table('exam_answers')->whereIn('exam_id', $examIds)->delete();
+                \Illuminate\Support\Facades\DB::table('exam_options')->whereIn('exam_id', $examIds)->delete();
+                \Illuminate\Support\Facades\DB::table('exams')->whereIn('id', $examIds)->delete();
             }
 
-            DB::table('enrollments')->where('material_id', $id)->delete();
-            DB::table('materials')->where('id', $id)->delete();
+            // 2. Delete Lesson dependencies (Answers, Quizzes, Options, and the Lessons themselves)
+            $lessonIds = \Illuminate\Support\Facades\DB::table('lessons')->where('material_id', $id)->pluck('id');
+            if ($lessonIds->isNotEmpty()) {
+                $quizIds = \Illuminate\Support\Facades\DB::table('lesson_contents')->whereIn('lesson_id', $lessonIds)->pluck('id');
 
+                if ($quizIds->isNotEmpty()) {
+                    \Illuminate\Support\Facades\DB::table('quiz_answers')->whereIn('lesson_content_id', $quizIds)->delete();
+                    \Illuminate\Support\Facades\DB::table('quiz_options')->whereIn('quiz_id', $quizIds)->delete();
+                }
+
+                \Illuminate\Support\Facades\DB::table('lesson_contents')->whereIn('lesson_id', $lessonIds)->delete();
+                \Illuminate\Support\Facades\DB::table('lessons')->whereIn('id', $lessonIds)->delete();
+            }
+
+            // 3. Delete Material specific relationships (Tags, Access Lists, Enrollments)
+            \Illuminate\Support\Facades\DB::table('material_accesses')->where('material_id', $id)->delete();
+            \Illuminate\Support\Facades\DB::table('material_tag')->where('material_id', $id)->delete();
+            \Illuminate\Support\Facades\DB::table('enrollments')->where('material_id', $id)->delete();
+
+            // 4. Finally, safely delete the Material itself
+            \Illuminate\Support\Facades\DB::table('materials')->where('id', $id)->delete();
+
+            \Illuminate\Support\Facades\DB::commit();
             return response()->json(['success' => true]);
-        } catch (Exception $e) {
-            return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
+            
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\DB::rollBack();
+            return response()->json(['success' => false, 'message' => 'Failed to delete module: ' . $e->getMessage()], 500);
         }
     }
+    
 
     public function downloadTemplate()
     {

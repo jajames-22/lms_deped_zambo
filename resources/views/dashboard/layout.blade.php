@@ -112,7 +112,7 @@
                             <span id="notificationBadge" class="hidden absolute top-0 right-0 h-3 w-3 bg-red-600 rounded-full border-2 border-white shadow-sm"></span>
                         </button>
 
-                        <div id="notificationDropdown" class="hidden fixed inset-0 m-4 sm:m-0 sm:absolute sm:inset-auto sm:right-0 sm:top-full sm:mt-2 sm:w-[380px] bg-white rounded-2xl shadow-2xl border border-gray-100 flex flex-col z-[100] sm:z-50 transform opacity-0 sm:scale-95 transition-all duration-200 origin-top-right sm:max-h-[85vh] overflow-hidden">
+                        <div id="notificationDropdown" class="hidden fixed inset-0 m-4 sm:m-0 sm:absolute sm:inset-auto sm:right-0 sm:top-full sm:mt-2 sm:w-[380px] bg-white rounded-2xl shadow-2xl border border-gray-100 flex flex-col z-[9999] transform opacity-0 sm:scale-95 transition-all duration-200 origin-top-right sm:max-h-[85vh] overflow-hidden">
         
                             <div class="px-4 py-3 border-b border-gray-100 flex justify-between items-center shrink-0 bg-white shadow-sm z-10 relative">
                                 <div class="flex items-center gap-2">

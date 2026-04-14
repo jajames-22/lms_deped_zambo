@@ -61,6 +61,9 @@ class LessonImport implements ToCollection, WithHeadingRow
                     $mediaUrl = trim($row['image_url']);
                 }
 
+                // 6. Extract Case Sensitivity (Translates 'TRUE'/'FALSE'/'1'/'0' securely to boolean)
+                $isCaseSensitive = filter_var($row['is_case_sensitive'] ?? false, FILTER_VALIDATE_BOOLEAN);
+
                 // --------------------------------------------------------
                 // BRANCH A: EXAM IMPORT LOGIC (Upsert based on Question Text)
                 // --------------------------------------------------------
@@ -76,7 +79,7 @@ class LessonImport implements ToCollection, WithHeadingRow
                         'type' => $itemType,
                         'question_text' => $contentText,
                         'media_url' => $mediaUrl,
-                        'is_case_sensitive' => false,
+                        'is_case_sensitive' => $isCaseSensitive, // Dynamic Case Sensitivity
                         'updated_at' => now(),
                     ];
 
@@ -127,7 +130,7 @@ class LessonImport implements ToCollection, WithHeadingRow
                         'type' => $itemType,
                         'question_text' => $contentText,
                         'media_url' => $mediaUrl,
-                        'is_case_sensitive' => false,
+                        'is_case_sensitive' => $isCaseSensitive, // Dynamic Case Sensitivity
                         'updated_at' => now(),
                     ];
 
@@ -163,17 +166,38 @@ class LessonImport implements ToCollection, WithHeadingRow
         if ($itemType === 'true_false') {
             $correctAnswer = strtolower(trim($row['correct_answer'] ?? ''));
             DB::table('exam_options')->insert([
-                ['exam_id' => $examId, 'option_text' => 'True', 'is_correct' => ($correctAnswer === 'true' || $correctAnswer === 'option 1'), 'created_at' => now(), 'updated_at' => now()],
-                ['exam_id' => $examId, 'option_text' => 'False', 'is_correct' => ($correctAnswer === 'false' || $correctAnswer === 'option 2'), 'created_at' => now(), 'updated_at' => now()]
+                ['exam_id' => $examId, 'option_text' => 'True', 'is_correct' => ($correctAnswer === 'true' || $correctAnswer === 'option 1' || $correctAnswer === '1'), 'created_at' => now(), 'updated_at' => now()],
+                ['exam_id' => $examId, 'option_text' => 'False', 'is_correct' => ($correctAnswer === 'false' || $correctAnswer === 'option 2' || $correctAnswer === '2'), 'created_at' => now(), 'updated_at' => now()]
             ]);
         } else {
+            // Break down comma-separated answers for Checkboxes (e.g. "Option 1, Option 3" or "1, 3")
+            $rawCorrect = strtolower(trim($row['correct_answer'] ?? ''));
+            $correctArray = array_map('trim', explode(',', $rawCorrect));
+
             for ($i = 1; $i <= 4; $i++) {
                 $col = 'option_' . $i;
                 if (!isset($row[$col]) || trim($row[$col]) === '') continue;
+
+                $isCorrect = false;
+                $optStr = 'option ' . $i;
+                $optNum = (string)$i;
+
+                if ($itemType === 'checkbox') {
+                    // For Checkboxes, see if the current option number/string is in the array list
+                    if (in_array($optStr, $correctArray) || in_array($optNum, $correctArray)) {
+                        $isCorrect = true;
+                    }
+                } else {
+                    // For standard MCQ, just do a direct string match
+                    if ($rawCorrect === $optStr || $rawCorrect === $optNum) {
+                        $isCorrect = true;
+                    }
+                }
+
                 DB::table('exam_options')->insert([
                     'exam_id' => $examId,
                     'option_text' => trim($row[$col]),
-                    'is_correct' => (strtolower(trim($row['correct_answer'] ?? '')) === 'option ' . $i),
+                    'is_correct' => $isCorrect,
                     'created_at' => now(), 'updated_at' => now(),
                 ]);
             }
@@ -188,17 +212,38 @@ class LessonImport implements ToCollection, WithHeadingRow
         if ($itemType === 'true_false') {
             $correctAnswer = strtolower(trim($row['correct_answer'] ?? ''));
             DB::table('quiz_options')->insert([
-                ['quiz_id' => $quizId, 'option_text' => 'True', 'is_correct' => ($correctAnswer === 'true' || $correctAnswer === 'option 1'), 'created_at' => now(), 'updated_at' => now()],
-                ['quiz_id' => $quizId, 'option_text' => 'False', 'is_correct' => ($correctAnswer === 'false' || $correctAnswer === 'option 2'), 'created_at' => now(), 'updated_at' => now()]
+                ['quiz_id' => $quizId, 'option_text' => 'True', 'is_correct' => ($correctAnswer === 'true' || $correctAnswer === 'option 1' || $correctAnswer === '1'), 'created_at' => now(), 'updated_at' => now()],
+                ['quiz_id' => $quizId, 'option_text' => 'False', 'is_correct' => ($correctAnswer === 'false' || $correctAnswer === 'option 2' || $correctAnswer === '2'), 'created_at' => now(), 'updated_at' => now()]
             ]);
         } else {
+            // Break down comma-separated answers for Checkboxes (e.g. "Option 1, Option 3" or "1, 3")
+            $rawCorrect = strtolower(trim($row['correct_answer'] ?? ''));
+            $correctArray = array_map('trim', explode(',', $rawCorrect));
+
             for ($i = 1; $i <= 4; $i++) {
                 $col = 'option_' . $i;
                 if (!isset($row[$col]) || trim($row[$col]) === '') continue;
+
+                $isCorrect = false;
+                $optStr = 'option ' . $i;
+                $optNum = (string)$i;
+
+                if ($itemType === 'checkbox') {
+                    // For Checkboxes, see if the current option number/string is in the array list
+                    if (in_array($optStr, $correctArray) || in_array($optNum, $correctArray)) {
+                        $isCorrect = true;
+                    }
+                } else {
+                    // For standard MCQ, just do a direct string match
+                    if ($rawCorrect === $optStr || $rawCorrect === $optNum) {
+                        $isCorrect = true;
+                    }
+                }
+
                 DB::table('quiz_options')->insert([
                     'quiz_id' => $quizId,
                     'option_text' => trim($row[$col]),
-                    'is_correct' => (strtolower(trim($row['correct_answer'] ?? '')) === 'option ' . $i),
+                    'is_correct' => $isCorrect,
                     'created_at' => now(), 'updated_at' => now(),
                 ]);
             }

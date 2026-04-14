@@ -498,7 +498,7 @@
             method: 'POST',
             headers: { 'Accept': 'application/json' },
             body: formData,
-            signal: signal // Attach the abort signal here
+            signal: signal 
         })
             .then(async response => {
                 if (!response.ok) {
@@ -510,15 +510,21 @@
             .then(data => {
                 if (data.success) {
                     closeImportModal();
-                    showStatusModal('Success!', 'Your module has been updated.', 'success');
-                    // ... (rest of your success logic)
+                    // Use MaterialBuilder's modal which supports callbacks!
+                    MaterialBuilder.showModal('success', 'Import Successful!', 'Your module content has been imported successfully.', () => {
+                        // Refresh the builder page to load the newly imported database records
+                        MaterialBuilder.goToUrl(wrapper.dataset.builderUrl);
+                    });
                 }
             })
             .catch(error => {
                 if (error.name === 'AbortError') {
-                    showSnackbar('Import cancelled by user.', 'info');
+                    // Optional: If you have a toast/snackbar function you can use it here, 
+                    // otherwise just log it quietly so it doesn't bother the user.
+                    console.log("Import cancelled by user.");
                 } else {
-                    showStatusModal('Import Failed', error.message, 'error');
+                    // Use MaterialBuilder's modal for errors too
+                    MaterialBuilder.showModal('error', 'Import Failed', error.message);
                 }
             })
             .finally(() => {
@@ -527,7 +533,7 @@
                 btn.disabled = false;
             });
     }
-
+    
     function showStatusModal(title, message, type) {
         const modal = document.getElementById('status-modal');
         const iconContainer = document.getElementById('status-modal-icon');
@@ -614,7 +620,7 @@
                 if (header) {
                     header.style.position = 'sticky';
                     header.style.top = '-' + gapOffset;
-                    header.style.zIndex = '40';
+                    header.style.zIndex = '10';
 
                     // 1. Remove old flat backgrounds
                     header.classList.remove('bg-gray-50/50', 'bg-white');

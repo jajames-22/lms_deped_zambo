@@ -447,6 +447,37 @@ class AssessmentController extends Controller
         }
     }
 
+    /**
+     * Cleans up deleted categories, questions, and options from the database.
+     */
+    private function cleanupRemovedItems($assessmentId, array $keptCategoryIds, array $keptQuestionIds, array $keptOptionIds)
+    {
+        // 1. Delete Options that were removed
+        \Illuminate\Support\Facades\DB::table('assessment_options')
+            ->whereIn('question_id', function ($query) use ($assessmentId) {
+                $query->select('id')->from('assessment_questions')
+                    ->whereIn('category_id', function ($sub) use ($assessmentId) {
+                        $sub->select('id')->from('assessment_categories')->where('assessment_id', $assessmentId);
+                    });
+            })
+            ->whereNotIn('id', $keptOptionIds)
+            ->delete();
+
+        // 2. Delete Questions that were removed
+        \Illuminate\Support\Facades\DB::table('assessment_questions')
+            ->whereIn('category_id', function ($query) use ($assessmentId) {
+                $query->select('id')->from('assessment_categories')->where('assessment_id', $assessmentId);
+            })
+            ->whereNotIn('id', $keptQuestionIds)
+            ->delete();
+
+        // 3. Delete Categories that were removed
+        \Illuminate\Support\Facades\DB::table('assessment_categories')
+            ->where('assessment_id', $assessmentId)
+            ->whereNotIn('id', $keptCategoryIds)
+            ->delete();
+    }
+
 
     public function manage(Assessment $assessment)
     {

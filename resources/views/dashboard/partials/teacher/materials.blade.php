@@ -235,6 +235,7 @@
                         MaterialManager.applyFilters(); 
                     }, 300);
                 } else {
+                    const data = await response.json().catch(() => ({}));
                     MaterialManager.showModal('error', 'Delete Failed', 'The server returned an error while deleting.');
                     btn.innerHTML = originalHtml;
                     btn.disabled = false;

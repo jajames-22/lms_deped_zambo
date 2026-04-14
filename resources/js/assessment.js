@@ -265,7 +265,7 @@ AssessmentBuilder.addCategory = function (afterElement = null, existingId = null
                             <i class="fas fa-chevron-down"></i>
                         </button>
                         
-                        <div class="hidden absolute bottom-full right-0 mb-2 w-48 bg-white border border-gray-100 rounded-xl shadow-lg z-20 py-1 overflow-hidden dropdown-menu">
+                        <div class="hidden absolute bottom-full right-0 mb-2 w-48 bg-white border border-gray-100 rounded-xl shadow-lg z-10 py-1 overflow-hidden dropdown-menu">
                             <button type="button" onclick="AssessmentBuilder.addQuestion(${AssessmentBuilder.catCount}, 'mcq'); AssessmentBuilder.toggleDropdown(this.closest('.relative').querySelector('button'))" class="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 hover:text-[#a52a2a]"><i class="fas fa-dot-circle w-5 text-center text-gray-400 mr-1"></i> Multiple Choice</button>
                             <button type="button" onclick="AssessmentBuilder.addQuestion(${AssessmentBuilder.catCount}, 'checkbox'); AssessmentBuilder.toggleDropdown(this.closest('.relative').querySelector('button'))" class="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 hover:text-[#a52a2a]"><i class="fas fa-check-square w-5 text-center text-gray-400 mr-1"></i> Checkboxes</button>
                             <button type="button" onclick="AssessmentBuilder.addQuestion(${AssessmentBuilder.catCount}, 'text'); AssessmentBuilder.toggleDropdown(this.closest('.relative').querySelector('button'))" class="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 hover:text-[#a52a2a]"><i class="fas fa-align-left w-5 text-center text-gray-400 mr-1"></i> Short Text</button>
@@ -349,10 +349,20 @@ AssessmentBuilder.addQuestion = function (cId, type = "mcq", afterElement = null
                 <div class="options-list space-y-2 mb-3"></div>
                 
                 ${
-                    type === "mcq" || type === "checkbox"
+                    type === "mcq" || type === "checkbox" 
                         ? `
                     <button type="button" onclick="AssessmentBuilder.addOptionToQuestion('${qId}', '${type}')" class="text-[10px] font-bold text-[#a52a2a] hover:underline uppercase flex items-center">
-                        <i class="fas fa-plus mr-1"></i> Add Choice
+                        <i class="fas fa-plus mr-1"></i> Add Option
+                    </button>
+                `
+                        : ""
+                }
+
+                 ${
+                    type === "text"
+                        ? `
+                    <button type="button" onclick="AssessmentBuilder.addOptionToQuestion('${qId}', '${type}')" class="text-[10px] font-bold text-[#a52a2a] hover:underline uppercase flex items-center">
+                        <i class="fas fa-plus mr-1"></i> Add Acceptable Answer
                     </button>
                 `
                         : ""
@@ -442,13 +452,16 @@ AssessmentBuilder.addOptionToQuestion = function (
     } else if (type === "text") {
         optHtml = `
             <div class="flex items-center gap-3 bg-green-50/50 px-3 py-2 rounded-lg border border-green-200 option-row transition" data-id="${existingId || ''}">
-                <span class="text-[10px] font-bold text-green-600 uppercase shrink-0"><i class="fas fa-check mr-1"></i> Exact Match:</span>
+                <span class="text-[10px] font-bold text-green-600 uppercase shrink-0"><i class="fas fa-check mr-1"></i> Acceptable Answer:</span>
                 <input type="text" class="option-input w-full bg-transparent outline-none text-sm font-medium" placeholder="Type exact answer..." value="${text}">
                 <input type="hidden" class="is-correct-input" value="true" checked>
-                <label class="flex items-center gap-1.5 cursor-pointer text-gray-500 border-l border-green-200 pl-3 shrink-0">
-                    <input type="checkbox" class="case-sensitive-input cursor-pointer h-4 w-4" ${isCaseSensitive ? "checked" : ""}>
-                    <span class="text-[10px] font-bold uppercase">Case Sensitive</span>
-                </label>
+                <div class="flex items-center gap-3 border-l border-green-200 pl-3 shrink-0">
+                    <label class="flex items-center gap-1.5 cursor-pointer text-gray-500 hover:text-green-600 transition">
+                        <input type="checkbox" class="case-sensitive-input cursor-pointer h-4 w-4" ${isCaseSensitive ? "checked" : ""} onchange="AssessmentBuilder.syncCaseSensitive('${qId}', this.checked)">
+                        <span class="text-[10px] font-bold uppercase">Case Sensitive</span>
+                    </label>
+                    <button type="button" onclick="AssessmentBuilder.removeOption(this, '${qId}')" class="text-gray-400 hover:text-red-500 transition h-6 w-6 flex items-center justify-center"><i class="fas fa-times-circle"></i></button>
+                </div>
             </div>`;
     } else if (type === "true_false") {
         optHtml = `
@@ -464,6 +477,14 @@ AssessmentBuilder.addOptionToQuestion = function (
     }
 
     list.insertAdjacentHTML("beforeend", optHtml);
+    AssessmentBuilder.handleAutosaveTrigger();
+};
+
+// ADD THIS NEW FUNCTION RIGHT BELOW IT
+AssessmentBuilder.syncCaseSensitive = function(qId, isChecked) {
+    document.querySelectorAll(`#${qId} .case-sensitive-input`).forEach(cb => {
+        cb.checked = isChecked;
+    });
     AssessmentBuilder.handleAutosaveTrigger();
 };
 
