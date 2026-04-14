@@ -19,9 +19,13 @@
         .sidebar-scroll::-webkit-scrollbar-track { background: transparent; }
         .sidebar-scroll::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 4px; }
         
+        /* FIX 1: Active blocks now act as flex containers that fill remaining space */
         .lesson-container, .content-block { display: none; }
         .lesson-container.active, .content-block.active { 
-            display: block; 
+            display: flex !important; 
+            flex-direction: column;
+            flex: 1 1 0%;
+            min-height: 0;
             animation: fadeIn 0.4s ease-out forwards; 
         }
         
@@ -73,17 +77,17 @@
 
         .controls-row { display: flex; align-items: center; justify-content: space-between; color: white; }
         
-        .pdf-container { background: #e5e7eb; border-radius: 1rem; overflow: hidden; display: flex; flex-direction: column; height: 60vh; lg:height: 75vh; width: 100%; }
+        .pdf-container { background: #e5e7eb; border-radius: 1rem; overflow: hidden; display: flex; flex-direction: column; width: 100%; padding-bottom: 0.75rem; }
         .pdf-toolbar { background: #1f2937; color: white; padding: 0.75rem 1rem; display: flex; justify-content: space-between; align-items: center; }
         .pdf-render-area { 
             overflow: auto; 
             padding: 1rem; 
             position: relative; 
             flex-grow: 1; 
-            text-align: center; /* Centers canvas horizontally safely */
+            text-align: center; 
         }
         .pdf-render-area canvas { 
-            display: inline-block; /* Allows scrolling without clipping top/left */
+            display: inline-block; 
             vertical-align: middle;
             box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2); 
             border-radius: 4px; 
@@ -270,9 +274,10 @@
             </nav>
         </aside>
 
+        {{-- FIX 2: Made the Main body a perfect flex chain --}}
         <main class="flex-1 flex flex-col min-w-0 bg-gray-50 h-full relative z-10">
-            <div id="main-scroll-area" class="flex-1 overflow-y-auto w-full relative">
-                <div class="w-full max-w-7xl mx-auto px-4 py-8 sm:px-8 flex flex-col min-h-full">
+            <div id="main-scroll-area" class="flex-1 overflow-y-auto w-full relative flex flex-col">
+                <div class="w-full max-w-7xl mx-auto px-4 py-8 sm:px-8 flex flex-col flex-1 min-h-0">
                     
                     @foreach($timeline as $lessonIndex => $section)
                         <div id="lesson-{{ $lessonIndex }}" class="lesson-container w-full">
@@ -280,7 +285,7 @@
                                 <div id="content-{{ $lessonIndex }}-{{ $contentIndex }}" class="content-block w-full">
                                     
                                     @if($section->is_exam)
-                                        <div class="text-center mb-6 w-full">
+                                        <div class="text-center mb-6 w-full shrink-0">
                                             <span class="inline-block px-4 py-1.5 bg-[#a52a2a] text-white text-[10px] font-black uppercase tracking-widest rounded-lg shadow-sm">Examination Section</span>
                                         </div>
                                     @endif
@@ -317,11 +322,12 @@
                                         $inputName = $section->is_exam ? "exam_answer_{$block->id}" : "answer_{$block->id}";
                                     @endphp
 
-                                    <div class="flex flex-col lg:flex-row gap-2 lg:gap-4 w-full">
+                                    {{-- FIX 3: Flex Row container that expands to fill the padded boundaries --}}
+                                    <div class="flex flex-col lg:flex-row gap-4 lg:gap-6 w-full flex-1 min-h-0">
                                         
                                         {{-- MEDIA PARSER --}}
                                         @if($hasMedia)
-                                            <div class="w-full {{ $hasText ? 'lg:w-1/2 xl:w-7/12' : '' }}">
+                                            <div class="w-full flex flex-col {{ $hasText ? 'lg:w-1/2 xl:w-7/12' : 'flex-1' }} min-h-0">
                                                 @php
                                                     $mediaUrl = str_starts_with($block->media_url, 'http') ? $block->media_url : asset('storage/' . $block->media_url);
                                                     $pathForExt = parse_url($mediaUrl, PHP_URL_PATH) ?? $mediaUrl;
@@ -333,7 +339,8 @@
                                                 @endphp
 
                                                 @if($isPdf)
-                                                    <div class="pdf-container media-container shadow-sm border border-gray-200" data-pdf-url="{{ $mediaUrl }}" id="media-{{ $lessonIndex }}-{{ $contentIndex }}">
+                                                    {{-- FIX 4: Removed hardcoded heights. Media naturally stretches or holds a 50vh minimum on mobile --}}
+                                                    <div class="pdf-container media-container shadow-sm border border-gray-200 flex-1 min-h-[50vh] lg:min-h-0 flex flex-col" data-pdf-url="{{ $mediaUrl }}" id="media-{{ $lessonIndex }}-{{ $contentIndex }}">
                                                         <div class="pdf-toolbar shrink-0">
                                                             <div class="flex items-center gap-4">
                                                                 <span class="text-sm font-bold"><i class="fas fa-file-pdf mr-2"></i> Page <span class="pdf-page-num text-[#a52a2a]">1</span> of <span class="pdf-page-count">?</span></span>
@@ -349,17 +356,17 @@
                                                                 <a href="{{ $mediaUrl }}" target="_blank" class="ml-1 pl-3 border-l border-gray-600 hover:text-[#a52a2a] transition" title="Open in new tab"><i class="fas fa-external-link-alt"></i></a>
                                                             </div>
                                                         </div>
-                                                        <div class="pdf-render-area bg-gray-200 relative">
+                                                        <div class="pdf-render-area bg-gray-200 relative flex-1 min-h-0 overflow-auto text-center">
                                                             <div class="pdf-loading absolute inset-0 flex flex-col items-center justify-center bg-gray-100 z-10">
                                                                 <i class="fas fa-circle-notch fa-spin text-3xl text-[#a52a2a] mb-3"></i>
                                                                 <span class="text-sm font-bold text-gray-500 tracking-widest uppercase">Loading Document...</span>
                                                             </div>
-                                                            <canvas class="pdf-canvas mx-auto transition-transform duration-200"></canvas>
+                                                            <canvas class="pdf-canvas mx-auto transition-transform duration-200 shadow-[0_4px_20px_rgba(0,0,0,0.2)] rounded"></canvas>
                                                         </div>
                                                     </div>
                                                 @elseif($isVideo)
-                                                    <div class="video-wrapper media-container shadow-xl group border border-gray-800" id="media-{{ $lessonIndex }}-{{ $contentIndex }}">
-                                                        <video class="w-full max-h-[70vh] object-contain custom-video">
+                                                    <div class="video-wrapper media-container shadow-xl group border border-gray-800 flex-1 min-h-[50vh] lg:min-h-0 flex flex-col bg-black" id="media-{{ $lessonIndex }}-{{ $contentIndex }}">
+                                                        <video class="w-full flex-1 object-contain custom-video min-h-0" controls>
                                                             <source src="{{ $mediaUrl }}" type="video/{{ $ext === 'webm' ? 'webm' : 'mp4' }}">
                                                         </video>
                                                         <div class="video-controls">
@@ -385,8 +392,8 @@
                                                         </div>
                                                     </div>
                                                 @elseif($isImage)
-                                                    <div class="media-container rounded-2xl overflow-hidden bg-gray-200 border border-gray-200 flex bg-white justify-center relative group w-full" id="media-{{ $lessonIndex }}-{{ $contentIndex }}">
-                                                        <img src="{{ $mediaUrl }}" class="object-contain max-h-[70vh] w-full transition-transform duration-300">
+                                                    <div class="media-container rounded-2xl overflow-hidden bg-white border border-gray-200 relative group w-full flex-1 min-h-[50vh] lg:min-h-0" id="media-{{ $lessonIndex }}-{{ $contentIndex }}">
+                                                        <img src="{{ $mediaUrl }}" class="absolute inset-0 w-full h-full object-contain p-2 transition-transform duration-300">
                                                         
                                                         {{-- Fullscreen Button --}}
                                                         <button onclick="openMediaFullscreen('media-{{ $lessonIndex }}-{{ $contentIndex }}', 'image')" class="fs-toggle-btn absolute top-4 right-4 bg-black/60 text-white w-10 h-10 flex items-center justify-center rounded-xl opacity-0 group-hover:opacity-100 transition hover:bg-[#a52a2a] shadow-lg" title="Full Screen"><i class="fas fa-expand"></i></button>
@@ -397,7 +404,8 @@
 
                                         {{-- TEXT/QUESTIONS PARSER --}}
                                         @if($hasText)
-                                            <div class="w-full {{ $hasMedia ? 'lg:w-1/2 xl:w-5/12' : 'max-w-4xl mx-auto' }}">
+                                            {{-- FIX 5: Text column gets its own internal scroller if the text is incredibly long --}}
+                                            <div class="w-full flex flex-col {{ $hasMedia ? 'lg:w-1/2 xl:w-5/12 lg:overflow-y-auto pr-1 lg:pr-2' : 'max-w-4xl mx-auto flex-1 overflow-y-visible lg:overflow-y-auto px-1 lg:px-2' }} min-h-0">
                                                 
                                                 @if($block->type === 'content' && $block->question_text)
                                                     <div class="bg-white rounded-3xl p-4 sm:p-6 shadow-sm border border-gray-100 prose prose-gray max-w-none text-gray-800 text-base sm:text-lg leading-relaxed">
@@ -405,9 +413,9 @@
                                                     </div>
 
                                                 @elseif(in_array($block->type, ['mcq', 'true_false']))
-                                                    <div class="bg-white rounded-3xl p-4 sm:p-6 shadow-sm border border-[#a52a2a]/20 relative overflow-hidden">
+                                                    <div class="bg-white rounded-3xl p-4 sm:p-6 shadow-sm border border-[#a52a2a]/20 relative overflow-hidden shrink-0">
                                                         <div class="absolute top-0 left-0 w-1.5 h-full bg-[#a52a2a]"></div>
-                                                        <h3 class="text-xl font-bold text-gray-900 mb-6">{{ $block->question_text }}</h3>
+                                                        <h3 class="whitespace-break-spaces text-xl font-bold text-gray-900 mb-6">{{ $block->question_text }}</h3>
                                                         <div class="space-y-3">
                                                             @foreach($block->options as $option)
                                                                 @php
@@ -425,7 +433,7 @@
                                                     </div>
 
                                                 @elseif($block->type === 'checkbox')
-                                                    <div class="bg-white rounded-3xl p-4 sm:p-6 shadow-sm border border-[#a52a2a]/20 relative overflow-hidden">
+                                                    <div class="bg-white rounded-3xl p-4 sm:p-6 shadow-sm border border-[#a52a2a]/20 relative overflow-hidden shrink-0">
                                                         <div class="absolute top-0 left-0 w-1.5 h-full bg-[#a52a2a]"></div>
                                                         <div class="flex items-start justify-between gap-4 mb-6">
                                                             <h3 class="text-xl font-bold text-gray-900">{{ $block->question_text }}</h3>
@@ -449,7 +457,7 @@
                                                     </div>
 
                                                 @elseif($block->type === 'text')
-                                                    <div class="bg-white rounded-3xl p-4 sm:p-6 shadow-sm border border-[#a52a2a]/20 relative overflow-hidden">
+                                                    <div class="bg-white rounded-3xl p-4 sm:p-6 shadow-sm border border-[#a52a2a]/20 relative overflow-hidden shrink-0">
                                                         <div class="absolute top-0 left-0 w-1.5 h-full bg-[#a52a2a]"></div>
                                                         <h3 class="text-xl font-bold text-gray-900 mb-4">{{ $block->question_text }}</h3>
                                                         <textarea name="{{ $inputName }}" rows="5" placeholder="Type your answer here..." {{ $isLocked ? 'disabled' : '' }}
@@ -459,7 +467,7 @@
                                                 
                                                 {{-- FEEDBACK BADGE (Only for Quizzes) --}}
                                                 @if($isQuiz)
-                                                    <div id="quiz-feedback-{{ $block->id }}" class="mt-6" style="display: {{ $isLocked ? 'block' : 'none' }};">
+                                                    <div id="quiz-feedback-{{ $block->id }}" class="mt-6 shrink-0" style="display: {{ $isLocked ? 'block' : 'none' }};">
                                                         @if($isLocked)
                                                             @if($feedbackType === 'recorded_as_is')
                                                                 <div class="p-4 bg-blue-50 border border-blue-200 rounded-xl flex items-center gap-3 text-blue-700 font-bold"><i class="fas fa-info-circle text-xl"></i> Answer recorded as is.</div>
@@ -512,9 +520,8 @@
     </div>
 
     {{-- NEW GLOBAL FULLSCREEN OVERLAY CONTROLS --}}
-    {{-- NEW GLOBAL FULLSCREEN OVERLAY CONTROLS --}}
     <div id="fs-global-controls" class="fixed inset-0 pointer-events-none hidden z-[999999] transition-opacity duration-300 opacity-100">
-        <button onclick="closeMediaFullscreen()" class="absolute top-4 right-4 sm:top-15 sm:right-8 pointer-events-auto bg-black/60 hover:bg-red-600 text-white rounded-full w-12 h-12 flex items-center justify-center backdrop-blur transition-colors shadow-2xl border border-white/10" title="Exit Full Screen">
+        <button onclick="closeMediaFullscreen()" class="absolute top-4 right-4 sm:top-15 sm:right-8 pointer-events-auto bg-black/60 hover:bg-[#a52a2a] text-white rounded-full w-12 h-12 flex items-center justify-center backdrop-blur transition-colors shadow-2xl border border-white/10" title="Exit Full Screen">
             <i class="fas fa-times text-xl"></i>
         </button>
 
@@ -1255,11 +1262,9 @@
                     }
                 });
 
-                // FIX: Better Drag & Skip Logic
                 slider.addEventListener('mousedown', () => slider.dataset.dragging = 'true');
                 slider.addEventListener('touchstart', () => slider.dataset.dragging = 'true');
                 
-                // While dragging, just update the visual UI (don't choke the video player)
                 slider.addEventListener('input', (e) => {
                     slider.dataset.dragging = 'true';
                     if (video.duration) {
@@ -1269,7 +1274,6 @@
                     }
                 });
 
-                // When released, actually skip the video to the new time
                 slider.addEventListener('change', (e) => {
                     if (video.duration) {
                         const percent = e.target.value;
@@ -1278,7 +1282,6 @@
                     slider.dataset.dragging = 'false';
                 });
 
-                // Fallback catch if mouse leaves the slider before releasing
                 document.addEventListener('mouseup', () => {
                     if (slider.dataset.dragging === 'true') slider.dataset.dragging = 'false';
                 });
@@ -1297,8 +1300,6 @@
         function toggleMute(id, event) { const video = document.getElementById(id).querySelector('.custom-video'); const icon = event.currentTarget.querySelector('i'); video.muted = !video.muted; icon.className = video.muted ? 'fas fa-volume-mute' : 'fas fa-volume-up'; }
         function changeSpeed(id, speed) { document.getElementById(id).querySelector('.custom-video').playbackRate = parseFloat(speed); }
         function formatTime(seconds) { if (isNaN(seconds)) return "0:00"; const m = Math.floor(seconds / 60); const s = Math.floor(seconds % 60); return `${m}:${s < 10 ? '0' : ''}${s}`; }
-        
-        // Retained fallback just in case HTML still expects it
         function seekVideoInput(e, id) { }
 
         // --- PDF SCRIPTS ---
@@ -1309,12 +1310,9 @@
             const id = `media-${lessonIdx}-${contentIdx}`;
             const container = document.getElementById(id);
             
-            // FIX: Must check if the container is actually a PDF container!
-            // Otherwise videos/images will crash the renderState function!
             if (!container || !container.classList.contains('pdf-container')) return; 
 
             if (pdfInstances[id]) {
-                pdfInstances[id].hasSetScale = false; 
                 renderPdfPage(id);
                 return; 
             }
@@ -1347,16 +1345,19 @@
                     const renderArea = instance.container.querySelector('.pdf-render-area');
                     
                     const targetWidth = renderArea.clientWidth - 32; 
-                    const targetHeight = renderArea.clientHeight - 32; 
+                    const targetHeight = renderArea.clientHeight - 40; // Offset for padding and breathing room
                     
                     if (targetWidth > 0 && targetHeight > 0) {
                         const scaleW = targetWidth / unscaledViewport.width;
                         const scaleH = targetHeight / unscaledViewport.height;
                         
-                        instance.scale = Math.min(scaleW, scaleH);
-                        
-                        if (instance.scale > 1.0) instance.scale = 1.0; 
-                        if (instance.scale < 0.3) instance.scale = 0.3;
+                        if (unscaledViewport.width > unscaledViewport.height) {
+                            // Landscape
+                            instance.scale = Math.min(scaleW, scaleH); 
+                        } else {
+                            // Portrait
+                            instance.scale = Math.min(scaleW, 1.5); 
+                        }
                         
                         instance.hasSetScale = true; 
                     }
@@ -1383,8 +1384,8 @@
             });
         }
 
-        function pdfZoomIn(id) { if(pdfInstances[id]) { pdfInstances[id].scale += 0.02; renderPdfPage(id); } }
-        function pdfZoomOut(id) { if(pdfInstances[id] && pdfInstances[id].scale > 0.04) { pdfInstances[id].scale -= 0.02; renderPdfPage(id); } }
+        function pdfZoomIn(id) { if(pdfInstances[id]) { pdfInstances[id].scale += 0.2; renderPdfPage(id); } }
+        function pdfZoomOut(id) { if(pdfInstances[id] && pdfInstances[id].scale > 0.4) { pdfInstances[id].scale -= 0.2; renderPdfPage(id); } }
     </script>
 </body>
 </html>

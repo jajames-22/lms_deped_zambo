@@ -277,7 +277,6 @@
 
                     let targetBtn = element;
                     if (!targetBtn || !targetBtn.classList) {
-                        // Unified matching logic for all roles
                         if (url.includes('/profile')) targetBtn = document.getElementById('nav-profile-btn');
                         else if (url.includes('/analytics')) targetBtn = document.getElementById('nav-analytics-btn');
                         else if (url.includes('/certificates')) targetBtn = document.getElementById('nav-certificates-btn');
