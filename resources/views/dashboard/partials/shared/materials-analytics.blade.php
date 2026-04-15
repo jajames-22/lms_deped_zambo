@@ -335,7 +335,7 @@
                                             <th class="px-6 py-4 w-1/3">Question Base</th>
                                             <th class="px-6 py-4 text-center">
                                                 <div class="flex items-center justify-center gap-1">
-                                                    Difficulty Index (p)
+                                                    Difficulty Level
                                                     <div class="relative group cursor-help">
                                                         <i
                                                             class="fas fa-question-circle text-gray-400 transition-colors group-hover:text-[#a52a2a]"></i>
@@ -370,8 +370,8 @@
                                                     </div>
                                                 </div>
                                             </th>
-                                            <th class="px-6 py-4 w-1/2">
-                                                Response Distribution (Distractors & Texts)
+                                            <th class="px-6 py-4 w-1/2 text-center">
+                                                Answers Chosen
                                             </th>
                                         </tr>
                                     </thead>
@@ -464,7 +464,7 @@
                                             <th class="px-6 py-4 w-1/3">Question Base</th>
                                             <th class="px-6 py-4 text-center">
                                                 <div class="flex items-center justify-center gap-1">
-                                                    Difficulty Index (p)
+                                                    Difficulty Level
                                                     <div class="relative group cursor-help">
                                                         <i
                                                             class="fas fa-question-circle text-gray-400 transition-colors group-hover:text-[#a52a2a]"></i>
@@ -499,8 +499,8 @@
                                                     </div>
                                                 </div>
                                             </th>
-                                            <th class="px-6 py-4 w-1/2">
-                                                Response Distribution (Distractors & Texts)
+                                            <th class="px-6 py-4 w-1/2 text-center">
+                                                Answers Chosen
                                             </th>
                                         </tr>
                                     </thead>

@@ -382,10 +382,43 @@
                                 <th class="px-6 py-4 w-12 text-center">Item</th>
                                 <th class="px-6 py-4 w-1/3">Question Base</th>
                                 <th class="px-6 py-4 text-center">
-                                    Difficulty Level
-                                    <i class="fas fa-question-circle text-gray-400 ml-1 cursor-help" title="Percentage of students who answered correctly."></i>
-                                </th>
-                                <th class="px-6 py-4 w-1/2">
+                                                <div class="flex items-center justify-center gap-1">
+                                                    Difficulty Index (p)
+                                                    <div class="relative group cursor-help">
+                                                        <i
+                                                            class="fas fa-question-circle text-gray-400 transition-colors group-hover:text-[#a52a2a]"></i>
+                                                        {{-- Tooltip Box (Updated) --}}
+                                                        <div
+                                                            class="absolute top-full left-1/2 -translate-x-1/2 mt-2 w-64 p-3 bg-gray-900 text-white text-[11px] rounded-xl shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-[100] font-normal normal-case tracking-normal pointer-events-none">
+                                                            <strong
+                                                                class="text-white block mb-2 border-b border-gray-700 pb-1">Difficulty
+                                                                Classification</strong>
+                                                            <ul class="space-y-1">
+                                                                <li class="flex justify-between"><span
+                                                                        class="text-blue-400 font-bold">81% -
+                                                                        100%</span><span>Very Easy</span></li>
+                                                                <li class="flex justify-between"><span
+                                                                        class="text-green-400 font-bold">61% -
+                                                                        80%</span><span>Easy</span></li>
+                                                                <li class="flex justify-between"><span
+                                                                        class="text-amber-400 font-bold">41% -
+                                                                        60%</span><span>Average</span></li>
+                                                                <li class="flex justify-between"><span
+                                                                        class="text-orange-400 font-bold">21% -
+                                                                        40%</span><span>Difficult</span></li>
+                                                                <li class="flex justify-between"><span
+                                                                        class="text-red-400 font-bold">0% - 20%</span><span>Very
+                                                                        Difficult</span></li>
+                                                            </ul>
+                                                            {{-- Arrow (Updated to point up) --}}
+                                                            <div
+                                                                class="absolute bottom-full left-1/2 -translate-x-1/2 border-4 border-transparent border-b-gray-900">
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </th>
+                                <th class="px-6 py-4 w-1/2 text-center">
                                     Answers Chosen
                                 </th>
                             </tr>
