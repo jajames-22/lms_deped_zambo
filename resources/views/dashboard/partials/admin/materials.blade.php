@@ -127,11 +127,20 @@
 
                             <td class="px-4 py-3 text-center" onclick="event.stopPropagation();">
                                 <div class="flex items-center justify-center gap-2">
+                                    @if($statusStr === 'published')
+                                    <button onclick="loadPartial('{{ route('dashboard.materials.analytics', $material->id) }}', document.getElementById('nav-materials-btn'))"
+                                        class="w-8 h-8 flex items-center justify-center text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition shadow-none"
+                                        title="View Analytics">
+                                        <i class="fas fa-chart-line text-sm"></i>
+                                    </button>
+                                    @endif
+
                                     <button onclick="loadPartial('{{ route('dashboard.materials.edit', $material->id) }}', document.getElementById('nav-materials-btn'))"
                                         class="w-8 h-8 flex items-center justify-center text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition shadow-none"
                                         title="{{ $btnTooltip }}">
                                         <i class="fas {{ $btnIcon }} text-sm"></i>
                                     </button>
+                                    
                                     <button onclick="MaterialTableManager.confirmDelete({{ $material->id }}, '{{ route('dashboard.materials.destroy', $material->id) }}', this)" 
                                         class="w-8 h-8 flex items-center justify-center text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition shadow-none" title="Delete">
                                         <i class="fas fa-trash-alt text-sm"></i>

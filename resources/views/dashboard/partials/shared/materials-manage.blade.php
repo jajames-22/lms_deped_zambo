@@ -171,11 +171,18 @@
                         <i class="fas fa-desktop group-hover:scale-110 transition-transform"></i> View Preview
                     </button>
 
+                
                     @if($isLive && (!empty($material->evaluation_json) || !empty($material->admin_remarks)))
                         <button onclick="window.location.href='{{ route('dashboard.materials.evaluation-result', $material->id) }}'" class="w-full py-3 px-4 bg-blue-50 border-2 border-blue-200 text-blue-700 font-bold rounded-xl hover:bg-blue-600 hover:text-white hover:border-blue-600 transition-all flex items-center justify-center gap-2 group shadow-sm" title="View Evaluation Report">
                             <i class="fas fa-clipboard-check group-hover:scale-110 transition-transform"></i> View Report
                         </button>
                     @endif
+                    
+                    {{-- NEW: View Analytics Button (Hidden if not published) --}}
+                    <button onclick="loadPartial('{{ route('dashboard.materials.analytics', $material->id) }}', document.getElementById('nav-materials-btn'))"
+                        id="analytics-btn" class="w-full py-3 px-4 bg-[#a52a2a] text-white font-bold rounded-xl hover:bg-red-800 transition-all flex items-center justify-center gap-2 shadow-lg shadow-[#a52a2a]/20 {{ $isLive ? '' : 'hidden' }}">
+                        <i class="fas fa-chart-pie"></i> View Analytics
+                    </button>
                 </div>
             </div>
         </div>

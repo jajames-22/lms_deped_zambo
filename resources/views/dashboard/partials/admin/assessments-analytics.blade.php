@@ -62,11 +62,11 @@
                         <i class="fas fa-question-circle text-gray-500 text-[10px] transition-colors group-hover:text-gray-300"></i>
                         <div class="absolute bottom-full left-0 mb-2 w-56 p-3 bg-white text-gray-700 text-[11px] leading-relaxed rounded-xl shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50 border border-gray-100 font-normal tracking-normal pointer-events-none">
                             <strong class="text-gray-900 block mb-1">Mean Percentage Score</strong>
-                            The official average score of the entire test-taking cohort. The standard target for Division mastery is generally 75%.
+                            The average score of all the students who took the test. The standard target for mastery is usually 75%.
                         </div>
                     </div>
                     <p class="text-4xl font-black text-white">{{ $overallMPS }}<span class="text-xl text-gray-400">%</span></p>
-                    <p class="text-[10px] text-gray-400 mt-1">Average cohort score</p>
+                    <p class="text-[10px] text-gray-400 mt-1">Average student score</p>
                 </div>
 
                 {{-- 2. Descriptive Overall Mastery Level --}}
@@ -75,8 +75,30 @@
                         <p class="text-gray-500 text-[10px] font-bold uppercase tracking-wider">Descriptive Level</p>
                         <i class="fas fa-question-circle text-gray-300 text-[10px] transition-colors group-hover:text-[#a52a2a]"></i>
                         <div class="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-56 p-3 bg-gray-900 text-gray-300 text-[11px] leading-relaxed rounded-xl shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50 font-normal normal-case tracking-normal pointer-events-none">
-                            <strong class="text-white block mb-1">Standardized Mastery Category</strong>
-                            Classifies the cohort's overall MPS into national standard proficiency brackets (e.g., Highly Proficient, Low Proficient).
+                            <strong class="text-white block mb-1">Mastery Category</strong>
+                            Groups the students' overall average score into standard levels:
+                                <ul class="space-y-1">
+    <li class="flex justify-between">
+        <span class="text-green-600 font-bold">90% - 100%</span>
+        <span>Highly Proficient</span>
+    </li>
+    <li class="flex justify-between">
+        <span class="text-blue-600 font-bold">75% - 89%</span>
+        <span>Proficient</span>
+    </li>
+    <li class="flex justify-between">
+        <span class="text-amber-600 font-bold">50% - 74%</span>
+        <span>Nearly Proficient</span>
+    </li>
+    <li class="flex justify-between">
+        <span class="text-orange-600 font-bold">25% - 49%</span>
+        <span>Low Proficient</span>
+    </li>
+    <li class="flex justify-between">
+        <span class="text-red-600 font-bold">0% - 24%</span>
+        <span>Not Proficient</span>
+    </li>
+</ul>
                             <div class="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gray-900"></div>
                         </div>
                     </div>
@@ -92,8 +114,8 @@
                         <p class="text-blue-700 text-[10px] font-bold uppercase tracking-wider">Most Mastered</p>
                         <i class="fas fa-check-circle text-blue-400 text-[10px]"></i>
                         <div class="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-56 p-3 bg-gray-900 text-gray-300 text-[11px] leading-relaxed rounded-xl shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50 font-normal normal-case tracking-normal pointer-events-none">
-                            <strong class="text-white block mb-1">Greatest Academic Strength</strong>
-                            The specific subject or competency category where the cohort scored the highest.
+                            <strong class="text-white block mb-1">Highest Scoring Area</strong>
+                            The specific subject or topic where the students scored the highest.
                             <div class="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gray-900"></div>
                         </div>
                     </div>
@@ -111,8 +133,8 @@
                         <p class="text-gray-500 text-[10px] font-bold uppercase tracking-wider">Participation Rate</p>
                         <i class="fas fa-question-circle text-gray-300 text-[10px] transition-colors group-hover:text-[#a52a2a]"></i>
                         <div class="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-56 p-3 bg-gray-900 text-gray-300 text-[11px] leading-relaxed rounded-xl shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50 font-normal normal-case tracking-normal pointer-events-none">
-                            <strong class="text-white block mb-1">Cohort Engagement</strong>
-                            The percentage of enrolled/whitelisted students who successfully finished the assessment.
+                            <strong class="text-white block mb-1">Student Participation</strong>
+                            The percentage of assigned students who successfully finished the test.
                             <div class="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gray-900"></div>
                         </div>
                     </div>
@@ -127,7 +149,7 @@
                         <i class="fas fa-question-circle text-gray-300 text-[10px] transition-colors group-hover:text-[#a52a2a]"></i>
                         <div class="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-56 p-3 bg-gray-900 text-gray-300 text-[11px] leading-relaxed rounded-xl shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50 font-normal normal-case tracking-normal pointer-events-none">
                             <strong class="text-white block mb-1">Standard Met</strong>
-                            Percentage of test-takers who successfully met the 75% standard proficiency score.
+                            The percentage of students who successfully met the 75% standard passing score.
                             <div class="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gray-900"></div>
                         </div>
                     </div>
@@ -142,8 +164,8 @@
                         <p class="text-red-700 text-[10px] font-bold uppercase tracking-wider">Least Mastered</p>
                         <i class="fas fa-exclamation-triangle text-red-400 text-[10px]"></i>
                         <div class="absolute bottom-full right-0 sm:left-1/2 sm:-translate-x-1/2 mb-2 w-56 p-3 bg-gray-900 text-gray-300 text-[11px] leading-relaxed rounded-xl shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50 font-normal normal-case tracking-normal pointer-events-none">
-                            <strong class="text-white block mb-1">Priority Intervention Focus</strong>
-                            The specific subject or competency category with the lowest scores. This dictates where reteaching efforts must be focused.
+                            <strong class="text-white block mb-1">Area for Improvement</strong>
+                            The specific subject or topic with the lowest scores. This shows where students need more help or review.
                             <div class="absolute top-full right-4 sm:left-1/2 sm:-translate-x-1/2 border-4 border-transparent border-t-gray-900"></div>
                         </div>
                     </div>
@@ -166,7 +188,7 @@
                     <div class="flex justify-between items-start mb-2">
                         <div>
                             <h4 class="text-gray-700 font-semibold mb-1">Proficiency Level Distribution</h4>
-                            <p class="text-[11px] text-gray-500 mb-4">Categorization of test-takers based on standardized mastery tiers.</p>
+                            <p class="text-[11px] text-gray-500 mb-4">Groups the students based on their overall mastery levels.</p>
                         </div>
                         <div class="bg-blue-50 text-blue-700 px-3 py-1 rounded-lg text-xs font-bold border border-blue-100 whitespace-nowrap">
                             {{ number_format($completedCount ?? 0) }} Takers
@@ -186,9 +208,9 @@
                     <div class="flex justify-between items-start mb-2">
                         <div>
                             <h4 class="text-gray-700 font-semibold mb-1">Pacing vs. Accuracy Insight</h4>
-                            <p class="text-[11px] text-gray-500 mb-4">Categorization of test-takers based on test duration and final score.</p>
+                            <p class="text-[11px] text-gray-500 mb-4">Shows how long students took to finish the test compared to their final scores.</p>
                         </div>
-                        <div class="bg-gray-50 text-gray-700 px-3 py-1 rounded-lg text-xs font-bold border border-gray-200 whitespace-nowrap" title="Average Pacing Time">
+                        <div class="bg-gray-50 text-gray-700 px-3 py-1 rounded-lg text-xs font-bold border border-gray-200 whitespace-nowrap" title="Average Time Taken">
                             <i class="fas fa-stopwatch mr-1 text-gray-400"></i> Avg: {{ $avgTimeFormat }}
                         </div>
                     </div>
@@ -231,15 +253,41 @@
                 {{-- Complete Competency Table --}}
                 <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden flex flex-col">
                     <div class="p-6 border-b border-gray-100">
-                        <h4 class="text-gray-700 font-semibold mb-1">Full Competency Breakdown</h4>
-                        <p class="text-xs text-gray-400">Mean Percentage Score (MPS) across all tested subject areas.</p>
+                        <div class="flex gap-3">
+                                <h4 class="text-gray-700 font-semibold mb-1">Full Competency Breakdown</h4>
+
+                            <div class="relative group cursor-help">
+    <i class="fas fa-info-circle text-gray-400 transition-colors group-hover:text-[#a52a2a]"></i>
+
+    <div class="absolute top-full left-1/2 -translate-x-1/2 mt-2 w-60 p-3 bg-gray-900 text-white text-[11px] rounded-xl shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-[100] pointer-events-none">
+
+        <strong class="text-green-700 block mb-1">Advanced (90% - 100%)</strong>
+        <p class="text-gray-400 mb-2">Excellent mastery; near-perfect accuracy.</p>
+
+        <strong class="text-green-500 block mb-1">Upper Intermediate (75% - 89%)</strong>
+        <p class="text-gray-400 mb-2">Strong understanding with minor errors.</p>
+
+        <strong class="text-blue-600 block mb-1">Intermediate (60% - 74%)</strong>
+        <p class="text-gray-400 mb-2">Solid understanding but needs refinement.</p>
+
+        <strong class="text-amber-600 block mb-1">Basic (40% - 59%)</strong>
+        <p class="text-gray-400 mb-2">Basic understanding; inconsistent performance.</p>
+
+        <strong class="text-red-600 block mb-1">Beginner (0% - 39%)</strong>
+        <p class="text-gray-400">Limited understanding; requires support.</p>
+
+        <div class="absolute bottom-full left-1/2 -translate-x-1/2 border-4 border-transparent border-b-gray-900"></div>
+    </div>
+</div>
+                        </div>
+                        <p class="text-xs text-gray-400">Shows the average scores for each specific topic or subject area.</p>
                     </div>
                     <div class="overflow-y-auto max-h-[350px]">
                         <table class="w-full text-left text-sm text-gray-600">
                             <thead class="bg-gray-50 text-xs uppercase text-gray-500 font-bold border-b border-gray-100 sticky top-0">
                                 <tr>
-                                    <th class="px-6 py-4 w-1/2">Competency / Section Name</th>
-                                    <th class="px-6 py-4 text-center">MPS (Accuracy)</th>
+                                    <th class="px-6 py-4 w-1/2">Topic / Subject Name</th>
+                                    <th class="px-6 py-4 text-center">Score (Accuracy)</th>
                                     <th class="px-6 py-4 text-center">Status</th>
                                 </tr>
                             </thead>
@@ -251,10 +299,27 @@
                                             <span class="px-2.5 py-1 rounded-md text-xs font-bold {{ $cat->mps >= 75 ? 'text-green-700 bg-green-100' : ($cat->mps <= 40 ? 'text-red-700 bg-red-100' : 'text-amber-700 bg-amber-100') }}">{{ $cat->mps }}%</span>
                                         </td>
                                         <td class="px-6 py-4 text-center">
-                                            @if($cat->mps >= 75) <span class="text-xs text-green-600 font-bold"><i class="fas fa-check-circle"></i> Mastered</span>
-                                            @elseif($cat->mps >= 50) <span class="text-xs text-amber-600 font-bold"><i class="fas fa-minus-circle"></i> Review</span>
-                                            @else <span class="text-xs text-red-600 font-bold"><i class="fas fa-times-circle"></i> Least Learned</span>
-                                            @endif
+                                            @if($cat->mps >= 90)
+    <span class="text-xs text-green-700 font-bold">
+        <i class="fas fa-star"></i> Advanced
+    </span>
+@elseif($cat->mps >= 75)
+    <span class="text-xs text-green-500 font-bold">
+        <i class="fas fa-check-circle"></i> Upper Intermediate
+    </span>
+@elseif($cat->mps >= 60)
+    <span class="text-xs text-blue-600 font-bold">
+        <i class="fas fa-arrow-up"></i> Intermediate
+    </span>
+@elseif($cat->mps >= 40)
+    <span class="text-xs text-amber-600 font-bold">
+        <i class="fas fa-minus-circle"></i> Basic
+    </span>
+@else
+    <span class="text-xs text-red-600 font-bold">
+        <i class="fas fa-times-circle"></i> Beginner
+    </span>
+@endif
                                         </td>
                                     </tr>
                                 @empty
@@ -270,7 +335,7 @@
                     <div class="p-6 border-b border-gray-100 flex items-center justify-between bg-gradient-to-r from-gray-900 to-gray-800 text-white">
                         <div>
                             <h4 class="font-semibold mb-1">School Performance Benchmarking</h4>
-                            <p class="text-xs text-gray-400">Comparative ranking of schools based on their MPS.</p>
+                            <p class="text-xs text-gray-400">Compares and ranks schools based on their average scores.</p>
                         </div>
                         <i class="fas fa-trophy text-3xl text-yellow-500 opacity-50"></i>
                     </div>
@@ -281,7 +346,7 @@
                                     <th class="px-6 py-4 w-12 text-center">Rank</th>
                                     <th class="px-6 py-4">School Name</th>
                                     <th class="px-6 py-4 text-center">Takers</th>
-                                    <th class="px-6 py-4 text-center">MPS</th>
+                                    <th class="px-6 py-4 text-center">Score</th>
                                 </tr>
                             </thead>
                             <tbody class="divide-y divide-gray-100">
@@ -308,7 +373,7 @@
             <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
                 <div class="p-6 border-b border-gray-100">
                     <h4 class="text-gray-700 font-semibold mb-1">Item Statistics</h4>
-                    <p class="text-xs text-gray-400">Evaluation of individual test items and response distributions.</p>
+                    <p class="text-xs text-gray-400">Shows how difficult each question was and which answers the students chose.</p>
                 </div>
                 <div class="overflow-x-auto max-h-[600px] custom-scrollbar">
                     <table class="w-full text-left text-sm text-gray-600 min-w-[800px]">
@@ -317,11 +382,11 @@
                                 <th class="px-6 py-4 w-12 text-center">Item</th>
                                 <th class="px-6 py-4 w-1/3">Question Base</th>
                                 <th class="px-6 py-4 text-center">
-                                    Difficulty Index (p)
+                                    Difficulty Level
                                     <i class="fas fa-question-circle text-gray-400 ml-1 cursor-help" title="Percentage of students who answered correctly."></i>
                                 </th>
                                 <th class="px-6 py-4 w-1/2">
-                                    Response Distribution (Distractors)
+                                    Answers Chosen
                                 </th>
                             </tr>
                         </thead>
@@ -358,7 +423,7 @@
                                                     $isDeadDistractor = (!$isCorrect && $opt->pct == 0);
                                                 @endphp
                                                 <span class="px-2 py-1 text-[10px] rounded border {{ $isCorrect ? 'bg-green-50 border-green-200 text-green-700 font-bold shadow-sm' : ($isDeadDistractor ? 'bg-gray-100 border-dashed border-gray-300 text-gray-400 opacity-70' : 'bg-red-50 border-red-100 text-red-600') }}"
-                                                      title="{{ $isDeadDistractor ? 'Dead Distractor: No student selected this.' : '' }}">
+                                                      title="{{ $isDeadDistractor ? 'Unused Answer: No student selected this.' : '' }}">
                                                     {!! \Illuminate\Support\Str::limit(strip_tags($opt->text), 40) !!}: {{ $opt->pct }}%
                                                     @if($isCorrect) <i class="fas fa-check ml-1"></i> @endif
                                                 </span>

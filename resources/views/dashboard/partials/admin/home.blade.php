@@ -15,67 +15,38 @@
     </div>
 </div>
 
-<div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
     <div class="bg-gradient-to-r from-blue-600 to-indigo-700 rounded-2xl p-6 text-white shadow-lg shadow-blue-900/20 flex items-center justify-between hover:scale-[1.02] transition-transform">
         <div>
-            <p class="text-blue-200 text-xs font-bold uppercase tracking-wider mb-1">Average Exam Passing Rate</p>
-            <h3 class="text-3xl font-black">{{ $avgLearnerSuccessRate }}<span class="text-xl text-blue-300">%</span></h3>
+            <p class="text-blue-200 text-xs font-bold uppercase tracking-wider mb-1">Total Enrolled Students</p>
+            <h3 class="text-3xl font-black">{{ number_format($totalStudents) }}</h3>
+            <p class="text-blue-100 text-sm mt-1 font-medium">{{ $totalSchools }} Schools</p>
         </div>
-        <i class="fas fa-user-check text-5xl text-white/20"></i>
+        <i class="fas fa-users text-5xl text-white/20"></i>
     </div>
-    
+
     <div class="bg-gradient-to-r from-emerald-500 to-green-600 rounded-2xl p-6 text-white shadow-lg shadow-green-900/20 flex items-center justify-between hover:scale-[1.02] transition-transform">
         <div>
-            <p class="text-emerald-200 text-xs font-bold uppercase tracking-wider mb-1">Overall Completion Rate</p>
-            <h3 class="text-3xl font-black">{{ $completionRate }}<span class="text-xl text-emerald-300">%</span></h3>
+            <p class="text-emerald-200 text-xs font-bold uppercase tracking-wider mb-1">Total Registered Teachers</p>
+            <h3 class="text-3xl font-black">{{ number_format($totalTeachers) }}</h3>
         </div>
-        <i class="fas fa-tasks text-5xl text-white/20"></i>
+        <i class="fas fa-chalkboard-teacher text-5xl text-white/20"></i>
     </div>
 
     <div class="bg-gradient-to-r from-amber-500 to-orange-500 rounded-2xl p-6 text-white shadow-lg shadow-orange-900/20 flex items-center justify-between hover:scale-[1.02] transition-transform">
         <div>
-            <p class="text-orange-200 text-xs font-bold uppercase tracking-wider mb-1">Certificates Awarded</p>
-            <h3 class="text-3xl font-black">{{ number_format($certificatesIssued) }}</h3>
+            <p class="text-orange-200 text-xs font-bold uppercase tracking-wider mb-1">Total Learning Modules</p>
+            <h3 class="text-3xl font-black">{{ number_format($totalMaterials) }}</h3>
         </div>
-        <i class="fas fa-award text-5xl text-white/20"></i>
-    </div>
-</div>
-
-<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-    <div class="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
-        <div class="flex items-center justify-between mb-4">
-            <div class="w-10 h-10 bg-indigo-50 text-indigo-600 rounded-xl flex items-center justify-center"><i class="fas fa-users text-lg"></i></div>
-            <span class="bg-indigo-50 text-indigo-700 text-[10px] px-2 py-1 rounded-md font-bold uppercase">{{ $totalSchools }} Schools</span>
-        </div>
-        <p class="text-gray-400 text-xs font-bold uppercase tracking-wider">Total Enrolled Students</p>
-        <h3 class="text-2xl font-black text-gray-900">{{ number_format($totalStudents) }}</h3>
+        <i class="fas fa-book-open text-5xl text-white/20"></i>
     </div>
 
-    <div class="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
-        <div class="flex items-center justify-between mb-4">
-            <div class="w-10 h-10 bg-blue-50 text-blue-600 rounded-xl flex items-center justify-center"><i class="fas fa-chalkboard-teacher text-lg"></i></div>
-            <span class="bg-blue-50 text-blue-700 text-[10px] px-2 py-1 rounded-md font-bold uppercase">Educators</span>
+    <div class="bg-gradient-to-r from-rose-500 to-red-600 rounded-2xl p-6 text-white shadow-lg shadow-red-900/20 flex items-center justify-between hover:scale-[1.02] transition-transform">
+        <div>
+            <p class="text-rose-200 text-xs font-bold uppercase tracking-wider mb-1">Total Assessments</p>
+            <h3 class="text-3xl font-black">{{ number_format($totalAssessments) }}</h3>
         </div>
-        <p class="text-gray-400 text-xs font-bold uppercase tracking-wider">Total Registered Teachers</p>
-        <h3 class="text-2xl font-black text-gray-900">{{ number_format($totalTeachers) }}</h3>
-    </div>
-
-    <div class="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
-        <div class="flex items-center justify-between mb-4">
-            <div class="w-10 h-10 bg-rose-50 text-rose-600 rounded-xl flex items-center justify-center"><i class="fas fa-book-open text-lg"></i></div>
-            <span class="bg-rose-50 text-rose-700 text-[10px] px-2 py-1 rounded-md font-bold uppercase">Course Library</span>
-        </div>
-        <p class="text-gray-400 text-xs font-bold uppercase tracking-wider">Total Learning Modules</p>
-        <h3 class="text-2xl font-black text-gray-900">{{ number_format($totalMaterials) }}</h3>
-    </div>
-
-    <div class="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
-        <div class="flex items-center justify-between mb-4">
-            <div class="w-10 h-10 bg-emerald-50 text-emerald-600 rounded-xl flex items-center justify-center"><i class="fas fa-file-signature text-lg"></i></div>
-             <span class="bg-emerald-50 text-emerald-700 text-[10px] px-2 py-1 rounded-md font-bold uppercase">Formal Exams</span>
-        </div>
-        <p class="text-gray-400 text-xs font-bold uppercase tracking-wider">Total District Exams</p>
-        <h3 class="text-2xl font-black text-gray-900">{{ number_format($totalAssessments) }}</h3>
+        <i class="fas fa-file-signature text-5xl text-white/20"></i>
     </div>
 </div>
 

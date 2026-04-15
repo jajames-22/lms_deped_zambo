@@ -84,4 +84,11 @@ Route::prefix('dashboard/materials')
     Route::post('/{id}/notify-students', [MaterialsController::class, 'notifyStudents'])->name('notify-students');
     Route::post('/access/{id}/invite', [MaterialsController::class, 'sendIndividualInvite'])->name('access.invite');
     Route::get('/{id}/preview', [MaterialsController::class, 'preview'])->name('preview');
+    Route::get('/{id}/analytics', [MaterialsController::class, 'analytics'])
+        ->name('analytics');
+    Route::get('/{id}/analytics', [MaterialsController::class, 'analytics'])
+        ->name('analytics');
+    Route::get('/{id}/export', [MaterialsController::class, 'exportMaterialAnalyticsPdf'])
+        ->name('export');
+
 });
