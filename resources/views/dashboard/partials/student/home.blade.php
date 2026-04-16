@@ -37,7 +37,7 @@
     <div
         class="bg-gradient-to-r from-emerald-500 to-green-600 rounded-2xl p-6 text-white shadow-lg shadow-green-900/20 flex items-center justify-between">
         <div>
-            <p class="text-emerald-200 text-xs font-bold uppercase tracking-wider mb-1">Certificates Awarded</p>
+            <p class="text-emerald-200 text-xs font-bold uppercase tracking-wider mb-1">Certificates Received</p>
             <h3 class="text-3xl font-black">{{ number_format($completedModulesCount) }}</h3>
         </div>
         <i class="fas fa-medal text-5xl text-white/20"></i>

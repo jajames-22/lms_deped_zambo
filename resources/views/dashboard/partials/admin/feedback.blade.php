@@ -47,12 +47,42 @@
         <div id="admin-feedback-list" class="flex-1 flex flex-col">
             <div
                 class="p-6 border-b border-gray-100 flex flex-col sm:flex-row justify-between items-center gap-4 bg-gray-50/50 shrink-0">
-                
-                <div class="flex bg-white rounded-lg p-1 border border-gray-200 shadow-sm w-full sm:w-auto overflow-x-auto" id="feedback-filters">
-                    <button class="filter-btn active whitespace-nowrap px-4 py-1.5 rounded-md text-xs font-bold bg-blue-50 text-blue-600 transition" data-filter="all">All</button>
-                    <button class="filter-btn whitespace-nowrap px-4 py-1.5 rounded-md text-xs font-bold text-gray-500 hover:bg-gray-50 transition" data-filter="action_needed"><i class="fas fa-exclamation-circle text-red-500 mr-1"></i> Action Needed</button>
-                    <button class="filter-btn whitespace-nowrap px-4 py-1.5 rounded-md text-xs font-bold text-gray-500 hover:bg-gray-50 transition" data-filter="in_progress"><i class="fas fa-spinner fa-spin text-amber-500 mr-1"></i> In Progress</button>
-                    <button class="filter-btn whitespace-nowrap px-4 py-1.5 rounded-md text-xs font-bold text-gray-500 hover:bg-gray-50 transition" data-filter="completed"><i class="fas fa-check text-green-500 mr-1"></i> Completed</button>
+                <div class="flex items-center space-x-1 bg-gray-200/50 p-1 rounded-xl w-full md:w-fit overflow-x-auto no-scrollbar shrink-0">
+                    @php 
+                        $actionNeededCount = collect($feedbacks)->filter(function($fb) {
+                            return in_array($fb->status, ['open', 'waiting_on_support']);
+                        })->count();
+
+                        $pendingCount = collect($feedbacks)->filter(function($fb) {
+                            return in_array($fb->status, ['in_progress', 'waiting_on_user']);
+                        })->count();
+                    @endphp
+
+                    <button onclick="FeedbackManager.filter('all', this)" 
+                        class="feedback-tab px-6 py-2 text-sm font-bold rounded-lg transition-all bg-white text-[#a52a2a] shadow-sm whitespace-nowrap">All</button>
+                    
+                    <button onclick="FeedbackManager.filter('action_needed', this)" 
+                        class="feedback-tab flex items-center gap-2 px-6 py-2 text-sm font-bold rounded-lg transition-all text-gray-500 hover:text-gray-700 whitespace-nowrap">
+                        <span>Action Needed</span>
+                        @if($actionNeededCount > 0)
+                            <span class="flex items-center justify-center min-w-[20px] h-[20px] px-1.5 bg-red-500 text-white text-[11px] font-bold rounded-full shadow-sm animate-pulse">
+                                {{ $actionNeededCount }}
+                            </span>
+                        @endif
+                    </button>
+                    
+                    <button onclick="FeedbackManager.filter('pending', this)" 
+                        class="feedback-tab flex items-center gap-2 px-6 py-2 text-sm font-bold rounded-lg transition-all text-gray-500 hover:text-gray-700 whitespace-nowrap">
+                        <span>Pending Users</span>
+                        @if($pendingCount > 0)
+                            <span class="flex items-center justify-center min-w-[20px] h-[20px] px-1.5 bg-amber-500 text-white text-[11px] font-bold rounded-full shadow-sm">
+                                {{ $pendingCount }}
+                            </span>
+                        @endif
+                    </button>
+                    
+                    <button onclick="FeedbackManager.filter('resolved', this)" 
+                        class="feedback-tab px-6 py-2 text-sm font-bold rounded-lg transition-all text-gray-500 hover:text-gray-700 whitespace-nowrap">Resolved & Closed</button>
                 </div>
 
                 <div class="relative w-full sm:w-64">
@@ -92,7 +122,6 @@
                     <tbody class="divide-y divide-gray-50">
                         @forelse($feedbacks as $fb)
                             @php
-                                // Map the database status to the UI filter groups
                                 $filterGroup = 'completed';
                                 if (in_array($fb->status, ['open', 'waiting_on_support']))
                                     $filterGroup = 'action_needed';
@@ -281,14 +310,68 @@
     var pageSize = 10;
     var allFeedbackRows = [];
     var currentFilteredRows = [];
-    var currentStatusFilter = 'all';
+
+    // Correctly defined Manager to handle Tabs and Search
+    const FeedbackManager = {
+        currentStatus: 'all',
+
+        filter: function(status, btnElement) {
+            this.currentStatus = status;
+
+            // Update tab styles
+            document.querySelectorAll('.feedback-tab').forEach(tab => {
+                tab.classList.remove('bg-white', 'text-[#a52a2a]', 'shadow-sm');
+                tab.classList.add('text-gray-500', 'hover:text-gray-700');
+            });
+
+            btnElement.classList.remove('text-gray-500', 'hover:text-gray-700');
+            btnElement.classList.add('bg-white', 'text-[#a52a2a]', 'shadow-sm');
+
+            this.applyFilters();
+        },
+
+        applyFilters: function() {
+            const query = (document.getElementById('feedbackSearchInput')?.value || '').toLowerCase();
+
+            currentFilteredRows = allFeedbackRows.filter(row => {
+                const rowText = row.textContent.toLowerCase();
+                const matchesSearch = rowText.includes(query);
+                
+                const rowStatus = row.dataset.status; 
+                
+                let matchesStatus = false;
+                if (this.currentStatus === 'all') {
+                    matchesStatus = true;
+                } else if (this.currentStatus === 'action_needed') {
+                    matchesStatus = (rowStatus === 'action_needed');
+                } else if (this.currentStatus === 'pending') {
+                    matchesStatus = (rowStatus === 'in_progress'); 
+                } else if (this.currentStatus === 'resolved') {
+                    matchesStatus = (rowStatus === 'completed'); 
+                }
+
+                return matchesSearch && matchesStatus;
+            });
+
+            currentPage = 1;
+            applyPagination();
+        }
+    };
 
     setTimeout(function () {
         allFeedbackRows = Array.from(document.querySelectorAll('.feedback-row'));
         currentFilteredRows = [...allFeedbackRows];
-        applyPagination();
-        setupFiltersAndSearch();
+        
+        // Connect the search input to the Manager
+        const searchInput = document.getElementById('feedbackSearchInput');
+        if (searchInput) {
+            const newSearchInput = searchInput.cloneNode(true);
+            searchInput.parentNode.replaceChild(newSearchInput, searchInput);
+            newSearchInput.addEventListener('input', () => FeedbackManager.applyFilters());
+        }
+
         setupSorting();
+        applyPagination();
 
         const savedUrl = sessionStorage.getItem('lastActiveTab') || '';
         if (savedUrl.includes('?ticket=')) {
@@ -381,49 +464,6 @@
         }
 
         controls.appendChild(createBtn('<i class="fas fa-chevron-right text-xs"></i>', currentPage + 1, currentPage === totalPages, false));
-    }
-
-    function setupFiltersAndSearch() {
-        var searchInput = document.getElementById('feedbackSearchInput');
-        var filterBtns = document.querySelectorAll('.filter-btn');
-
-        function executeFilter() {
-            var currentSearchBox = document.getElementById('feedbackSearchInput');
-            var filterText = (currentSearchBox ? currentSearchBox.value : '').toLowerCase();
-
-            currentFilteredRows = allFeedbackRows.filter(function (row) {
-                var rowText = row.textContent.toLowerCase();
-                var matchesSearch = rowText.includes(filterText);
-                var matchesStatus = currentStatusFilter === 'all' || row.dataset.status === currentStatusFilter;
-                return matchesSearch && matchesStatus;
-            });
-
-            currentPage = 1;
-            applyPagination();
-        }
-
-        if (searchInput) {
-            var newSearchInput = searchInput.cloneNode(true);
-            searchInput.parentNode.replaceChild(newSearchInput, searchInput);
-            newSearchInput.addEventListener('input', executeFilter);
-        }
-
-        filterBtns.forEach(btn => {
-            var newBtn = btn.cloneNode(true);
-            btn.parentNode.replaceChild(newBtn, btn);
-
-            newBtn.addEventListener('click', function () {
-                document.querySelectorAll('.filter-btn').forEach(b => {
-                    b.classList.remove('bg-blue-50', 'text-blue-600', 'active');
-                    b.classList.add('text-gray-500', 'hover:bg-gray-50');
-                });
-                this.classList.remove('text-gray-500', 'hover:bg-gray-50');
-                this.classList.add('bg-blue-50', 'text-blue-600', 'active');
-
-                currentStatusFilter = this.dataset.filter;
-                executeFilter();
-            });
-        });
     }
 
     function setupSorting() {
@@ -565,7 +605,7 @@
         const btn = form.querySelector('button[type="submit"]');
         const feedbackId = document.getElementById('reply-feedback-id').value;
         const message = document.getElementById('reply-message').value;
-        const statusValue = document.getElementById('reply-status').value; // GRAB THE SELECTED STATUS
+        const statusValue = document.getElementById('reply-status').value; 
 
         const originalHtml = btn.innerHTML;
         btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Sending...';
@@ -580,7 +620,7 @@
             },
             body: JSON.stringify({ 
                 admin_reply: message,
-                status: statusValue // PASS IT TO THE CONTROLLER
+                status: statusValue 
             })
         })
             .then(async response => {
