@@ -164,6 +164,18 @@ Route::middleware(['auth', 'verified', CheckAccountStatus::class])->group(functi
     Route::get('/analytics/export/student', [DashboardController::class, 'exportStudentAnalyticsPdf'])->name('analytics.export.student');
     Route::get('/analytics/export/teacher', [DashboardController::class, 'exportTeacherAnalyticsPdf'])->name('analytics.export.teacher');
 
+    Route::get('/schools/report', [DashboardController::class, 'report'])->name('schools.report');
+
+    // --- Student Directory Routes ---
+    Route::get('/students/report', [StudentController::class, 'report'])->name('students.report');
+    // Ensure your existing bulk delete is also defined
+    Route::delete('/students/bulk-delete', [StudentController::class, 'bulkDelete'])->name('students.bulk-delete');
+
+    // --- Teacher Directory Routes ---
+    Route::get('/teachers/report', [TeacherController::class, 'report'])->name('teachers.report');
+    // Ensure your existing bulk delete is also defined
+    Route::delete('/teachers/bulk-delete', [TeacherController::class, 'bulkDelete'])->name('teachers.bulk-delete');
+
 });
 
 

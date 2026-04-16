@@ -52,17 +52,17 @@ class StudentController extends Controller
             'middle_name' => 'nullable|string|max:255',
             'last_name' => 'required|string|max:255',
             'suffix' => 'nullable|string|max:50',
-            'lrn' => 'nullable|string|max:255|unique:users,lrn',            
+            'lrn' => 'nullable|string|max:255|unique:users,lrn',
             'email' => 'nullable|email|max:255|unique:users,email',
             'password' => 'required|string|min:6',
             'school_id' => 'required|exists:schools,id',
-            'grade_level' => 'required|string|max:50', 
+            'grade_level' => 'required|string|max:50',
             'status' => 'required|in:pending,verified,suspended',
         ]);
 
         // Force strict database conditions for security
         $validated['role'] = 'student';
-        $validated['password'] = Hash::make($validated['password']); 
+        $validated['password'] = Hash::make($validated['password']);
 
         User::create($validated);
 
@@ -93,9 +93,9 @@ class StudentController extends Controller
             'middle_name' => 'nullable|string|max:255',
             'last_name' => 'required|string|max:255',
             'suffix' => 'nullable|string|max:50',
-            'lrn' => 'nullable|string|max:255|unique:users,lrn,' . $student->id,          
+            'lrn' => 'nullable|string|max:255|unique:users,lrn,' . $student->id,
             'email' => 'nullable|email|max:255|unique:users,email,' . $student->id,
-            'password' => 'nullable|string|min:6', 
+            'password' => 'nullable|string|min:6',
             'school_id' => 'required|exists:schools,id',
             'grade_level' => 'required|string|max:50',
             'status' => 'required|in:pending,verified,suspended',
@@ -143,13 +143,14 @@ class StudentController extends Controller
             ->orderBy('order', 'asc')
             ->get()
             ->map(function ($section) {
-                
+
                 // Decode the JSON array of tags (fallback to array if it was the old string format)
                 $tagsArray = json_decode($section->tag_name, true);
-                if (!is_array($tagsArray)) $tagsArray = [$section->tag_name];
+                if (!is_array($tagsArray))
+                    $tagsArray = [$section->tag_name];
 
                 $section->materials = Material::with('instructor')
-                    ->whereHas('tags', function($q) use ($tagsArray) {
+                    ->whereHas('tags', function ($q) use ($tagsArray) {
                         $q->whereIn('name', $tagsArray); // <-- CHANGED to whereIn
                     })
                     ->where('status', 'published')
@@ -157,7 +158,7 @@ class StudentController extends Controller
                     ->inRandomOrder()
                     ->take(10)
                     ->get();
-                
+
                 return $section;
             });
 
@@ -165,50 +166,51 @@ class StudentController extends Controller
         $schoolMaterials = Material::whereHas('instructor', function ($query) {
             $query->where('school_id', auth()->user()->school_id);
         })
-        ->where('status', 'published')
-        ->where('is_public', true)
-        ->inRandomOrder()
-        ->take(6)
-        ->get();
+            ->where('status', 'published')
+            ->where('is_public', true)
+            ->inRandomOrder()
+            ->take(6)
+            ->get();
 
         return view('dashboard.partials.student.explore', compact(
-            'featuredMaterials', 
-            'popularMaterials', 
-            'dynamicSections', 
+            'featuredMaterials',
+            'popularMaterials',
+            'dynamicSections',
             'schoolMaterials'
         ));
     }
 
-public function viewByTagJson($tag)
-{
-    // 1. Decode the input. It might be a single string or a JSON array.
-    $decodedTags = json_decode(urldecode($tag), true);
-    
-    // If it's not JSON (just a single string), put it into an array
-    $searchTags = is_array($decodedTags) ? $decodedTags : [trim(urldecode($tag))];
+    public function viewByTagJson($tag)
+    {
+        // 1. Decode the input. It might be a single string or a JSON array.
+        $decodedTags = json_decode(urldecode($tag), true);
 
-    // 2. Query materials
-    $materials = \App\Models\Material::with('instructor')
-        ->where('status', 'published')
-        ->where('is_public', true)
-        ->whereHas('tags', function ($query) use ($searchTags) {
-            // Search for materials matching ANY of the tags in the list
-            $query->whereIn('name', $searchTags);
-            
-            // Fallback: Check if any tag IDs were passed
-            foreach($searchTags as $t) {
-                if (is_numeric($t)) {
-                    $query->orWhere('tags.id', $t);
+        // If it's not JSON (just a single string), put it into an array
+        $searchTags = is_array($decodedTags) ? $decodedTags : [trim(urldecode($tag))];
+
+        // 2. Query materials
+        $materials = \App\Models\Material::with('instructor')
+            ->where('status', 'published')
+            ->where('is_public', true)
+            ->whereHas('tags', function ($query) use ($searchTags) {
+                // Search for materials matching ANY of the tags in the list
+                $query->whereIn('name', $searchTags);
+
+                // Fallback: Check if any tag IDs were passed
+                foreach ($searchTags as $t) {
+                    if (is_numeric($t)) {
+                        $query->orWhere('tags.id', $t);
+                    }
                 }
-            }
-        })
-        ->latest()
-        ->get();
+            })
+            ->latest()
+            ->get();
 
-    return response()->json($materials);
-}
-    
-    public function incrementDownload(Material $material) {
+        return response()->json($materials);
+    }
+
+    public function incrementDownload(Material $material)
+    {
         $material->increment('downloads');
         return response()->json(['success' => true]);
     }
@@ -225,13 +227,13 @@ public function viewByTagJson($tag)
             Excel::import(new StudentsImport, $request->file('file'));
 
             return response()->json([
-                'success' => true, 
+                'success' => true,
                 'message' => 'Students imported successfully!'
             ]);
 
         } catch (\Exception $e) {
             return response()->json([
-                'success' => false, 
+                'success' => false,
                 'message' => 'Import failed. Check your file format. Error: ' . $e->getMessage()
             ], 500);
         }
@@ -246,15 +248,15 @@ public function viewByTagJson($tag)
 
         // 👈 NEW: Added 'status' to the headers array
         $columns = [
-            'lrn', 
-            'first_name', 
-            'middle_name', 
-            'last_name', 
-            'suffix', 
-            'username', 
-            'email', 
-            'password', 
-            'grade_level', 
+            'lrn',
+            'first_name',
+            'middle_name',
+            'last_name',
+            'suffix',
+            'username',
+            'email',
+            'password',
+            'grade_level',
             'school_id',
             'status' // <--- Added
         ];
@@ -262,14 +264,22 @@ public function viewByTagJson($tag)
         $callback = function () use ($columns) {
             $file = fopen('php://output', 'w');
             fputcsv($file, $columns);
-            
+
             // 👈 NEW: Added 'verified' as the sample status
             fputcsv($file, [
-                '123456789012','Juan', 'Pedro', 'Dela Cruz', 'Jr.', 
-                'juan_delacruz', 'juan@deped.gov.ph', 'SecretPass!', 
-                'Grade 10', '123456', 'verified' // <--- Added
+                '123456789012',
+                'Juan',
+                'Pedro',
+                'Dela Cruz',
+                'Jr.',
+                'juan_delacruz',
+                'juan@deped.gov.ph',
+                'SecretPass!',
+                'Grade 10',
+                '123456',
+                'verified' // <--- Added
             ]);
-            
+
             fclose($file);
         };
 
@@ -289,5 +299,43 @@ public function viewByTagJson($tag)
             'success' => true,
             'message' => 'The selected students have been successfully removed.'
         ]);
+    }
+    
+public function report(Request $request)
+    {
+        // Start building the query
+        $query = \App\Models\User::where('role', 'student')->with(['school', 'school.district']);
+        $titleStatus = '';
+
+        // Filter based on the Modal Checkboxes
+        if ($request->has('status_type') && $request->status_type === 'all') {
+            // Do nothing, fetch all records
+        } elseif ($request->has('statuses') && is_array($request->statuses)) {
+            // Filter by the array of selected statuses (e.g., ['verified', 'pending'])
+            $query->whereIn('status', $request->statuses);
+            
+            // Dynamically create the report title (e.g. "Verified & Pending ")
+            $formattedStatuses = array_map('ucfirst', $request->statuses);
+            $titleStatus = implode(' & ', $formattedStatuses) . ' ';
+        }
+
+        // Execute the query
+        $students = $query->orderBy('last_name', 'asc')->get();
+        
+        $data = [
+            'title' => $titleStatus . 'Student Directory Report',
+            'type' => 'students',
+            'records' => $students,
+            'isPrint' => $request->action === 'print'
+        ];
+
+        // Output Print View
+        if ($request->action === 'print') {
+            return view('dashboard.partials.shared.list-report', $data);
+        }
+
+        // Output PDF Download
+        $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('dashboard.partials.shared.list-report', $data)->setPaper('a4', 'landscape');
+        return $pdf->download('Student_Directory_' . now()->format('Y_m_d') . '.pdf');
     }
 }

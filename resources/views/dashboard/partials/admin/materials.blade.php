@@ -15,15 +15,32 @@
 
     <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
         <div class="flex items-center space-x-1 bg-gray-200/50 p-1 rounded-xl w-full md:w-fit overflow-x-auto no-scrollbar shrink-0">
-            <button onclick="MaterialTableManager.filterStatus('all', this)"
-                class="material-tab px-6 py-2 text-sm font-bold rounded-lg transition-all bg-white text-[#a52a2a] shadow-sm whitespace-nowrap">All</button>
-            <button onclick="MaterialTableManager.filterStatus('published', this)"
-                class="material-tab px-6 py-2 text-sm font-bold rounded-lg transition-all text-gray-500 hover:text-gray-700 whitespace-nowrap">Published</button>
-            <button onclick="MaterialTableManager.filterStatus('pending', this)"
-                class="material-tab px-6 py-2 text-sm font-bold rounded-lg transition-all text-gray-500 hover:text-gray-700 whitespace-nowrap">Pending</button>
-            <button onclick="MaterialTableManager.filterStatus('draft', this)"
-                class="material-tab px-6 py-2 text-sm font-bold rounded-lg transition-all text-gray-500 hover:text-gray-700 whitespace-nowrap">Drafts</button>
-        </div>
+    <button onclick="MaterialTableManager.filterStatus('all', this)"
+        class="material-tab px-6 py-2 text-sm font-bold rounded-lg transition-all bg-white text-[#a52a2a] shadow-sm whitespace-nowrap">All</button>
+    
+    <button onclick="MaterialTableManager.filterStatus('published', this)"
+        class="material-tab px-6 py-2 text-sm font-bold rounded-lg transition-all text-gray-500 hover:text-gray-700 whitespace-nowrap">Published</button>
+    
+    <button onclick="MaterialTableManager.filterStatus('pending', this)"
+        class="material-tab flex items-center gap-2 px-6 py-2 text-sm font-bold rounded-lg transition-all text-gray-500 hover:text-gray-700 whitespace-nowrap">
+        <span>Pending</span>
+        @php 
+            // Safely calculate the number of pending materials from the loaded collection
+            $pendingCount = collect($materials)->filter(function($m) {
+                return strtolower($m->status ?? 'draft') === 'pending';
+            })->count();
+        @endphp
+        
+        @if($pendingCount > 0)
+            <span class="flex items-center justify-center min-w-[20px] h-[20px] px-1.5 bg-red-500 text-white text-[11px] font-bold rounded-full shadow-sm animate-pulse">
+                {{ $pendingCount }}
+            </span>
+        @endif
+    </button>
+
+    <button onclick="MaterialTableManager.filterStatus('draft', this)"
+        class="material-tab px-6 py-2 text-sm font-bold rounded-lg transition-all text-gray-500 hover:text-gray-700 whitespace-nowrap">Drafts</button>
+</div>
 
         <div class="relative w-full max-w-md">
             <i class="fas fa-search absolute left-4 top-1/2 -translate-y-1/2 text-gray-400"></i>
@@ -81,9 +98,10 @@
                         @endphp
 
                         <tr class="hover:bg-gray-50/50 transition material-row cursor-pointer" 
-                            data-status="{{ $statusStr }}"
-                            onclick="loadPartial('{{ route('dashboard.materials.manage', $material->id) }}', document.getElementById('nav-materials-btn'))">
-                            
+                        data-status="{{ $statusStr }}"
+                        data-owner="{{ $material->instructor_id == auth()->id() ? 'mine' : 'other' }}"
+                        onclick="loadPartial('{{ route('dashboard.materials.manage', $material->id) }}', document.getElementById('nav-materials-btn'))">
+
                             <td class="px-4 py-3">
                                 <div class="w-12 h-12 rounded-lg bg-gray-100 border border-gray-200 overflow-hidden flex items-center justify-center shadow-sm mx-auto relative">
                                     <div class="absolute bottom-0 left-0 w-full h-1 {{ $indicatorColor }} z-10"></div>
@@ -250,7 +268,7 @@
             }
         },
 
-        applyFilters: function() {
+applyFilters: function() {
             const query = (document.getElementById('materialSearchInput')?.value || '').toLowerCase();
             
             this.filteredRows = this.allRows.filter(row => {
@@ -258,6 +276,14 @@
                 const matchesSearch = textContent.includes(query);
                 const matchesStatus = (this.currentStatusFilter === 'all' || row.dataset.status === this.currentStatusFilter);
                 return matchesSearch && matchesStatus;
+            });
+
+            // ALWAYS group by owner by default (My materials first)
+            this.filteredRows.sort((a, b) => {
+                const ownerA = a.dataset.owner;
+                const ownerB = b.dataset.owner;
+                if (ownerA !== ownerB) return ownerA === 'mine' ? -1 : 1;
+                return 0; // Preserve existing order within groups
             });
 
             this.currentPage = 1;
@@ -291,6 +317,12 @@
 
                     // Sort filtered array
                     this.filteredRows.sort((a, b) => {
+                        // 1. Maintain Ownership grouping first
+                        const ownerA = a.dataset.owner;
+                        const ownerB = b.dataset.owner;
+                        if (ownerA !== ownerB) return ownerA === 'mine' ? -1 : 1;
+
+                        // 2. Then apply the column sorting within the groups
                         let aText = a.children[colIndex].textContent.trim().toLowerCase();
                         let bText = b.children[colIndex].textContent.trim().toLowerCase();
 
@@ -316,6 +348,9 @@
             const initEmptyState = document.getElementById('emptyStateRowInit');
             const dynamicEmptyState = document.getElementById('dynamicEmptyState');
             const paginationWrapper = document.getElementById('pagination-wrapper');
+
+            // Clean up old dynamically inserted dividers
+            document.querySelectorAll('.owner-divider').forEach(el => el.remove());
 
             // Hide all globally
             this.allRows.forEach(row => row.style.display = 'none');
@@ -344,10 +379,30 @@
             const startIdx = (this.currentPage - 1) * this.pageSize;
             const endIdx = Math.min(startIdx + this.pageSize, this.filteredRows.length);
 
+            let currentOwner = null;
+
             // Append sorted/filtered rows for current page
             for (let i = startIdx; i < endIdx; i++) {
-                this.filteredRows[i].style.display = '';
-                tbody.appendChild(this.filteredRows[i]);
+                const row = this.filteredRows[i];
+                row.style.display = '';
+
+                // Insert a distinct visual divider row when transitioning between groups
+                if (row.dataset.owner !== currentOwner) {
+                    currentOwner = row.dataset.owner;
+                    const divider = document.createElement('tr');
+                    divider.className = 'owner-divider select-none pointer-events-none bg-gray-50/80';
+                    divider.innerHTML = `
+                        <td colspan="6" class="px-4 py-2 text-xs font-extrabold text-gray-500 uppercase tracking-widest border-y border-gray-100">
+                            <div class="flex items-center gap-2 text-[#a52a2a]">
+                                <i class="fas ${currentOwner === 'mine' ? 'fa-user' : 'fa-users'}"></i>
+                                ${currentOwner === 'mine' ? 'My Materials' : 'Other Instructors'}
+                            </div>
+                        </td>
+                    `;
+                    tbody.appendChild(divider);
+                }
+
+                tbody.appendChild(row); // This moves the row into the correct visual order
             }
 
             // Update info text
@@ -357,7 +412,6 @@
 
             this.buildPaginationControls(totalPages);
         },
-
         buildPaginationControls: function(totalPages) {
             const controls = document.getElementById('pagination-controls');
             controls.innerHTML = '';

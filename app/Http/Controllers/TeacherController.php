@@ -31,15 +31,15 @@ class TeacherController extends Controller
             'middle_name' => 'nullable|string|max:255',
             'last_name' => 'required|string|max:255',
             'suffix' => 'nullable|string|max:50',
-            
+
             // Required Account Credentials
             'username' => 'required|string|max:255|unique:users,username',
             'employee_id' => 'required|string|max:255|unique:users,employee_id',
             'password' => 'required|string|min:6',
-            
+
             // Optional Email
             'email' => 'nullable|email|max:255|unique:users,email',
-            
+
             'school_id' => 'required|exists:schools,id',
             'status' => 'required|in:pending,verified,suspended',
         ]);
@@ -76,17 +76,17 @@ class TeacherController extends Controller
             'middle_name' => 'nullable|string|max:255',
             'last_name' => 'required|string|max:255',
             'suffix' => 'nullable|string|max:50',
-            
+
             // Validate unique fields while ignoring the current user's ID
             'username' => 'required|string|max:255|unique:users,username,' . $teacher->id,
             'employee_id' => 'required|string|max:255|unique:users,employee_id,' . $teacher->id,
-            
+
             // Optional Email
             'email' => 'nullable|email|max:255|unique:users,email,' . $teacher->id,
-            
+
             // Password remains optional on update
             'password' => 'nullable|string|min:6',
-            
+
             'school_id' => 'required|exists:schools,id',
             'status' => 'required|in:verified,pending,suspended',
         ]);
@@ -114,7 +114,7 @@ class TeacherController extends Controller
             $teacher->delete();
 
             return response()->json([
-                'success' => true, 
+                'success' => true,
                 'message' => 'Teacher account deleted successfully!'
             ]);
 
@@ -127,7 +127,7 @@ class TeacherController extends Controller
 
         } catch (\Exception $e) {
             return response()->json([
-                'success' => false, 
+                'success' => false,
                 'message' => 'Server error: ' . $e->getMessage()
             ], 500);
         }
@@ -160,7 +160,7 @@ class TeacherController extends Controller
 
         } catch (\Exception $e) {
             return response()->json([
-                'success' => false, 
+                'success' => false,
                 'message' => 'Server error: ' . $e->getMessage()
             ], 500);
         }
@@ -178,31 +178,38 @@ class TeacherController extends Controller
 
         // 👈 NEW: Added 'status' to the columns
         $columns = [
-            'employee_id', 
-            'first_name', 
-            'middle_name', 
-            'last_name', 
-            'suffix', 
-            'username', 
-            'email', 
-            'password', 
+            'employee_id',
+            'first_name',
+            'middle_name',
+            'last_name',
+            'suffix',
+            'username',
+            'email',
+            'password',
             'school_id',
             'status' // <--- Added
         ];
 
         $callback = function () use ($columns) {
             $file = fopen('php://output', 'w');
-            
+
             // 1. Add the headers
             fputcsv($file, $columns);
-            
+
             // 2. Add a sample row to guide the user
             fputcsv($file, [
-                '1234567', 'Juan', 'Pedro', 'Dela Cruz', '', 
-                'juan_teacher', 'juan@deped.gov.ph', 'Teacher123!', 
-                '123456', 'verified' // <--- Added
+                '1234567',
+                'Juan',
+                'Pedro',
+                'Dela Cruz',
+                '',
+                'juan_teacher',
+                'juan@deped.gov.ph',
+                'Teacher123!',
+                '123456',
+                'verified' // <--- Added
             ]);
-            
+
             fclose($file);
         };
 
@@ -224,15 +231,52 @@ class TeacherController extends Controller
             \Maatwebsite\Excel\Facades\Excel::import(new \App\Imports\TeachersImport, $request->file('file'));
 
             return response()->json([
-                'success' => true, 
+                'success' => true,
                 'message' => 'Educators imported successfully!'
             ]);
 
         } catch (\Exception $e) {
             return response()->json([
-                'success' => false, 
+                'success' => false,
                 'message' => 'Import failed. Check your file format. Error: ' . $e->getMessage()
             ], 500);
         }
+    }
+public function report(Request $request)
+    {
+        // Start building the query (FIXED: role changed to teacher)
+        $query = \App\Models\User::where('role', 'teacher')->with(['school', 'school.district']);
+        $titleStatus = '';
+
+        // Filter based on the Modal Checkboxes
+        if ($request->has('status_type') && $request->status_type === 'all') {
+            // Do nothing, fetch all records
+        } elseif ($request->has('statuses') && is_array($request->statuses)) {
+            // Filter by the array of selected statuses (e.g., ['verified', 'pending'])
+            $query->whereIn('status', $request->statuses);
+            
+            // Dynamically create the report title
+            $formattedStatuses = array_map('ucfirst', $request->statuses);
+            $titleStatus = implode(' & ', $formattedStatuses) . ' ';
+        }
+
+        // Execute the query
+        $teachers = $query->orderBy('last_name', 'asc')->get();
+
+        $data = [
+            'title' => $titleStatus . 'Teacher Directory Report', // FIXED Name
+            'type' => 'teachers',                                 // FIXED Type
+            'records' => $teachers,
+            'isPrint' => $request->action === 'print'
+        ];
+
+        // Output Print View
+        if ($request->action === 'print') {
+            return view('dashboard.partials.shared.list-report', $data);
+        }
+
+        // Output PDF Download
+        $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('dashboard.partials.shared.list-report', $data)->setPaper('a4', 'landscape');
+        return $pdf->download('Teacher_Directory_' . now()->format('Y_m_d') . '.pdf');
     }
 }
