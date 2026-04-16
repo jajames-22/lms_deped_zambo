@@ -232,7 +232,8 @@
     </div>
 </div>
 
-<div id="deleteStudentModal" class="fixed inset-0 z-100 hidden flex items-center justify-center p-4">
+{{-- DELETE MODAL --}}
+<div id="deleteStudentModal" class="fixed inset-0 z-[9999] hidden flex items-center justify-center p-4">
     <div class="absolute inset-0 bg-gray-900/60 transition-opacity" onclick="closeDeleteStudentModal()"></div>
     <div id="deleteStudentModalBox"
         class="relative bg-white rounded-3xl shadow-2xl max-w-sm w-full p-8 text-center transform scale-95 opacity-0 transition-all duration-300 border border-gray-100 z-10">
@@ -257,7 +258,8 @@
     </div>
 </div>
 
-<div id="importMessageModal" class="fixed inset-0 z-50 hidden flex items-center justify-center p-4">
+{{-- SUCCESS / IMPORT MESSAGE MODAL --}}
+<div id="importMessageModal" class="fixed inset-0 z-[9999] hidden flex items-center justify-center p-4">
     <div class="absolute inset-0 bg-gray-900/60 transition-opacity" onclick="closeImportModal()"></div>
     <div id="importMessageModalBox"
         class="relative bg-white rounded-3xl shadow-2xl max-w-sm w-full p-8 text-center transform scale-95 opacity-0 transition-all duration-300 border border-gray-100 z-10">
@@ -279,7 +281,7 @@
 
 {{-- EXPORT MODAL --}}
 <div id="exportModal"
-    class="fixed inset-0 bg-gray-900/60 backdrop-blur-sm z-[110] hidden flex items-center justify-center opacity-0 transition-opacity duration-300">
+    class="fixed inset-0 bg-gray-900/60 backdrop-blur-sm z-[9999] hidden flex items-center justify-center opacity-0 transition-opacity duration-300">
     <div class="bg-white rounded-3xl shadow-2xl w-full max-w-md p-6 transform scale-95 transition-transform duration-300 border border-gray-100"
         id="exportModalContent">
         <div class="flex justify-between items-center mb-5">

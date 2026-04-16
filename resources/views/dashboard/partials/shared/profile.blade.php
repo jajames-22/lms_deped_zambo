@@ -63,7 +63,7 @@
     <div class="bg-white rounded-3xl border border-gray-100 shadow-sm p-6 md:p-8 flex flex-col md:flex-row items-center gap-8 relative overflow-hidden">
         <div class="absolute top-0 left-0 w-full h-32 bg-gradient-to-r from-[#a52a2a]/10 to-transparent"></div>
         
-        <div class="relative group">
+        <div class="relative">
             <div class="w-32 h-32 rounded-full border-4 border-white shadow-xl overflow-hidden bg-gray-50 flex items-center justify-center text-4xl font-black text-gray-300 relative z-10">
                 @if($user->avatar)
                     <img src="{{ asset('storage/' . $user->avatar) }}" alt="Profile Photo" class="w-full h-full object-cover">
@@ -71,16 +71,6 @@
                     {{ $initials }}
                 @endif
             </div>
-            
-            <button onclick="document.getElementById('avatarUpload').click()" 
-                class="absolute bottom-2 right-2 w-10 h-10 bg-gray-900 text-white rounded-full border-2 border-white shadow-lg flex items-center justify-center hover:bg-[#a52a2a] transition-all z-20 group-hover:scale-110">
-                <i class="fas fa-camera text-sm"></i>
-            </button>
-            
-            <form id="avatarForm" action="{{ route('profile.avatar.update') }}" method="POST" enctype="multipart/form-data" class="hidden">
-                @csrf @method('PATCH')
-                <input type="file" id="avatarUpload" name="avatar" accept="image/*" onchange="submitAvatarForm()">
-            </form>
         </div>
 
         <div class="flex-1 text-center md:text-left relative z-10">
@@ -604,24 +594,6 @@
                 loadPartial('{{ route('dashboard.profile') }}', document.getElementById('nav-profile-btn') || document.body);
             }
         }, 300);
-    }
-
-    function submitAvatarForm() {
-        const form = document.getElementById('avatarForm');
-        const formData = new FormData(form);
-        
-        fetch(form.action, {
-            method: 'POST',
-            body: formData,
-            headers: { 'Accept': 'application/json' }
-        })
-        .then(async response => {
-            if(response.ok) {
-                showProfileModal('Avatar Updated!', 'Your profile picture has been successfully updated.', 'success');
-            } else {
-                showProfileModal('Upload Failed', 'There was an error uploading your image.', 'error');
-            }
-        });
     }
 
     function submitProfileForm(e, form) {
