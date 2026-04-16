@@ -8,11 +8,10 @@ use Illuminate\Support\Facades\Hash;
 use App\Models\User;
 use App\Models\School;
 
-
 class TeacherController extends Controller
 {
     /**
-     * Load the "Add New Teacher" form
+     * Load the "Add New Teacher/CID" form
      */
     public function createTeacherPartial()
     {
@@ -22,7 +21,7 @@ class TeacherController extends Controller
     }
 
     /**
-     * Securely save a new teacher to the database
+     * Securely save a new personnel to the database
      */
     public function storeTeacher(Request $request)
     {
@@ -42,34 +41,35 @@ class TeacherController extends Controller
             
             'school_id' => 'required|exists:schools,id',
             'status' => 'required|in:pending,verified,suspended',
+            'role' => 'required|in:teacher,cid', // 👈 NEW: Accept Teacher or CID role
         ]);
 
-        $validated['role'] = 'teacher';
         $validated['password'] = Hash::make($validated['password']);
 
         User::create($validated);
 
-        return response()->json(['success' => 'Teacher account created successfully!']);
+        return response()->json(['success' => 'Personnel account created successfully!']);
     }
 
     /**
-     * Load the "Edit Teacher" form
+     * Load the "Edit Personnel" form
      */
     public function editTeacherPartial($id)
     {
-        // Ensure we are only pulling a teacher account
-        $teacher = User::where('role', 'teacher')->findOrFail($id);
+        // 👈 NEW: Allow pulling both teacher and cid accounts
+        $teacher = User::whereIn('role', ['teacher', 'cid'])->findOrFail($id);
         $schools = School::orderBy('name', 'asc')->get();
 
         return view('dashboard.partials.admin.teacher-edit', compact('teacher', 'schools'));
     }
 
     /**
-     * Securely update an existing teacher's details
+     * Securely update an existing personnel's details
      */
     public function updateTeacher(Request $request, $id)
     {
-        $teacher = User::where('role', 'teacher')->findOrFail($id);
+        // 👈 NEW: Allow updating both teacher and cid accounts
+        $teacher = User::whereIn('role', ['teacher', 'cid'])->findOrFail($id);
 
         $validated = $request->validate([
             'first_name' => 'required|string|max:255',
@@ -89,6 +89,7 @@ class TeacherController extends Controller
             
             'school_id' => 'required|exists:schools,id',
             'status' => 'required|in:verified,pending,suspended',
+            'role' => 'required|in:teacher,cid', // 👈 NEW: Allow role updates
         ]);
 
         // Check if the admin wants to reset the password
@@ -101,21 +102,22 @@ class TeacherController extends Controller
 
         $teacher->update($validated);
 
-        return response()->json(['success' => 'Teacher updated successfully!']);
+        return response()->json(['success' => 'Personnel updated successfully!']);
     }
 
     /**
-     * Permanently remove a single teacher account
+     * Permanently remove a single personnel account
      */
     public function destroyTeacher($id)
     {
         try {
-            $teacher = User::where('role', 'teacher')->findOrFail($id);
+            // 👈 NEW: Allow deleting both teacher and cid accounts
+            $teacher = User::whereIn('role', ['teacher', 'cid'])->findOrFail($id);
             $teacher->delete();
 
             return response()->json([
                 'success' => true, 
-                'message' => 'Teacher account deleted successfully!'
+                'message' => 'Personnel account deleted successfully!'
             ]);
 
         } catch (\Illuminate\Database\QueryException $e) {
@@ -134,7 +136,7 @@ class TeacherController extends Controller
     }
 
     /**
-     * Bulk destroy teacher accounts
+     * Bulk destroy personnel accounts
      */
     public function bulkDestroy(Request $request)
     {
@@ -144,18 +146,18 @@ class TeacherController extends Controller
         ]);
 
         try {
-            // Enforce role check just in case malicious IDs were passed
-            User::whereIn('id', $request->ids)->where('role', 'teacher')->delete();
+            // 👈 NEW: Enforce role check for both roles
+            User::whereIn('id', $request->ids)->whereIn('role', ['teacher', 'cid'])->delete();
 
             return response()->json([
                 'success' => true,
-                'message' => 'The selected educators have been successfully removed.'
+                'message' => 'The selected personnel have been successfully removed.'
             ]);
 
         } catch (\Illuminate\Database\QueryException $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Cannot delete: One or more selected educators are linked to existing courses or materials. Please clear their data first.'
+                'message' => 'Cannot delete: One or more selected personnel are linked to existing courses or materials. Please clear their data first.'
             ], 500);
 
         } catch (\Exception $e) {
@@ -167,7 +169,7 @@ class TeacherController extends Controller
     }
 
     /**
-     * Download the CSV template for importing teachers.
+     * Download the CSV template for importing personnel.
      */
     public function downloadTemplate()
     {
@@ -176,7 +178,7 @@ class TeacherController extends Controller
             'Content-Disposition' => 'attachment; filename="Teacher_Import_Template.csv"',
         ];
 
-        // 👈 NEW: Added 'status' to the columns
+        // 👈 REVERTED: Removed the 'role' column to strictly force Teacher imports only
         $columns = [
             'employee_id', 
             'first_name', 
@@ -187,7 +189,7 @@ class TeacherController extends Controller
             'email', 
             'password', 
             'school_id',
-            'status' // <--- Added
+            'status' 
         ];
 
         $callback = function () use ($columns) {
@@ -200,7 +202,7 @@ class TeacherController extends Controller
             fputcsv($file, [
                 '1234567', 'Juan', 'Pedro', 'Dela Cruz', '', 
                 'juan_teacher', 'juan@deped.gov.ph', 'Teacher123!', 
-                '123456', 'verified' // <--- Added
+                '123456', 'verified' 
             ]);
             
             fclose($file);
@@ -210,7 +212,7 @@ class TeacherController extends Controller
     }
 
     /**
-     * Handle the Excel/CSV upload and import teachers.
+     * Handle the Excel/CSV upload and import personnel.
      */
     public function import(\Illuminate\Http\Request $request)
     {
@@ -225,7 +227,7 @@ class TeacherController extends Controller
 
             return response()->json([
                 'success' => true, 
-                'message' => 'Educators imported successfully!'
+                'message' => 'Personnel imported successfully!'
             ]);
 
         } catch (\Exception $e) {

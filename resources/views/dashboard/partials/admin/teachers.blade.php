@@ -1,8 +1,8 @@
 <div class="space-y-6 relative animate-float-in">
     <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-            <h1 class="text-2xl font-bold text-gray-900">Teacher Directory</h1>
-            <p class="text-gray-500 text-sm">Manage registered educators across the Zamboanga Division.</p>
+            <h1 class="text-2xl font-bold text-gray-900">Staff & CID Directory</h1>
+            <p class="text-gray-500 text-sm">Manage registered educators and CID personnel across the Zamboanga Division.</p>
         </div>
 
         <div class="flex-shrink-0 flex flex-wrap items-center gap-2">
@@ -30,7 +30,7 @@
             <button onclick="loadPartial('{{ route('teachers.create') }}', document.getElementById('nav-teachers-btn'))"
                 class="flex items-center justify-center gap-2 px-6 py-3 bg-[#a52a2a] text-white font-bold rounded-xl shadow-lg hover:bg-red-800 transition-all">
                 <i class="fas fa-plus-circle"></i>
-                <span>Add New Teacher</span>
+                <span>Add Personnel</span>
             </button>
         </div>
     </div>
@@ -38,11 +38,11 @@
     <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div class="bg-white border border-gray-100 p-5 rounded-2xl shadow-sm flex items-center justify-between md:col-span-1">
             <div>
-                <p class="text-gray-400 text-[10px] font-bold uppercase tracking-widest">Total Teachers</p>
+                <p class="text-gray-400 text-[10px] font-bold uppercase tracking-widest">Total Staff</p>
                 <h3 class="text-2xl font-black text-gray-900" id="total-teachers-count">{{ $teachers->count() }}</h3>
             </div>
             <div class="w-10 h-10 bg-blue-50 text-blue-600 rounded-lg flex items-center justify-center">
-                <i class="fas fa-chalkboard-teacher text-lg"></i>
+                <i class="fas fa-users-cog text-lg"></i>
             </div>
         </div>
 
@@ -55,19 +55,35 @@
         </div>
     </div>
 
-    <div class="flex flex-wrap items-center gap-2">
-        <button class="status-tab px-5 py-2 rounded-xl text-sm font-bold bg-[#a52a2a] text-white shadow-sm transition-all pointer-events-none" data-status="all">
-            All Teachers
-        </button>
-        <button class="status-tab px-5 py-2 rounded-xl text-sm font-bold bg-white text-gray-600 hover:bg-gray-50 border border-gray-200 transition-all" data-status="verified">
-            Verified
-        </button>
-        <button class="status-tab px-5 py-2 rounded-xl text-sm font-bold bg-white text-gray-600 hover:bg-gray-50 border border-gray-200 transition-all" data-status="pending">
-            Pending
-        </button>
-        <button class="status-tab px-5 py-2 rounded-xl text-sm font-bold bg-white text-gray-600 hover:bg-gray-50 border border-gray-200 transition-all" data-status="suspended">
-            Suspended
-        </button>
+    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        {{-- ROLE TABS --}}
+        <div class="inline-flex bg-gray-100 p-1 rounded-xl overflow-x-auto w-full sm:w-auto">
+            <button class="role-tab px-5 py-2 rounded-lg text-sm font-bold bg-white text-gray-900 shadow-sm transition-all pointer-events-none whitespace-nowrap" data-role="all">
+                All Roles
+            </button>
+            <button class="role-tab px-5 py-2 rounded-lg text-sm font-bold text-gray-500 hover:text-gray-900 transition-all whitespace-nowrap" data-role="teacher">
+                Teachers
+            </button>
+            <button class="role-tab px-5 py-2 rounded-lg text-sm font-bold text-gray-500 hover:text-gray-900 transition-all whitespace-nowrap" data-role="cid">
+                CID Personnel
+            </button>
+        </div>
+
+        {{-- STATUS TABS --}}
+        <div class="flex flex-wrap items-center gap-2">
+            <button class="status-tab px-4 py-2 rounded-xl text-sm font-bold bg-[#a52a2a] text-white shadow-sm transition-all pointer-events-none" data-status="all">
+                All Status
+            </button>
+            <button class="status-tab px-4 py-2 rounded-xl text-sm font-bold bg-white text-gray-600 hover:bg-gray-50 border border-gray-200 transition-all" data-status="verified">
+                Verified
+            </button>
+            <button class="status-tab px-4 py-2 rounded-xl text-sm font-bold bg-white text-gray-600 hover:bg-gray-50 border border-gray-200 transition-all" data-status="pending">
+                Pending
+            </button>
+            <button class="status-tab px-4 py-2 rounded-xl text-sm font-bold bg-white text-gray-600 hover:bg-gray-50 border border-gray-200 transition-all" data-status="suspended">
+                Suspended
+            </button>
+        </div>
     </div>
 
     <div class="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden flex flex-col">
@@ -80,7 +96,7 @@
                         </th>
                         <th class="px-4 py-3 text-center w-16">Photo</th>
                         <th class="px-4 py-3 cursor-pointer hover:bg-gray-100 transition sortable-col select-none" title="Sort by Name">
-                            Educator Details <i class="fas fa-sort ml-1 text-gray-300"></i>
+                            Personnel Details <i class="fas fa-sort ml-1 text-gray-300"></i>
                         </th>
                         <th class="px-4 py-3 cursor-pointer hover:bg-gray-100 transition sortable-col select-none" title="Sort by School">
                             Assigned School <i class="fas fa-sort ml-1 text-gray-300"></i>
@@ -93,12 +109,12 @@
                 </thead>
                 <tbody class="divide-y divide-gray-50">
                     @forelse($teachers as $teacher)
-                        <tr class="hover:bg-gray-50/50 transition teacher-row" data-status="{{ strtolower($teacher->status ?? 'pending') }}">
+                        <tr class="hover:bg-gray-50/50 transition teacher-row" data-status="{{ strtolower($teacher->status ?? 'pending') }}" data-role="{{ strtolower($teacher->role ?? 'teacher') }}">
                             <td class="px-4 py-2.5 text-center">
                                 <input type="checkbox" value="{{ $teacher->id }}" class="teacher-checkbox rounded border-gray-300 text-[#a52a2a] focus:ring-[#a52a2a] cursor-pointer">
                             </td>
                             <td class="px-4 py-2.5">
-                                <div class="w-10 h-10 mx-auto rounded-full bg-blue-50 border border-blue-100 overflow-hidden flex items-center justify-center shadow-sm text-blue-600 font-bold text-xs">
+                                <div class="w-10 h-10 mx-auto rounded-full {{ $teacher->role === 'cid' ? 'bg-purple-50 border-purple-100 text-purple-600' : 'bg-blue-50 border-blue-100 text-blue-600' }} border overflow-hidden flex items-center justify-center shadow-sm font-bold text-xs">
                                     @if(isset($teacher->avatar) && $teacher->avatar)
                                         <img src="{{ asset('storage/' . $teacher->avatar) }}" class="w-full h-full object-cover">
                                     @else
@@ -113,14 +129,22 @@
                                         <p class="text-sm font-bold text-gray-900 leading-tight">
                                             {{ $teacher->first_name }} {{ $teacher->middle_name ? substr($teacher->middle_name, 0, 1) . '.' : '' }} {{ $teacher->last_name }} {{ $teacher->suffix }}
                                         </p>
-                                        <span class="bg-gray-100 text-gray-700 text-[10px] px-1.5 py-0.5 rounded font-mono border border-gray-200">
-                                            EMP ID: {{ $teacher->employee_id }}
-                                        </span>
+                                        
+                                        @if($teacher->role === 'cid')
+                                            <span class="bg-purple-100 text-purple-700 text-[9px] px-1.5 py-0.5 rounded font-bold uppercase tracking-widest border border-purple-200">CID</span>
+                                        @else
+                                            <span class="bg-blue-100 text-blue-700 text-[9px] px-1.5 py-0.5 rounded font-bold uppercase tracking-widest border border-blue-200">Teacher</span>
+                                        @endif
                                     </div>
-                                    <p class="text-xs text-gray-500 mt-0.5 truncate" title="{{ $teacher->email }}">
-                                        <i class="fas fa-envelope text-[10px] mr-1"></i>
-                                        {{ $teacher->email ?? 'No email' }}
-                                    </p>
+                                    <div class="flex items-center gap-2 mt-0.5">
+                                        <span class="bg-gray-100 text-gray-700 text-[10px] px-1.5 py-0.5 rounded font-mono border border-gray-200">
+                                            EMP: {{ $teacher->employee_id ?? 'N/A' }}
+                                        </span>
+                                        <p class="text-xs text-gray-500 truncate" title="{{ $teacher->email }}">
+                                            <i class="fas fa-envelope text-[10px] mr-1"></i>
+                                            {{ $teacher->email ?? 'No email' }}
+                                        </p>
+                                    </div>
                                 </div>
                             </td>
 
@@ -170,10 +194,10 @@
                             <td colspan="6" class="px-6 py-16 text-center">
                                 <div class="flex flex-col items-center">
                                     <div class="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center mb-4">
-                                        <i class="fas fa-chalkboard-teacher text-gray-200 text-2xl"></i>
+                                        <i class="fas fa-users-cog text-gray-200 text-2xl"></i>
                                     </div>
-                                    <p class="text-gray-500 font-medium">No teachers found.</p>
-                                    <p class="text-gray-400 text-xs">Start by adding a new educator to the system.</p>
+                                    <p class="text-gray-500 font-medium">No personnel found.</p>
+                                    <p class="text-gray-400 text-xs">Start by adding a new educator or CID staff to the system.</p>
                                 </div>
                             </td>
                         </tr>
@@ -198,8 +222,8 @@
         <div class="w-20 h-20 bg-red-50 text-red-500 rounded-full flex items-center justify-center mx-auto mb-5 shadow-inner">
             <i class="fas fa-user-minus text-4xl"></i>
         </div>
-        <h3 class="text-2xl font-black text-gray-900 mb-2">Remove Teacher?</h3>
-        <p class="text-gray-500 mb-8 text-sm">This action cannot be undone. Are you sure you want to permanently remove <span id="deleteTeacherCountText" class="font-bold">this educator's account</span>?</p>
+        <h3 class="text-2xl font-black text-gray-900 mb-2">Remove Personnel?</h3>
+        <p class="text-gray-500 mb-8 text-sm">This action cannot be undone. Are you sure you want to permanently remove <span id="deleteTeacherCountText" class="font-bold">this account</span>?</p>
         <div class="flex gap-3">
             <button type="button" onclick="closeDeleteTeacherModal()" 
                 class="flex-1 px-4 py-3 bg-gray-100 text-gray-700 font-bold rounded-xl hover:bg-gray-200 transition">
@@ -285,8 +309,8 @@
         if (deleteTeacherIds.length === 0) return;
 
         document.getElementById('deleteTeacherCountText').innerText = deleteTeacherIds.length > 1 
-            ? `these ${deleteTeacherIds.length} educators' accounts` 
-            : "this educator's account";
+            ? `these ${deleteTeacherIds.length} accounts` 
+            : "this account";
 
         var modal = document.getElementById('deleteTeacherModal');
         var box = document.getElementById('deleteTeacherModalBox');
@@ -371,6 +395,9 @@
     var pageSize = 20; 
     var allTeacherRows = [];
     var currentFilteredRows = [];
+    
+    // NEW: Manage both Role and Status filters
+    var currentRoleFilter = 'all';
     var currentStatusFilter = 'all';
     var currentSearchFilter = '';
 
@@ -384,9 +411,13 @@
         currentFilteredRows = allTeacherRows.filter(function(row) {
             var text = row.textContent.toLowerCase();
             var rowStatus = row.getAttribute('data-status');
+            var rowRole = row.getAttribute('data-role');
+            
             var matchesSearch = text.includes(currentSearchFilter);
             var matchesStatus = (currentStatusFilter === 'all') || (rowStatus === currentStatusFilter);
-            return matchesSearch && matchesStatus;
+            var matchesRole = (currentRoleFilter === 'all') || (rowRole === currentRoleFilter);
+            
+            return matchesSearch && matchesStatus && matchesRole;
         });
 
         var counterElement = document.getElementById('total-teachers-count');
@@ -501,8 +532,29 @@
         });
     }
 
-    var tabs = document.querySelectorAll('.status-tab');
-    tabs.forEach(function(tab) {
+    // ROLE TAB LISTENER
+    var roleTabs = document.querySelectorAll('.role-tab');
+    roleTabs.forEach(function(tab) {
+        var newTab = tab.cloneNode(true);
+        tab.parentNode.replaceChild(newTab, tab);
+
+        newTab.addEventListener('click', function() {
+            document.querySelectorAll('.role-tab').forEach(t => {
+                t.classList.remove('bg-white', 'text-gray-900', 'shadow-sm', 'pointer-events-none');
+                t.classList.add('text-gray-500');
+            });
+            
+            this.classList.remove('text-gray-500');
+            this.classList.add('bg-white', 'text-gray-900', 'shadow-sm', 'pointer-events-none');
+            
+            currentRoleFilter = this.getAttribute('data-role');
+            applyFilters();
+        });
+    });
+
+    // STATUS TAB LISTENER
+    var statusTabs = document.querySelectorAll('.status-tab');
+    statusTabs.forEach(function(tab) {
         var newTab = tab.cloneNode(true);
         tab.parentNode.replaceChild(newTab, tab);
 

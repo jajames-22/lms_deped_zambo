@@ -5,19 +5,63 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     @vite(['resources/css/app.css', 'resources/js/app.js'])
+    
+    {{-- Ensure Cinzel Font is Loaded --}}
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700;900&display=swap" rel="stylesheet">
+    
     <title>DepEd Zamboanga - LMS</title>
     <style>
         * {
             box-sizing: border-box;
         }
+        .font-cinzel {
+            font-family: 'Cinzel', serif;
+        }
     </style>
 </head>
 
 <body class="bg-gray-50 text-gray-800 font-sans selection:bg-red-900 selection:text-white">
-    <header style="background-color: #a52a2a;" class="fixed p-1 flex justify-center z-40 w-full items-center shadow-md">
-        <img src="{{ asset('storage/images/deped_zambo_header.png') }}" class="w-full max-w-4xl h-auto block"
-            alt="DepEd Zamboanga Header">
-    </header>
+    {{-- Responsive Header --}}
+        <header class="bg-[#a52a2a] text-white shadow-lg sticky z-10 w-full no-print">
+            <div class="px-4 py-3 md:px-8 md:py-4">
+                <div class="flex flex-col md:flex-row items-center justify-between gap-4 md:gap-6 relative">
+                    
+                    {{-- Mobile Menu Trigger --}}
+                    <button @click="sidebarOpen = true" class="absolute left-0 top-0 lg:hidden text-white hover:text-white/80 transition p-1">
+                        <i data-lucide="menu" class="w-6 h-6"></i>
+                    </button>
+
+                    {{-- Left Logos --}}
+                    <div class="flex items-center gap-2 md:gap-4 shrink-0 mt-8 md:mt-0">
+                        <img src="{{ asset('images/deped.png') }}" alt="DepEd" class="h-10 sm:h-12 md:h-16 w-auto drop-shadow-md">
+                        <img src="{{ asset('images/r9.png') }}" alt="Region IX" class="h-10 sm:h-12 md:h-16 w-auto drop-shadow-md">
+                    </div>
+
+                    {{-- Central Branding --}}
+                    <div class="flex flex-col font-cinzel text-white items-center md:items-start text-center md:text-left flex-1 px-4 w-full">
+                        {{-- Wrapper to constrain the width of the horizontal line to exactly the text width --}}
+                        <div class="inline-flex flex-col items-center md:items-start w-fit">
+                            <span class="text-[8px] sm:text-[10px] tracking-widest leading-tight font-bold">Republic of the Philippines</span>
+                            <span class="text-[8px] sm:text-[10px] tracking-widest leading-tight font-bold">Department of Education</span>
+                            
+                            {{-- Horizontal Line (Now restricted by the parent wrapper) --}}
+                            <div class="w-full border-b border-white/40 my-1"></div>
+                            
+                            <h1 class="text-sm sm:text-lg md:text-xl lg:text-2xl tracking-wide font-bold leading-tight">
+                                {{ $site_settings->header_title ?? 'Zamboanga City Division' }}
+                            </h1>
+                        </div>
+                    </div>
+
+                    {{-- Right Logo --}}
+                    <div class="hidden xl:block shrink-0">
+                        <img src="{{ asset('images/ts.png') }}" alt="Transparency Seal" class="h-16 w-auto opacity-90">
+                    </div>
+                </div>
+            </div>
+        </header>
 
     <main>
         <section style="background-image: url('{{ asset('storage/images/deped_zamdiv.jpg') }}');"
@@ -39,7 +83,7 @@
                         Login
                     </a>
                     <a href="{{ route('register') }}" style="background-color: #a52a2a;"
-                        class="px-8 py-3 bg-white! hover:bg-white-100 text-red-700! font-semibold rounded-lg transition-all duration-300 shadow-md hover:shadow-lg transform hover:-translate-y-0.5">
+                        class="px-8 py-3 bg-white hover:bg-gray-100 text-red-800 font-semibold rounded-lg transition-all duration-300 shadow-md hover:shadow-lg transform hover:-translate-y-0.5">
                         Create Account
                     </a>
                 </div>

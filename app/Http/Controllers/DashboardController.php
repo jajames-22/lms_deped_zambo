@@ -82,10 +82,12 @@ class DashboardController extends Controller
     {
         $role = Auth::user()->role;
 
-        if ($role === 'admin' || $role === 'superadmin') {
+        if ($role === 'admin') {
             return view('dashboard.admin');
         } elseif ($role === 'teacher') {
             return view('dashboard.teacher');
+        } elseif ($role === 'cid') {
+            return view('dashboard.cid');
         }
 
         // Default to student
@@ -96,8 +98,8 @@ class DashboardController extends Controller
     {
         $role = Auth::user()->role;
 
-        // 1. ADMIN & SUPERADMIN LOGIC
-        if ($role === 'admin' || $role === 'superadmin') {
+        // 1. ADMIN & CID LOGIC
+        if (in_array($role, ['admin', 'cid'])) {
 
             // --- A. BASE PLATFORM METRICS ---
             $totalStudents = User::where('role', 'student')->count();
@@ -378,9 +380,11 @@ class DashboardController extends Controller
 
     public function loadMaterialsPartial()
     {
-        if (Auth::user()->role === 'admin') {
+        $role = Auth::user()->role;
+        
+        if (in_array($role, ['admin', 'cid'])) {
             return view('dashboard.partials.admin.materials');
-        } else if (Auth::user()->role === 'teacher') {
+        } else if ($role === 'teacher') {
             return view('dashboard.partials.teacher.materials');
         }
     }
@@ -389,7 +393,7 @@ class DashboardController extends Controller
     {
         // Make sure we only grab users with the role of 'teacher'
         // Eager load the school and district relationships to prevent crashing
-        $teachers = \App\Models\User::where('role', 'teacher')
+        $teachers = \App\Models\User::whereIn('role', ['teacher', 'cid'])
             ->with('school.district')
             ->get();
 
@@ -585,39 +589,39 @@ class DashboardController extends Controller
     }
 
     public function viewByTagJson($tag)
-{
-    // 1. Decode the input. It might be a single string or a JSON array.
-    $decodedTags = json_decode(urldecode($tag), true);
-    
-    // If it's not JSON (just a single string), put it into an array
-    $searchTags = is_array($decodedTags) ? $decodedTags : [trim(urldecode($tag))];
+    {
+        // 1. Decode the input. It might be a single string or a JSON array.
+        $decodedTags = json_decode(urldecode($tag), true);
+        
+        // If it's not JSON (just a single string), put it into an array
+        $searchTags = is_array($decodedTags) ? $decodedTags : [trim(urldecode($tag))];
 
-    // 2. Query materials
-    $materials = \App\Models\Material::with('instructor')
-        ->where('status', 'published')
-        ->where('is_public', true)
-        ->whereHas('tags', function ($query) use ($searchTags) {
-            // Search for materials matching ANY of the tags in the list
-            $query->whereIn('name', $searchTags);
-            
-            // Fallback: Check if any tag IDs were passed
-            foreach($searchTags as $t) {
-                if (is_numeric($t)) {
-                    $query->orWhere('tags.id', $t);
+        // 2. Query materials
+        $materials = \App\Models\Material::with('instructor')
+            ->where('status', 'published')
+            ->where('is_public', true)
+            ->whereHas('tags', function ($query) use ($searchTags) {
+                // Search for materials matching ANY of the tags in the list
+                $query->whereIn('name', $searchTags);
+                
+                // Fallback: Check if any tag IDs were passed
+                foreach($searchTags as $t) {
+                    if (is_numeric($t)) {
+                        $query->orWhere('tags.id', $t);
+                    }
                 }
-            }
-        })
-        ->latest()
-        ->get();
+            })
+            ->latest()
+            ->get();
 
-    return response()->json($materials);
-}
+        return response()->json($materials);
+    }
 
     public function loadAnalyticsPartial()
     {
         $role = Auth::user()->role;
 
-        if ($role === 'admin' || $role === 'superadmin') {
+        if (in_array($role, ['admin', 'cid'])) {
             return $this->loadAdminAnalytics();
         } elseif ($role === 'teacher') {
             return $this->loadTeacherAnalytics();
@@ -733,8 +737,8 @@ class DashboardController extends Controller
 
     public function exportAdminAnalyticsPdf(Request $request)
     {
-        // 1. Ensure only admins can download this
-        if (!in_array(\Illuminate\Support\Facades\Auth::user()->role, ['admin', 'superadmin'])) {
+        // 1. Ensure only admins/cid can download this
+        if (!in_array(\Illuminate\Support\Facades\Auth::user()->role, ['admin', 'cid'])) {
             abort(403, 'Unauthorized action.');
         }
 
@@ -1180,8 +1184,8 @@ class DashboardController extends Controller
             });
 
         // --- PRIVACY & ENROLLMENT LOGIC ---
-        // Admins bypass this and see everything. 
-        if ($user->role !== 'admin') {
+        // Admins & CID bypass this and see everything. 
+        if (!in_array($user->role, ['admin', 'cid'])) {
             $materialsQuery->where(function($q) use ($user) {
                 
                 // Condition A: Material is public 
@@ -1207,8 +1211,8 @@ class DashboardController extends Controller
 
         $users = [];
 
-        // 2. If Admin, also search Users (Students/Teachers)
-        if ($user->role === 'admin') {
+        // 2. If Admin or CID, also search Users (Students/Teachers)
+        if (in_array($user->role, ['admin', 'cid'])) {
             $users = \App\Models\User::where('first_name', 'LIKE', "%{$query}%")
                 ->orWhere('last_name', 'LIKE', "%{$query}%")
                 ->orWhere('employee_id', 'LIKE', "%{$query}%")

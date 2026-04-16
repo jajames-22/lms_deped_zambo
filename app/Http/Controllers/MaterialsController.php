@@ -61,9 +61,9 @@ class MaterialsController extends Controller
 
     public function evaluateMaterial(Material $material)
     {
-        // 1. Security Check: Only allow Admins to access the evaluation mode
-        if (auth()->user()->role !== 'admin') {
-            abort(403, 'Unauthorized access. Only Admins can evaluate materials.');
+        // 1. Security Check: Allow Admins and CID to access the evaluation mode
+        if (!in_array(auth()->user()->role, ['admin', 'cid'])) {
+            abort(403, 'Unauthorized access. Only Admins and CID can evaluate materials.');
         }
 
         // 2. Eager load all the necessary relationships needed for the Evaluation View
@@ -112,7 +112,7 @@ class MaterialsController extends Controller
         $user = Auth::user();
 
         // If the user is an admin or superadmin, load the Admin Index
-        if (in_array($user->role, ['admin', 'superadmin'])) {
+        if (in_array($user->role, ['admin', 'cid'])) {
             return $this->adminIndex();
         }
 
@@ -403,8 +403,8 @@ class MaterialsController extends Controller
                 'success' => true,
                 'new_status' => $targetStatus,
                 'message' => 'Module is now ' . $statusText,
-                // Redirect Admin to the new evaluation results page
-                'redirect_url' => auth()->user()->role === 'admin' && $request->has('evaluation_details')
+                // Redirect Admin and CID to the new evaluation results page
+                'redirect_url' => in_array(auth()->user()->role, ['admin', 'cid']) && $request->has('evaluation_details')
                     ? route('dashboard.materials.evaluation-result', $id)
                     : null
             ]);
@@ -1133,12 +1133,16 @@ class MaterialsController extends Controller
             ? json_decode($enrollment->progress_data)
             : null;
 
-        // LOAD LESSONS, CONTENTS, AND EXAMS
+        // 2. LOAD LESSONS, CONTENTS, AND EXAMS WITH SORTING
         $material->load([
             'lessons' => function ($query) {
-                $query->orderBy('created_at', 'asc');
-            }
-            ,
+                // Sort lessons based on your new sort_order column
+                $query->orderBy('sort_order', 'asc');
+            },
+            'lessons.contents' => function ($query) {
+                // Sort contents inside each lesson based on its sort_order column
+                $query->orderBy('sort_order', 'asc');
+            },
             'lessons.contents.options',
             'exams.options'
         ]);
@@ -1540,21 +1544,29 @@ class MaterialsController extends Controller
     }
 
     public function preview($id)
-    {
-        $material = Material::with([
-            'instructor',        // For the mock certificate
-            'lessons.contents',  // For the timeline (Lessons & Quizzes)
-            'exams'              // For the timeline (Final Exam)
-        ])->findOrFail($id);
+{
+    // Fetch the material with its relationships
+    $material = Material::with([
+        'instructor', 
+        // We add an orderBY constraint to the nested lesson contents
+        'lessons' => function ($query) {
+            $query->orderBy('sort_order', 'asc'); // Ensures lessons themselves are in order
+        },
+        'lessons.contents' => function ($query) {
+            $query->orderBy('sort_order', 'asc'); // 👈 Sorts contents inside each lesson
+        },
+        'exams' 
+    ])->findOrFail($id);
 
-        // Optional: Add authorization to ensure only the owner or an admin can preview
-        if (auth()->id() !== $material->instructor_id && auth()->user()->role !== 'admin') {
-            abort(403, 'Unauthorized action.');
-        }
-
-        // Return the preview view (adjust the view path if your folders are structured differently)
-        return view('dashboard.partials.shared.materials-preview', compact('material'));
+    // Authorization: Allow the instructor (owner), admins, or CID personnel
+    $user = auth()->user();
+    if (auth()->id() !== $material->instructor_id && !in_array($user->role, ['admin', 'cid'])) {
+        abort(403, 'Unauthorized action.');
     }
+
+    // Return the preview view
+    return view('dashboard.partials.shared.materials-preview', compact('material'));
+}
 
     public function analytics($id)
     {
