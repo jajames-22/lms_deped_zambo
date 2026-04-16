@@ -5,15 +5,36 @@
             <p class="text-gray-500 text-sm">Manage registered institutions within the Zamboanga Division.</p>
         </div>
 
-        <button onclick="loadPartial('{{ route('schools.create') }}', document.getElementById('nav-schools-btn'))"
-            class="flex-shrink-0 flex items-center justify-center gap-2 px-6 py-3 bg-[#a52a2a] text-white font-bold rounded-xl shadow-lg hover:bg-red-800 transition-all">
-            <i class="fas fa-plus-circle"></i>
-            <span>Add New School</span>
-        </button>
+        <div class="flex-shrink-0 flex flex-wrap items-center gap-2 relative">
+            <div class="relative group z-50">
+                <button
+                    class="flex items-center justify-center gap-2 px-6 py-3 bg-gray-800 text-white font-bold rounded-xl shadow-sm hover:bg-gray-900 transition-all text-sm">
+                    <i class="fas fa-file-alt"></i>
+                    <span>Report</span>
+                    <i class="fas fa-chevron-down text-xs ml-1 opacity-70"></i>
+                </button>
+                <div
+                    class="absolute right-0 mt-2 w-48 bg-white border border-gray-100 rounded-xl shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all transform origin-top-right">
+                    <a href="{{ route('schools.report', ['action' => 'print']) }}" target="_blank"
+                        class="block px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 hover:text-[#a52a2a] rounded-t-xl transition-colors"><i
+                            class="fas fa-print w-5 text-gray-400"></i> Print List</a>
+                    <a href="{{ route('schools.report', ['action' => 'download']) }}" target="_blank"
+                        class="block px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 hover:text-[#a52a2a] rounded-b-xl transition-colors"><i
+                            class="fas fa-download w-5 text-gray-400"></i> Download PDF</a>
+                </div>
+            </div>
+
+            <button onclick="loadPartial('{{ route('schools.create') }}', document.getElementById('nav-schools-btn'))"
+                class="flex items-center justify-center gap-2 px-6 py-3 bg-[#a52a2a] text-white font-bold rounded-xl shadow-lg hover:bg-red-800 transition-all">
+                <i class="fas fa-plus-circle"></i>
+                <span>Add New School</span>
+            </button>
+        </div>
     </div>
 
     <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div class="bg-white border border-gray-100 p-5 rounded-2xl shadow-sm flex items-center justify-between md:col-span-1">
+        <div
+            class="bg-white border border-gray-100 p-5 rounded-2xl shadow-sm flex items-center justify-between md:col-span-1">
             <div>
                 <p class="text-gray-400 text-[10px] font-bold uppercase tracking-widest">Total Schools</p>
                 <h3 class="text-2xl font-black text-gray-900" id="total-schools-count">{{ $schools->count() }}</h3>
@@ -38,13 +59,16 @@
                 <thead class="bg-gray-50/50 text-xs uppercase text-gray-500 font-bold border-b border-gray-100">
                     <tr>
                         <th class="px-4 py-3 text-center w-16">Logo</th>
-                        <th class="px-4 py-3 cursor-pointer hover:bg-gray-100 transition sortable-col select-none" title="Sort by Name">
+                        <th class="px-4 py-3 cursor-pointer hover:bg-gray-100 transition sortable-col select-none"
+                            title="Sort by Name">
                             School Details <i class="fas fa-sort ml-1 text-gray-300"></i>
                         </th>
-                        <th class="px-4 py-3 cursor-pointer hover:bg-gray-100 transition sortable-col select-none" title="Sort by Level">
+                        <th class="px-4 py-3 cursor-pointer hover:bg-gray-100 transition sortable-col select-none"
+                            title="Sort by Level">
                             Level <i class="fas fa-sort ml-1 text-gray-300"></i>
                         </th>
-                        <th class="px-4 py-3 cursor-pointer hover:bg-gray-100 transition sortable-col select-none" title="Sort by District">
+                        <th class="px-4 py-3 cursor-pointer hover:bg-gray-100 transition sortable-col select-none"
+                            title="Sort by District">
                             District <i class="fas fa-sort ml-1 text-gray-300"></i>
                         </th>
                         <th class="px-4 py-3 text-center">Actions</th>
@@ -54,7 +78,8 @@
                     @forelse($schools as $school)
                         <tr class="hover:bg-gray-50/50 transition school-row">
                             <td class="px-4 py-2.5">
-                                <div class="w-10 h-10 rounded-full bg-gray-100 border border-gray-200 overflow-hidden flex items-center justify-center shadow-sm mx-auto">
+                                <div
+                                    class="w-10 h-10 rounded-full bg-gray-100 border border-gray-200 overflow-hidden flex items-center justify-center shadow-sm mx-auto">
                                     @if ($school->logo)
                                         <img src="{{ asset('storage/' . $school->logo) }}" class="w-full h-full object-cover">
                                     @else
@@ -66,12 +91,15 @@
                             <td class="px-4 py-2.5">
                                 <div class="flex flex-col">
                                     <div class="flex items-center gap-2">
-                                        <p class="text-sm font-bold text-gray-900 leading-tight school-name">{{ $school->name }}</p>
-                                        <span class="bg-gray-100 text-gray-600 text-[10px] px-1.5 py-0.5 rounded font-mono border border-gray-200 school-id">
+                                        <p class="text-sm font-bold text-gray-900 leading-tight school-name">
+                                            {{ $school->name }}</p>
+                                        <span
+                                            class="bg-gray-100 text-gray-600 text-[10px] px-1.5 py-0.5 rounded font-mono border border-gray-200 school-id">
                                             {{ $school->school_id }}
                                         </span>
                                     </div>
-                                    <p class="text-xs text-gray-500 mt-0.5 max-w-[250px] truncate" title="{{ $school->address }}">
+                                    <p class="text-xs text-gray-500 mt-0.5 max-w-[250px] truncate"
+                                        title="{{ $school->address }}">
                                         <i class="fas fa-map-marker-alt text-[10px] mr-1"></i>
                                         {{ $school->address ?? 'No address provided' }}
                                     </p>
@@ -95,27 +123,32 @@
                                     $style = $badgeStyles[$school->level] ?? 'bg-gray-50 text-gray-700 border-gray-200';
                                     $name = $displayNames[$school->level] ?? ucfirst($school->level);
                                 @endphp
-                                <span class="px-2 py-1 {{ $style }} text-[10px] font-bold rounded-md border uppercase tracking-tighter school-level">
+                                <span
+                                    class="px-2 py-1 {{ $style }} text-[10px] font-bold rounded-md border uppercase tracking-tighter school-level">
                                     {{ $name }}
                                 </span>
                             </td>
 
                             <td class="px-4 py-2.5">
                                 <div class="flex flex-col">
-                                    <span class="text-sm font-semibold text-gray-700 school-district">{{ $school->district->name ?? 'N/A' }}</span>
-                                    <span class="text-[10px] text-gray-400 uppercase tracking-tighter">{{ $school->district->quadrant->name ?? '' }}</span>
+                                    <span
+                                        class="text-sm font-semibold text-gray-700 school-district">{{ $school->district->name ?? 'N/A' }}</span>
+                                    <span
+                                        class="text-[10px] text-gray-400 uppercase tracking-tighter">{{ $school->district->quadrant->name ?? '' }}</span>
                                 </div>
                             </td>
 
                             <td class="px-4 py-2.5 text-center">
                                 <div class="flex items-center justify-center gap-1">
-                                    <button onclick="loadPartial('{{ route('schools.edit', $school->id) }}', document.getElementById('nav-schools-btn'))"
+                                    <button
+                                        onclick="loadPartial('{{ route('schools.edit', $school->id) }}', document.getElementById('nav-schools-btn'))"
                                         class="w-7 h-7 flex items-center justify-center text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition shadow-none"
                                         title="Edit">
                                         <i class="fas fa-edit text-xs"></i>
                                     </button>
-                                    <button onclick="confirmDelete({{ $school->id }})" 
-                                        class="w-7 h-7 flex items-center justify-center text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition shadow-none" title="Delete">
+                                    <button onclick="confirmDelete({{ $school->id }})"
+                                        class="w-7 h-7 flex items-center justify-center text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition shadow-none"
+                                        title="Delete">
                                         <i class="fas fa-trash-alt text-xs"></i>
                                     </button>
                                 </div>
@@ -138,12 +171,15 @@
             </table>
         </div>
 
-        <div id="pagination-wrapper" class="hidden flex flex-col sm:flex-row items-center justify-between px-6 py-4 border-t border-gray-100 bg-gray-50/50">
+        <div id="pagination-wrapper"
+            class="hidden flex flex-col sm:flex-row items-center justify-between px-6 py-4 border-t border-gray-100 bg-gray-50/50">
             <div class="text-sm text-gray-500 mb-3 sm:mb-0">
-                Showing <span id="page-start-info" class="font-bold text-gray-900">0</span> to <span id="page-end-info" class="font-bold text-gray-900">0</span> of <span id="page-total-info" class="font-bold text-gray-900">0</span> results
+                Showing <span id="page-start-info" class="font-bold text-gray-900">0</span> to <span id="page-end-info"
+                    class="font-bold text-gray-900">0</span> of <span id="page-total-info"
+                    class="font-bold text-gray-900">0</span> results
             </div>
             <div class="flex items-center gap-1" id="pagination-controls">
-                </div>
+            </div>
         </div>
 
     </div>
@@ -151,18 +187,21 @@
 
 <div id="deleteModal" class="fixed inset-0 z-100 hidden flex items-center justify-center">
     <div class="absolute inset-0 bg-gray-900/60"></div>
-    <div class="relative bg-white rounded-3xl shadow-2xl max-w-sm w-full p-8 text-center transform transition-all border border-gray-100 z-10 animate-fade-in-up">
-        <div class="w-20 h-20 bg-red-50 text-red-500 rounded-full flex items-center justify-center mx-auto mb-5 shadow-inner">
+    <div
+        class="relative bg-white rounded-3xl shadow-2xl max-w-sm w-full p-8 text-center transform transition-all border border-gray-100 z-10 animate-fade-in-up">
+        <div
+            class="w-20 h-20 bg-red-50 text-red-500 rounded-full flex items-center justify-center mx-auto mb-5 shadow-inner">
             <i class="fas fa-exclamation-triangle text-4xl"></i>
         </div>
         <h3 class="text-2xl font-black text-gray-900 mb-2">Delete School?</h3>
-        <p class="text-gray-500 mb-8 text-sm">This action cannot be undone. Are you sure you want to permanently remove this institution?</p>
+        <p class="text-gray-500 mb-8 text-sm">This action cannot be undone. Are you sure you want to permanently remove
+            this institution?</p>
         <div class="flex gap-3">
-            <button type="button" onclick="closeDeleteModal()" 
+            <button type="button" onclick="closeDeleteModal()"
                 class="flex-1 px-4 py-3 bg-gray-100 text-gray-700 font-bold rounded-xl hover:bg-gray-200 transition">
                 Cancel
             </button>
-            <button type="button" id="confirmDeleteBtn" 
+            <button type="button" id="confirmDeleteBtn"
                 class="flex-1 px-4 py-3 bg-red-600 text-white font-bold rounded-xl shadow-lg shadow-red-900/20 hover:bg-red-700 transition flex items-center justify-center">
                 <span>Delete</span>
             </button>
@@ -189,12 +228,12 @@
         var newConfirmBtn = confirmBtn.cloneNode(true);
         confirmBtn.parentNode.replaceChild(newConfirmBtn, confirmBtn);
 
-        newConfirmBtn.addEventListener('click', function() {
+        newConfirmBtn.addEventListener('click', function () {
             if (!deleteSchoolId) return;
 
             var btnText = this.querySelector('span');
             var originalText = btnText.textContent;
-            
+
             this.disabled = true;
             btnText.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
 
@@ -206,22 +245,22 @@
                     'Accept': 'application/json'
                 }
             })
-            .then(response => {
-                if (!response.ok) throw new Error('Network response was not ok');
-                return response.json();
-            })
-            .then(data => {
-                closeDeleteModal();
-                loadPartial('{{ route('schools') }}', document.getElementById('nav-schools-btn'));
-            })
-            .catch(error => {
-                console.error("Deletion error:", error);
-                alert("An error occurred while trying to delete the school.");
-            })
-            .finally(() => {
-                this.disabled = false;
-                btnText.textContent = originalText;
-            });
+                .then(response => {
+                    if (!response.ok) throw new Error('Network response was not ok');
+                    return response.json();
+                })
+                .then(data => {
+                    closeDeleteModal();
+                    loadPartial('{{ route('schools') }}', document.getElementById('nav-schools-btn'));
+                })
+                .catch(error => {
+                    console.error("Deletion error:", error);
+                    alert("An error occurred while trying to delete the school.");
+                })
+                .finally(() => {
+                    this.disabled = false;
+                    btnText.textContent = originalText;
+                });
         });
     }
 
@@ -232,7 +271,7 @@
     var currentFilteredRows = [];
 
     // Initialize table data on load
-    setTimeout(function() {
+    setTimeout(function () {
         allSchoolRows = Array.from(document.querySelectorAll('.school-row'));
         currentFilteredRows = [...allSchoolRows];
         applyPagination();
@@ -282,20 +321,19 @@
         var controls = document.getElementById('pagination-controls');
         controls.innerHTML = '';
 
-        var createBtn = function(text, page, disabled, active) {
+        var createBtn = function (text, page, disabled, active) {
             var btn = document.createElement('button');
             btn.innerHTML = text;
             btn.disabled = disabled;
-            btn.className = `px-3 py-1 min-w-[32px] rounded-lg text-sm font-bold transition-all border ${
-                active 
-                ? 'bg-[#a52a2a] text-white border-[#a52a2a] shadow-sm' 
-                : disabled 
-                    ? 'bg-transparent text-gray-300 border-transparent cursor-not-allowed' 
-                    : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50 hover:text-[#a52a2a] hover:border-[#a52a2a]/30 shadow-sm'
-            }`;
-            
+            btn.className = `px-3 py-1 min-w-[32px] rounded-lg text-sm font-bold transition-all border ${active
+                    ? 'bg-[#a52a2a] text-white border-[#a52a2a] shadow-sm'
+                    : disabled
+                        ? 'bg-transparent text-gray-300 border-transparent cursor-not-allowed'
+                        : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50 hover:text-[#a52a2a] hover:border-[#a52a2a]/30 shadow-sm'
+                }`;
+
             if (!disabled && !active) {
-                btn.onclick = function() {
+                btn.onclick = function () {
                     currentPage = page;
                     applyPagination();
                 };
@@ -334,10 +372,10 @@
         var newSearchInput = searchInput.cloneNode(true);
         searchInput.parentNode.replaceChild(newSearchInput, searchInput);
 
-        newSearchInput.addEventListener('input', function() {
+        newSearchInput.addEventListener('input', function () {
             var filter = this.value.toLowerCase();
-            
-            currentFilteredRows = allSchoolRows.filter(function(row) {
+
+            currentFilteredRows = allSchoolRows.filter(function (row) {
                 return row.textContent.toLowerCase().includes(filter);
             });
 
@@ -353,19 +391,19 @@
 
     // --- SORTING LOGIC OVERRIDE ---
     var sortableHeaders = document.querySelectorAll('.sortable-col');
-    sortableHeaders.forEach(function(header) {
+    sortableHeaders.forEach(function (header) {
         var newHeader = header.cloneNode(true);
         header.parentNode.replaceChild(newHeader, header);
 
-        newHeader.addEventListener('click', function() {
+        newHeader.addEventListener('click', function () {
             var colIndex = Array.from(newHeader.parentNode.children).indexOf(newHeader);
             var isAsc = newHeader.classList.contains('asc');
 
             // Reset UI
-            document.querySelectorAll('.sortable-col i').forEach(function(icon) {
+            document.querySelectorAll('.sortable-col i').forEach(function (icon) {
                 icon.className = 'fas fa-sort ml-1 text-gray-300';
             });
-            document.querySelectorAll('.sortable-col').forEach(function(h) {
+            document.querySelectorAll('.sortable-col').forEach(function (h) {
                 h.classList.remove('asc', 'desc');
             });
 
@@ -382,7 +420,7 @@
             }
 
             // Sort the filtered array
-            currentFilteredRows.sort(function(a, b) {
+            currentFilteredRows.sort(function (a, b) {
                 var aText = a.children[colIndex].textContent.trim().toLowerCase();
                 var bText = b.children[colIndex].textContent.trim().toLowerCase();
 

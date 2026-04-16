@@ -39,6 +39,25 @@ class DashboardController extends Controller
         }
     }
 
+    public function report(Request $request)
+    {
+        $schools = \App\Models\School::with('district')->orderBy('name', 'asc')->get();
+
+        $data = [
+            'title' => 'School Directory Report',
+            'type' => 'schools',
+            'records' => $schools,
+            'isPrint' => $request->action === 'print'
+        ];
+
+        if ($request->action === 'print') {
+            return view('dashboard.partials.shared.list-report', $data);
+        }
+
+        $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('dashboard.partials.shared.list-report', $data);
+        return $pdf->download('School_Directory_' . now()->format('Y_m_d') . '.pdf');
+    }
+
     public function getDistricts($quadrantId)
     {
         // Make sure the model name is correct (District)
@@ -518,10 +537,11 @@ class DashboardController extends Controller
             ->map(function ($section) {
                 // Decode the JSON array of tags
                 $tagsArray = json_decode($section->tag_name, true);
-                if (!is_array($tagsArray)) $tagsArray = [$section->tag_name];
+                if (!is_array($tagsArray))
+                    $tagsArray = [$section->tag_name];
 
                 $section->materials = \App\Models\Material::with('instructor')
-                    ->whereHas('tags', function($q) use ($tagsArray) {
+                    ->whereHas('tags', function ($q) use ($tagsArray) {
                         $q->whereIn('name', $tagsArray);
                     })
                     ->where('status', 'published')
@@ -529,19 +549,19 @@ class DashboardController extends Controller
                     ->inRandomOrder()
                     ->take(10)
                     ->get();
-                
+
                 return $section;
             });
 
         // 4. School Materials
         // Since this route is for public guests, they don't have a school. 
         // We pass an empty collection so the Blade file doesn't throw an "undefined variable" error.
-        $schoolMaterials = collect(); 
+        $schoolMaterials = collect();
 
         return view('dashboard.partials.student.explore', compact(
-            'featuredMaterials', 
-            'popularMaterials', 
-            'dynamicSections', 
+            'featuredMaterials',
+            'popularMaterials',
+            'dynamicSections',
             'schoolMaterials'
         ));
     }
@@ -570,10 +590,11 @@ class DashboardController extends Controller
             ->get()
             ->map(function ($section) {
                 $tagsArray = json_decode($section->tag_name, true);
-                if (!is_array($tagsArray)) $tagsArray = [$section->tag_name];
+                if (!is_array($tagsArray))
+                    $tagsArray = [$section->tag_name];
 
                 $section->materials = \App\Models\Material::with('instructor')
-                    ->whereHas('tags', function($q) use ($tagsArray) {
+                    ->whereHas('tags', function ($q) use ($tagsArray) {
                         $q->whereIn('name', $tagsArray);
                     })
                     ->where('status', 'published')
@@ -581,7 +602,7 @@ class DashboardController extends Controller
                     ->inRandomOrder()
                     ->take(10)
                     ->get();
-                
+
                 return $section;
             });
 
@@ -746,7 +767,7 @@ class DashboardController extends Controller
         $totalStudents = \App\Models\User::where('role', 'student')->count();
         $totalTeachers = \App\Models\User::where('role', 'teacher')->count();
         $totalSchools = \App\Models\School::count();
-        
+
         $dailyActiveUsers = \App\Models\User::where('updated_at', '>=', now()->subDay())->count();
         $weeklyActiveUsers = \App\Models\User::where('updated_at', '>=', now()->subDays(7))->count();
 
@@ -798,13 +819,13 @@ class DashboardController extends Controller
             'totalSchools' => $totalSchools,
             'dailyActiveUsers' => $dailyActiveUsers,
             'weeklyActiveUsers' => $weeklyActiveUsers,
-            'topSchools' => $topSchools, 
-            
+            'topSchools' => $topSchools,
+
             'totalMaterials' => $totalMaterials,
             'totalEnrollments' => $totalEnrollments,
             'completionRate' => $completionRate,
-            'topMaterials' => $topMaterials, 
-            
+            'topMaterials' => $topMaterials,
+
             'totalGb' => $totalGb,
             'usedGb' => $usedGb,
             'storagePercentage' => $storagePercentage,
@@ -812,7 +833,7 @@ class DashboardController extends Controller
             'showUsers' => $request->has('check_users'),
             'showContent' => $request->has('check_content'),
             'showHealth' => $request->has('check_health'),
-            
+
             'isPrint' => $isPrint,
         ];
 
@@ -951,7 +972,7 @@ class DashboardController extends Controller
             $count = \App\Models\Enrollment::whereDate('created_at', $date)
                 ->whereIn('material_id', $myMaterialIds)
                 ->count();
-            
+
             $activityTrends[] = [
                 'date' => $displayDate,
                 'count' => $count
@@ -980,7 +1001,7 @@ class DashboardController extends Controller
             'showEngagement' => $request->has('check_engagement'),
             'showPerformance' => $request->has('check_performance'),
             'showTrends' => $request->has('check_trends'),
-            
+
             'isPrint' => $isPrint,
         ];
 
@@ -992,7 +1013,7 @@ class DashboardController extends Controller
         $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('dashboard.partials.teacher.analytics-report', $data);
         return $pdf->download('Class_Analytics_Report_' . now()->format('Y_m_d') . '.pdf');
     }
-    
+
     private function loadStudentAnalytics()
     {
         $studentId = \Illuminate\Support\Facades\Auth::id();
@@ -1001,7 +1022,7 @@ class DashboardController extends Controller
         $totalEnrollments = \App\Models\Enrollment::where('user_id', $studentId)->count();
         $completedCount = \App\Models\Enrollment::where('user_id', $studentId)->where('status', 'completed')->count();
         $inProgressCount = \App\Models\Enrollment::where('user_id', $studentId)->where('status', 'in_progress')->count();
-        
+
         $completionRate = $totalEnrollments > 0 ? round(($completedCount / $totalEnrollments) * 100) : 0;
 
         // NEW: Total Hours Learned (Sum of lesson time_limits from completed modules)
@@ -1010,7 +1031,7 @@ class DashboardController extends Controller
             ->where('enrollments.status', 'completed')
             ->join('lessons', 'enrollments.material_id', '=', 'lessons.material_id')
             ->sum('lessons.time_limit');
-            
+
         $totalHours = round($totalMinutes / 60, 1);
 
         // 2. ALL-TIME QUIZ PERFORMANCE (Kept for accuracy charts)
@@ -1021,31 +1042,31 @@ class DashboardController extends Controller
         // 3. RECENT QUIZ TREND (Last 7 Days)
         $examDates = [];
         $examScores = [];
-        
+
         for ($i = 6; $i >= 0; $i--) {
             $date = now()->subDays($i)->format('Y-m-d');
             $examDates[] = now()->subDays($i)->format('M d');
-            
+
             $dailyScore = \App\Models\ExamAnswer::where('user_id', $studentId)
                 ->whereDate('created_at', $date)
                 ->where('is_correct', true)
                 ->count();
-                
+
             $examScores[] = $dailyScore;
         }
 
         // 4. LEARNING STREAK (Consecutive days of activity)
         $streak = 0;
         $checkDate = now();
-        
+
         while (true) {
             $hasActivity = \App\Models\ExamAnswer::where('user_id', $studentId)
                 ->whereDate('created_at', $checkDate->format('Y-m-d'))
-                ->exists() || 
+                ->exists() ||
                 \App\Models\Enrollment::where('user_id', $studentId)
-                ->whereDate('updated_at', $checkDate->format('Y-m-d'))
-                ->exists();
-                
+                    ->whereDate('updated_at', $checkDate->format('Y-m-d'))
+                    ->exists();
+
             if ($hasActivity) {
                 $streak++;
                 $checkDate->subDay();
@@ -1053,7 +1074,7 @@ class DashboardController extends Controller
                 // If checking today and no activity, check if they had a streak going up until yesterday
                 if ($streak == 0 && $checkDate->isToday()) {
                     $checkDate->subDay();
-                    continue; 
+                    continue;
                 }
                 break; // Streak broken
             }
@@ -1072,18 +1093,28 @@ class DashboardController extends Controller
 
         $masteryLabels = [];
         $masteryScores = [];
-        foreach($masteryRaw as $m) {
+        foreach ($masteryRaw as $m) {
             $masteryLabels[] = \Illuminate\Support\Str::limit($m->title, 15);
             $masteryScores[] = $m->total_attempts > 0 ? round(($m->correct_attempts / $m->total_attempts) * 100) : 0;
         }
 
         return view('dashboard.partials.student.analytics', compact(
-            'totalEnrollments', 'completedCount', 'inProgressCount', 'completionRate',
-            'totalAnswers', 'correctAnswers', 'incorrectAnswers', 'totalHours',
-            'examDates', 'examScores', 'streak', 'masteryLabels', 'masteryScores'
+            'totalEnrollments',
+            'completedCount',
+            'inProgressCount',
+            'completionRate',
+            'totalAnswers',
+            'correctAnswers',
+            'incorrectAnswers',
+            'totalHours',
+            'examDates',
+            'examScores',
+            'streak',
+            'masteryLabels',
+            'masteryScores'
         ));
     }
-    
+
     public function exportStudentAnalyticsPdf(\Illuminate\Http\Request $request)
     {
         $studentId = \Illuminate\Support\Facades\Auth::id();
@@ -1120,10 +1151,18 @@ class DashboardController extends Controller
         $streak = 0;
         $checkDate = now();
         while (true) {
-            $hasActivity = \App\Models\ExamAnswer::where('user_id', $studentId)->whereDate('created_at', $checkDate->format('Y-m-d'))->exists() || 
-                           \App\Models\Enrollment::where('user_id', $studentId)->whereDate('updated_at', $checkDate->format('Y-m-d'))->exists();
-            if ($hasActivity) { $streak++; $checkDate->subDay(); } 
-            else { if ($streak == 0 && $checkDate->isToday()) { $checkDate->subDay(); continue; } break; }
+            $hasActivity = \App\Models\ExamAnswer::where('user_id', $studentId)->whereDate('created_at', $checkDate->format('Y-m-d'))->exists() ||
+                \App\Models\Enrollment::where('user_id', $studentId)->whereDate('updated_at', $checkDate->format('Y-m-d'))->exists();
+            if ($hasActivity) {
+                $streak++;
+                $checkDate->subDay();
+            } else {
+                if ($streak == 0 && $checkDate->isToday()) {
+                    $checkDate->subDay();
+                    continue;
+                }
+                break;
+            }
         }
 
         // 5. Bundle it all together
@@ -1139,12 +1178,12 @@ class DashboardController extends Controller
             'totalHours' => $totalHours,
             'masteryData' => $masteryData,
             'streak' => $streak,
-            
+
             // Filter checkboxes
             'showAchievements' => $request->has('check_achievements'),
             'showProgress' => $request->has('check_progress'),
             'showPerformance' => $request->has('check_performance'),
-            
+
             'isPrint' => $isPrint,
         ];
 
@@ -1178,9 +1217,9 @@ class DashboardController extends Controller
 
         // 1. Search Materials (Base Query isolating the text search)
         $materialsQuery = \App\Models\Material::with('instructor:id,first_name,last_name')
-            ->where(function($q) use ($query) {
+            ->where(function ($q) use ($query) {
                 $q->where('title', 'LIKE', "%{$query}%")
-                  ->orWhere('description', 'LIKE', "%{$query}%");
+                    ->orWhere('description', 'LIKE', "%{$query}%");
             });
 
         // --- PRIVACY & ENROLLMENT LOGIC ---
@@ -1191,15 +1230,15 @@ class DashboardController extends Controller
                 // Condition A: Material is public 
                 // ⚠️ NOTE: Change 'is_public' to match your actual database column 
                 // (e.g., if you use a string, change to ->where('visibility', 'public') )
-                $q->where('is_public', true) 
-                  
-                  // Condition B: The user is the teacher who created the material
-                  ->orWhere('instructor_id', $user->id);
+                $q->where('is_public', true)
+
+                    // Condition B: The user is the teacher who created the material
+                    ->orWhere('instructor_id', $user->id);
 
                 // Condition C: The user is a student who is currently enrolled
                 if ($user->role === 'student') {
                     // ⚠️ NOTE: Change 'enrollments' to match the relationship name in your Material.php model
-                    $q->orWhereHas('enrollments', function($eq) use ($user) {
+                    $q->orWhereHas('enrollments', function ($eq) use ($user) {
                         $eq->where('user_id', $user->id);
                     });
                 }
@@ -1230,7 +1269,7 @@ class DashboardController extends Controller
     public function loadCriteriaPartial()
     {
         $rubricData = [];
-        
+
         // Read the global rubric JSON file if it exists
         if (\Illuminate\Support\Facades\Storage::exists('global_rubric.json')) {
             $rubricData = json_decode(\Illuminate\Support\Facades\Storage::get('global_rubric.json'), true);
@@ -1249,7 +1288,7 @@ class DashboardController extends Controller
 
         // Save the entire request payload (both passing_rate and rubric)
         \Illuminate\Support\Facades\Storage::put(
-            'global_rubric.json', 
+            'global_rubric.json',
             json_encode($request->all(), JSON_PRETTY_PRINT)
         );
 
