@@ -1,5 +1,5 @@
 <x-mail::message>
-<div style="text-align: center; width: 100%; 15px; background-color: #a52a2a; padding: 20px;">
+<div style="text-align: center; width: 100%; background-color: #a52a2a; padding: 10px 15px; margin-bottom: 15px;">
     <img src="https://res.cloudinary.com/dojat3l92/image/upload/v1773727469/deped_zambo_header_doq02k.png" alt="">
 </div>
 
