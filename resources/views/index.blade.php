@@ -24,9 +24,9 @@
 
 <body class="bg-gray-50 text-gray-800 font-sans selection:bg-red-900 selection:text-white">
     {{-- Responsive Header --}}
-        <header class="bg-[#a52a2a] text-white shadow-lg sticky z-10 w-full no-print">
-            <div class="px-4 py-3 md:px-8 md:py-4">
-                <div class="flex flex-col md:flex-row items-center justify-between gap-4 md:gap-6 relative">
+        <header class="bg-[#a52a2a] text-white flex justify-center shadow-lg absolute top-0 z-50 w-full no-print">
+            <div class="px-4 py-3 md:px-8 md:py-6 max-w-[1000px] w-full">
+                <div class="flex flex-row sm:flex-row items-center justify-between gap-2 md:gap-6 relative">
                     
                     {{-- Mobile Menu Trigger --}}
                     <button @click="sidebarOpen = true" class="absolute left-0 top-0 lg:hidden text-white hover:text-white/80 transition p-1">
@@ -34,20 +34,20 @@
                     </button>
 
                     {{-- Left Logos --}}
-                    <div class="flex items-center gap-2 md:gap-4 shrink-0 mt-8 md:mt-0">
+                    <div class="flex items-center gap-2 md:gap-4 shrink-0 md:mt-0">
                         <img src="{{ asset('images/deped.png') }}" alt="DepEd" class="h-10 sm:h-12 md:h-16 w-auto drop-shadow-md">
                         <img src="{{ asset('images/r9.png') }}" alt="Region IX" class="h-10 sm:h-12 md:h-16 w-auto drop-shadow-md">
                     </div>
 
                     {{-- Central Branding --}}
-                    <div class="flex flex-col font-cinzel text-white items-center md:items-start text-center md:text-left flex-1 px-4 w-full">
+                    <div class="flex flex-col font-cinzel text-white items-start sm:items-start text-center sm:text-left flex-1 px-4 w-full">
                         {{-- Wrapper to constrain the width of the horizontal line to exactly the text width --}}
-                        <div class="inline-flex flex-col items-center md:items-start w-fit">
+                        <div class="inline-flex flex-col items-start sm:items-start w-fit">
                             <span class="text-[8px] sm:text-[10px] tracking-widest leading-tight font-bold">Republic of the Philippines</span>
                             <span class="text-[8px] sm:text-[10px] tracking-widest leading-tight font-bold">Department of Education</span>
                             
                             {{-- Horizontal Line (Now restricted by the parent wrapper) --}}
-                            <div class="w-full border-b border-white/40 my-1"></div>
+                            <div class="w-full border-b border-white my-1"></div>
                             
                             <h1 class="text-sm sm:text-lg md:text-xl lg:text-2xl tracking-wide font-bold leading-tight">
                                 {{ $site_settings->header_title ?? 'Zamboanga City Division' }}
@@ -56,8 +56,8 @@
                     </div>
 
                     {{-- Right Logo --}}
-                    <div class="hidden xl:block shrink-0">
-                        <img src="{{ asset('images/ts.png') }}" alt="Transparency Seal" class="h-16 w-auto opacity-90">
+                    <div class="block md:block shrink-0">
+                        <img src="{{ asset('images/ts.png') }}" alt="Transparency Seal" class=" opacity-90 h-10 sm:h-12 md:h-16 w-auto drop-shadow-md">
                     </div>
                 </div>
             </div>
@@ -68,7 +68,7 @@
             class="relative bg-cover bg-center bg-no-repeat px-6 pt-40 md:pt-40 min-h-screen">
             <div class="absolute inset-0 bg-red-900/50"></div>
 
-            <div class="relative z-10 max-w-7xl mx-auto text-center flex items-center justify-center flex-col">
+            <div class="relative z-10 max-w-7xl pt-10 lg:pt-5 mx-auto text-center flex items-center justify-center flex-col">
                 <img src="{{ asset('storage/images/hero-text.png') }}" class="w-full max-w-xl h-auto block"
                     alt="DepEd Zamboanga Header">
                 <h1 class="text-5xl md:text-7xl font-extrabold text-white mb-6 tracking-tight text-shadow-lg/30">
@@ -83,7 +83,7 @@
                         Login
                     </a>
                     <a href="{{ route('register') }}" style="background-color: #a52a2a;"
-                        class="px-8 py-3 bg-white hover:bg-gray-100 text-red-800 font-semibold rounded-lg transition-all duration-300 shadow-md hover:shadow-lg transform hover:-translate-y-0.5">
+                        class="px-8 py-3 bg-white hover:bg-gray-100 text-white font-semibold rounded-lg transition-all duration-300 shadow-md hover:shadow-lg transform hover:-translate-y-0.5">
                         Create Account
                     </a>
                 </div>
