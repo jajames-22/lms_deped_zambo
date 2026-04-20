@@ -4,6 +4,10 @@
         input[value="pending"]:checked + div .status-icon { background-color: #f59e0b !important; color: white !important; }
         input[value="verified"]:checked + div .status-icon { background-color: #10b981 !important; color: white !important; }
         input[value="suspended"]:checked + div .status-icon { background-color: #ef4444 !important; color: white !important; }
+        
+        /* New Role Icons */
+        input[value="teacher"]:checked + div .role-icon { background-color: #3b82f6 !important; color: white !important; }
+        input[value="cid"]:checked + div .role-icon { background-color: #a855f7 !important; color: white !important; }
     </style>
 
     <div class="max-w-5xl mx-auto space-y-6 pb-10 relative animate-float-in">
@@ -14,8 +18,8 @@
                 <i class="fas fa-arrow-left"></i>
             </button>
             <div>
-                <h1 class="text-2xl font-bold text-gray-900">Register Teacher</h1>
-                <p class="text-sm text-gray-500">Create a new educator account in the database.</p>
+                <h1 class="text-2xl font-bold text-gray-900">Register Personnel</h1>
+                <p class="text-sm text-gray-500">Create a new educator or CID account in the database.</p>
             </div>
         </div>
 
@@ -29,7 +33,7 @@
                     </div>
                     <div>
                         <h2 class="text-lg font-bold text-gray-900">Personal Information</h2>
-                        <p class="text-xs text-gray-500">Teacher's legal name details.</p>
+                        <p class="text-xs text-gray-500">Personnel's legal name details.</p>
                     </div>
                 </div>
 
@@ -66,7 +70,7 @@
                         <i class="fas fa-user-shield"></i>
                     </div>
                     <div>
-                        <h2 class="text-lg font-bold text-gray-900">Account Credentials</h2>
+                        <h2 class="text-lg font-bold text-gray-900">Account Credentials & Role</h2>
                         <p class="text-xs text-gray-500">Login IDs and system access.</p>
                     </div>
                 </div>
@@ -96,13 +100,47 @@
                     </div>
                 </div>
 
+                {{-- NEW: ROLE SELECTION --}}
+                <div class="space-y-2 pt-4 border-t border-gray-100 mb-6">
+                    <label class="text-xs font-bold text-gray-600 uppercase">Account Role <span class="text-red-500">*</span></label>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-2">
+                        
+                        <label class="relative cursor-pointer">
+                            <input type="radio" name="role" value="teacher" class="peer sr-only" {{ isset($teacher) && $teacher->role == 'teacher' ? 'checked' : (!isset($teacher) ? 'checked' : '') }}>
+                            <div class="p-4 border-2 border-gray-100 rounded-xl bg-white transition-all duration-300 peer-checked:border-blue-500 peer-checked:hover:border-blue-500 peer-checked:bg-blue-50 peer-checked:shadow-sm hover:border-gray-200 flex items-center gap-3">
+                                <div class="role-icon w-10 h-10 rounded-full flex items-center justify-center bg-gray-100 text-gray-400 transition-colors duration-300 shrink-0">
+                                    <i class="fas fa-chalkboard-teacher text-lg"></i>
+                                </div>
+                                <div>
+                                    <p class="font-bold text-sm text-gray-900">Teacher</p>
+                                    <p class="text-[10px] text-gray-500 leading-tight">Standard educator access</p>
+                                </div>
+                            </div>
+                        </label>
+
+                        <label class="relative cursor-pointer">
+                            <input type="radio" name="role" value="cid" class="peer sr-only" {{ isset($teacher) && $teacher->role == 'cid' ? 'checked' : '' }}>
+                            <div class="p-4 border-2 border-gray-100 rounded-xl bg-white transition-all duration-300 peer-checked:border-purple-500 peer-checked:hover:border-purple-500 peer-checked:bg-purple-50 peer-checked:shadow-sm hover:border-gray-200 flex items-center gap-3">
+                                <div class="role-icon w-10 h-10 rounded-full flex items-center justify-center bg-gray-100 text-gray-400 transition-colors duration-300 shrink-0">
+                                    <i class="fas fa-user-tie text-lg"></i>
+                                </div>
+                                <div>
+                                    <p class="font-bold text-sm text-gray-900">CID Personnel</p>
+                                    <p class="text-[10px] text-gray-500 leading-tight">Elevated curriculum access</p>
+                                </div>
+                            </div>
+                        </label>
+
+                    </div>
+                </div>
+
                 <div class="space-y-2 pt-4 border-t border-gray-100">
                     <label class="text-xs font-bold text-gray-600 uppercase">Account Status <span class="text-red-500">*</span></label>
                     <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-2">
                         
                         <label class="relative cursor-pointer">
-                            <input type="radio" name="status" value="pending" class="peer sr-only">
-                            <div class="p-4 border-2 border-gray-100 rounded-xl bg-white transition-all duration-300 peer-checked:border-amber-500 peer-checked:bg-amber-50 peer-checked:shadow-sm hover:border-gray-200 flex items-center gap-3">
+                            <input type="radio" name="status" value="pending" class="peer sr-only" {{ isset($teacher) && $teacher->status == 'pending' ? 'checked' : '' }}>
+                            <div class="p-4 border-2 border-gray-100 rounded-xl bg-white transition-all duration-300 peer-checked:border-amber-500 peer-checked:hover:border-amber-500 peer-checked:bg-amber-50 peer-checked:shadow-sm hover:border-gray-200 flex items-center gap-3">
                                 <div class="status-icon w-10 h-10 rounded-full flex items-center justify-center bg-gray-100 text-gray-400 transition-colors duration-300 shrink-0">
                                     <i class="fas fa-clock text-lg"></i>
                                 </div>
@@ -114,8 +152,8 @@
                         </label>
 
                         <label class="relative cursor-pointer">
-                            <input type="radio" name="status" value="verified" class="peer sr-only" checked>
-                            <div class="p-4 border-2 border-gray-100 rounded-xl bg-white transition-all duration-300 peer-checked:border-green-500 peer-checked:bg-green-50 peer-checked:shadow-sm hover:border-gray-200 flex items-center gap-3">
+                            <input type="radio" name="status" value="verified" class="peer sr-only" {{ isset($teacher) && $teacher->status == 'verified' ? 'checked' : (!isset($teacher) ? 'checked' : '') }}>
+                            <div class="p-4 border-2 border-gray-100 rounded-xl bg-white transition-all duration-300 peer-checked:border-green-500 peer-checked:hover:border-green-500 peer-checked:bg-green-50 peer-checked:shadow-sm hover:border-gray-200 flex items-center gap-3">
                                 <div class="status-icon w-10 h-10 rounded-full flex items-center justify-center bg-gray-100 text-gray-400 transition-colors duration-300 shrink-0">
                                     <i class="fas fa-check-circle text-lg"></i>
                                 </div>
@@ -127,8 +165,8 @@
                         </label>
 
                         <label class="relative cursor-pointer">
-                            <input type="radio" name="status" value="suspended" class="peer sr-only">
-                            <div class="p-4 border-2 border-gray-100 rounded-xl bg-white transition-all duration-300 peer-checked:border-red-500 peer-checked:bg-red-50 peer-checked:shadow-sm hover:border-gray-200 flex items-center gap-3">
+                            <input type="radio" name="status" value="suspended" class="peer sr-only" {{ isset($teacher) && $teacher->status == 'suspended' ? 'checked' : '' }}>
+                            <div class="p-4 border-2 border-gray-100 rounded-xl bg-white transition-all duration-300 peer-checked:border-red-500 peer-checked:hover:border-red-500 peer-checked:bg-red-50 peer-checked:shadow-sm hover:border-gray-200 flex items-center gap-3">
                                 <div class="status-icon w-10 h-10 rounded-full flex items-center justify-center bg-gray-100 text-gray-400 transition-colors duration-300 shrink-0">
                                     <i class="fas fa-ban text-lg"></i>
                                 </div>
@@ -178,7 +216,7 @@
             <div class="flex justify-end pt-2">
                 <button type="submit" id="submitBtn"
                     class="px-8 py-3.5 bg-gray-900 text-white font-bold rounded-xl shadow-md hover:bg-gray-800 transition-all flex items-center justify-center gap-2 disabled:opacity-75 disabled:cursor-not-allowed">
-                    <i class="fas fa-user-plus" id="submitIcon"></i> <span id="submitText">Register Teacher</span>
+                    <i class="fas fa-user-plus" id="submitIcon"></i> <span id="submitText">Register Personnel</span>
                 </button>
             </div>
         </form>
@@ -191,7 +229,7 @@
                 <i class="fas fa-check text-4xl"></i>
             </div>
             <h3 class="text-2xl font-black text-gray-900 mb-2">Success!</h3>
-            <p class="text-gray-500 mb-8 text-sm">The educator's account has been successfully created.</p>
+            <p class="text-gray-500 mb-8 text-sm">The account has been successfully created.</p>
             <div class="space-y-3">
                 <button type="button" onclick="closeSuccessModal()" class="w-full px-4 py-3 bg-gray-100 text-gray-700 font-bold rounded-xl hover:bg-gray-200 transition">
                     Register Another
@@ -288,7 +326,7 @@
             .finally(() => {
                 currentSubmitBtn.disabled = false;
                 submitIcon.className = 'fas fa-user-plus';
-                submitText.textContent = 'Register Teacher';
+                submitText.textContent = 'Register Personnel';
             });
         });
     }

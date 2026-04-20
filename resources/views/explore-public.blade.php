@@ -20,38 +20,57 @@
 </head>
 <body class="bg-gray-50 text-gray-800 relative">
 
-    {{-- HEADER --}}
-    <header style="background-color: #a52a2a;" class="fixed p-1 flex justify-center z-40 w-full items-center shadow-md mb-5">
-        <a href="{{ route('index') }}">
-            <img src="{{ asset('storage/images/deped_zambo_header.png') }}" class="w-full max-w-4xl h-auto block" alt="DepEd Zamboanga Header">
+    {{-- ORIGINAL RED HEADER (Made Smaller/Sleeker) --}}
+    <header style="background-color: #a52a2a;" class="fixed top-0 left-0 p-2 md:p-3 flex justify-center z-50 w-full items-center shadow-md">
+        <a href="{{ route('index') }}" class="h-10 md:h-12 block">
+            <img src="{{ asset('storage/images/deped_zambo_header.png') }}" class="h-full w-auto object-contain block" alt="DepEd Zamboanga Header">
         </a>
     </header>
 
-    <main class="pt-24 md:pt-48 pb-24">
+    <main class="pt-24 md:pt-32 pb-24">
         
         {{-- CONTAINER A: MAIN EXPLORE VIEW --}}
-        <div id="main-explore-content" class="max-w-7xl mx-auto space-y-12 pb-24 relative px-4 sm:px-6 transition-opacity duration-300">
+        <div id="main-explore-content" class="max-w-7xl mx-auto space-y-10 pb-24 relative px-4 sm:px-6 transition-opacity duration-300">
 
-            {{-- BACK BUTTON & PAGE HEADER --}}
-            <div class="flex flex-col gap-4 mb-2">
-                <button onclick="navigateBack()" class="cursor-pointer flex items-center w-fit text-gray-500 hover:text-[#a52a2a] font-bold transition-colors group px-2 py-1 rounded-lg hover:bg-red-50 relative z-10"> 
-                    <i class="fas fa-arrow-left mr-2 group-hover:-translate-x-1 transition-transform"></i> <span class="hidden sm:inline">Back</span> 
-                </button>
-                
-                <div class="px-2">
+            {{-- BACK BUTTON --}}
+            <button onclick="navigateBack()" class="cursor-pointer flex items-center w-fit text-gray-500 hover:text-[#a52a2a] font-bold transition-colors group px-2 py-1 rounded-lg hover:bg-red-50 relative z-10 mb-2"> 
+                <i class="fas fa-arrow-left mr-2 group-hover:-translate-x-1 transition-transform"></i> <span class="hidden sm:inline">Back</span> 
+            </button>
+            
+            {{-- PAGE HEADER & SEARCH BAR --}}
+            <div class="px-2 flex flex-col md:flex-row md:items-end justify-between gap-6 mb-4">
+                <div>
                     <h1 class="text-4xl md:text-5xl font-black text-gray-900 tracking-tight">Public Materials</h1>
                     <p class="text-gray-500 mt-2 text-base md:text-lg">Explore open-access learning resources from DepEd Zamboanga.</p>
                 </div>
+                
+                {{-- SEARCH BAR --}}
+                <div class="relative w-full md:w-96 group shrink-0">
+                    <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                        <i class="fas fa-search text-gray-400 group-focus-within:text-[#a52a2a] transition-colors"></i>
+                    </div>
+                    <input type="text" id="public-search-input" placeholder="Search public materials..." 
+                           class="w-full pl-11 pr-24 py-3.5 bg-white border border-gray-200 rounded-xl shadow-sm outline-none focus:ring-2 focus:ring-[#a52a2a]/20 focus:border-[#a52a2a] text-gray-900 text-sm transition-all"
+                           onkeydown="if(event.key === 'Enter') executePublicSearch()">
+                    <button onclick="executePublicSearch()" class="absolute right-1.5 top-1/2 -translate-y-1/2 bg-[#a52a2a] hover:bg-red-800 text-white px-4 py-2 rounded-lg font-bold shadow-sm transition-all text-xs active:scale-95">
+                        Search
+                    </button>
+                </div>
             </div>
             
-            {{-- 1. FEATURED BANNER CAROUSEL (Admin Selected) --}}
+            {{-- 1. FEATURED BANNER CAROUSEL --}}
             @if($featuredMaterials->isNotEmpty())
-                <div class="relative w-full h-80 md:h-[450px] rounded-2xl overflow-hidden shadow-2xl group" id="featured-carousel">
-                    {{-- Carousel Track --}}
+                <div class="relative w-full h-80 md:h-[450px] rounded-2xl overflow-hidden shadow-xl group" id="featured-carousel">
                     <div class="flex transition-transform duration-700 ease-in-out h-full w-full" id="carousel-track">
                         @foreach($featuredMaterials as $index => $material)
-                            <div class="w-full h-full flex-shrink-0 relative cursor-pointer"
+                            <div class="w-full h-full flex-shrink-0 relative cursor-pointer material-search-item"
+                                 data-id="{{ $material->id }}" 
+                                 data-title="{{ $material->title }}" 
+                                 data-desc="{{ $material->description }}" 
+                                 data-instructor="{{ $material->instructor->first_name ?? 'Instructor' }} {{ $material->instructor->last_name ?? '' }}" 
+                                 data-img="{{ $material->thumbnail ? asset('storage/' . $material->thumbnail) : 'https://images.unsplash.com/photo-1532094349884-543bc11b234d?q=80&w=1000' }}"
                                  onclick="window.location.href = '{{ route('explore.materials.show', $material->id) }}';">
+                                
                                 <div class="absolute inset-0 bg-gradient-to-r from-black/80 via-black/40 to-transparent z-10"></div>
                                 <img src="{{ $material->thumbnail ? asset('storage/' . $material->thumbnail) : 'https://images.unsplash.com/photo-1532094349884-543bc11b234d?q=80&w=1000' }}" 
                                      class="absolute inset-0 w-full h-full object-cover opacity-80">
@@ -60,7 +79,6 @@
                                     <span class="px-3 py-1 bg-[#a52a2a] text-white text-[10px] font-black uppercase tracking-[0.2em] rounded-md w-max mb-4 shadow-md">Featured</span>
                                     <h1 class="text-4xl md:text-5xl lg:text-6xl font-black text-white mb-4 leading-tight drop-shadow-lg line-clamp-2">{{ $material->title }}</h1>
                                     
-                                    {{-- INSTRUCTOR ICON --}}
                                     <p class="text-white font-bold text-xs md:text-sm uppercase tracking-widest mb-2 flex items-center gap-1.5 drop-shadow-md">
                                         <i class="fas fa-chalkboard-user"></i> {{ $material->instructor->first_name ?? 'Instructor' }} {{ $material->instructor->last_name ?? '' }}
                                     </p>
@@ -77,7 +95,6 @@
                         @endforeach
                     </div>
 
-                    {{-- Controls --}}
                     @if($featuredMaterials->count() > 1)
                         <button onclick="window.moveCarousel(-1)" class="absolute left-4 top-1/2 -translate-y-1/2 z-30 w-12 h-12 flex items-center justify-center bg-black/40 hover:bg-[#a52a2a] text-white rounded-full backdrop-blur-md transition-all opacity-0 group-hover:opacity-100 shadow-lg"><i class="fas fa-chevron-left"></i></button>
                         <button onclick="window.moveCarousel(1)" class="absolute right-4 top-1/2 -translate-y-1/2 z-30 w-12 h-12 flex items-center justify-center bg-black/40 hover:bg-[#a52a2a] text-white rounded-full backdrop-blur-md transition-all opacity-0 group-hover:opacity-100 shadow-lg"><i class="fas fa-chevron-right"></i></button>
@@ -90,7 +107,7 @@
                 </div>
             @endif
 
-            {{-- 2. DYNAMIC SECTIONS (Admin Controlled Categories) --}}
+            {{-- 2. DYNAMIC SECTIONS --}}
             @foreach($dynamicSections as $section)
                 @if($section->materials->isNotEmpty())
                     <section class="mb-0">
@@ -110,7 +127,12 @@
 
                         <div class="flex overflow-x-auto no-scrollbar gap-6 pb-6 snap-x px-2">
                             @foreach($section->materials as $material)
-                                <div class="w-72 flex-none snap-start group bg-white border border-gray-200 hover:border-[#a52a2a]/30 rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-all duration-300 flex flex-col cursor-pointer"
+                                <div class="w-72 flex-none snap-start group bg-white border border-gray-200 hover:border-[#a52a2a]/30 rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-all duration-300 flex flex-col cursor-pointer material-search-item"
+                                     data-id="{{ $material->id }}" 
+                                     data-title="{{ $material->title }}" 
+                                     data-desc="{{ $material->description }}" 
+                                     data-instructor="{{ $material->instructor->first_name ?? 'Instructor' }} {{ $material->instructor->last_name ?? '' }}" 
+                                     data-img="{{ $material->thumbnail ? asset('storage/' . $material->thumbnail) : 'https://images.unsplash.com/photo-1509228468518-180dd4864904?q=80&w=400' }}"
                                      onclick="window.location.href = '{{ route('explore.materials.show', $material->id) }}';">
                                     <div class="relative w-full aspect-[4/3] overflow-hidden">
                                         <img src="{{ $material->thumbnail ? asset('storage/' . $material->thumbnail) : 'https://images.unsplash.com/photo-1509228468518-180dd4864904?q=80&w=400' }}" 
@@ -131,14 +153,19 @@
                 @endif
             @endforeach
 
-            {{-- 3. CATEGORY: POPULAR MATERIALS (Ranked by Views) --}}
+            {{-- 3. CATEGORY: POPULAR MATERIALS --}}
             <section class="py-4">
                 <div class="flex items-center justify-between mb-6 px-2">
                     <h2 class="text-2xl font-bold text-gray-900 tracking-tight">Popular Materials</h2>
                 </div>
                 <div class="flex overflow-x-auto no-scrollbar pb-4 px-2">
                     @foreach($popularMaterials as $index => $material)
-                    <div class="flex-none flex items-center gap-4 group cursor-pointer"
+                    <div class="flex-none flex items-center gap-4 group cursor-pointer material-search-item"
+                         data-id="{{ $material->id }}" 
+                         data-title="{{ $material->title }}" 
+                         data-desc="{{ $material->description }}" 
+                         data-instructor="{{ $material->instructor->first_name ?? 'Instructor' }} {{ $material->instructor->last_name ?? '' }}" 
+                         data-img="{{ $material->thumbnail ? asset('storage/' . $material->thumbnail) : 'https://images.unsplash.com/photo-1517694712202-14dd9538aa97?q=80&w=300' }}"
                          onclick="window.location.href = '{{ route('explore.materials.show', $material->id) }}';">
                         <span class="text-7xl md:text-8xl font-black text-gray-200 group-hover:text-[#a52a2a]/20 transition-colors italic leading-none">{{ $index + 1 }}</span>
                         <div class="h-64 rounded-xl overflow-hidden -translate-x-6 shadow-lg relative">
@@ -157,7 +184,7 @@
                 </div>
             </section>
 
-            {{-- 4. GUEST CTA (Smaller Version) --}}
+            {{-- 4. GUEST CTA --}}
             <section class="mt-8 bg-[#a52a2a]/5 border border-[#a52a2a]/20 rounded-2xl p-6 md:p-8 text-center max-w-4xl mx-auto">
                 <i class="fas fa-school text-3xl text-[#a52a2a] mb-3"></i>
                 <h2 class="text-xl md:text-2xl font-extrabold text-gray-900 tracking-tight mb-2">Want to see materials specific to your school?</h2>
@@ -170,15 +197,15 @@
 
         </div>
 
-        {{-- CONTAINER B: FILTERED "SEE ALL" VIEW (Hidden by Default) --}}
+        {{-- CONTAINER B: FILTERED "SEE ALL" / SEARCH RESULTS VIEW --}}
         <div id="filtered-explore-content" class="max-w-7xl mx-auto hidden px-4 sm:px-6 transition-opacity duration-300">
-            <div class="flex items-center gap-4 mb-10">
-                <button onclick="resetExploreView()" class="h-12 w-12 flex items-center justify-center rounded-full bg-white border border-gray-200 text-gray-500 hover:text-[#a52a2a] transition shadow-sm group">
+            <div class="flex flex-col md:flex-row md:items-center gap-4 mb-10">
+                <button onclick="resetExploreView()" class="h-12 w-12 flex items-center justify-center rounded-full bg-white border border-gray-200 text-gray-500 hover:text-[#a52a2a] transition shadow-sm group shrink-0">
                     <i class="fas fa-arrow-left group-hover:-translate-x-1 transition-transform"></i>
                 </button>
                 <div>
-                    <p class="text-[10px] text-[#a52a2a] font-black uppercase tracking-[0.2em] mb-1">Browsing Category</p>
-                    <h1 id="selected-category-title" class="text-4xl font-black text-gray-900 tracking-tight"></h1>
+                    <p id="browsing-label" class="text-[10px] text-[#a52a2a] font-black uppercase tracking-[0.2em] mb-1">Browsing Category</p>
+                    <h1 id="selected-category-title" class="text-3xl md:text-4xl font-black text-gray-900 tracking-tight"></h1>
                 </div>
             </div>
 
@@ -192,21 +219,90 @@
     {{-- SCRIPTS --}}
     <script>
         function navigateBack() {
-            console.log("clicked");
-
             const wrapper = document.getElementById('page-wrapper');
-
             if (wrapper) {
                 wrapper.classList.remove('animate-slide-in');
                 wrapper.classList.add('animate-slide-out');
             }
-
-            setTimeout(() => {
-                window.location.href = "/";
-            }, 300);
+            setTimeout(() => { window.location.href = "/"; }, 300);
         }
-    </script>
-    <script>
+
+        // --- DOM SEARCH LOGIC ---
+        function executePublicSearch() {
+            const query = document.getElementById('public-search-input').value.toLowerCase().trim();
+            const mainContent = document.getElementById('main-explore-content');
+            const filteredContent = document.getElementById('filtered-explore-content');
+            const categoryTitle = document.getElementById('selected-category-title');
+            const materialsGrid = document.getElementById('filtered-materials-grid');
+            const browsingLabel = document.getElementById('browsing-label');
+
+            if (query === '') {
+                resetExploreView();
+                return;
+            }
+
+            // Swap visibility
+            mainContent.classList.add('hidden');
+            filteredContent.classList.remove('hidden');
+            browsingLabel.innerText = 'Search Results For';
+            categoryTitle.innerText = `"${query}"`;
+
+            // Collect all unique material cards from the page using the data attributes
+            const items = document.querySelectorAll('.material-search-item');
+            const uniqueMaterials = new Map();
+
+            items.forEach(item => {
+                const id = item.getAttribute('data-id');
+                if (!uniqueMaterials.has(id)) {
+                    uniqueMaterials.set(id, {
+                        id: id,
+                        title: item.getAttribute('data-title') || '',
+                        desc: item.getAttribute('data-desc') || '',
+                        instructor: item.getAttribute('data-instructor') || '',
+                        img: item.getAttribute('data-img') || ''
+                    });
+                }
+            });
+
+            // Filter results
+            const results = Array.from(uniqueMaterials.values()).filter(mat => {
+                return mat.title.toLowerCase().includes(query) || 
+                       mat.desc.toLowerCase().includes(query) || 
+                       mat.instructor.toLowerCase().includes(query);
+            });
+
+            // Render Results
+            if (results.length === 0) {
+                materialsGrid.innerHTML = `
+                    <div class="col-span-full py-20 text-center">
+                        <div class="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4 border border-gray-200">
+                            <i class="fas fa-search text-gray-300 text-2xl"></i>
+                        </div>
+                        <h3 class="text-lg font-bold text-gray-900 mb-1">No results found</h3>
+                        <p class="text-gray-500">We couldn't find anything matching "${query}".</p>
+                    </div>
+                `;
+                return;
+            }
+
+            materialsGrid.innerHTML = results.map(material => `
+                <div class="group bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-all cursor-pointer flex flex-col"
+                     onclick="window.location.href = '/explore/materials/${material.id}/show';">
+                    <div class="relative aspect-[4/3] overflow-hidden w-full">
+                        <img src="${material.img}" class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500">
+                        <div class="absolute inset-0 bg-black/20 group-hover:bg-black/40 transition-colors duration-500"></div>
+                    </div>
+                    <div class="p-5 flex-1 flex flex-col">
+                        <h3 class="font-bold text-gray-900 line-clamp-1 group-hover:text-[#a52a2a] transition-colors">${material.title}</h3>
+                        <p class="text-[10px] text-[#a52a2a] font-bold uppercase tracking-wider mt-1.5 flex items-center gap-1.5">
+                            <i class="fas fa-chalkboard-user"></i> ${material.instructor}
+                        </p>
+                        <p class="text-xs text-gray-500 mt-2 line-clamp-2">${material.desc}</p>
+                    </div>
+                </div>
+            `).join('');
+        }
+
         // Carousel Logic
         @if(isset($featuredMaterials) && $featuredMaterials->count() > 1)
             window.currentSlide = 0;
@@ -257,18 +353,18 @@
             }, 50);
         @endif
 
-        // See All / Toggle Logic
+        // See All Category Logic
         function showCategory(tagName, displayName) {
             const mainContent = document.getElementById('main-explore-content');
             const filteredContent = document.getElementById('filtered-explore-content');
             const categoryTitle = document.getElementById('selected-category-title');
             const materialsGrid = document.getElementById('filtered-materials-grid');
+            const browsingLabel = document.getElementById('browsing-label');
 
-            // Swap visibility
             mainContent.classList.add('hidden');
             filteredContent.classList.remove('hidden');
 
-            // Set UI State
+            browsingLabel.innerText = 'Browsing Category';
             categoryTitle.innerText = displayName;
             materialsGrid.innerHTML = `
                 <div class="col-span-full py-20 text-center">
@@ -277,10 +373,8 @@
                 </div>
             `;
 
-            // Scroll to top
             window.scrollTo({ top: 0, behavior: 'smooth' });
 
-            // Fetch materials via AJAX
             fetch(`/explore/tags/${encodeURIComponent(tagName)}/json`)
                 .then(response => response.json())
                 .then(data => {
@@ -289,7 +383,6 @@
                         return;
                     }
 
-                    // Generate HTML for each material card
                     materialsGrid.innerHTML = data.map(material => {
                         const imgUrl = material.thumbnail ? '/storage/' + material.thumbnail : 'https://images.unsplash.com/photo-1509228468518-180dd4864904?q=80&w=400';
                         const instName = material.instructor ? material.instructor.first_name + ' ' + (material.instructor.last_name || '') : 'Instructor';
@@ -300,6 +393,7 @@
                                  onclick="window.location.href = '/explore/materials/${material.id}/show';">
                                 <div class="relative aspect-[4/3] overflow-hidden w-full">
                                     <img src="${imgUrl}" class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500">
+                                    <div class="absolute inset-0 bg-black/20 group-hover:bg-black/40 transition-colors duration-500"></div>
                                 </div>
                                 <div class="p-5 flex-1 flex flex-col">
                                     <h3 class="font-bold text-gray-900 line-clamp-1 group-hover:text-[#a52a2a] transition-colors">${material.title}</h3>
@@ -318,6 +412,7 @@
         }
 
         function resetExploreView() {
+            document.getElementById('public-search-input').value = '';
             document.getElementById('main-explore-content').classList.remove('hidden');
             document.getElementById('filtered-explore-content').classList.add('hidden');
             window.scrollTo({ top: 0, behavior: 'smooth' });

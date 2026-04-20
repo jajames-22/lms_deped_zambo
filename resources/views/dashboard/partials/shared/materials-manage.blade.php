@@ -113,13 +113,13 @@
                         <button onclick="window.changeMaterialStatus('pending', this)" class="px-5 py-2.5 bg-gray-900 text-white text-sm font-bold rounded-xl shadow-md hover:bg-black transition-all flex items-center gap-2">
                             <i class="fas fa-paper-plane"></i> Submit to Publish
                         </button>
-                        @if($userRole === 'admin')
+                        @if(in_array($userRole, ['admin', 'cid']))
                             <button onclick="window.changeMaterialStatus('published', this)" class="px-5 py-2.5 bg-green-600 text-white text-sm font-bold rounded-xl shadow-md hover:bg-green-700 transition-all flex items-center gap-2 hidden sm:flex">
                                 <i class="fas fa-check-circle"></i> Direct Publish
                             </button>
                         @endif
                     @elseif($statusStr === 'pending')
-                        @if($userRole === 'admin')
+                        @if(in_array($userRole, ['admin', 'cid']))
                             <button onclick="window.location.href='{{ route('dashboard.materials.evaluate', $material->id) }}'" class="px-5 py-2.5 bg-blue-600 text-white text-sm font-bold rounded-xl shadow-md hover:bg-blue-700 transition-all flex items-center gap-2">
                                 <i class="fas fa-clipboard-check"></i> Evaluate Material
                             </button>

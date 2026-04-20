@@ -51,7 +51,7 @@ Route::get('/certificate/preview/{enrollment_id}', [App\Http\Controllers\Student
 Route::prefix('dashboard/materials')
     ->name('dashboard.materials.')
     // Apply auth and role middleware to the entire group
-    ->middleware(['auth', 'verified', CheckRole::class . ':admin,superadmin,teacher'])
+    ->middleware(['auth', 'verified', CheckRole::class . ':admin,teacher,cid']) // 👈 Replaced superadmin with cid
     ->group(function () {
 
     // The main index route (acts as a dispatcher)

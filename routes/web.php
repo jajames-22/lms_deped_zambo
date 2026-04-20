@@ -184,7 +184,7 @@ Route::get('/', function () {
     return view('index');
 })->middleware('guest')->name('index');
 
-// 👇 NEW: Publicly accessible Explore Route
+
 Route::get('/explore', [App\Http\Controllers\DashboardController::class, 'publicExplore'])->name('explore.public');
 Route::get('/explore/materials/{id}/show', [App\Http\Controllers\DashboardController::class, 'publicMaterialShow'])->name('explore.materials.show');
 // web.php (Guest Section)
