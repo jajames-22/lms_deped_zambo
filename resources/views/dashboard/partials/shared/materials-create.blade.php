@@ -480,7 +480,6 @@
     }
 
     let materialImportXhr = null; // Changed from AbortController to XHR reference
-
     function closeImportModal() {
         if (materialImportXhr) {
             materialImportXhr.abort(); // Cancel the upload if modal is closed
@@ -488,6 +487,14 @@
             console.log("Material import upload aborted.");
         }
         document.getElementById('excel-import-modal').classList.add('hidden');
+
+        // Ensure the button text resets completely when cancelled
+        let btn = document.getElementById('start-upload-btn');
+        if (btn) {
+            btn.innerHTML = '<i class="fas fa-upload"></i><span>Upload</span>';
+        }
+
+        clearSelectedFile(); // Clear out the file so it's fresh next time
     }
 
     function executeExcelUpload() {
@@ -570,7 +577,15 @@
             MaterialBuilder.showModal('error', 'Import Failed', 'A network error occurred.');
         });
 
-        // 4. Open and Send
+        // 4. Listen to Abort (Cancellation)
+        materialImportXhr.addEventListener("abort", function () {
+            materialImportXhr = null;
+            btn.innerHTML = originalHtml;
+            btn.disabled = false;
+            progressContainer.classList.add('hidden'); // Hide the progress bar
+        });
+
+        // 5. Open and Send
         materialImportXhr.open("POST", `/dashboard/materials/${materialId}/import`);
         materialImportXhr.setRequestHeader('Accept', 'application/json');
         materialImportXhr.send(formData);

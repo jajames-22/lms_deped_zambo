@@ -390,13 +390,21 @@
 
     let assessmentImportXhr = null; // Changed from AbortController to XHR reference
 
-    function closeImportModal() {
+   function closeImportModal() {
         if (assessmentImportXhr) {
             assessmentImportXhr.abort(); // Cancel the upload if modal is closed
             assessmentImportXhr = null;
             console.log("Assessment import upload aborted.");
         }
         document.getElementById('excel-import-modal').classList.add('hidden');
+        
+        // Ensure the button text resets completely when cancelled
+        let btn = document.getElementById('start-upload-btn');
+        if (btn) {
+            btn.innerHTML = '<i class="fas fa-upload"></i><span>Upload</span>';
+        }
+        
+        clearSelectedFile(); // Clear out the file so it's fresh next time
     }
 
     function executeExcelUpload() {
@@ -480,12 +488,21 @@
             AssessmentBuilder.showModal('error', 'Import Failed', 'A network error occurred.');
         });
 
-        // 4. Open and Send
+        // 4. Listen to Abort (Cancellation) - ADDED THIS
+        assessmentImportXhr.addEventListener("abort", function () {
+            assessmentImportXhr = null;
+            btn.innerHTML = originalHtml;
+            btn.disabled = false;
+            progressContainer.classList.add('hidden'); // Hide the progress bar
+        });
+
+        // 5. Open and Send
         assessmentImportXhr.open("POST", `/dashboard/assessments/${assessmentId}/import`);
         assessmentImportXhr.setRequestHeader('Accept', 'application/json');
         assessmentImportXhr.send(formData);
     }
 
+    
     function showStatusModal(title, message, type) {
         const modal = document.getElementById('status-modal');
         const iconContainer = document.getElementById('status-modal-icon');
