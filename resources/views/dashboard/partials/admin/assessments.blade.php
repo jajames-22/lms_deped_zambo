@@ -123,10 +123,10 @@
                         <button
                             onclick="event.stopPropagation(); loadPartial('{{ route('dashboard.assessments.builder', $assessment->id) }}',document.getElementById('nav-assessment-btn'))"
                             class="flex-1 py-2 bg-white border border-gray-200 text-gray-700 text-xs font-bold rounded-xl hover:bg-gray-50 hover:border-[#a52a2a]/30 hover:text-[#a52a2a] transition-all shadow-sm">
-                            <i class="fas {{ $isLive ? 'fa-edit' : 'fa-play' }} mr-1"></i>
-                            {{ $isLive ? 'Edit' : 'Resume' }}
+                            <i class="fas {{ $isLive ? 'fa-eye' : 'fa-play' }} mr-1"></i>
+                            {{ $isLive ? 'Preview' : 'Resume' }}
                         </button>
-
+                        
                         @if($isLive)
                             <button
                                 onclick="event.stopPropagation(); loadPartial('{{ route('dashboard.assessments.analytics', $assessment->id) }}', document.getElementById('nav-assessment-btn'))"

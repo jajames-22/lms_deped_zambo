@@ -80,7 +80,7 @@
                                 $statusColor = 'bg-green-50 text-green-700 border-green-200';
                                 $indicatorColor = 'bg-green-500';
                                 $statusLabel = 'Published';
-                                $btnIcon = 'fa-edit';
+                                $btnIcon = 'fa-desktop';
                                 $btnTooltip = 'Manage Material';
                             } elseif ($statusStr === 'pending') {
                                 $statusColor = 'bg-amber-50 text-amber-700 border-amber-200';
@@ -153,11 +153,11 @@
                                     </button>
                                     @endif
 
-                                    <button onclick="loadPartial('{{ route('dashboard.materials.edit', $material->id) }}', document.getElementById('nav-materials-btn'))"
-                                        class="w-8 h-8 flex items-center justify-center text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition shadow-none"
-                                        title="{{ $btnTooltip }}">
-                                        <i class="fas {{ $btnIcon }} text-sm"></i>
-                                    </button>
+                                    <button onclick="window.location.href='{{ route('dashboard.materials.preview', $material->id) }}'"
+    class="w-8 h-8 flex items-center justify-center text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition shadow-none"
+    title="{{ $btnTooltip }}">
+    <i class="fas {{ $btnIcon }} text-sm"></i>
+</button>
                                     
                                     <button onclick="MaterialTableManager.confirmDelete({{ $material->id }}, '{{ route('dashboard.materials.destroy', $material->id) }}', this)" 
                                         class="w-8 h-8 flex items-center justify-center text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition shadow-none" title="Delete">
