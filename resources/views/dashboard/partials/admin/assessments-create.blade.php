@@ -58,8 +58,9 @@
                         <div>
                             <label class="block text-xs font-bold text-gray-500 uppercase mb-1 ml-1">Year / Grade Level:
                             </label>
-                            <input type="number" id="setup-year" value="{{ $assessment->year_level ?? '' }}"
-                                placeholder="ex. 7"
+                            <input type="text" inputmode="numeric" id="setup-year"
+                                value="{{ $assessment->year_level ?? '' }}" placeholder="ex. 7"
+                                oninput="this.value = this.value.replace(/[^0-9]/g, ''); if(this.value !== '') { let v = parseInt(this.value); if(v > 12) this.value = 12; else if(v < 1) this.value = 1; }"
                                 class="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#a52a2a]/20 focus:border-[#a52a2a] outline-none transition font-medium">
                         </div>
                     </div>
@@ -76,7 +77,8 @@
                     <span class="text-[10px] font-bold uppercase tracking-[0.2em] opacity-80 mb-1">Student Access
                         Key</span>
                     <div class="text-4xl font-mono font-black tracking-widest">
-                        {{ $assessment->access_key ?? 'PENDING' }}</div>
+                        {{ $assessment->access_key ?? 'PENDING' }}
+                    </div>
                     <p class="text-[10px] mt-3 opacity-70 text-center">Share this key for students to begin the test.
                     </p>
                 </div>
@@ -88,7 +90,7 @@
 
     <div id="builder-action-buttons" class="mt-6 grid grid-cols-1 md:grid-cols-3 gap-4">
         <button type="button" onclick="AssessmentBuilder.addCategory()"
-            class="md:col-span-2 px-4 py-5 border-2 border-dashed border-gray-200 text-gray-500 font-bold rounded-2xl hover:bg-gray-50 hover:border-[#a52a2a]/30 hover:text-[#a52a2a] transition flex items-center justify-center gap-3 group">
+            class="cursor-pointer md:col-span-2 px-4 py-5 border-2 border-dashed border-gray-200 text-gray-500 font-bold rounded-2xl hover:bg-gray-50 hover:border-[#a52a2a]/30 hover:text-[#a52a2a] transition flex items-center justify-center gap-3 group">
             <div
                 class="h-8 w-8 rounded-full bg-gray-100 group-hover:bg-[#a52a2a]/10 flex items-center justify-center transition">
                 <i class="fas fa-plus"></i>
@@ -98,7 +100,7 @@
 
         <div class="flex flex-col gap-2">
             <button type="button" onclick="openImportModal()"
-                class="flex-1 py-2 border-2 border-dashed border-blue-200 text-blue-600 font-bold rounded-xl hover:bg-blue-50 hover:border-blue-300 transition flex items-center justify-center gap-2 text-sm">
+                class="cursor-pointer flex-1 py-2 border-2 border-dashed border-blue-200 text-blue-600 font-bold rounded-xl hover:bg-blue-50 hover:border-blue-300 transition flex items-center justify-center gap-2 text-sm">
                 <i class="fas fa-upload"></i> Import Categories and Questions
             </button>
             <a href="{{ route('dashboard.assessments.download_template') }}"
@@ -252,6 +254,20 @@
                 </div>
             </div>
 
+            <div id="excel-upload-progress-container"
+                class="hidden my-4 p-4 bg-blue-50 border border-blue-200 rounded-xl">
+                <div class="flex justify-between text-xs mb-2">
+                    <span class="text-blue-700 font-bold flex items-center gap-2">
+                        <i class="fas fa-spinner fa-spin text-blue-600"></i> Uploading & Processing...
+                    </span>
+                    <span id="excel-upload-progress-text" class="text-blue-700 font-black">0%</span>
+                </div>
+                <div class="w-full bg-blue-200 rounded-full h-2.5 overflow-hidden">
+                    <div id="excel-upload-progress-bar"
+                        class="bg-blue-600 h-2.5 rounded-full transition-all duration-150" style="width: 0%"></div>
+                </div>
+            </div>
+
             <div class="flex gap-3">
                 <button type="button" onclick="closeImportModal()"
                     class="w-full py-3.5 bg-gray-100 text-gray-700 font-bold rounded-xl hover:bg-gray-200 transition active:scale-95">
@@ -347,7 +363,7 @@
         clearSelectedFile();
         document.getElementById('excel-import-modal').classList.remove('hidden');
     }
-    
+
     function handleFileSelect(input) {
         if (!input.files || input.files.length === 0) return;
         selectedFile = input.files[0];
@@ -365,13 +381,19 @@
         document.getElementById('selected-file-display').classList.add('hidden');
         document.getElementById('selected-file-display').classList.remove('flex');
         document.getElementById('start-upload-btn').disabled = true;
+
+        // Reset progress UI
+        document.getElementById('excel-upload-progress-container').classList.add('hidden');
+        document.getElementById('excel-upload-progress-bar').style.width = '0%';
+        document.getElementById('excel-upload-progress-text').innerText = '0%';
     }
-    let assessmentImportAbortController = null;
+
+    let assessmentImportXhr = null; // Changed from AbortController to XHR reference
 
     function closeImportModal() {
-        if (assessmentImportAbortController) {
-            assessmentImportAbortController.abort();
-            assessmentImportAbortController = null;
+        if (assessmentImportXhr) {
+            assessmentImportXhr.abort(); // Cancel the upload if modal is closed
+            assessmentImportXhr = null;
             console.log("Assessment import upload aborted.");
         }
         document.getElementById('excel-import-modal').classList.add('hidden');
@@ -380,14 +402,20 @@
     function executeExcelUpload() {
         if (!selectedFile) return;
 
-        assessmentImportAbortController = new AbortController();
-        const { signal } = assessmentImportAbortController;
-
         let btn = document.getElementById('start-upload-btn');
         let originalHtml = btn.innerHTML;
 
         btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> <span>Processing...</span>';
         btn.disabled = true;
+
+        // Reveal Progress UI
+        const progressContainer = document.getElementById('excel-upload-progress-container');
+        const progressBar = document.getElementById('excel-upload-progress-bar');
+        const progressText = document.getElementById('excel-upload-progress-text');
+
+        progressContainer.classList.remove('hidden');
+        progressBar.style.width = '0%';
+        progressText.innerText = '0%';
 
         let payload = AssessmentBuilder.getPayload("draft");
         let formData = new FormData();
@@ -402,42 +430,60 @@
         let wrapper = document.getElementById('assessment-wrapper');
         let assessmentId = wrapper.dataset.assessmentId;
 
-        fetch(`/dashboard/assessments/${assessmentId}/import`, {
-            method: 'POST',
-            headers: { 'Accept': 'application/json' },
-            body: formData,
-            signal: signal 
-        })
-            .then(async response => {
-                if (!response.ok) {
-                    let errorData = await response.json().catch(() => ({}));
-                    throw new Error(errorData.message || `Server error (${response.status})`);
+        // Use XMLHttpRequest instead of fetch to track upload progress
+        assessmentImportXhr = new XMLHttpRequest();
+
+        // 1. Listen to Upload Progress
+        assessmentImportXhr.upload.addEventListener("progress", function (evt) {
+            if (evt.lengthComputable) {
+                let percentComplete = Math.round((evt.loaded / evt.total) * 100);
+                progressBar.style.width = percentComplete + '%';
+                progressText.innerText = percentComplete + '%';
+            }
+        });
+
+        // 2. Listen to Upload Complete
+        assessmentImportXhr.addEventListener("load", function () {
+            assessmentImportXhr = null;
+            btn.innerHTML = originalHtml;
+            btn.disabled = false;
+
+            if (this.status >= 200 && this.status < 300) {
+                try {
+                    let data = JSON.parse(this.responseText);
+                    if (data.success) {
+                        closeImportModal();
+                        AssessmentBuilder.showModal('success', 'Import Successful!', 'Your test questions have been imported successfully.', () => {
+                            AssessmentBuilder.goToUrl(wrapper.dataset.builderUrl);
+                        });
+                    } else {
+                        AssessmentBuilder.showModal('error', 'Import Failed', data.message || 'Unknown error occurred.');
+                    }
+                } catch (e) {
+                    AssessmentBuilder.showModal('error', 'Import Failed', 'Invalid server response.');
                 }
-                return response.json();
-            })
-            .then(data => {
-                if (data.success) {
-                    closeImportModal();
-                    // Use AssessmentBuilder's modal which supports callbacks!
-                    AssessmentBuilder.showModal('success', 'Import Successful!', 'Your test questions have been imported successfully.', () => {
-                        // Refresh the builder page to load the newly imported database records
-                        AssessmentBuilder.goToUrl(wrapper.dataset.builderUrl);
-                    });
-                }
-            })
-            .catch(error => {
-                if (error.name === 'AbortError') {
-                    console.log("Upload caught abort error.");
-                } else {
-                    // Use AssessmentBuilder's modal for errors too
-                    AssessmentBuilder.showModal('error', 'Import Failed', error.message);
-                }
-            })
-            .finally(() => {
-                assessmentImportAbortController = null;
-                btn.innerHTML = originalHtml;
-                btn.disabled = false;
-            });
+            } else {
+                let errorMsg = `Server error (${this.status})`;
+                try {
+                    let errData = JSON.parse(this.responseText);
+                    if (errData.message) errorMsg = errData.message;
+                } catch (e) { }
+                AssessmentBuilder.showModal('error', 'Import Failed', errorMsg);
+            }
+        });
+
+        // 3. Listen to Network Errors
+        assessmentImportXhr.addEventListener("error", function () {
+            assessmentImportXhr = null;
+            btn.innerHTML = originalHtml;
+            btn.disabled = false;
+            AssessmentBuilder.showModal('error', 'Import Failed', 'A network error occurred.');
+        });
+
+        // 4. Open and Send
+        assessmentImportXhr.open("POST", `/dashboard/assessments/${assessmentId}/import`);
+        assessmentImportXhr.setRequestHeader('Accept', 'application/json');
+        assessmentImportXhr.send(formData);
     }
 
     function showStatusModal(title, message, type) {

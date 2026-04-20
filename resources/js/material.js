@@ -27,8 +27,11 @@ MaterialBuilder.enforceExamPosition = function () {
 };
 
 MaterialBuilder.initSortable = function () {
-    if (typeof Sortable === "undefined") return;
-
+    if (typeof Sortable === "undefined") {
+        setTimeout(MaterialBuilder.initSortable, 100);
+        return;
+    }
+    
     const container = document.getElementById("builder-container");
     if (container && !container.sortableInstance) {
         container.sortableInstance = new Sortable(container, {

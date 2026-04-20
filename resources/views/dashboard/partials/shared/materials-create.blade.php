@@ -132,7 +132,7 @@
 
         <div class="flex flex-col md:flex-row gap-3 mt-4">
             <button type="button" onclick="openImportModal()"
-                class="flex-1 py-3 border-2 border-dashed border-gray-200 text-gray-600 font-bold rounded-xl hover:bg-gray-50 hover:border-gray-300 transition flex items-center justify-center gap-2 text-sm bg-white">
+                class="cursor-pointer flex-1 py-3 border-2 border-dashed border-gray-200 text-gray-600 font-bold rounded-xl hover:bg-gray-50 hover:border-gray-300 transition flex items-center justify-center gap-2 text-sm bg-white">
                 <i class="fas fa-upload"></i> Import Content via Excel
             </button>
             <a href="{{ route('dashboard.materials.download_template') ?? '#' }}"
@@ -258,6 +258,21 @@
                     </button>
                 </div>
             </div>
+
+            <div id="excel-upload-progress-container"
+                class="hidden my-4 p-4 bg-blue-50 border border-blue-200 rounded-xl">
+                <div class="flex justify-between text-xs mb-2">
+                    <span class="text-blue-700 font-bold flex items-center gap-2">
+                        <i class="fas fa-spinner fa-spin text-blue-600"></i> Uploading & Processing...
+                    </span>
+                    <span id="excel-upload-progress-text" class="text-blue-700 font-black">0%</span>
+                </div>
+                <div class="w-full bg-blue-200 rounded-full h-2.5 overflow-hidden">
+                    <div id="excel-upload-progress-bar"
+                        class="bg-blue-600 h-2.5 rounded-full transition-all duration-150" style="width: 0%"></div>
+                </div>
+            </div>
+
             <div class="flex gap-3">
                 <button type="button" onclick="closeImportModal()"
                     class="w-full py-3.5 bg-gray-100 text-gray-700 font-bold rounded-xl hover:bg-gray-200 transition active:scale-95">Cancel</button>
@@ -454,15 +469,22 @@
         document.getElementById('selected-file-display').classList.add('hidden');
         document.getElementById('selected-file-display').classList.remove('flex');
         document.getElementById('start-upload-btn').disabled = true;
+
+        // Reset progress UI
+        const progressContainer = document.getElementById('excel-upload-progress-container');
+        if (progressContainer) {
+            progressContainer.classList.add('hidden');
+            document.getElementById('excel-upload-progress-bar').style.width = '0%';
+            document.getElementById('excel-upload-progress-text').innerText = '0%';
+        }
     }
 
-    let importAbortController = null; // Variable to hold the controller
+    let materialImportXhr = null; // Changed from AbortController to XHR reference
 
     function closeImportModal() {
-        // If there is an ongoing upload, abort it
-        if (importAbortController) {
-            importAbortController.abort();
-            importAbortController = null;
+        if (materialImportXhr) {
+            materialImportXhr.abort(); // Cancel the upload if modal is closed
+            materialImportXhr = null;
             console.log("Material import upload aborted.");
         }
         document.getElementById('excel-import-modal').classList.add('hidden');
@@ -471,15 +493,20 @@
     function executeExcelUpload() {
         if (!selectedFile) return;
 
-        // Initialize the AbortController
-        importAbortController = new AbortController();
-        const { signal } = importAbortController;
-
         let btn = document.getElementById('start-upload-btn');
         let originalHtml = btn.innerHTML;
 
         btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> <span>Processing...</span>';
         btn.disabled = true;
+
+        // Reveal Progress UI
+        const progressContainer = document.getElementById('excel-upload-progress-container');
+        const progressBar = document.getElementById('excel-upload-progress-bar');
+        const progressText = document.getElementById('excel-upload-progress-text');
+
+        progressContainer.classList.remove('hidden');
+        progressBar.style.width = '0%';
+        progressText.innerText = '0%';
 
         let payload = MaterialBuilder.getPayload("draft");
         let formData = new FormData();
@@ -493,47 +520,62 @@
         let wrapper = document.getElementById('material-wrapper');
         let materialId = wrapper.dataset.materialId;
 
-        // Pass the signal to the fetch request
-        fetch(`/dashboard/materials/${materialId}/import`, {
-            method: 'POST',
-            headers: { 'Accept': 'application/json' },
-            body: formData,
-            signal: signal 
-        })
-            .then(async response => {
-                if (!response.ok) {
-                    let errorData = await response.json().catch(() => ({}));
-                    throw new Error(errorData.message || `Server error (${response.status})`);
+        // Use XMLHttpRequest instead of fetch to track upload progress
+        materialImportXhr = new XMLHttpRequest();
+
+        // 1. Listen to Upload Progress
+        materialImportXhr.upload.addEventListener("progress", function (evt) {
+            if (evt.lengthComputable) {
+                let percentComplete = Math.round((evt.loaded / evt.total) * 100);
+                progressBar.style.width = percentComplete + '%';
+                progressText.innerText = percentComplete + '%';
+            }
+        });
+
+        // 2. Listen to Upload Complete
+        materialImportXhr.addEventListener("load", function () {
+            materialImportXhr = null;
+            btn.innerHTML = originalHtml;
+            btn.disabled = false;
+
+            if (this.status >= 200 && this.status < 300) {
+                try {
+                    let data = JSON.parse(this.responseText);
+                    if (data.success) {
+                        closeImportModal();
+                        MaterialBuilder.showModal('success', 'Import Successful!', 'Your module content has been imported successfully.', () => {
+                            MaterialBuilder.goToUrl(wrapper.dataset.builderUrl);
+                        });
+                    } else {
+                        MaterialBuilder.showModal('error', 'Import Failed', data.message || 'Unknown error occurred.');
+                    }
+                } catch (e) {
+                    MaterialBuilder.showModal('error', 'Import Failed', 'Invalid server response.');
                 }
-                return response.json();
-            })
-            .then(data => {
-                if (data.success) {
-                    closeImportModal();
-                    // Use MaterialBuilder's modal which supports callbacks!
-                    MaterialBuilder.showModal('success', 'Import Successful!', 'Your module content has been imported successfully.', () => {
-                        // Refresh the builder page to load the newly imported database records
-                        MaterialBuilder.goToUrl(wrapper.dataset.builderUrl);
-                    });
-                }
-            })
-            .catch(error => {
-                if (error.name === 'AbortError') {
-                    // Optional: If you have a toast/snackbar function you can use it here, 
-                    // otherwise just log it quietly so it doesn't bother the user.
-                    console.log("Import cancelled by user.");
-                } else {
-                    // Use MaterialBuilder's modal for errors too
-                    MaterialBuilder.showModal('error', 'Import Failed', error.message);
-                }
-            })
-            .finally(() => {
-                importAbortController = null;
-                btn.innerHTML = originalHtml;
-                btn.disabled = false;
-            });
+            } else {
+                let errorMsg = `Server error (${this.status})`;
+                try {
+                    let errData = JSON.parse(this.responseText);
+                    if (errData.message) errorMsg = errData.message;
+                } catch (e) { }
+                MaterialBuilder.showModal('error', 'Import Failed', errorMsg);
+            }
+        });
+
+        // 3. Listen to Network Errors
+        materialImportXhr.addEventListener("error", function () {
+            materialImportXhr = null;
+            btn.innerHTML = originalHtml;
+            btn.disabled = false;
+            MaterialBuilder.showModal('error', 'Import Failed', 'A network error occurred.');
+        });
+
+        // 4. Open and Send
+        materialImportXhr.open("POST", `/dashboard/materials/${materialId}/import`);
+        materialImportXhr.setRequestHeader('Accept', 'application/json');
+        materialImportXhr.send(formData);
     }
-    
+
     function showStatusModal(title, message, type) {
         const modal = document.getElementById('status-modal');
         const iconContainer = document.getElementById('status-modal-icon');
