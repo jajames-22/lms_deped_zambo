@@ -107,7 +107,7 @@
                 'id' => 'lesson_'.$lesson->id,
                 'title' => $lesson->title,
                 'items' => $lesson->contents,
-                'timestamp' => $lesson->created_at ? \Carbon\Carbon::parse($lesson->created_at)->timestamp : 0
+                'order_val' => $lesson->sort_order ?? 0 // Use the actual sort order
             ]);
         }
     }
@@ -120,12 +120,13 @@
                 'id' => 'exam_group_'.$examCounter,
                 'title' => 'Examination',
                 'items' => $questions,
-                'timestamp' => \Carbon\Carbon::parse($time)->timestamp
+                'order_val' => 999999 + $examCounter // Force exams to stay at the very end
             ]);
             $examCounter++;
         }
     }
-    $timeline = $timeline->sortBy('timestamp')->values();
+    // Sort by our new custom order value instead of creation date
+    $timeline = $timeline->sortBy('order_val')->values();
 
     // --- FETCH GLOBAL RUBRIC ---
     $rubricData = [];

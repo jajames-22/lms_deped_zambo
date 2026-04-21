@@ -24,8 +24,8 @@
 
 <body class="bg-gray-50 text-gray-800 font-sans selection:bg-red-900 selection:text-white">
     {{-- Responsive Header --}}
-        <header class="bg-[#a52a2a] text-white flex justify-center shadow-lg absolute top-0 z-50 w-full no-print">
-            <div class="px-4 py-3 md:px-8 md:py-6 max-w-[1000px] w-full">
+        <header class="bg-[#a52a2a] text-white flex justify-center shadow-lg fixed top-0 z-50 w-full no-print">
+            <div class="px-4 py-3 md:px-8 md:py-6 max-w-[1200px] w-full">
                 <div class="flex flex-row sm:flex-row items-center justify-between gap-2 md:gap-6 relative">
                     
                     {{-- Mobile Menu Trigger --}}
@@ -65,13 +65,13 @@
 
     <main>
         <section style="background-image: url('{{ asset('storage/images/deped_zamdiv.jpg') }}');"
-            class="relative bg-cover bg-center bg-no-repeat px-6 pt-40 md:pt-40 min-h-screen">
+            class="relative bg-cover bg-center bg-no-repeat px-6 pt-25 md:pt-40 min-h-screen">
             <div class="absolute inset-0 bg-red-900/50"></div>
 
             <div class="relative z-10 max-w-7xl pt-10 lg:pt-5 mx-auto text-center flex items-center justify-center flex-col">
                 <img src="{{ asset('storage/images/hero-text.png') }}" class="w-full max-w-xl h-auto block"
                     alt="DepEd Zamboanga Header">
-                <h1 class="text-5xl md:text-7xl font-extrabold text-white mb-6 tracking-tight text-shadow-lg/30">
+                <h1 class="text-5xl md:text-7xl font-extrabold text-white mb-6 tracking-tight leading-[1.2] text-shadow-lg/30">
                     Learning Management <br> System
                 </h1>
                 <p class="text-white max-w-2xl">A centralized digital repository and learning management system (LMS)

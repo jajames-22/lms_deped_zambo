@@ -3,10 +3,10 @@
 <div class="relative min-h-screen pb-12 bg-gray-50">
     
     {{-- Header --}}
-    <div class="p-6 pb-2 flex justify-between items-end max-w-7xl mx-auto">
+    <div class="pb-5 flex justify-between items-end max-w-7xl mx-auto">
         <div>
-            <h2 class="text-3xl font-bold text-gray-900">My Progress</h2>
-            <p class="text-gray-500 mt-1">Track your learning journey, module completion, and Exam performance.</p>
+            <h1 class="text-2xl font-bold text-gray-900">My Progress</h1>
+            <p class="text-gray-500 text-sm">Track your learning journey, module completion, and Exam performance.</p>
         </div>
         {{-- GENERATE REPORT BUTTON --}}
         <button onclick="toggleExportModal()" class="bg-[#a52a2a] text-white px-5 py-2.5 rounded-xl shadow-sm hover:bg-red-900 flex items-center gap-2 transition-all text-sm font-bold border-0">
@@ -41,7 +41,7 @@
         </button>
     </div>
 
-    <div class="p-6 space-y-12 max-w-7xl mx-auto">
+    <div class="space-y-12 max-w-7xl mx-auto">
 
         {{-- Section 1: Achievements --}}
         <section id="my-achievements" class="scroll-mt-20">
