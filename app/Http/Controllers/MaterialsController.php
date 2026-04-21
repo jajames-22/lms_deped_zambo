@@ -1493,8 +1493,11 @@ class MaterialsController extends Controller
             ->where('material_id', $material->id)
             ->where('user_id', auth()->id())
             ->firstOrFail();
+            // ADD THIS LINE TO ENCODE THE HASHID
+    $hashid = \Vinkla\Hashids\Facades\Hashids::encode($enrollment->id);
 
-        return view('dashboard.partials.student.certificate-achieved', compact('enrollment'));
+
+        return view('dashboard.partials.student.certificate-achieved', compact('enrollment', 'hashid'));
     }
 
     public function getNotifications()
