@@ -111,7 +111,7 @@ class MaterialsController extends Controller
     {
         $user = Auth::user();
 
-        // If the user is an admin or superadmin, load the Admin Index
+        // added CID here
         if (in_array($user->role, ['admin', 'cid'])) {
             return $this->adminIndex();
         }
@@ -328,11 +328,13 @@ class MaterialsController extends Controller
             ]);
 
             $targetStatus = $request->status;
+            $currentUser = auth()->user(); 
 
             // Fetch the material BEFORE updating so we can check ownership and titles
             $material = \App\Models\Material::with('instructor')->findOrFail($id);
 
-            if (auth()->user()->role === 'teacher' && $targetStatus === 'published') {
+            // Force teachers to go through 'pending' instead of direct publish
+            if ($currentUser->role === 'teacher' && $targetStatus === 'published') {
                 $targetStatus = 'pending';
             }
 
@@ -342,7 +344,7 @@ class MaterialsController extends Controller
                 'updated_at' => now()
             ];
 
-            // 3. If the Admin is evaluating, capture the Rubric Breakdown & Remarks
+            // 3. If the Admin/CID is evaluating, capture the Rubric Breakdown & Remarks
             if ($request->has('evaluation_details')) {
                 $updateData['admin_remarks'] = $request->admin_remarks;
                 $updateData['evaluation_json'] = json_encode([
@@ -356,27 +358,47 @@ class MaterialsController extends Controller
                 ->update($updateData);
 
             // 4. --- NOTIFICATION LOGIC ---
-            // If the user making the change is NOT the owner of the material, send a notification
-            if (auth()->id() !== $material->instructor_id && $material->instructor) {
+            
+            // SCENARIO A: Teacher submits a material for approval
+            if ($currentUser->role === 'teacher' && $targetStatus === 'pending') {
+                // Fetch all CID and Admin personnel
+                $approvers = \App\Models\User::whereIn('role', ['admin', 'cid'])->get();
+                $teacherName = $currentUser->first_name . ' ' . $currentUser->last_name;
+                
+                foreach ($approvers as $approver) {
+                    $approver->notify(new \App\Notifications\LmsAlertNotification(
+                        'Material Submitted for Review',
+                        "{$teacherName} has submitted the module \"{$material->title}\" for approval.",
+                        route('dashboard.materials.manage', $material->id),
+                        'fas fa-file-export',
+                        'text-blue-600'
+                    ));
+                }
+            }
+            // SCENARIO B: Admin/CID Evaluates or Reverts a material (Notify the Teacher)
+            elseif ($currentUser->id !== $material->instructor_id && $material->instructor) {
                 $notifTitle = '';
                 $notifMessage = '';
                 $notifIcon = 'fas fa-info-circle';
                 $notifColor = 'text-blue-600';
 
+                // Determine the correct title of the evaluator
+                $evaluatorTitle = $currentUser->role === 'cid' ? 'CID Personnel' : 'An Admin';
+
                 // Customize notification based on the target status
                 if ($targetStatus === 'published') {
                     $notifTitle = 'Module Approved!';
-                    $notifMessage = 'Congratulations! Your module "' . $material->title . '" has been evaluated and published.';
+                    $notifMessage = 'Congratulations! Your module "' . $material->title . '" has been evaluated and published by ' . $evaluatorTitle . '.';
                     $notifIcon = 'fas fa-check-circle';
                     $notifColor = 'text-green-600';
                 } elseif ($targetStatus === 'draft' && $request->has('evaluation_details')) {
                     $notifTitle = 'Module Revision Required';
-                    $notifMessage = 'Your module "' . $material->title . '" was returned to Draft. Please review the evaluation remarks.';
+                    $notifMessage = 'Your module "' . $material->title . '" was returned to Draft by ' . $evaluatorTitle . '. Please review the evaluation remarks.';
                     $notifIcon = 'fas fa-undo';
                     $notifColor = 'text-red-600';
                 } elseif ($targetStatus === 'draft') {
                     $notifTitle = 'Module Reverted to Draft';
-                    $notifMessage = 'An Admin reverted your module "' . $material->title . '" to Draft mode.';
+                    $notifMessage = $evaluatorTitle . ' reverted your module "' . $material->title . '" to Draft mode.';
                     $notifIcon = 'fas fa-archive';
                     $notifColor = 'text-amber-600';
                 }
@@ -397,14 +419,14 @@ class MaterialsController extends Controller
             if ($targetStatus === 'published')
                 $statusText = 'Published and Live';
             if ($targetStatus === 'pending')
-                $statusText = 'Submitted for Admin Approval';
+                $statusText = 'Submitted for Approval'; 
 
             return response()->json([
                 'success' => true,
                 'new_status' => $targetStatus,
                 'message' => 'Module is now ' . $statusText,
                 // Redirect Admin and CID to the new evaluation results page
-                'redirect_url' => in_array(auth()->user()->role, ['admin', 'cid']) && $request->has('evaluation_details')
+                'redirect_url' => in_array($currentUser->role, ['admin', 'cid']) && $request->has('evaluation_details')
                     ? route('dashboard.materials.evaluation-result', $id)
                     : null
             ]);

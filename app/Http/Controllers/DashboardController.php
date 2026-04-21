@@ -118,7 +118,7 @@ class DashboardController extends Controller
         $role = Auth::user()->role;
 
         // 1. ADMIN & CID LOGIC
-        if (in_array($role, ['admin', 'cid'])) {
+        if ($role === 'admin') {
 
             // --- A. BASE PLATFORM METRICS ---
             $totalStudents = User::where('role', 'student')->count();
@@ -222,7 +222,85 @@ class DashboardController extends Controller
             ));
         }
 
-        // 2. DYNAMIC TEACHER LOGIC (Module Creator Focus)
+        elseif ($role === 'cid') {
+            // --- A. TOP METRICS ---
+            $pendingMaterials = \App\Models\Material::where('status', 'pending')->count();
+            $publishedMaterials = \App\Models\Material::where('status', 'published')->count();
+            $activeTeachers = \App\Models\User::where('role', 'teacher')->where('status', 'verified')->count();
+            
+            $totalExamAnswers = \App\Models\ExamAnswer::count();
+            $correctExamAnswers = \App\Models\ExamAnswer::where('is_correct', true)->count();
+            $averageScore = $totalExamAnswers > 0 ? round(($correctExamAnswers / $totalExamAnswers) * 100, 1) : 0;
+
+            // --- B. RECENT EVALUATIONS ---
+            $recentEvaluations = \App\Models\Material::with('instructor')
+                ->whereIn('status', ['published', 'draft', 'pending'])
+                ->orderBy('updated_at', 'desc')
+                ->take(5)
+                ->get();
+
+            // --- C. CHART DATA: MASTERY TREND (Last 6 Months) ---
+            $masteryLabels = [];
+            $masteryData = [];
+            for ($i = 5; $i >= 0; $i--) {
+                $month = now()->subMonths($i);
+                $masteryLabels[] = $month->format('M');
+                
+                $monthAnswers = \App\Models\ExamAnswer::whereMonth('created_at', $month->month)
+                                                      ->whereYear('created_at', $month->year);
+                
+                $tot = $monthAnswers->count();
+                $cor = (clone $monthAnswers)->where('is_correct', true)->count();
+                $masteryData[] = $tot > 0 ? round(($cor / $tot) * 100) : 0;
+            }
+
+            // --- D. CHART DATA: MATERIAL TYPES (By Status) ---
+            $materialTypeLabels = ['Published', 'Pending Review', 'Drafts'];
+            $materialTypeData = [
+                $publishedMaterials,
+                $pendingMaterials,
+                \App\Models\Material::where('status', 'draft')->count()
+            ];
+
+            // --- E. CHART DATA: TOP SCHOOLS (By Enrollment Volume) ---
+            $topSchoolsRaw = \App\Models\User::where('role', 'student')
+                ->whereNotNull('school_id')
+                ->selectRaw('school_id, count(*) as count')
+                ->groupBy('school_id')
+                ->orderBy('count', 'desc')
+                ->take(3)
+                ->get();
+
+            $topSchoolLabels = [];
+            $topSchoolData = [];
+            if ($topSchoolsRaw->isNotEmpty()) {
+                $schoolIds = $topSchoolsRaw->pluck('school_id');
+                $schoolsMapping = \App\Models\School::whereIn('id', $schoolIds)->get()->keyBy('id');
+
+                foreach ($topSchoolsRaw as $ts) {
+                    if (isset($schoolsMapping[$ts->school_id])) {
+                        $topSchoolLabels[] = \Illuminate\Support\Str::limit($schoolsMapping[$ts->school_id]->name, 15);
+                        $topSchoolData[] = $ts->count;
+                    }
+                }
+            }
+
+            return view('dashboard.partials.cid.home', compact(
+                'pendingMaterials',
+                'publishedMaterials',
+                'activeTeachers',
+                'averageScore',
+                'recentEvaluations',
+                'masteryLabels',
+                'masteryData',
+                'materialTypeLabels',
+                'materialTypeData',
+                'topSchoolLabels',
+                'topSchoolData'
+            ));
+        }
+
+        // 3. DYNAMIC TEACHER LOGIC (Module Creator Focus)
         elseif ($role === 'teacher') {
             $teacherId = Auth::id();
 

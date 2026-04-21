@@ -3,7 +3,7 @@
 <div id="material-analytics-content" class="relative min-h-screen pb-12 bg-gray-50">
 
     {{-- Header --}}
-    <div class="p-6 pb-2 flex flex-col md:flex-row justify-between items-start md:items-end gap-4 max-w-7xl mx-auto">
+    <div class="pb-6 flex flex-col md:flex-row justify-between items-start md:items-end gap-4 max-w-7xl mx-auto">
         <div>
             <button
                 onclick="loadPartial('{{ route('dashboard.materials.manage', $material->id) }}', document.getElementById('nav-materials-btn'))"
@@ -60,7 +60,7 @@
     </div>
 
     {{-- Content Sections --}}
-    <div class="p-6 space-y-12 max-w-7xl mx-auto">
+    <div class="space-y-12 max-w-7xl mx-auto">
 
         {{-- Section 1: KPIs --}}
         <section id="class-overview" class="scroll-mt-20">
