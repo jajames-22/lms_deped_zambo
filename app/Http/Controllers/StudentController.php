@@ -301,7 +301,7 @@ class StudentController extends Controller
         ]);
     }
     
-public function report(Request $request)
+    public function report(Request $request)
     {
         // Start building the query
         $query = \App\Models\User::where('role', 'student')->with(['school', 'school.district']);

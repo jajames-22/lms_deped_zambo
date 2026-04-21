@@ -87,7 +87,7 @@
             if ($enrollment) {
                 $enrollmentStatus = $enrollment->status; // 'in_progress', 'completed', or 'failed'
 
-                if ($enrollmentStatus === 'completed' || !is_null($enrollment->completed_at)) {
+                if (in_array($enrollmentStatus, ['completed', 'read']) || !is_null($enrollment->completed_at)) {
                     $sectionsCompleted = $timelineCount;
                     $progressPct = 100;
                 } elseif ($enrollment->progress_data) {
@@ -141,7 +141,7 @@
                     $pathForExt = parse_url($mediaUrl, PHP_URL_PATH) ?? $mediaUrl;
                     $ext = strtolower(pathinfo($pathForExt, PATHINFO_EXTENSION));
                     // Use the media_name if it exists. If not, extract the raw filename from the URL as a fallback.
-$name = $item->media_name ?? basename(parse_url($mediaUrl, PHP_URL_PATH));
+                    $name = $item->media_name ?? basename(parse_url($mediaUrl, PHP_URL_PATH));
 
                     // Attempt to get file size safely
                     $size = 'Unknown Size';
@@ -318,13 +318,19 @@ $name = $item->media_name ?? basename(parse_url($mediaUrl, PHP_URL_PATH));
                         
                         {{-- Enroll Button (Hidden if already enrolled) --}}
                         <button id="enroll-btn" onclick="enrollInMaterial({{ $material->id }}, this)" class="{{ $isEnrolled ? 'hidden' : 'flex' }} w-full sm:w-auto px-8 py-3.5 bg-[#a52a2a] text-white font-bold rounded-xl hover:bg-red-800 transition shadow-lg shadow-[#a52a2a]/20 items-center justify-center gap-2">
-                            <i class="fas fa-user-plus text-lg"></i> Enroll Now
+                            @if(!$dbHasExams && !$dbHasQuizzes)
+                                <i class="fas fa-book-reader text-lg"></i> Read Material
+                            @else
+                                <i class="fas fa-user-plus text-lg"></i> Enroll Now
+                            @endif
                         </button>
 
                         {{-- Unenroll / Status Button (Hidden if NOT enrolled) --}}
-                        <button id="unenroll-btn" onclick="openDropModal({{ $material->id }})" class="{{ $isEnrolled ? 'flex' : 'hidden' }} w-full sm:w-auto px-6 py-3.5 bg-gray-50 text-gray-700 border border-gray-200 font-bold rounded-xl hover:bg-gray-100 transition items-center justify-center gap-2 cursor-pointer shadow-sm">
+                        <button id="unenroll-btn" onclick="{{ ($dbHasExams || $dbHasQuizzes) ? 'openDropModal('.$material->id.')' : 'openRemoveModal('.$material->id.')' }}" class="{{ $isEnrolled ? 'flex' : 'hidden' }} w-full sm:w-auto px-6 py-3.5 bg-gray-50 text-gray-700 border border-gray-200 font-bold rounded-xl hover:bg-gray-100 transition items-center justify-center gap-2 cursor-pointer shadow-sm">
                             @if($enrollmentStatus === 'completed')
-                                <i class="fas fa-trophy text-yellow-600 text-lg"></i> <span>Completed</span>
+                                <i class="fas fa-check-double text-green-600 text-lg"></i> <span>Completed</span>
+                            @elseif($enrollmentStatus === 'read')
+                                <i class="fas fa-check-double text-green-600 text-lg"></i> <span>Read</span>
                             @elseif($enrollmentStatus === 'failed')
                                 <i class="fas fa-times-circle text-red-600 text-lg"></i> <span>Needs Retake</span>
                             @else
@@ -332,20 +338,30 @@ $name = $item->media_name ?? basename(parse_url($mediaUrl, PHP_URL_PATH));
                             @endif
                         </button>
 
-                        {{-- Conditional Action Buttons (Certificate vs Result vs Study) --}}
-                        @if($enrollmentStatus === 'completed')
-                            <a href="{{ route('dashboard.materials.certificate', $material->id) }}" class="flex-1 sm:flex-none px-8 py-3.5 bg-yellow-500 text-white font-bold rounded-xl hover:bg-yellow-600 transition shadow-lg shadow-yellow-500/20 flex items-center justify-center gap-2">
-                                <i class="fas fa-certificate text-lg"></i> View Certificate
-                            </a>
+                        {{-- Conditional Action Buttons (Certificate vs Result vs Read Again) --}}
+                        @if(in_array($enrollmentStatus, ['completed', 'read']))
+                            @if($dbHasExams || $dbHasQuizzes)
+                                <a href="{{ route('dashboard.materials.certificate', $material->id) }}" class="flex-1 sm:flex-none px-8 py-3.5 bg-yellow-500 text-white font-bold rounded-xl hover:bg-yellow-600 transition shadow-lg shadow-yellow-500/20 flex items-center justify-center gap-2">
+                                    <i class="fas fa-certificate text-lg"></i> View Certificate
+                                </a>
+                            @else
+                                <button onclick="startStudying()" class="flex-1 sm:flex-none px-8 py-3.5 bg-green-600 text-white font-bold rounded-xl hover:bg-green-700 transition shadow-lg shadow-green-600/20 flex items-center justify-center gap-2">
+                                    <i class="fas fa-book-reader text-lg"></i> Read Again
+                                </button>
+                            @endif
                         @elseif($enrollmentStatus === 'failed')
                             <a href="{{ route('dashboard.materials.result', $material->id) }}" class="flex-1 sm:flex-none px-8 py-3.5 bg-red-600 text-white font-bold rounded-xl hover:bg-red-700 transition shadow-lg shadow-red-600/20 flex items-center justify-center gap-2">
                                 <i class="fas fa-chart-bar text-lg"></i> View Results
                             </a>
                         @endif
 
-                        {{-- Study Now Button (Hidden if NOT enrolled, or if completed/failed) --}}
-                        <button id="study-now-btn" onclick="startStudying()" class="{{ $isEnrolled && !in_array($enrollmentStatus, ['completed', 'failed']) ? 'flex' : 'hidden' }} flex-1 sm:flex-none px-8 py-3.5 bg-green-600 text-white font-bold rounded-xl hover:bg-green-700 transition shadow-lg shadow-green-600/20 items-center justify-center gap-2">
-                            <i class="fas fa-play-circle text-lg"></i> Study Now
+                        {{-- Study Now Button (Hidden if NOT enrolled, or if completed/read/failed) --}}
+                        <button id="study-now-btn" onclick="startStudying()" class="{{ $isEnrolled && !in_array($enrollmentStatus, ['completed', 'read', 'failed']) ? 'flex' : 'hidden' }} flex-1 sm:flex-none px-8 py-3.5 bg-green-600 text-white font-bold rounded-xl hover:bg-green-700 transition shadow-lg shadow-green-600/20 items-center justify-center gap-2">
+                            @if(!$dbHasExams && !$dbHasQuizzes)
+                                <i class="fas fa-book-open text-lg"></i> Continue Reading
+                            @else
+                                <i class="fas fa-play-circle text-lg"></i> Study Now
+                            @endif
                         </button>
                     </div>
                 </div>
@@ -455,7 +471,7 @@ $name = $item->media_name ?? basename(parse_url($mediaUrl, PHP_URL_PATH));
 
     </div>
 
-    {{-- Drop Course Modal --}}
+    {{-- Drop Course Modal (For Graded Courses with 5s Timer) --}}
     <div id="dropCourseModal" class="fixed inset-0 z-[9999] hidden opacity-0 transition-opacity duration-300 flex items-center justify-center p-4">
         <div class="absolute inset-0 bg-gray-900/60" onclick="closeDropModal()"></div>
         <div class="bg-white rounded-3xl w-full max-w-sm shadow-2xl overflow-hidden transform scale-95 transition-all duration-300 text-center p-6 relative z-10" id="dropCourseBox">
@@ -468,8 +484,28 @@ $name = $item->media_name ?? basename(parse_url($mediaUrl, PHP_URL_PATH));
                 <button type="button" onclick="closeDropModal()" class="w-full py-3 bg-gray-100 text-gray-700 font-bold rounded-xl hover:bg-gray-200 transition">
                     Cancel
                 </button>
-                <button type="button" id="confirm-drop-btn" onclick="executeDrop()" disabled class="w-full py-3 bg-red-600 text-white font-bold rounded-xl hover:bg-red-700 transition disabled:opacity-50 disabled:cursor-not-allowed">
+                <button type="button" id="confirm-drop-btn" onclick="executeUnenroll(true)" disabled class="w-full py-3 bg-red-600 text-white font-bold rounded-xl hover:bg-red-700 transition disabled:opacity-50 disabled:cursor-not-allowed">
                     Drop (<span id="drop-timer">5</span>s)
+                </button>
+            </div>
+        </div>
+    </div>
+
+    {{-- Remove Material Modal (For Read-Only Materials without Timer) --}}
+    <div id="removeMaterialModal" class="fixed inset-0 z-[9999] hidden opacity-0 transition-opacity duration-300 flex items-center justify-center p-4">
+        <div class="absolute inset-0 bg-gray-900/60" onclick="closeRemoveModal()"></div>
+        <div class="bg-white rounded-3xl w-full max-w-sm shadow-2xl overflow-hidden transform scale-95 transition-all duration-300 text-center p-6 relative z-10" id="removeMaterialBox">
+            <div class="w-16 h-16 bg-red-50 text-red-500 rounded-full flex items-center justify-center mx-auto mb-4 text-3xl">
+                <i class="fas fa-trash-alt"></i>
+            </div>
+            <h3 class="text-xl font-black text-gray-900 mb-2">Remove Material?</h3>
+            <p class="text-sm text-gray-500 mb-6">Are you sure you want to remove this material from your account?</p>
+            <div class="flex gap-3">
+                <button type="button" onclick="closeRemoveModal()" class="w-full py-3 bg-gray-100 text-gray-700 font-bold rounded-xl hover:bg-gray-200 transition">
+                    Cancel
+                </button>
+                <button type="button" id="confirm-remove-btn" onclick="executeUnenroll(false)" class="w-full py-3 bg-red-600 text-white font-bold rounded-xl hover:bg-red-700 transition">
+                    Yes, Remove
                 </button>
             </div>
         </div>
@@ -586,6 +622,7 @@ $name = $item->media_name ?? basename(parse_url($mediaUrl, PHP_URL_PATH));
         }
 
         // Drop Modal Logic
+        // --- DROP COURSE LOGIC (With Timer) ---
         let dropTimerInterval;
         let materialToDrop = null;
 
@@ -634,16 +671,47 @@ $name = $item->media_name ?? basename(parse_url($mediaUrl, PHP_URL_PATH));
             setTimeout(() => { modal.classList.add('hidden'); }, 300);
         }
 
-        async function executeDrop() {
-            if (!materialToDrop) return;
+        // --- REMOVE MATERIAL LOGIC (No Timer) ---
+        let materialToRemove = null;
+
+        function openRemoveModal(materialId) {
+            materialToRemove = materialId;
+            const modal = document.getElementById('removeMaterialModal');
+            const box = document.getElementById('removeMaterialBox');
+
+            modal.classList.remove('hidden');
+            setTimeout(() => {
+                modal.classList.remove('opacity-0');
+                modal.classList.add('opacity-100');
+                box.classList.remove('scale-95');
+                box.classList.add('scale-100');
+            }, 10);
+        }
+
+        function closeRemoveModal() {
+            materialToRemove = null;
+            const modal = document.getElementById('removeMaterialModal');
+            const box = document.getElementById('removeMaterialBox');
             
-            const confirmBtn = document.getElementById('confirm-drop-btn');
+            box.classList.remove('scale-100');
+            box.classList.add('scale-95');
+            modal.classList.remove('opacity-100');
+            modal.classList.add('opacity-0');
+            setTimeout(() => { modal.classList.add('hidden'); }, 300);
+        }
+
+        // --- UNIFIED EXECUTION LOGIC ---
+        async function executeUnenroll(isDrop) {
+            const materialId = isDrop ? materialToDrop : materialToRemove;
+            if (!materialId) return;
+            
+            const confirmBtn = document.getElementById(isDrop ? 'confirm-drop-btn' : 'confirm-remove-btn');
             const originalHtml = confirmBtn.innerHTML;
             confirmBtn.disabled = true;
-            confirmBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Dropping...';
+            confirmBtn.innerHTML = `<i class="fas fa-spinner fa-spin mr-2"></i> ${isDrop ? 'Dropping...' : 'Removing...'}`;
 
             try {
-                const response = await fetch(`{{ url('/dashboard/materials') }}/${materialToDrop}/unenroll`, {
+                const response = await fetch(`{{ url('/dashboard/materials') }}/${materialId}/unenroll`, {
                     method: 'POST',
                     headers: {
                         'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
@@ -654,15 +722,13 @@ $name = $item->media_name ?? basename(parse_url($mediaUrl, PHP_URL_PATH));
                 const data = await response.json();
 
                 if (response.ok && data.success) {
-                    closeDropModal();
+                    if (isDrop) closeDropModal(); else closeRemoveModal();
 
-                    // THIS is how we pass the callback!
-                    showStandaloneAlert('Course dropped successfully.', 'success', () => {
+                    showStandaloneAlert(data.message, 'success', () => {
                         navigateBack(); 
                     });
-                    
                 } else {
-                    showStandaloneAlert(data.message || 'Failed to drop course.', 'error');
+                    showStandaloneAlert(data.message || 'Failed to complete action.', 'error');
                     confirmBtn.innerHTML = originalHtml;
                     confirmBtn.disabled = false;
                 }
@@ -677,7 +743,7 @@ $name = $item->media_name ?? basename(parse_url($mediaUrl, PHP_URL_PATH));
         async function enrollInMaterial(materialId, btn) {
             btn.disabled = true;
             const originalHtml = btn.innerHTML;
-            btn.innerHTML = '<i class="fas fa-spinner fa-spin text-lg mr-2"></i> Enrolling...';
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin text-lg mr-2"></i> Processing...';
 
             try {
                 const response = await fetch(`{{ url('/dashboard/materials') }}/${materialId}/enroll`, {
@@ -730,7 +796,7 @@ $name = $item->media_name ?? basename(parse_url($mediaUrl, PHP_URL_PATH));
                     btn.innerHTML = originalHtml;
                     btn.disabled = false;
 
-                    showStandaloneAlert('Successfully enrolled!', 'success');
+                    showStandaloneAlert('{{ (!$dbHasExams && !$dbHasQuizzes) ? "Material unlocked and ready to read!" : "Successfully enrolled!" }}', 'success');
                 } else {
                     showStandaloneAlert(data.message || 'Failed to enroll.', 'error');
                     btn.innerHTML = originalHtml;

@@ -24,7 +24,7 @@
 
 <body class="bg-gray-50 text-gray-800 font-sans selection:bg-red-900 selection:text-white">
     {{-- Responsive Header --}}
-        <header class="bg-[#a52a2a] text-white flex justify-center shadow-lg absolute top-0 z-50 w-full no-print">
+        <header class="bg-[#a52a2a] text-white flex justify-center shadow-lg fixed top-0 z-50 w-full no-print">
             <div class="px-4 py-3 md:px-8 md:py-6 max-w-[1200px] w-full">
                 <div class="flex flex-row sm:flex-row items-center justify-between gap-2 md:gap-6 relative">
                     

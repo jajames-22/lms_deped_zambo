@@ -1174,9 +1174,18 @@
                         if (typeof confetti === 'function') {
                             confetti({ particleCount: 150, spread: 80, origin: { y: 0.6 }, colors: ['#a52a2a', '#22c55e', '#fbbf24', '#3b82f6'] });
                         }
-                        showCustomAlert("Congratulations!", "You have passed this module! Redirecting...", "success", function() {
-                            window.location.href = data.redirect_url;
-                        });
+                        
+                        // Check if they actually earned a certificate, or just finished reading
+                        if (data.has_certificate) {
+                            showCustomAlert("Congratulations!", "You have passed this module and earned a certificate! Redirecting...", "success", function() {
+                                window.location.href = data.redirect_url;
+                            });
+                        } else {
+                            showCustomAlert("Module Completed!", "You have successfully finished reading this module. Redirecting...", "success", function() {
+                                window.location.href = data.redirect_url;
+                            });
+                        }
+                        
                     } else {
                         window.location.href = data.redirect_url;
                     }

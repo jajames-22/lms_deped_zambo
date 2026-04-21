@@ -66,13 +66,15 @@ class MaterialsController extends Controller
             abort(403, 'Unauthorized access. Only Admins and CID can evaluate materials.');
         }
 
-        // 2. Eager load all the necessary relationships needed for the Evaluation View
-        // We load instructor, tags, lessons, and all options to display the answer keys
+        // 2. Eager load all the necessary relationships and sort them
         $material->load([
             'instructor',
             'tags',
             'lessons' => function ($query) {
-                $query->orderBy('sort_order', 'asc'); // Ensure lessons are in the correct order
+                $query->orderBy('sort_order', 'asc'); // Sorts the lessons
+            },
+            'lessons.contents' => function ($query) {
+                $query->orderBy('sort_order', 'asc'); // Sorts the contents inside each lesson
             },
             'lessons.contents.options',
             'exams.options'
@@ -1174,43 +1176,67 @@ class MaterialsController extends Controller
     }
 
 
-    public function unenroll(Request $request, Material $material)
+    public function unenroll(Request $request, \App\Models\Material $material)
     {
         $user = auth()->user();
 
-        DB::beginTransaction();
+        \Illuminate\Support\Facades\DB::beginTransaction();
         try {
-            // 1. Delete all Quiz and Exam Answers to clear their progress
-            $examIds = DB::table('exams')->where('material_id', $material->id)->pluck('id');
-            $quizIds = DB::table('lesson_contents')
+            // 1. Find all EXAMS for this material
+            $examIds = \Illuminate\Support\Facades\DB::table('exams')
+                ->where('material_id', $material->id)
+                ->pluck('id');
+                
+            // 2. Find all true QUIZZES (strictly filtering out regular reading 'content')
+            $quizIds = \Illuminate\Support\Facades\DB::table('lesson_contents')
                 ->join('lessons', 'lesson_contents.lesson_id', '=', 'lessons.id')
                 ->where('lessons.material_id', $material->id)
+                ->whereIn('lesson_contents.type', ['mcq', 'checkbox', 'true_false', 'text']) // <-- THE FIX IS HERE
                 ->pluck('lesson_contents.id');
 
-            QuizAnswer::where('user_id', $user->id)->whereIn('lesson_content_id', $quizIds)->delete();
-            ExamAnswer::where('user_id', $user->id)->whereIn('exam_id', $examIds)->delete();
+            // 3. Delete any submitted answers to clear progress
+            if ($quizIds->isNotEmpty()) {
+                \App\Models\QuizAnswer::where('user_id', $user->id)->whereIn('lesson_content_id', $quizIds)->delete();
+            }
+            if ($examIds->isNotEmpty()) {
+                \App\Models\ExamAnswer::where('user_id', $user->id)->whereIn('exam_id', $examIds)->delete();
+            }
 
-            // Delete their enrollment to kick them out of the module
-            Enrollment::where('material_id', $material->id)
+            // 4. ALWAYS delete the enrollment instance
+            \App\Models\Enrollment::where('material_id', $material->id)
                 ->where('user_id', $user->id)
                 ->delete();
 
-            // 3. Mark their MaterialAccess record as 'dropped'
-            MaterialAccess::where('material_id', $material->id)
-                ->where('email', $user->email)
-                ->update(['status' => 'dropped']);
+            // 5. Dynamic Action based on Assessment existence
+            $hasAssessments = $examIds->isNotEmpty() || $quizIds->isNotEmpty();
 
-            DB::commit();
+            if ($hasAssessments) {
+                // Scenario A: It's a Graded Course -> Keep record, but mark as 'dropped'
+                \App\Models\MaterialAccess::where('material_id', $material->id)
+                    ->where('email', $user->email)
+                    ->update(['status' => 'dropped']);
+                
+                $message = 'Successfully dropped the course.';
+            } else {
+                // Scenario B: It's Read-only -> Completely DELETE the access instance
+                \App\Models\MaterialAccess::where('material_id', $material->id)
+                    ->where('email', $user->email)
+                    ->delete();
+                
+                $message = 'Successfully removed the material.';
+            }
+
+            \Illuminate\Support\Facades\DB::commit();
             return response()->json([
                 'success' => true,
-                'message' => 'Successfully dropped the course.'
+                'message' => $message
             ]);
 
-        } catch (Exception $e) {
-            DB::rollBack();
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\DB::rollBack();
             return response()->json([
                 'success' => false,
-                'message' => 'Failed to drop course: ' . $e->getMessage()
+                'message' => 'Failed to unenroll: ' . $e->getMessage()
             ], 500);
         }
     }
@@ -1435,28 +1461,49 @@ class MaterialsController extends Controller
         $hasExams = \Illuminate\Support\Facades\DB::table('exams')->where('material_id', $material->id)->exists();
         $totalTimelineCount = $totalLessons + ($hasExams ? 1 : 0);
 
+        // 1. Check if material actually has graded items BEFORE saving to database
+        $hasAssessments = $grades['hasQuizzes'] || $grades['hasExams'];
+
         if ($grades['passed']) {
+            // 2. Dynamically set status to 'completed' or 'read'
             $enrollment->update([
-                'status' => 'completed',
+                'status' => $hasAssessments ? 'completed' : 'read',
                 'completed_at' => now(),
                 'progress_data' => json_encode(['lesson' => $totalTimelineCount - 1, 'content' => 0, 'highest_unlocked' => $totalTimelineCount])
             ]);
 
-            $user->notify(new \App\Notifications\LmsAlertNotification(
-                'Certificate Unlocked!',
-                'Congratulations! You passed "' . $material->title . '" with a score of ' . $grades['totalScore'] . '% and earned your certificate.',
-                route('dashboard.materials.certificate', $material->id),
-                'fas fa-trophy',
-                'text-yellow-500' // Golden color for the trophy
-            ));
+            if ($hasAssessments) {
+                // Scenario A: Earned a Certificate -> Send Notification
+                $user->notify(new \App\Notifications\LmsAlertNotification(
+                    'Certificate Unlocked!',
+                    'Congratulations! You passed "' . $material->title . '" with a score of ' . $grades['totalScore'] . '% and earned your certificate.',
+                    route('dashboard.materials.certificate', $material->id),
+                    'fas fa-trophy',
+                    'text-yellow-500' // Golden color for the trophy
+                ));
+                $redirectUrl = route('dashboard.materials.certificate', $material->id);
+            } else {
+                // Scenario B: Read-only module completed -> NO System Notification, just redirect
+                $redirectUrl = route('dashboard.materials.show', $material->id);
+            }
 
-            return response()->json(['success' => true, 'passed' => true, 'redirect_url' => route('dashboard.materials.certificate', $material->id)]);
+            return response()->json([
+                'success' => true, 
+                'passed' => true, 
+                'has_certificate' => $hasAssessments,
+                'redirect_url' => $redirectUrl
+            ]);
+            
         } else {
             $enrollment->update([
                 'status' => 'failed',
                 'progress_data' => json_encode(['lesson' => $totalTimelineCount - 1, 'content' => 0, 'highest_unlocked' => $totalTimelineCount])
             ]);
-            return response()->json(['success' => true, 'passed' => false, 'redirect_url' => route('dashboard.materials.result', $material->id)]);
+            return response()->json([
+                'success' => true, 
+                'passed' => false, 
+                'redirect_url' => route('dashboard.materials.result', $material->id)
+            ]);
         }
     }
 
@@ -1566,29 +1613,29 @@ class MaterialsController extends Controller
     }
 
     public function preview($id)
-{
-    // Fetch the material with its relationships
-    $material = Material::with([
-        'instructor', 
-        // We add an orderBY constraint to the nested lesson contents
-        'lessons' => function ($query) {
-            $query->orderBy('sort_order', 'asc'); // Ensures lessons themselves are in order
-        },
-        'lessons.contents' => function ($query) {
-            $query->orderBy('sort_order', 'asc'); // 👈 Sorts contents inside each lesson
-        },
-        'exams' 
-    ])->findOrFail($id);
+    {
+        // Fetch the material with its relationships
+        $material = Material::with([
+            'instructor', 
+            // We add an orderBY constraint to the nested lesson contents
+            'lessons' => function ($query) {
+                $query->orderBy('sort_order', 'asc'); // Ensures lessons themselves are in order
+            },
+            'lessons.contents' => function ($query) {
+                $query->orderBy('sort_order', 'asc'); // 👈 Sorts contents inside each lesson
+            },
+            'exams' 
+        ])->findOrFail($id);
 
-    // Authorization: Allow the instructor (owner), admins, or CID personnel
-    $user = auth()->user();
-    if (auth()->id() !== $material->instructor_id && !in_array($user->role, ['admin', 'cid'])) {
-        abort(403, 'Unauthorized action.');
+        // Authorization: Allow the instructor (owner), admins, or CID personnel
+        $user = auth()->user();
+        if (auth()->id() !== $material->instructor_id && !in_array($user->role, ['admin', 'cid'])) {
+            abort(403, 'Unauthorized action.');
+        }
+
+        // Return the preview view
+        return view('dashboard.partials.shared.materials-preview', compact('material'));
     }
-
-    // Return the preview view
-    return view('dashboard.partials.shared.materials-preview', compact('material'));
-}
 
     public function analytics($id)
     {
