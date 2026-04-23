@@ -119,8 +119,15 @@ class StudentEnrollmentController extends Controller
         ]);
     }
 
-    public function show($id)
+    public function show($hashid)
     {
+        $decoded = Hashids::decode($hashid);
+        // If the hash is invalid or tampered with, throw a 404
+        if (empty($decoded)) {
+            abort(404, 'Invalid material link.');
+        }
+        $id = $decoded[0];
+    
         $material = Material::findOrFail($id);
         $user = Auth::user();
 
@@ -199,7 +206,7 @@ class StudentEnrollmentController extends Controller
         $url = route('student.materials.achieved', ['hashid' => $hashid]);
         $qrCode = base64_encode(QrCode::format('svg')->size(100)->generate($url));
 
-        $data= [
+        $data = [
             'studentName' => $enrollment->user->first_name . ' ' . $enrollment->user->last_name,
             'courseName' => $enrollment->material->title,
             'instructorName' => $enrollment->material->instructor->first_name . ' ' . $enrollment->material->instructor->last_name,
@@ -215,25 +222,25 @@ class StudentEnrollmentController extends Controller
     }
 
 
-    
+
     public function completionPage($hashid)
-{
-    $decoded = \Vinkla\Hashids\Facades\Hashids::decode($hashid);
-    if (empty($decoded)) {
-        abort(404, 'Invalid certificate link.');
+    {
+        $decoded = \Vinkla\Hashids\Facades\Hashids::decode($hashid);
+        if (empty($decoded)) {
+            abort(404, 'Invalid certificate link.');
+        }
+        $enrollment_id = $decoded[0];
+
+        $enrollment = Enrollment::with(['material.instructor', 'user'])
+            ->findOrFail($enrollment_id);
+
+        if ($enrollment->status !== 'completed') {
+            abort(403, 'This certificate is not valid or incomplete.');
+        }
+
+        // You MUST include 'hashid' here
+        return view('dashboard.partials.student.certificate-achieved', compact('enrollment', 'hashid'));
     }
-    $enrollment_id = $decoded[0];
-
-    $enrollment = Enrollment::with(['material.instructor', 'user'])
-        ->findOrFail($enrollment_id);
-
-    if ($enrollment->status !== 'completed') {
-        abort(403, 'This certificate is not valid or incomplete.');
-    }
-
-    // You MUST include 'hashid' here
-    return view('dashboard.partials.student.certificate-achieved', compact('enrollment', 'hashid'));
-}
 
 
     public function myCertificates()
@@ -245,10 +252,10 @@ class StudentEnrollmentController extends Controller
             ->latest('updated_at') // Sorts by most recently completed
             ->get()
             ->map(function ($enrollment) {
-            // Dynamically add the hashid to each enrollment object
-            $enrollment->hashid = Hashids::encode($enrollment->id);
-            return $enrollment;
-        });
+                // Dynamically add the hashid to each enrollment object
+                $enrollment->hashid = Hashids::encode($enrollment->id);
+                return $enrollment;
+            });
 
         // Pass the data to the certificates blade file
         return view('dashboard.partials.student.certificates', compact('completedEnrollments'));
@@ -256,7 +263,8 @@ class StudentEnrollmentController extends Controller
     public function previewCertificateTemplate($hashid)
     {
         $decoded = Hashids::decode($hashid);
-        if (empty($decoded)) abort(404, 'Invalid certificate link.');
+        if (empty($decoded))
+            abort(404, 'Invalid certificate link.');
         $enrollment_id = $decoded[0];
         // 1. Fetch the enrollment with necessary relationships
         $enrollment = Enrollment::with(['material.instructor', 'user'])

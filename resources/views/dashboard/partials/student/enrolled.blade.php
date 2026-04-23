@@ -39,7 +39,7 @@
             
             {{-- Active cards just redirect normally --}}
             <div class="bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-xl hover:border-[#a52a2a]/30 transition-all duration-300 group flex flex-col overflow-hidden cursor-pointer relative"
-                onclick="window.location.href = '{{ route('student.materials.show', $material->id) }}'">
+                onclick="window.location.href = '{{ route('student.materials.show', $material->hashid) }}'">
                 
                 {{-- Status Badge --}}
                 <div class="absolute top-3 right-3 z-10">
@@ -117,7 +117,7 @@
                 @if(!$material->is_public && $access->status === 'dropped')
                     onclick="openRejoinModal('{{ addslashes($material->title) }}')"
                 @else
-                    onclick="window.location.href = '{{ route('student.materials.show', $material->id) }}'"
+                    onclick="window.location.href = '{{ route('student.materials.show', $material->hashid) }}'"
                 @endif
             >
                 {{-- Status Badge --}}

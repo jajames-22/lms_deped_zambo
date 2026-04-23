@@ -389,7 +389,7 @@
                         {{-- Conditional Action Buttons (Certificate vs Result vs Read Again) --}}
                         @if(in_array($enrollmentStatus, ['completed', 'read']))
                             @if($dbHasExams || $dbHasQuizzes)
-                                <a href="{{ route('dashboard.materials.certificate', $material->id) }}" class="flex-1 sm:flex-none px-8 py-3.5 bg-yellow-500 text-white font-bold rounded-xl hover:bg-yellow-600 transition shadow-lg shadow-yellow-500/20 flex items-center justify-center gap-2">
+                                <a href="{{ route('dashboard.materials.certificate', $material->hashid) }}" class="flex-1 sm:flex-none px-8 py-3.5 bg-yellow-500 text-white font-bold rounded-xl hover:bg-yellow-600 transition shadow-lg shadow-yellow-500/20 flex items-center justify-center gap-2">
                                     <i class="fas fa-certificate text-lg"></i> View Certificate
                                 </a>
                             @else
@@ -398,7 +398,7 @@
                                 </button>
                             @endif
                         @elseif($enrollmentStatus === 'failed')
-                            <a href="{{ route('dashboard.materials.result', $material->id) }}"
+                            <a href="{{ route('dashboard.materials.result', $material->hashid) }}"
                                 class="flex-1 sm:flex-none px-8 py-3.5 bg-red-600 text-white font-bold rounded-xl hover:bg-red-700 transition shadow-lg shadow-red-600/20 flex items-center justify-center gap-2">
                                 <i class="fas fa-chart-bar text-lg"></i> View Results
                             </a>
@@ -660,7 +660,7 @@
                 btn.disabled = true;
                 btn.innerHTML = '<i class="fas fa-spinner fa-spin text-lg mr-2"></i> Loading...';
             }
-            window.location.href = '{{ route("dashboard.materials.study", $material->id) }}';
+            window.location.href = '{{ route("dashboard.materials.study", $material->hashid) }}';
         }
 
         // Alert Modal Logic

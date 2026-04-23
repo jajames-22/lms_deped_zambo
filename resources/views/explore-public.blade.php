@@ -124,7 +124,7 @@
                                  data-desc="{{ $material->description }}" 
                                  data-instructor="{{ $material->instructor->first_name ?? 'Instructor' }} {{ $material->instructor->last_name ?? '' }}" 
                                  data-img="{{ $material->thumbnail ? asset('storage/' . $material->thumbnail) : 'https://images.unsplash.com/photo-1532094349884-543bc11b234d?q=80&w=1000' }}"
-                                 onclick="window.location.href = '{{ route('explore.materials.show', $material->id) }}';">
+                                 onclick="window.location.href = '{{ route('explore.materials.show', $material->hashid) }}';">
                                 
                                 <div class="absolute inset-0 bg-gradient-to-r from-black/80 via-black/40 to-transparent z-10"></div>
                                 <img src="{{ $material->thumbnail ? asset('storage/' . $material->thumbnail) : 'https://images.unsplash.com/photo-1532094349884-543bc11b234d?q=80&w=1000' }}" 
@@ -183,7 +183,7 @@
                                      data-desc="{{ $material->description }}" 
                                      data-instructor="{{ $material->instructor->first_name ?? 'Instructor' }} {{ $material->instructor->last_name ?? '' }}" 
                                      data-img="{{ $material->thumbnail ? asset('storage/' . $material->thumbnail) : 'https://images.unsplash.com/photo-1509228468518-180dd4864904?q=80&w=400' }}"
-                                     onclick="window.location.href = '{{ route('explore.materials.show', $material->id) }}';">
+                                     onclick="window.location.href = '{{ route('explore.materials.show', $material->hashid) }}';">
                                     <div class="relative w-full aspect-[4/3] overflow-hidden">
                                         <img src="{{ $material->thumbnail ? asset('storage/' . $material->thumbnail) : 'https://images.unsplash.com/photo-1509228468518-180dd4864904?q=80&w=400' }}"
                                             class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500">
@@ -218,7 +218,7 @@
                          data-desc="{{ $material->description }}" 
                          data-instructor="{{ $material->instructor->first_name ?? 'Instructor' }} {{ $material->instructor->last_name ?? '' }}" 
                          data-img="{{ $material->thumbnail ? asset('storage/' . $material->thumbnail) : 'https://images.unsplash.com/photo-1517694712202-14dd9538aa97?q=80&w=300' }}"
-                         onclick="window.location.href = '{{ route('explore.materials.show', $material->id) }}';">
+                         onclick="window.location.href = '{{ route('explore.materials.show', $material->hashid) }}';">
                         <span class="text-6xl md:text-7xl font-black text-gray-200 group-hover:text-[#a52a2a]/20 transition-colors italic leading-none">{{ $index + 1 }}</span>
                         <div class="h-56 w-65 rounded-xl overflow-hidden -translate-x-6 shadow-md relative border border-gray-100">
                             <img src="{{ $material->thumbnail ? asset('storage/' . $material->thumbnail) : 'https://images.unsplash.com/photo-1517694712202-14dd9538aa97?q=80&w=300' }}" 

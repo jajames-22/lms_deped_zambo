@@ -120,17 +120,17 @@ Route::middleware(['auth', 'verified', CheckAccountStatus::class])->group(functi
 
         Route::patch('/materials/{material}/toggle-featured', [MaterialsController::class, 'toggleFeatured'])->name('dashboard.materials.toggle-featured');
 
-        Route::get('/materials/{material}/show', [MaterialsController::class, 'show'])->name('dashboard.materials.show');
+        Route::get('/materials/{hashid}/show', [MaterialsController::class, 'show'])->name('dashboard.materials.show');
         Route::post('/materials/{material}/enroll', [MaterialsController::class, 'enroll'])->name('materials.enroll');
-        Route::get('/materials/{material}/study', [MaterialsController::class, 'study'])->name('dashboard.materials.study');
+        Route::get('/materials/{hashid}/study', [MaterialsController::class, 'study'])->name('dashboard.materials.study');
         Route::post('/materials/{material}/unenroll', [MaterialsController::class, 'unenroll'])->name('dashboard.materials.unenroll');
 
         Route::post('/materials/{id}/grading', [MaterialsController::class, 'updateGrading'])->name('dashboard.materials.grading');
         Route::post('/materials/{material}/progress', [MaterialsController::class, 'saveProgress'])->name('dashboard.materials.progress');
         Route::post('/materials/{material}/complete', [MaterialsController::class, 'complete'])->name('dashboard.materials.complete');
-        Route::get('/materials/{material}/result', [MaterialsController::class, 'result'])->name('dashboard.materials.result');
-        Route::post('/materials/{material}/retake', [MaterialsController::class, 'retake'])->name('dashboard.materials.retake');
-        Route::get('/materials/{material}/certificate', [MaterialsController::class, 'certificate'])->name('dashboard.materials.certificate');
+        Route::get('/materials/{hashid}/result', [MaterialsController::class, 'result'])->name('dashboard.materials.result');
+        Route::post('/materials/{hashid}/retake', [MaterialsController::class, 'retake'])->name('dashboard.materials.retake');
+        Route::get('/materials/{hashid}/certificate', [MaterialsController::class, 'certificate'])->name('dashboard.materials.certificate');
         
 
         Route::get('/notifications', [MaterialsController::class, 'getNotifications'])->name('dashboard.notifications');
@@ -190,7 +190,7 @@ Route::get('/', function () {
 
 
 Route::get('/explore', [App\Http\Controllers\DashboardController::class, 'publicExplore'])->name('explore.public');
-Route::get('/explore/materials/{id}/show', [App\Http\Controllers\DashboardController::class, 'publicMaterialShow'])->name('explore.materials.show');
+Route::get('/explore/materials/{hashid}/show', [App\Http\Controllers\DashboardController::class, 'publicMaterialShow'])->name('explore.materials.show');
 // web.php (Guest Section)
 Route::get('/explore/tags/{tag}/json', [App\Http\Controllers\DashboardController::class, 'viewByTagJson'])->name('explore.tag.json');
 // Note: Depending on how 'loadExplorePartial' is written, you may need to ensure it doesn't call Auth::user() directly, or create a duplicate method dedicated to guests.

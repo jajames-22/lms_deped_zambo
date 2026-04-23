@@ -12,7 +12,7 @@ Route::get('/materials/{material}/enroll/{email}', [StudentEnrollmentController:
     ->name('student.materials.enroll')
     ->middleware(['signed', 'auth']);
 
-Route::get('/dashboard/student/materials/{id}', [App\Http\Controllers\StudentEnrollmentController::class, 'show'])
+Route::get('/dashboard/student/materials/{hashid}', [App\Http\Controllers\StudentEnrollmentController::class, 'show'])
     ->name('student.materials.show')
     ->middleware(['auth']);
 

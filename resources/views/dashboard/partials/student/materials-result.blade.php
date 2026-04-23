@@ -94,7 +94,7 @@
             </div>
             
             <div class="mt-6 text-center">
-                <a href="{{ route('dashboard.materials.show', $material->id) }}" class="text-sm font-bold text-gray-400 hover:text-gray-600 transition">Return to Module Details</a>
+                <a href="{{ route('dashboard.materials.show', $material->hashid) }}" class="text-sm font-bold text-gray-400 hover:text-gray-600 transition">Return to Module Details</a>
             </div>
         </div>
     </div>
@@ -110,7 +110,7 @@
             <p class="text-sm text-gray-500 mb-6">Retaking the entire module will permanently delete all your previous quiz and exam answers. Your progress will return to zero.</p>
             <div class="flex gap-3">
                 <button type="button" onclick="closeModal('retake-module-modal')" class="w-1/2 px-4 py-3 bg-gray-100 text-gray-600 font-bold rounded-xl hover:bg-gray-200 transition">Cancel</button>
-                <form action="{{ route('dashboard.materials.retake', $material->id) }}" method="POST" class="w-1/2">
+                <form action="{{ route('dashboard.materials.retake', $material->hashid) }}" method="POST" class="w-1/2">
                     @csrf
                     <input type="hidden" name="type" value="module">
                     <button type="submit" class="w-full px-4 py-3 bg-red-600 text-white font-bold rounded-xl hover:bg-red-700 transition shadow-md">Reset & Start</button>
@@ -130,7 +130,7 @@
             <p class="text-sm text-gray-500 mb-6">This will delete your previous exam score and jump you straight to the examination section. Your quiz scores will be saved.</p>
             <div class="flex gap-3">
                 <button type="button" onclick="closeModal('retake-exam-modal')" class="w-1/2 px-4 py-3 bg-gray-100 text-gray-600 font-bold rounded-xl hover:bg-gray-200 transition">Cancel</button>
-                <form action="{{ route('dashboard.materials.retake', $material->id) }}" method="POST" class="w-1/2">
+                <form action="{{ route('dashboard.materials.retake', $material->hashid) }}" method="POST" class="w-1/2">
                     @csrf
                     <input type="hidden" name="type" value="exam">
                     <button type="submit" class="w-full px-4 py-3 bg-blue-600 text-white font-bold rounded-xl hover:bg-blue-700 transition shadow-md">Start Exam</button>
