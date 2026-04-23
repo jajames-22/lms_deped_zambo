@@ -10,7 +10,7 @@ use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\MaterialsController;
 use App\Http\Controllers\ExploreLayoutController;
 
-// 👈 NEW: Import the middleware we created
+// Import the middleware
 use App\Http\Middleware\CheckAccountStatus;
 
 // 1. GUEST ROUTE
@@ -23,7 +23,7 @@ Route::get('/', function () {
 | 2. AUTHENTICATED DASHBOARD ROUTES
 |--------------------------------------------------------------------------
 */
-// 👈 NEW: Added CheckAccountStatus::class to automatically kick out suspended users!
+// Added CheckAccountStatus::class to automatically kick out suspended users!
 Route::middleware(['auth', 'verified', CheckAccountStatus::class])->group(function () {
 
     // Main Dashboard Entry Point
@@ -45,15 +45,23 @@ Route::middleware(['auth', 'verified', CheckAccountStatus::class])->group(functi
         Route::get('/teachers', [DashboardController::class, 'loadTeachersPartial'])->name('dashboard.teachers');
         Route::get('/students', [StudentController::class, 'loadStudentsPartial'])->name('dashboard.students');
 
-        // FIXED: Removed extra /dashboard from these paths since they are already inside the prefix
+        // Profile & Settings
         Route::get('/profile', [ProfileController::class, 'show'])->name('dashboard.profile');
         Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
         Route::put('/profile/password', [ProfileController::class, 'updatePassword'])->name('password.update');
         Route::patch('/profile/avatar', [ProfileController::class, 'updateAvatar'])->name('profile.avatar.update');
-
         Route::get('/settings', [DashboardController::class, 'loadSettingsPartial'])->name('dashboard.settings');
+        
+        // Notifications
+        Route::get('/notifications', [MaterialsController::class, 'getNotifications'])->name('dashboard.notifications');
+        Route::post('/notifications/{id}/read', [MaterialsController::class, 'markNotificationRead']);
+
+        // Other Partials
         Route::get('/assessment', [DashboardController::class, 'loadAssessmentPartial'])->name('dashboard.assessment');
         Route::get('/analytics', [DashboardController::class, 'loadAnalyticsPartial'])->name('dashboard.analytics');
+        Route::get('/explore', [DashboardController::class, 'loadExplorePartial'])->name('dashboard.explore');
+        Route::get('/criteria', [DashboardController::class, 'loadCriteriaPartial'])->name('dashboard.criteria');
+        Route::post('/criteria', [DashboardController::class, 'storeCriteria'])->name('dashboard.criteria.store');
 
         // Schools Management
         Route::get('/schools', [DashboardController::class, 'loadSchoolsPartial'])->name('schools');
@@ -98,15 +106,8 @@ Route::middleware(['auth', 'verified', CheckAccountStatus::class])->group(functi
         Route::post('/assessments/{assessment}/access', [AssessmentController::class, 'addAccess'])->name('dashboard.assessments.access.add');
         Route::delete('/assessments/access/{access}', [AssessmentController::class, 'removeAccess'])->name('dashboard.assessments.access.remove');
         Route::post('/assessments/{assessment}/import-access', [AssessmentController::class, 'importAccess'])->name('dashboard.assessments.access.import');
-
         Route::patch('/assessments/{assessment}/toggle-status', [AssessmentController::class, 'toggleStatus'])->name('dashboard.assessments.toggle-status');
         Route::patch('/assessments/{assessment}/toggle-results', [AssessmentController::class, 'toggleResults'])->name('dashboard.assessments.toggle-results');
-
-        Route::get('/explore', [DashboardController::class, 'loadExplorePartial'])->name('dashboard.explore');
-
-        // FIXED: Removed extra /dashboard since it's already inside the prefix
-        Route::post('/materials/{material}/tags', [MaterialsController::class, 'addTag'])->name('dashboard.materials.tags.add');
-        Route::delete('/materials/{material}/tags/{tag}', [MaterialsController::class, 'removeTag'])->name('dashboard.materials.tags.remove');
 
         // Admin Explore Layout Management
         Route::get('/explore-layout', [ExploreLayoutController::class, 'index'])->name('dashboard.explore-layout');
@@ -115,7 +116,6 @@ Route::middleware(['auth', 'verified', CheckAccountStatus::class])->group(functi
         Route::delete('/explore-layout/{section}', [ExploreLayoutController::class, 'destroy'])->name('dashboard.explore-layout.destroy');
         Route::patch('/explore-layout/{section}/toggle', [ExploreLayoutController::class, 'toggleActive'])->name('dashboard.explore-layout.toggle');
         Route::post('/explore-layout/reorder', [ExploreLayoutController::class, 'reorder'])->name('dashboard.explore-layout.reorder');
-
         Route::get('/explore-layout/search-materials', [ExploreLayoutController::class, 'searchMaterials'])->name('dashboard.explore-layout.search');
 
         Route::patch('/materials/{material}/toggle-featured', [MaterialsController::class, 'toggleFeatured'])->name('dashboard.materials.toggle-featured');
@@ -124,8 +124,6 @@ Route::middleware(['auth', 'verified', CheckAccountStatus::class])->group(functi
         Route::post('/materials/{material}/enroll', [MaterialsController::class, 'enroll'])->name('materials.enroll');
         Route::get('/materials/{hashid}/study', [MaterialsController::class, 'study'])->name('dashboard.materials.study');
         Route::post('/materials/{material}/unenroll', [MaterialsController::class, 'unenroll'])->name('dashboard.materials.unenroll');
-
-        Route::post('/materials/{id}/grading', [MaterialsController::class, 'updateGrading'])->name('dashboard.materials.grading');
         Route::post('/materials/{material}/progress', [MaterialsController::class, 'saveProgress'])->name('dashboard.materials.progress');
         Route::post('/materials/{material}/complete', [MaterialsController::class, 'complete'])->name('dashboard.materials.complete');
         Route::get('/materials/{hashid}/result', [MaterialsController::class, 'result'])->name('dashboard.materials.result');
@@ -138,6 +136,32 @@ Route::middleware(['auth', 'verified', CheckAccountStatus::class])->group(functi
 
         Route::post('/materials/{material}/download-count', [StudentController::class, 'incrementDownload']);
 
+        // Management, Admin & Toggles
+        Route::get('/materials/{material}/preview', [MaterialsController::class, 'preview'])->name('dashboard.materials.preview');
+        Route::get('/materials/{material}/evaluate', [MaterialsController::class, 'evaluateMaterial'])->name('dashboard.materials.evaluate');
+        Route::get('/materials/{id}/evaluation-result', [MaterialsController::class, 'evaluationResult'])->name('dashboard.materials.evaluation-result');
+        Route::get('/materials/{id}/analytics', [MaterialsController::class, 'analytics'])->name('dashboard.materials.analytics');
+        Route::get('/materials/{id}/report', [MaterialsController::class, 'exportMaterialAnalyticsPdf'])->name('dashboard.materials.report');
+        
+        Route::patch('/materials/{material}/toggle-featured', [MaterialsController::class, 'toggleFeatured'])->name('dashboard.materials.toggle-featured');
+        Route::post('/materials/{material}/tags', [MaterialsController::class, 'addTag'])->name('dashboard.materials.tags.add');
+        Route::delete('/materials/{material}/tags/{tag}', [MaterialsController::class, 'removeTag'])->name('dashboard.materials.tags.remove');
+
+        // 🔥 THE MISSING MANAGE PAGE ROUTES 🔥
+        Route::put('/materials/{id}', [MaterialsController::class, 'update'])->name('dashboard.materials.update');
+        Route::delete('/materials/{id}', [MaterialsController::class, 'destroy'])->name('dashboard.materials.destroy');
+        Route::patch('/materials/{id}/status', [MaterialsController::class, 'toggleStatus'])->name('dashboard.materials.status');
+        Route::patch('/materials/{id}/visibility', [MaterialsController::class, 'toggleVisibility'])->name('dashboard.materials.visibility');
+        Route::post('/materials/{id}/grading', [MaterialsController::class, 'updateGrading'])->name('dashboard.materials.grading');
+        
+        // Access Management Routes
+        Route::post('/materials/{id}/access', [MaterialsController::class, 'addAccess'])->name('dashboard.materials.access.add');
+        Route::post('/materials/{id}/import-access', [MaterialsController::class, 'importAccess'])->name('dashboard.materials.access.import');
+        Route::delete('/materials/access/{id}', [MaterialsController::class, 'removeAccess'])->name('dashboard.materials.access.remove');
+        Route::post('/materials/access/{id}/invite', [MaterialsController::class, 'sendIndividualInvite'])->name('dashboard.materials.access.invite');
+
+
+        // Feedback Management
         Route::get('/feedback', [ProfileController::class, 'loadFeedbackPartial'])->name('dashboard.feedback');
         Route::post('/feedback/store', [ProfileController::class, 'storeFeedback'])->name('feedback.store');
         Route::post('/feedback/{id}/user-reply', [ProfileController::class, 'userReplyToFeedback'])->name('dashboard.feedback.user-reply');
@@ -172,34 +196,24 @@ Route::middleware(['auth', 'verified', CheckAccountStatus::class])->group(functi
 
     // --- Student Directory Routes ---
     Route::get('/students/report', [StudentController::class, 'report'])->name('students.report');
-    // Ensure your existing bulk delete is also defined
     Route::delete('/students/bulk-delete', [StudentController::class, 'bulkDelete'])->name('students.bulk-delete');
 
     // --- Teacher Directory Routes ---
     Route::get('/teachers/report', [TeacherController::class, 'report'])->name('teachers.report');
-    // Ensure your existing bulk delete is also defined
     Route::delete('/teachers/bulk-delete', [TeacherController::class, 'bulkDelete'])->name('teachers.bulk-delete');
 
 });
 
-
-// 1. GUEST ROUTE
-Route::get('/', function () {
-    return view('index');
-})->middleware('guest')->name('index');
-
-
+/*
+|--------------------------------------------------------------------------
+| 3. PUBLIC & COURSE MANAGEMENT ROUTES
+|--------------------------------------------------------------------------
+*/
 Route::get('/explore', [App\Http\Controllers\DashboardController::class, 'publicExplore'])->name('explore.public');
 Route::get('/explore/materials/{hashid}/show', [App\Http\Controllers\DashboardController::class, 'publicMaterialShow'])->name('explore.materials.show');
 // web.php (Guest Section)
 Route::get('/explore/tags/{tag}/json', [App\Http\Controllers\DashboardController::class, 'viewByTagJson'])->name('explore.tag.json');
-// Note: Depending on how 'loadExplorePartial' is written, you may need to ensure it doesn't call Auth::user() directly, or create a duplicate method dedicated to guests.
 
-/*
-|--------------------------------------------------------------------------
-| 3. COURSE MANAGEMENT ROUTES
-|--------------------------------------------------------------------------
-*/
 Route::middleware(['auth', CheckAccountStatus::class])->group(function () {
     Route::resource('courses', CourseController::class);
     Route::resource('lessons', LessonController::class);

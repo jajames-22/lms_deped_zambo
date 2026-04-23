@@ -3,615 +3,671 @@
         .toggle-container .toggle-track { background-color: #d1d5db; }
         .toggle-container .toggle-handle { transform: translateX(1px); }
         .toggle-container .toggle-input:checked+.toggle-track { background-color: #26da65; }
-        .toggle-container .toggle-input:checked~.toggle-handle { transform: translateX(2rem); }
+        .toggle-container .toggle-input:checked~.toggle-handle { transform: translateX(1.5rem); }
         .toggle-container .toggle-input:focus-visible+.toggle-track { box-shadow: 0 0 0 4px rgba(165, 42, 42, 0.4); }
         
-        /* Custom Slider Styling */
-        input[type=range] {
-            -webkit-appearance: none; width: 100%; height: 10px; border-radius: 5px; background: #e5e7eb; outline: none;
+        /* Custom Slider Styling to match the screenshot */
+        input[type=range].custom-slider {
+            -webkit-appearance: none; 
+            width: 100%; 
+            height: 12px; 
+            border-radius: 999px; 
+            outline: none;
+            background: #e5e7eb; /* Fallback */
         }
-        input[type=range]::-webkit-slider-thumb {
-            -webkit-appearance: none; height: 20px; width: 20px; border-radius: 50%; background: #ffffff; border: 2px solid currentColor; cursor: pointer; box-shadow: 0 2px 4px rgba(0,0,0,0.2); transition: transform 0.1s;
+        input[type=range].custom-slider::-webkit-slider-thumb {
+            -webkit-appearance: none; 
+            height: 24px; 
+            width: 24px; 
+            border-radius: 50%; 
+            background: #ffffff; 
+            border: 2px solid #9ca3af; /* Default gray border */
+            cursor: pointer; 
+            box-shadow: 0 2px 5px rgba(0,0,0,0.15); 
+            transition: transform 0.1s;
         }
-        input[type=range]:disabled::-webkit-slider-thumb { background: #f3f4f6; border-color: #9ca3af; cursor: not-allowed; box-shadow: none; }
-        input[type=range]:not(:disabled)::-webkit-slider-thumb:hover { transform: scale(1.2); }
+        input[type=range].custom-slider::-moz-range-thumb {
+            height: 24px; 
+            width: 24px; 
+            border-radius: 50%; 
+            background: #ffffff; 
+            border: 2px solid #9ca3af; 
+            cursor: pointer; 
+            box-shadow: 0 2px 5px rgba(0,0,0,0.15);
+        }
+        
+        /* Thumb color overrides for specific sliders */
+        #weight-slider::-webkit-slider-thumb { border-color: #6b7280; } /* Darker gray to pop against colors */
+        #weight-slider::-moz-range-thumb { border-color: #6b7280; }
+        
+        #passing-slider::-webkit-slider-thumb { border-color: #22c55e; } /* Green border */
+        #passing-slider::-moz-range-thumb { border-color: #22c55e; }
+
+        /* Disabled State */
+        input[type=range].custom-slider:disabled::-webkit-slider-thumb { 
+            background: #f3f4f6; border-color: #d1d5db; cursor: not-allowed; box-shadow: none; 
+        }
     </style>
 </head>
 
-{{-- ROOT CONTAINER: Unrestricted so Modals can escape to the viewport --}}
-<div class="w-full h-full">
+@php
+    $isOwner = auth()->id() === $material->instructor_id;
+    $isAdminOrCid = in_array(auth()->user()->role, ['admin', 'cid']);
 
-    <img src="x" onerror="
-        let navBtn = document.getElementById('nav-materials-btn');
-        if (navBtn) {
-            document.querySelectorAll('.nav-btn').forEach(b => {
-                b.classList.remove('bg-[#a52a2a]/10', 'text-[#a52a2a]', 'font-medium', 'border-r-4', 'border-[#a52a2a]');
-                b.classList.add('text-gray-600', 'hover:bg-gray-100');
-            });
-            navBtn.classList.remove('text-gray-600', 'hover:bg-gray-100');
-            navBtn.classList.add('bg-[#a52a2a]/10', 'text-[#a52a2a]', 'font-medium', 'border-r-4', 'border-[#a52a2a]');
-        }
-    " style="display:none;">
+    // --- CHECK FOR ASSESSMENTS & GRADING RULES ---
+    $hasExams = \Illuminate\Support\Facades\DB::table('exams')->where('material_id', $material->id)->exists();
+    $hasQuizzes = \Illuminate\Support\Facades\DB::table('lesson_contents')
+        ->join('lessons', 'lesson_contents.lesson_id', '=', 'lessons.id')
+        ->where('lessons.material_id', $material->id)
+        ->whereIn('lesson_contents.type', ['mcq', 'checkbox', 'true_false', 'text']) 
+        ->exists();
 
-    @php 
-        // --- STATUS & ROLE SETUP ---
-        $statusStr = strtolower($material->status ?? 'draft');
-        $userRole = auth()->user()->role ?? 'student';
-        
-        $isLive = ($statusStr === 'published');
-        $isLocked = in_array($statusStr, ['published', 'pending']);
-        
-        // Dynamic Badge Styling
-        if ($statusStr === 'published') {
-            $badgeBg = 'bg-green-100 text-green-700'; $dotColor = 'bg-green-500'; $pingColor = 'bg-green-400'; $statusLabel = 'Published';
-        } elseif ($statusStr === 'pending') {
-            $badgeBg = 'bg-amber-100 text-amber-700'; $dotColor = 'bg-amber-500'; $pingColor = 'bg-amber-400 hidden'; $statusLabel = 'Pending Approval';
-        } else {
-            $badgeBg = 'bg-gray-100 text-gray-600'; $dotColor = 'bg-gray-400'; $pingColor = 'bg-gray-400 hidden'; $statusLabel = 'Draft Mode';
-        }
-        
-        // --- GRADING CONFIGURATION LOGIC ---
-        $hasExams = \Illuminate\Support\Facades\DB::table('exams')->where('material_id', $material->id)->exists();
-        $hasQuizzes = \Illuminate\Support\Facades\DB::table('lesson_contents')
-            ->join('lessons', 'lesson_contents.lesson_id', '=', 'lessons.id')
-            ->where('lessons.material_id', $material->id)
-            ->whereIn('lesson_contents.type', ['mcq', 'checkbox', 'true_false']) 
-            ->exists();
+    $savedExamWeight = $material->exam_weight ?? 60;
+    $savedPassingPercentage = $material->passing_percentage ?? 80;
+    
+    // Auto-adjust weights if one type is missing
+    if ($hasExams && !$hasQuizzes) { $savedExamWeight = 100; }
+    elseif (!$hasExams && $hasQuizzes) { $savedExamWeight = 0; }
+    elseif (!$hasExams && !$hasQuizzes) { $savedExamWeight = 0; }
+    
+    $quizWeight = 100 - $savedExamWeight;
+    
+    // Draft Lock Check
+    $isLocked = $material->status !== 'draft';
+@endphp
 
-        $rawExamWeight = $material->exam_weight;
-        $savedPassingPercentage = $material->passing_percentage ?? 80;
-        
-        if ($hasExams && $hasQuizzes) { $savedExamWeight = $rawExamWeight ?? 60; } 
-        elseif ($hasExams && !$hasQuizzes) { $savedExamWeight = 100; } 
-        elseif (!$hasExams && $hasQuizzes) { $savedExamWeight = 0; } 
-        else { $savedExamWeight = 0; }
+<div class="animate-float-in">
 
-        $needsWeightSync = ($rawExamWeight !== null && $rawExamWeight !== $savedExamWeight);
-        $quizWeight = 100 - $savedExamWeight;
-
-        // --- PROGRESS CALCULATION SETUP ---
-        $timeline = collect();
-        $totalContents = 0;
-
-        $lessons = \Illuminate\Support\Facades\DB::table('lessons')->where('material_id', $material->id)->orderBy('created_at')->get();
-        foreach($lessons as $lesson) {
-            $itemCount = \Illuminate\Support\Facades\DB::table('lesson_contents')->where('lesson_id', $lesson->id)->count();
-            $timeline->push((object)['items_count' => $itemCount]);
-            $totalContents += $itemCount;
-        }
-
-        $exams = \Illuminate\Support\Facades\DB::table('exams')->where('material_id', $material->id)->orderBy('created_at')->get();
-        if ($exams->count() > 0) {
-            $groupedExams = $exams->groupBy('created_at');
-            foreach($groupedExams as $questions) {
-                $timeline->push((object)['items_count' => $questions->count()]);
-                $totalContents += $questions->count();
-            }
-        }
-    @endphp
-
-    {{-- INNER CONTENT WRAPPER: Constrains width but does NOT trap modals --}}
-    <div class="space-y-6 pb-20 max-w-6xl mx-auto w-full">
-        
-        <div class="flex items-center justify-between">
+    {{-- HEADER --}}
+    <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-6 rounded-3xl shadow-sm border border-gray-100 mb-6">
+        <div class="flex items-center gap-4">
             <button onclick="loadPartial('{{ url('/dashboard/materials') }}', document.getElementById('nav-materials-btn'))"
-                class="flex items-center text-gray-500 hover:text-[#a52a2a] font-semibold transition-colors group">
-                <i class="fas fa-arrow-left mr-2 group-hover:-translate-x-1 transition-transform"></i> Back to Materials
+                class="h-10 w-10 bg-gray-50 hover:bg-gray-100 text-gray-600 rounded-full flex items-center justify-center transition border border-gray-200 shrink-0">
+                <i class="fas fa-arrow-left"></i>
             </button>
-
-            <div class="flex items-center gap-4">
-                <span id="status-badge" class="px-3 py-1.5 {{ $badgeBg }} text-xs font-bold rounded-lg uppercase tracking-wider flex items-center gap-2 transition-colors">
-                    <span class="relative flex h-2 w-2">
-                        <span id="status-ping" class="animate-ping absolute inline-flex h-full w-full rounded-full {{ $pingColor }} opacity-75"></span>
-                        <span id="status-dot" class="relative inline-flex rounded-full h-2 w-2 {{ $dotColor }}"></span>
-                    </span>
-                    <span id="status-text">{{ $statusLabel }}</span>
-                </span>
-
-                <div class="flex items-center gap-2">
-                    @if($statusStr === 'draft')
-                        <button onclick="window.changeMaterialStatus('pending', this)" class="px-5 py-2.5 bg-gray-900 text-white text-sm font-bold rounded-xl shadow-md hover:bg-black transition-all flex items-center gap-2">
-                            <i class="fas fa-paper-plane"></i> Submit to Publish
-                        </button>
-                        @if(in_array($userRole, ['admin', 'cid']))
-                            <button onclick="window.changeMaterialStatus('published', this)" class="px-5 py-2.5 bg-green-600 text-white text-sm font-bold rounded-xl shadow-md hover:bg-green-700 transition-all flex items-center gap-2 hidden sm:flex">
-                                <i class="fas fa-check-circle"></i> Direct Publish
-                            </button>
-                        @endif
-                    @elseif($statusStr === 'pending')
-                        @if(in_array($userRole, ['admin', 'cid']))
-                            <button onclick="window.location.href='{{ route('dashboard.materials.evaluate', $material->hashid) }}'" class="px-5 py-2.5 bg-blue-600 text-white text-sm font-bold rounded-xl shadow-md hover:bg-blue-700 transition-all flex items-center gap-2">
-                                <i class="fas fa-clipboard-check"></i> Evaluate Material
-                            </button>
-                        @else
-                            <button onclick="window.changeMaterialStatus('draft', this)" class="px-5 py-2.5 bg-amber-100 text-amber-700 border border-amber-200 text-sm font-bold rounded-xl shadow-sm hover:bg-amber-200 transition-all flex items-center gap-2">
-                                <i class="fas fa-times"></i> Cancel Submission
-                            </button>
-                        @endif
-                    @elseif($statusStr === 'published')
-                        <button onclick="window.changeMaterialStatus('draft', this)" class="px-5 py-2.5 bg-gray-100 text-gray-700 border border-gray-200 text-sm font-bold rounded-xl shadow-sm hover:bg-gray-200 transition-all flex items-center gap-2">
-                            <i class="fas fa-archive"></i> Revert to Draft
-                        </button>
-                    @endif
-                </div>
+            <div>
+                <h1 id="header-title-display" class="text-2xl font-black text-gray-900 tracking-tight leading-tight">{{ $material->title }}</h1>
+                <p class="text-sm text-gray-500 font-medium">Manage module settings, tags, and access</p>
             </div>
         </div>
 
-        <div class="bg-white p-8 rounded-3xl shadow-sm border border-gray-100 relative overflow-hidden">
-            <div class="absolute top-0 right-0 w-64 h-64 bg-gradient-to-br from-[#a52a2a]/5 to-transparent rounded-bl-full pointer-events-none"></div>
+        <div class="flex flex-wrap items-center gap-2">
+            
+            {{-- Preview Button --}}
+            <a href="{{ url('/dashboard/materials/'.$material->id.'/preview') }}" class="px-4 py-2.5 bg-white text-gray-700 border border-gray-200 font-bold rounded-xl hover:bg-gray-50 transition shadow-sm flex items-center justify-center gap-2 text-sm">
+                <i class="fas fa-desktop text-[#a52a2a]"></i> Preview
+            </a>
 
-            <div class="relative z-10 flex flex-col md:flex-row md:items-start justify-between gap-6">
-                <div class="flex-1">
-                    <div class="flex items-center gap-3 mb-3">
-                        <span class="bg-gray-100 text-gray-600 px-3 py-1 rounded-lg text-xs font-bold uppercase tracking-widest">Module Setup</span>
-                        <span class="text-gray-400 text-sm font-medium">Last Updated {{ $material->updated_at->format('M d, Y') }}</span>
-                    </div>
-                    <h1 class="text-3xl font-black text-gray-900 mb-2">{{ $material->title }}</h1>
-                    
-                    <div class="flex items-center gap-2 mb-4">
-                        <div class="w-7 h-7 rounded-full bg-[#a52a2a]/10 text-[#a52a2a] flex items-center justify-center text-xs"><i class="fas fa-chalkboard-teacher"></i></div>
-                        <p class="text-sm font-medium text-gray-600">Created by <span class="font-bold text-gray-900">{{ $material->instructor->first_name ?? 'Unknown' }} {{ $material->instructor->last_name ?? 'Instructor' }}</span></p>
-                    </div>
-
-                    <p class="text-gray-600 max-w-3xl leading-relaxed">{{ $material->description ?: 'No description provided for this module.' }}</p>
-                </div>
+            @if($isOwner || $isAdminOrCid)
+                {{-- Evaluation Result Button --}}
+                <a href="{{ url('/dashboard/materials/'.$material->id.'/evaluation-result') }}" class="px-4 py-2.5 bg-white text-gray-700 border border-gray-200 font-bold rounded-xl hover:bg-gray-50 transition shadow-sm flex items-center justify-center gap-2 text-sm">
+                    <i class="fas fa-clipboard-check text-blue-600"></i> Evaluation
+                </a>
                 
-                <div class="flex flex-col sm:flex-row md:flex-col gap-3 shrink-0 md:w-48">
-                    @if($isLocked)
-                        <button disabled title="Editing is restricted while under review or published." class="w-full py-3 px-4 bg-gray-50 border-2 border-gray-200 text-gray-400 font-bold rounded-xl cursor-not-allowed flex items-center justify-center gap-2 shadow-sm">
-                            <i class="fas fa-lock"></i> Edit Locked
-                        </button>
+                {{-- View Analytics Button --}}
+                @if($material->status === 'published')
+                <button onclick="loadPartial('{{ url('/dashboard/materials/'.$material->id.'/analytics') }}')" class="px-4 py-2.5 bg-white text-gray-700 border border-gray-200 font-bold rounded-xl hover:bg-gray-50 transition shadow-sm flex items-center justify-center gap-2 text-sm">
+                    <i class="fas fa-chart-pie text-amber-600"></i> Analytics
+                </button>
+                @endif
+            @endif
+
+            {{-- Edit Content Button (LOCKED IF NOT DRAFT) --}}
+            @if(!$isLocked)
+                <button onclick="loadPartial('{{ url('/dashboard/materials/'.$material->id.'/edit') }}')" class="px-4 py-2.5 bg-gray-100 text-gray-700 font-bold rounded-xl hover:bg-gray-200 transition flex items-center justify-center gap-2 text-sm">
+                    <i class="fas fa-edit"></i> Content
+                </button>
+            @else
+                <button disabled title="Revert to draft to edit content" class="px-4 py-2.5 bg-gray-50 text-gray-400 border border-gray-200 font-bold rounded-xl flex items-center justify-center gap-2 text-sm cursor-not-allowed opacity-70">
+                    <i class="fas fa-lock"></i> Content Locked
+                </button>
+            @endif
+            
+            {{-- Status & Publish/Revert Actions --}}
+            @if($material->status === 'draft')
+                <button onclick="attemptPublish()" class="px-5 py-2.5 bg-[#a52a2a] text-white font-bold rounded-xl shadow-md shadow-[#a52a2a]/20 hover:bg-red-800 transition flex items-center justify-center gap-2 text-sm">
+                    <i class="fas fa-paper-plane"></i> Submit for Review
+                </button>
+            @else
+                <button onclick="revertToDraft()" class="px-4 py-2.5 bg-amber-50 border border-amber-200 text-amber-700 font-bold rounded-xl hover:bg-amber-100 transition flex items-center justify-center gap-2 text-sm">
+                    <i class="fas fa-undo"></i> Revert to Draft
+                </button>
+
+                @if($material->status === 'pending')
+                    @if($isAdminOrCid)
+                        {{-- ADMIN/CID Evaluate Button (Standard Link for Full Screen) --}}
+                        <a href="{{ url('/dashboard/materials/'.$material->id.'/evaluate') }}" class="px-5 py-2.5 bg-blue-600 text-white font-bold rounded-xl shadow-md shadow-blue-600/20 hover:bg-blue-700 transition flex items-center justify-center gap-2 text-sm">
+                            <i class="fas fa-clipboard-list"></i> Evaluate to Publish
+                        </a>
                     @else
-                        <button onclick="loadPartial('{{ route('dashboard.materials.edit', $material->id) }}', document.getElementById('nav-materials-btn'))" class="w-full py-3 px-4 bg-white border-2 border-[#a52a2a] text-[#a52a2a] font-bold rounded-xl hover:bg-[#a52a2a] hover:text-white transition-all flex items-center justify-center gap-2 group shadow-sm">
-                            <i class="fas fa-pen group-hover:rotate-12 transition-transform"></i> Edit Content
-                        </button>
+                        {{-- Teacher Pending Badge --}}
+                        <div class="px-4 py-2.5 bg-gray-50 border border-gray-200 text-gray-600 font-bold rounded-xl flex items-center justify-center gap-2 cursor-default text-sm">
+                            <i class="fas fa-clock"></i> Pending Review
+                        </div>
                     @endif
-                    
-                    <button onclick="window.location.href='{{ route('dashboard.materials.preview', $material->hashid) }}'" class="w-full py-3 px-4 bg-indigo-50 border-2 border-indigo-200 text-indigo-700 font-bold rounded-xl hover:bg-indigo-600 hover:text-white hover:border-indigo-600 transition-all flex items-center justify-center gap-2 group shadow-sm" title="Preview Material & Answers">
-                        <i class="fas fa-desktop group-hover:scale-110 transition-transform"></i> View Preview
-                    </button>
+                @else
+                    <div class="px-4 py-2.5 bg-green-50 border border-green-200 text-green-700 font-bold rounded-xl flex items-center justify-center gap-2 cursor-default text-sm">
+                        <i class="fas fa-check-circle"></i> Published
+                    </div>
+                @endif
+            @endif
+        </div>
+    </div>
 
+    {{-- DASHBOARD GRID LAYOUT --}}
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+
+        {{-- LEFT COLUMN: Details, Tables & Analytics --}}
+        <div class="lg:col-span-8 space-y-6">
+
+            {{-- BASIC INFORMATION EDIT --}}
+            <div class="bg-white rounded-3xl shadow-sm border border-gray-100 p-6 md:p-8 flex flex-col md:flex-row gap-6 relative overflow-hidden">
                 
-                    @if($isLive && (!empty($material->evaluation_json) || !empty($material->admin_remarks)))
-                        <button onclick="window.location.href='{{ route('dashboard.materials.evaluation-result', $material->hashid) }}'" class="w-full py-3 px-4 bg-blue-50 border-2 border-blue-200 text-blue-700 font-bold rounded-xl hover:bg-blue-600 hover:text-white hover:border-blue-600 transition-all flex items-center justify-center gap-2 group shadow-sm" title="View Evaluation Report">
-                            <i class="fas fa-clipboard-check group-hover:scale-110 transition-transform"></i> View Report
-                        </button>
+                {{-- Watermark if locked --}}
+                @if($isLocked)
+                    <div class="absolute -right-10 -top-10 text-gray-50 opacity-50 transform rotate-12 pointer-events-none z-0">
+                        <i class="fas fa-lock text-9xl"></i>
+                    </div>
+                @endif
+
+                {{-- Thumbnail Upload --}}
+                <div class="w-full md:w-1/3 flex flex-col gap-3 relative z-10">
+                    <label class="block text-xs font-bold text-gray-700 uppercase tracking-wider">Thumbnail</label>
+                    <div class="aspect-[4/3] rounded-2xl bg-gray-100 border-2 border-dashed border-gray-300 transition-colors overflow-hidden relative {{ !$isLocked ? 'hover:border-[#a52a2a] group cursor-pointer' : 'opacity-80 cursor-not-allowed' }}" 
+                        @if(!$isLocked) onclick="document.getElementById('thumbnailInput').click()" @endif>
+                        
+                        <img id="thumbnailPreview" src="{{ $material->thumbnail ? asset('storage/'.$material->thumbnail) : 'https://images.unsplash.com/photo-1517694712202-14dd9538aa97?q=80&w=800' }}" class="w-full h-full object-cover">
+                        
+                        @if(!$isLocked)
+                            <div class="absolute inset-0 bg-black/60 flex flex-col items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                                <i class="fas fa-camera text-white text-2xl mb-2"></i>
+                                <span class="text-white font-bold text-xs uppercase tracking-wider mt-1">Change Photo</span>
+                            </div>
+                        @else
+                            <div class="absolute inset-0 bg-gray-900/40 flex items-center justify-center">
+                                <div class="bg-black/50 p-3 rounded-full"><i class="fas fa-lock text-white text-xl"></i></div>
+                            </div>
+                        @endif
+                    </div>
+                    @if(!$isLocked)
+                        <input type="file" id="thumbnailInput" class="hidden" accept="image/*" onchange="previewThumbnail(this)">
                     @endif
-                    
-                    {{-- NEW: View Analytics Button (Hidden if not published) --}}
-                    <button onclick="loadPartial('{{ route('dashboard.materials.analytics', $material->id) }}', document.getElementById('nav-materials-btn'))"
-                        id="analytics-btn" class="w-full py-3 px-4 bg-[#a52a2a] text-white font-bold rounded-xl hover:bg-red-800 transition-all flex items-center justify-center gap-2 shadow-lg shadow-[#a52a2a]/20 {{ $isLive ? '' : 'hidden' }}">
-                        <i class="fas fa-chart-pie"></i> View Analytics
-                    </button>
+                </div>
+
+                {{-- Text Details --}}
+                <div class="w-full md:w-2/3 flex flex-col gap-4 relative z-10">
+                    <div>
+                        <label class="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-2">Module Title</label>
+                        <input type="text" id="materialTitle" value="{{ $material->title }}" {{ $isLocked ? 'disabled' : '' }} 
+                            class="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#a52a2a]/20 focus:border-[#a52a2a] outline-none transition-all font-bold {{ $isLocked ? 'text-gray-500 cursor-not-allowed' : 'text-gray-900' }}">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-2">Description</label>
+                        <textarea id="materialDescription" rows="4" {{ $isLocked ? 'disabled' : '' }} 
+                            class="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#a52a2a]/20 focus:border-[#a52a2a] outline-none transition-all text-sm resize-none leading-relaxed {{ $isLocked ? 'text-gray-500 cursor-not-allowed' : 'text-gray-700' }}">{{ $material->description }}</textarea>
+                    </div>
+                    <div class="flex justify-end mt-auto pt-2">
+                        <button id="saveDetailsBtn" onclick="saveMaterialDetails()" 
+                            class="px-6 py-2.5 bg-[#a52a2a] text-white font-bold rounded-xl transition shadow-md flex items-center gap-2 {{ $isLocked ? 'opacity-50 cursor-not-allowed grayscale' : 'hover:bg-red-800 shadow-[#a52a2a]/20' }}"
+                            {{ $isLocked ? 'disabled title="Revert to draft to edit details"' : '' }}>
+                            <i class="fas fa-save"></i> Save Changes
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            {{-- GRADING & CERTIFICATION SETTINGS --}}
+            <div class="bg-white rounded-3xl p-6 md:p-8 shadow-sm border border-gray-100">
+                <div class="flex items-center gap-4 mb-6">
+                    <div class="h-10 w-10 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center text-lg shrink-0">
+                        <i class="fas fa-award"></i>
+                    </div>
+                    <div>
+                        <h3 class="text-xl font-black text-gray-900">Grading & Certification</h3>
+                        <p class="text-xs text-gray-500 mt-1">Configure evaluation standards for this module.</p>
+                    </div>
+                </div>
+
+                @php
+                    $isWeightDisabled = $material->status !== 'draft' || (!$hasExams || !$hasQuizzes);
+                    $isPassingDisabled = $material->status !== 'draft';
+                @endphp
+
+                @if(!$hasExams && !$hasQuizzes)
+                    <div class="mt-6 p-4 bg-gray-50 border border-gray-200 rounded-xl flex items-start gap-3">
+                        <i class="fas fa-info-circle text-gray-400 text-lg mt-0.5"></i>
+                        <div>
+                            <p class="text-sm font-bold text-gray-700">No Assessments Detected</p>
+                            <p class="text-xs text-gray-500 mt-1">This module currently has no quizzes or exams. Students won't receive certificates.</p>
+                        </div>
+                    </div>
+                @else
+                    {{-- UI MATCHING THE SCREENSHOT --}}
+                    <div class="grid grid-cols-1 md:grid-cols-2 divide-y md:divide-y-0 md:divide-x divide-gray-100 mt-2 border-t border-gray-100 pt-6">
+                        
+                        {{-- SLIDER 1: Weight Distribution --}}
+                        <div class="pr-0 md:pr-8 pb-6 md:pb-0">
+                            <h4 class="text-base font-bold text-gray-800">Assessment Weights</h4>
+                            <p class="text-xs text-gray-500 mb-6 mt-1">Adjust the impact of Quizzes vs. Final Exam.</p>
+                            
+                            <input type="range" id="weight-slider" min="0" max="100" value="{{ $quizWeight }}"
+                                class="custom-slider {{ $isWeightDisabled ? 'opacity-50 cursor-not-allowed' : '' }}"
+                                {{ $isWeightDisabled ? 'disabled' : '' }} oninput="window.updateWeightUI()">
+                            
+                            <div class="flex justify-between mt-4 text-sm font-bold">
+                                <span id="quiz-weight-text" class="text-amber-500">Quizzes: {{ $quizWeight }}%</span>
+                                <span id="exam-weight-text" class="text-red-500">Exam: {{ $savedExamWeight }}%</span>
+                            </div>
+                        </div>
+
+                        {{-- SLIDER 2: Passing Percentage --}}
+                        <div class="pl-0 md:pl-8 pt-6 md:pt-0">
+                            <div class="flex justify-between items-start mb-6">
+                                <div>
+                                    <h4 class="text-base font-bold text-gray-800">Passing Grade Required</h4>
+                                    <p class="text-xs text-gray-500 mt-1">Minimum overall score to earn the certificate.</p>
+                                </div>
+                                <span id="passing-percentage-text" class="text-3xl font-black text-green-600 leading-none">{{ $savedPassingPercentage }}%</span>
+                            </div>
+                            
+                            <input type="range" id="passing-slider" min="0" max="100" value="{{ $savedPassingPercentage }}"
+                                class="custom-slider {{ $isPassingDisabled ? 'opacity-50 cursor-not-allowed' : '' }}"
+                                {{ $isPassingDisabled ? 'disabled' : '' }} oninput="window.updatePassingUI()">
+                            
+                            <div id="zero-percent-warning" class="mt-4 p-3 bg-amber-50 border border-amber-200 rounded-xl items-start gap-2 transition-all duration-300 {{ $savedPassingPercentage == 0 ? 'flex' : 'hidden' }}">
+                                <i class="fas fa-exclamation-triangle text-amber-500 mt-0.5 text-xs"></i>
+                                <p class="text-xs text-amber-700 font-medium">At 0%, answers aren't strictly graded. Certificates are awarded for completion.</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mt-6 pt-6 border-t border-gray-100 flex justify-end">
+                        <button type="button" onclick="window.saveGradingSettings(this)" 
+                            class="px-6 py-2.5 bg-gray-900 text-white text-sm font-bold rounded-xl transition-all shadow-sm flex items-center gap-2 {{ $isLocked ? 'opacity-50 cursor-not-allowed' : 'hover:bg-gray-800' }}"
+                            {{ $isLocked ? 'disabled title="Revert to draft to edit grading"' : '' }}>
+                            <i class="fas fa-save"></i> Save Grading
+                        </button>
+                    </div>
+                @endif
+            </div>
+            
+            {{-- ACCESS MANAGEMENT (Whitelist) --}}
+            <div class="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden flex flex-col">
+                <div class="p-6 md:p-8 border-b border-gray-100 flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-gray-50/50">
+                    <div>
+                        <h2 class="text-xl font-black text-gray-900">Access Management</h2>
+                        <p class="text-sm text-gray-500 mt-1">Manage who can view and enroll in this material</p>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <button onclick="openModal('importStudentModal', 'importStudentBox')" class="h-10 px-4 bg-white border border-gray-200 text-gray-600 rounded-xl hover:bg-gray-50 transition text-sm font-bold shadow-sm">
+                            <i class="fas fa-file-import mr-1.5"></i> Import CSV
+                        </button>
+                        <button onclick="openModal('addStudentModal', 'addStudentBox')" class="h-10 px-4 bg-blue-50 text-blue-600 border border-blue-100 rounded-xl hover:bg-blue-100 transition text-sm font-bold shadow-sm">
+                            <i class="fas fa-user-plus mr-1.5"></i> Add Student
+                        </button>
+                    </div>
+                </div>
+
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left border-collapse">
+                        <thead class="bg-gray-50/50 text-[10px] uppercase text-gray-400 font-black tracking-wider border-b border-gray-100">
+                            <tr>
+                                <th class="px-6 py-4">Student Email</th>
+                                <th class="px-6 py-4">Current Status</th>
+                                <th class="px-6 py-4">Progress / Score</th>
+                                <th class="px-6 py-4 text-right">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-gray-50" id="student-list-body">
+                            @forelse($whitelistedStudents as $access)
+                                <tr class="hover:bg-gray-50/50 transition">
+                                    <td class="px-6 py-4">
+                                        <div class="flex items-center gap-3">
+                                            <div class="w-8 h-8 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center font-bold text-xs shrink-0 border border-blue-100">
+                                                {{ strtoupper(substr($access->email, 0, 1)) }}
+                                            </div>
+                                            <div>
+                                                <p class="text-sm font-bold text-gray-900 truncate max-w-[150px] sm:max-w-xs">{{ $access->email }}</p>
+                                                @if($access->student)
+                                                    <p class="text-[10px] text-gray-500 uppercase tracking-wider">{{ $access->student->first_name }} {{ $access->student->last_name }}</p>
+                                                @endif
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td class="px-6 py-4">
+                                        @if($access->status === 'enrolled')
+                                            <span class="px-2.5 py-1 bg-green-50 text-green-700 text-[10px] font-black uppercase tracking-wider rounded-md border border-green-100">Enrolled</span>
+                                        @elseif($access->status === 'invited')
+                                            <span class="px-2.5 py-1 bg-blue-50 text-blue-700 text-[10px] font-black uppercase tracking-wider rounded-md border border-blue-100">Invited</span>
+                                        @elseif($access->status === 'dropped')
+                                            <span class="px-2.5 py-1 bg-red-50 text-red-700 text-[10px] font-black uppercase tracking-wider rounded-md border border-red-100">Dropped</span>
+                                        @else
+                                            <span class="px-2.5 py-1 bg-amber-50 text-amber-700 text-[10px] font-black uppercase tracking-wider rounded-md border border-amber-100">Pending</span>
+                                        @endif
+                                    </td>
+                                    <td class="px-6 py-4">
+                                        @if($access->current_enrollment)
+                                            <div class="flex flex-col gap-1">
+                                                <div class="flex items-center justify-between text-xs">
+                                                    <span class="font-bold text-gray-700">{{ ucfirst($access->current_enrollment->status) }}</span>
+                                                    <span class="text-gray-400 font-mono">{{ $access->current_enrollment->score ?? '0' }}%</span>
+                                                </div>
+                                            </div>
+                                        @else
+                                            <span class="text-xs text-gray-400 font-medium">No activity yet</span>
+                                        @endif
+                                    </td>
+                                    <td class="px-6 py-4 text-right">
+                                        <div class="flex items-center justify-end gap-2">
+                                            @if($access->status === 'pending' || $access->status === 'invited')
+                                                <button onclick="sendIndividualInvite({{ $access->id }}, this)" class="w-8 h-8 rounded-lg flex items-center justify-center text-blue-500 hover:bg-blue-50 transition" title="Send Invitation Email">
+                                                    <i class="fas fa-paper-plane text-xs"></i>
+                                                </button>
+                                            @endif
+                                            <button onclick="revokeAccess({{ $access->id }}, this)" class="w-8 h-8 rounded-lg flex items-center justify-center text-red-400 hover:text-red-600 hover:bg-red-50 transition" title="Revoke Access">
+                                                <i class="fas fa-trash-alt text-xs"></i>
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            @empty
+                                <tr>
+                                    <td colspan="4" class="px-6 py-12 text-center">
+                                        <div class="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-4 border border-gray-100">
+                                            <i class="fas fa-users-slash text-2xl text-gray-300"></i>
+                                        </div>
+                                        <p class="text-gray-500 font-medium">No students added yet.</p>
+                                        <p class="text-xs text-gray-400 mt-1">Add students manually or import a CSV list.</p>
+                                    </td>
+                                </tr>
+                            @endforelse
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            {{-- ANALYTICS OVERVIEW --}}
+            <div class="bg-white rounded-3xl shadow-sm border border-gray-100 p-6 md:p-8">
+                <h2 class="text-xl font-black text-gray-900 mb-6">Analytics Overview</h2>
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <div class="bg-gray-50 p-4 rounded-2xl border border-gray-100">
+                        <p class="text-[10px] text-gray-400 font-bold uppercase tracking-wider mb-1">Total Enrolled</p>
+                        <h3 class="text-2xl font-black text-gray-900">{{ $whitelistedStudents->where('status', 'enrolled')->count() }}</h3>
+                    </div>
+                    <div class="bg-gray-50 p-4 rounded-2xl border border-gray-100">
+                        <p class="text-[10px] text-gray-400 font-bold uppercase tracking-wider mb-1">Total Lessons</p>
+                        <h3 class="text-2xl font-black text-gray-900">{{ $material->lessons_count ?? 0 }}</h3>
+                    </div>
+                    <div class="bg-gray-50 p-4 rounded-2xl border border-gray-100">
+                        <p class="text-[10px] text-gray-400 font-bold uppercase tracking-wider mb-1">Assessment Items</p>
+                        <h3 class="text-2xl font-black text-gray-900">{{ $material->items_count ?? 0 }}</h3>
+                    </div>
+                    <div class="bg-gray-50 p-4 rounded-2xl border border-gray-100">
+                        <p class="text-[10px] text-gray-400 font-bold uppercase tracking-wider mb-1">Pass Rate</p>
+                        <h3 class="text-2xl font-black text-green-600">--%</h3>
+                    </div>
                 </div>
             </div>
         </div>
 
-        <div class="bg-white rounded-3xl p-8 shadow-sm border border-gray-100 flex flex-col lg:flex-row items-start lg:items-center justify-between gap-8">
-            <div class="w-full lg:flex-1">
-                <h3 class="text-sm font-bold text-gray-500 uppercase tracking-widest mb-3">Module Tags</h3>
-                <div id="active-tags-container" class="flex flex-wrap gap-2 mb-3"></div>
-                <div class="relative w-full md:w-80">
-                    <div class="flex items-center bg-gray-50 border border-gray-200 rounded-xl px-3 py-2.5 focus-within:ring-2 focus-within:ring-[#a52a2a]/20 focus-within:border-[#a52a2a] transition-all">
-                        <i class="fas fa-tags text-gray-400 mr-2 text-sm"></i>
-                        <input type="text" id="tag-input" placeholder="Add a tag (e.g. Science, Grade 4)..."
-                            class="bg-transparent border-none outline-none w-full text-sm font-medium text-gray-700 placeholder-gray-400"
-                            onkeydown="handleTagKeydown(event)" oninput="handleTagInput(event)" autocomplete="off">
-                    </div>
-                    <div id="tag-suggestions" class="absolute z-50 w-full mt-2 bg-white border border-gray-100 rounded-xl shadow-lg hidden max-h-48 overflow-y-auto"></div>
-                </div>
-                <p class="text-xs text-gray-400 mt-2">Press <kbd class="px-1.5 py-0.5 bg-gray-100 border border-gray-200 rounded text-gray-500 font-mono">Enter</kbd> to add a custom tag.</p>
-            </div>
-
-            <div class="flex flex-wrap items-center justify-center gap-6 lg:gap-8 lg:shrink-0 w-full lg:w-auto border-t lg:border-t-0 lg:border-l border-gray-100 pt-6 lg:pt-0 lg:pl-8">
-                <div class="text-center flex flex-col items-center">
-                    <div class="h-14 w-14 rounded-2xl bg-green-50 text-green-600 flex items-center justify-center text-xl shadow-sm mb-2"><i class="fas fa-eye"></i></div>
-                    <p class="text-2xl font-black text-gray-900">{{ number_format($material->views ?? 0) }}</p>
-                    <p class="text-xs font-bold text-gray-500 uppercase tracking-widest">Views</p>
-                </div>
-                <div class="w-px h-16 bg-gray-200 hidden sm:block"></div>
-                <div class="text-center flex flex-col items-center">
-                    <div class="h-14 w-14 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center text-xl shadow-sm mb-2"><i class="fas fa-layer-group"></i></div>
-                    <p class="text-2xl font-black text-gray-900">{{ number_format($material->lessons_count ?? 0) }}</p>
-                    <p class="text-xs font-bold text-gray-500 uppercase tracking-widest">Lessons</p>
-                </div>
-                <div class="w-px h-16 bg-gray-200 hidden md:block"></div>
-                <div class="text-center flex flex-col items-center">
-                    <div class="h-14 w-14 rounded-2xl bg-purple-50 text-purple-600 flex items-center justify-center text-xl shadow-sm mb-2"><i class="fas fa-cubes"></i></div>
-                    <p class="text-2xl font-black text-gray-900">{{ number_format($material->items_count ?? 0) }}</p>
-                    <p class="text-xs font-bold text-gray-500 uppercase tracking-widest">Items</p>
-                </div>
-                <div class="w-px h-16 bg-gray-200 hidden sm:block"></div>
-                <div class="text-center flex flex-col items-center">
-                    <div class="h-14 w-14 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center text-xl shadow-sm mb-2"><i class="fas fa-download"></i></div>
-                    <p class="text-2xl font-black text-gray-900">{{ number_format($material->downloads ?? 0) }}</p>
-                    <p class="text-xs font-bold text-gray-500 uppercase tracking-widest">Downloads</p>
-                </div>
-            </div>
-        </div>
-
-        <div class="bg-white rounded-3xl p-8 shadow-sm border border-gray-100 relative transition-all duration-300" id="access-management-container">
-            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 rounded-xl border mb-6 transition-colors duration-300 {{ $material->is_public ? 'bg-green-50 border-green-200' : 'bg-gray-50 border-gray-200' }}" id="visibility-banner">
-                <div>
-                    <h4 class="font-bold text-gray-900 flex items-center gap-2">
-                        <i id="visibility-icon" class="fas {{ $material->is_public ? 'fa-globe-asia text-green-600' : 'fa-lock text-gray-500' }}"></i>
-                        <span id="visibility-title">{{ $material->is_public ? 'Public Material' : 'Private Material' }}</span>
-                    </h4>
-                    <p id="visibility-desc" class="text-sm mt-1 {{ $material->is_public ? 'text-green-700' : 'text-gray-500' }}">
-                        {{ $material->is_public ? 'This material is open to everyone. The list below shows all currently enrolled users and their progress.' : 'Only the specific Emails listed below can view this module.' }}
-                    </p>
-                </div>
-
-                <div class="flex items-center gap-4 mt-2 sm:mt-0">
-                    <div id="access-code-display" class="inline-flex items-center gap-3 bg-white px-4 py-2 rounded-lg border border-gray-200 shadow-sm transition-all duration-300 {{ $material->is_public ? 'opacity-50 pointer-events-none' : '' }}">
-                        <span class="text-xs font-bold text-gray-500 uppercase tracking-widest">Material Code:</span>
-                        <span class="font-mono text-lg font-black text-[#a52a2a] tracking-widest">{{ $material->access_code ?? 'N/A' }}</span>
-                        <button onclick="copyAccessCode('{{ $material->access_code }}')" class="text-gray-400 hover:text-[#a52a2a] transition-colors" title="Copy Code"><i class="fas fa-copy"></i></button>
-                    </div>
-
-                    <label class="relative inline-flex items-center cursor-pointer shrink-0" title="Toggle Privacy">
-                        <input type="checkbox" id="visibility-toggle" class="sr-only peer" onchange="window.toggleVisibility(this)" {{ $material->is_public ? 'checked' : '' }}>
-                        <div class="w-16 h-8 bg-gray-300 rounded-full peer peer-focus:ring-2 peer-focus:ring-[#a52a2a]/40 peer-checked:after:translate-x-8 after:content-[''] after:absolute after:top-1 after:left-1 after:bg-white after:rounded-full after:h-6 after:w-6 after:transition-all after:shadow-md peer-checked:bg-[#26da65] shadow-inner transition-colors"></div>
+        {{-- RIGHT COLUMN: Configuration Sidebar --}}
+        <div class="lg:col-span-4 space-y-6">
+            
+            {{-- VISIBILITY --}}
+            <div class="bg-white rounded-3xl shadow-sm border border-gray-100 p-6">
+                <h3 class="text-sm font-black text-gray-900 uppercase tracking-wider mb-6 flex items-center gap-2"><i class="fas fa-eye text-[#a52a2a]"></i> Visibility</h3>
+                
+                <div class="mb-6">
+                    <label class="flex items-center justify-between cursor-pointer group">
+                        <div>
+                            <span class="text-sm font-bold text-gray-900 block group-hover:text-[#a52a2a] transition-colors">Public Access</span>
+                            <span class="text-[10px] text-gray-500 uppercase tracking-wider">Visible in Explore Page</span>
+                        </div>
+                        <div class="relative toggle-container">
+                            <input type="checkbox" id="publicToggle" class="sr-only toggle-input" onchange="toggleVisibility(this)" {{ $material->is_public ? 'checked' : '' }}>
+                            <div class="block w-14 h-8 rounded-full transition-colors toggle-track border border-gray-200"></div>
+                            <div class="absolute left-1 top-1 bg-white w-6 h-6 rounded-full transition-transform toggle-handle shadow-sm"></div>
+                        </div>
                     </label>
                 </div>
-            </div>
 
-            <div id="access-management-content" class="transition-all duration-500 overflow-hidden max-h-[2000px] opacity-100">
-                <div class="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-6" id="access-controls">
-                    <div>
-                        <h3 class="text-xl font-bold text-gray-900">Access & Progress</h3>
-                        <p class="text-sm text-gray-500 mt-1">Manage enrollments and track student progress.</p>
-                        <button type="button" onclick="notifyStudents(this)" class="mt-3 px-4 py-2 bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-200 text-sm font-bold rounded-lg transition-all shadow-sm flex items-center gap-2">
-                            <i class="fas fa-paper-plane"></i> Invite All Pending
+                <div class="pt-4 border-t border-gray-100">
+                    <p class="text-xs text-gray-500 font-bold uppercase tracking-wider mb-2">Direct Access Code</p>
+                    <div class="flex items-center gap-2 bg-gray-50 p-1.5 rounded-xl border border-gray-200">
+                        <code class="flex-1 text-center font-black text-gray-700 tracking-widest text-lg">{{ $material->access_code ?? 'N/A' }}</code>
+                        <button onclick="copyAccessCode('{{ $material->access_code }}')" class="h-10 w-10 bg-white rounded-lg border border-gray-200 text-gray-500 hover:text-[#a52a2a] shadow-sm flex items-center justify-center transition" title="Copy Code">
+                            <i class="fas fa-copy"></i>
                         </button>
-                    </div>
-
-                    <form id="add-email-form" class="flex flex-wrap gap-2 w-full md:w-auto">
-                        <input type="email" id="student-email-input" name="email" placeholder="Enter Student Email" required
-                            class="w-full md:w-64 px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#a52a2a]/20 focus:border-[#a52a2a] outline-none transition-all text-sm font-medium">
-
-                        <button type="button" onclick="submitEmail(this)" class="px-5 py-2.5 bg-gray-900 text-white text-sm font-bold rounded-xl hover:bg-gray-800 transition-all shadow-sm flex items-center gap-2 whitespace-nowrap">
-                            <i class="fas fa-plus"></i> Add
-                        </button>
-
-                        <input type="file" id="email-file-input" class="hidden" accept=".csv, .xlsx, .xls" onchange="importEmailList(this)">
-                        <button type="button" onclick="document.getElementById('email-file-input').click()" class="px-5 py-2.5 bg-white border border-gray-300 text-gray-700 text-sm font-bold rounded-xl hover:bg-gray-50 transition-all shadow-sm flex items-center gap-2 whitespace-nowrap">
-                            <i class="fas fa-file-import"></i> Import List
-                        </button>
-                    </form>
-                </div>
-
-                <div id="access-table-container">
-                    <div class="flex flex-col sm:flex-row items-center justify-between gap-4 bg-gray-50/50 p-4 rounded-xl border border-gray-100 mb-4">
-                        <div class="relative w-full sm:w-72">
-                            <i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm"></i>
-                            <input type="text" id="search-student" placeholder="Search Email or Name..." class="w-full pl-9 pr-4 py-2 border border-gray-200 rounded-lg outline-none focus:border-[#a52a2a] focus:ring-1 focus:ring-[#a52a2a] transition text-sm bg-white" onkeyup="filterStudents()">
-                        </div>
-
-                        <button type="button" id="bulk-delete-btn" onclick="window.openDeleteModal('bulk')" class="hidden w-full sm:w-auto items-center justify-center gap-2 px-4 py-2 bg-red-50 text-red-600 hover:bg-red-100 border border-red-200 text-sm font-bold rounded-lg transition-all shadow-sm">
-                            <i class="fas fa-trash-alt"></i> Remove Selected (<span id="selected-count">0</span>)
-                        </button>
-                    </div>
-
-                    <div class="overflow-x-auto rounded-xl border border-gray-100 mt-4">
-                        <table class="w-full text-left text-sm text-gray-600" id="students-table">
-                            <thead class="bg-gray-50/50 text-[10px] uppercase text-gray-500 font-bold tracking-wider border-b border-gray-100">
-                                <tr>
-                                    <th class="px-6 py-4 w-12 text-center"><input type="checkbox" id="select-all" class="rounded border-gray-300 text-[#a52a2a] focus:ring-[#a52a2a] h-4 w-4 cursor-pointer transition-all" onclick="window.toggleSelectAll(this)"></th>
-                                    <th class="px-6 py-4 cursor-pointer group hover:bg-gray-100 transition" onclick="window.sortTable(1, 'alpha')">Email Address <i class="fas fa-sort ml-1 text-gray-300 group-hover:text-gray-500"></i></th>
-                                    <th class="px-6 py-4 cursor-pointer group hover:bg-gray-100 transition" onclick="window.sortTable(2, 'alpha')">Student Name <i class="fas fa-sort ml-1 text-gray-300 group-hover:text-gray-500"></i></th>
-                                    <th class="px-6 py-4 text-center cursor-pointer group hover:bg-gray-100 transition" onclick="window.sortTable(3, 'numeric')">Progress <i class="fas fa-sort ml-1 text-gray-300 group-hover:text-gray-500"></i></th>
-                                    <th class="px-6 py-4 text-center cursor-pointer group hover:bg-gray-100 transition" onclick="window.sortTable(4, 'alpha')">Status <i class="fas fa-sort ml-1 text-gray-300 group-hover:text-gray-500"></i></th>
-                                    <th class="px-6 py-4 text-center">Action</th>
-                                </tr>
-                            </thead>
-                            <tbody class="divide-y divide-gray-100" id="students-tbody">
-                                @forelse($whitelistedStudents ?? [] as $access)
-                                    @php
-                                        $enrollment = $access->current_enrollment;
-                                        $rawStatus = $enrollment ? strtolower($enrollment->status) : strtolower($access->status);
-                                        $displayStatus = $rawStatus === 'in_progress' ? 'enrolled' : $rawStatus;
-                                        
-                                        $progressPct = 0;
-                                        $showProgress = in_array($displayStatus, ['enrolled', 'completed']);
-                                        
-                                        if ($showProgress && $enrollment) {
-                                            if ($rawStatus === 'completed' || !is_null($enrollment->completed_at)) {
-                                                $progressPct = 100;
-                                            } elseif ($enrollment->progress_data) {
-                                                $pData = is_string($enrollment->progress_data) ? json_decode($enrollment->progress_data) : $enrollment->progress_data;
-                                                $highestUnlocked = isset($pData->highest_unlocked) ? (int)$pData->highest_unlocked : 0;
-                                                $currentContent = isset($pData->content) ? (int)$pData->content : 0;
-                                                $currentLesson = isset($pData->lesson) ? (int)$pData->lesson : 0;
-
-                                                $contentsPassed = 0;
-                                                for ($i = 0; $i < $highestUnlocked; $i++) {
-                                                    if (isset($timeline[$i])) {
-                                                        $contentsPassed += $timeline[$i]->items_count;
-                                                    }
-                                                }
-                                                
-                                                if ($currentLesson === $highestUnlocked) {
-                                                    $contentsPassed += $currentContent;
-                                                }
-                                                
-                                                $progressPct = $totalContents > 0 ? min(100, round(($contentsPassed / $totalContents) * 100)) : 0;
-                                            }
-                                        }
-
-                                        $cleanStatus = strtoupper(str_replace('_', ' ', $displayStatus));
-                                        $hasEnrolledBefore = in_array($displayStatus, ['enrolled', 'completed', 'failed', 'dropped']);
-                                    @endphp
-                                    <tr class="student-row hover:bg-gray-50/50 transition">
-                                        <td class="px-6 py-4 text-center">
-                                            <input type="checkbox" class="email-checkbox rounded border-gray-300 text-[#a52a2a] focus:ring-[#a52a2a] h-4 w-4 cursor-pointer transition-all" value="{{ $access->id }}" onchange="window.updateBulkDeleteBtn()">
-                                        </td>
-                                        <td class="px-6 py-4 font-medium text-gray-900 email-cell">{{ $access->email }}</td>
-                                        <td class="px-6 py-4 name-cell {{ $hasEnrolledBefore && $access->student ? 'text-gray-900 font-medium' : 'text-gray-400 italic' }}">
-                                            {{ $hasEnrolledBefore && $access->student ? $access->student->first_name . ' ' . $access->student->last_name : 'Waiting for enrollment...' }}
-                                        </td>
-                                        <td class="px-6 py-4 text-center" data-value="{{ $showProgress ? $progressPct : -1 }}">
-                                            @if($showProgress)
-                                                <div class="flex items-center justify-center gap-2" title="{{ $progressPct }}% Completed">
-                                                    <div class="w-16 bg-gray-200 rounded-full h-1.5 border border-gray-100">
-                                                        <div class="bg-green-500 h-1.5 rounded-full" style="width: {{ $progressPct }}%"></div>
-                                                    </div>
-                                                    <span class="text-xs font-bold text-gray-700">{{ $progressPct }}%</span>
-                                                </div>
-                                            @else
-                                                <span class="text-xs text-gray-400 font-medium">-</span>
-                                            @endif
-                                        </td>
-                                        <td class="px-6 py-4 text-center status-cell">
-                                            @if($displayStatus === 'enrolled')
-                                                <span class="px-2.5 py-1  bg-green-100 text-green-700 rounded-md text-[10px] font-bold tracking-wider border border-green-200">{{ $cleanStatus }}</span>
-                                            @elseif($displayStatus === 'completed')
-                                                <span class="px-2.5 py-1 bg-green-100 text-yellow-700 rounded-md text-[10px] font-bold tracking-wider border border-yellow-500">{{ $cleanStatus }}</span>
-                                            @elseif(in_array($displayStatus, ['failed', 'dropped']))
-                                                <span class="px-2.5 py-1 bg-red-100 text-red-700 rounded-md text-[10px] font-bold tracking-wider border border-red-200">{{ $cleanStatus }}</span>
-                                            @else
-                                                <div class="flex flex-col items-center justify-center gap-1.5">
-                                                    <span class="status-badge px-2.5 py-1 {{ $displayStatus === 'invited' ? 'bg-indigo-100 text-indigo-700 border-indigo-200' : 'bg-amber-100 text-amber-700 border-amber-200' }} rounded-md text-[10px] font-bold tracking-wider border">
-                                                        {{ $cleanStatus ?: 'PENDING' }}
-                                                    </span>
-                                                    <button type="button" onclick="sendIndividualInvite(this, '{{ $access->id }}')" class="invite-btn text-blue-600 hover:text-blue-800 text-[10px] font-bold uppercase tracking-wider flex items-center gap-1 transition-colors group">
-                                                        <i class="fas fa-paper-plane group-hover:-translate-y-0.5 transition-transform"></i>
-                                                        <span class="btn-text">{{ $displayStatus === 'invited' ? 'Send Again' : 'Send Invite' }}</span>
-                                                    </button>
-                                                </div>
-                                            @endif
-                                        </td>
-                                        <td class="px-6 py-4 text-center">
-                                            <button type="button" onclick="window.openDeleteModal('{{ $access->id }}')" class="text-gray-400 hover:text-red-500 transition" title="Remove Access">
-                                                <i class="fas fa-times-circle"></i>
-                                            </button>
-                                        </td>
-                                    </tr>
-                                @empty
-                                    <tr id="empty-state-row">
-                                        <td colspan="6" class="px-6 py-12 text-center text-gray-400">
-                                            <div class="h-16 w-16 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-3 text-2xl border border-gray-100"><i class="fas fa-users-slash"></i></div>
-                                            <p class="font-medium text-gray-500">No students found.</p><p class="text-xs mt-1">Add emails above or share the public link.</p>
-                                        </td>
-                                    </tr>
-                                @endforelse
-                            </tbody>
-                        </table>
-                    </div>
-
-                    <div id="pagination-wrapper" class="rounded-xl mt-1 hidden flex flex-col sm:flex-row items-center justify-between px-6 py-4 border-t border-gray-100 bg-gray-50/50">
-                        <div class="text-sm text-gray-500 mb-3 sm:mb-0">Showing <span id="page-start-info" class="font-bold text-gray-900">0</span> to <span id="page-end-info" class="font-bold text-gray-900">0</span> of <span id="page-total-info" class="font-bold text-gray-900">0</span> results</div>
-                        <div class="flex items-center gap-1" id="pagination-controls"></div>
                     </div>
                 </div>
             </div>
-        </div>
 
-        {{-- GRADING & CERTIFICATION SETTINGS --}}
-        <div class="bg-white rounded-3xl p-8 shadow-sm border border-gray-100 mt-8">
-            
-            @if($isLocked)
-                <div class="mb-6 p-4 bg-blue-50 text-blue-700 rounded-xl border border-blue-200 flex items-start gap-3">
-                    <i class="fas fa-lock mt-0.5"></i>
-                    <div class="text-sm">
-                        <strong class="font-bold">Grading Configuration Locked</strong>
-                        <p class="mt-1">This module is currently {{ $statusStr === 'published' ? 'Published' : 'Pending Approval' }}. To protect student progress and review integrity, you must revert it to Draft Mode to adjust grading settings.</p>
+            {{-- TAGS & CATEGORIZATION --}}
+            <div id="tags-section" class="bg-white rounded-3xl shadow-sm border border-gray-100 p-6">
+                <h3 class="text-sm font-black text-gray-900 uppercase tracking-wider mb-2 flex items-center gap-2"><i class="fas fa-tags text-[#a52a2a]"></i> Categorization</h3>
+                <p class="text-xs text-gray-500 mb-5 leading-relaxed">Require at least one Grade and one Subject tag before publishing.</p>
+                
+                {{-- Quick Add Badges --}}
+                <div class="mb-5">
+                    <p class="text-[9px] uppercase font-bold text-gray-400 mb-2">Quick Add Requirements:</p>
+                    <div class="flex flex-wrap gap-1.5">
+                        <button type="button" onclick="submitTag('KINDERGARTEN')" class="px-2 py-1 text-[10px] font-bold bg-blue-50 text-blue-700 hover:bg-blue-600 hover:text-white border border-blue-100 rounded-lg transition shadow-sm">KINDERGARTEN</button>
+                        <button type="button" onclick="submitTag('GRADE 1')" class="px-2 py-1 text-[10px] font-bold bg-blue-50 text-blue-700 hover:bg-blue-600 hover:text-white border border-blue-100 rounded-lg transition shadow-sm">GRADE 1</button>
+                        <button type="button" onclick="submitTag('FILIPINO')" class="px-2 py-1 text-[10px] font-bold bg-emerald-50 text-emerald-700 hover:bg-emerald-600 hover:text-white border border-emerald-100 rounded-lg transition shadow-sm">FILIPINO</button>
+                        <button type="button" onclick="submitTag('ENGLISH')" class="px-2 py-1 text-[10px] font-bold bg-emerald-50 text-emerald-700 hover:bg-emerald-600 hover:text-white border border-emerald-100 rounded-lg transition shadow-sm">ENGLISH</button>
+                        <button type="button" onclick="submitTag('MATH')" class="px-2 py-1 text-[10px] font-bold bg-emerald-50 text-emerald-700 hover:bg-emerald-600 hover:text-white border border-emerald-100 rounded-lg transition shadow-sm">MATH</button>
                     </div>
                 </div>
-            @endif
 
-            <div class="flex items-center gap-4 mb-2">
-                <div class="h-10 w-10 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center text-lg">
-                    <i class="fas fa-award"></i>
+                {{-- Tag Input --}}
+                <div class="relative w-full mb-4">
+                    <div class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
+                        <i class="fas fa-tag text-gray-400 text-sm"></i>
+                    </div>
+                    <input type="text" id="tag-input" placeholder="Type custom tag & press Enter"
+                        class="w-full pl-10 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#a52a2a]/20 focus:border-[#a52a2a] outline-none transition-all text-sm text-gray-700 font-medium">
                 </div>
-                <h3 class="text-xl font-bold text-gray-900">Grading & Certification Configuration</h3>
+
+                {{-- Active Tags Container --}}
+                <div id="active-tags-container" class="flex flex-wrap gap-2">
+                    @foreach($material->tags as $tag)
+                        <div class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#a52a2a]/10 border border-[#a52a2a]/20 text-[#a52a2a] text-xs font-black uppercase tracking-wider rounded-lg shadow-sm">
+                            <span>{{ $tag->name }}</span>
+                            <button type="button" onclick="removeTag('{{ $tag->name }}')" class="text-[#a52a2a]/60 hover:text-[#a52a2a] hover:bg-[#a52a2a]/10 rounded-full h-4 w-4 flex items-center justify-center transition-colors">
+                                <i class="fas fa-times text-[10px]"></i>
+                            </button>
+                        </div>
+                    @endforeach
+                </div>
             </div>
-            <p class="text-sm text-gray-500 mb-8 ml-14">Configure how students are evaluated to receive their completion certificate.</p>
 
-            @php
-                $isWeightDisabled = $isLocked || (!$hasExams || !$hasQuizzes);
-                $isPassingDisabled = $isLocked;
-            @endphp
-
-            @if(!$hasExams && !$hasQuizzes)
-                <div class="p-5 bg-gray-50 border border-gray-200 rounded-xl flex items-start gap-4 ml-14">
-                    <i class="fas fa-info-circle text-gray-400 text-xl mt-0.5"></i>
-                    <div>
-                        <p class="text-sm font-bold text-gray-700">No Assessments Detected</p>
-                        <p class="text-sm text-gray-500 mt-1">This module currently has no quizzes or exams. Students won't receive any certificates from this material.</p>
-                    </div>
+            {{-- DANGER ZONE --}}
+            <div class="bg-red-50 rounded-3xl border border-red-100 p-6 relative overflow-hidden">
+                <div class="absolute -right-4 -top-4 text-red-100 opacity-50 transform rotate-12 pointer-events-none">
+                    <i class="fas fa-exclamation-triangle text-8xl"></i>
                 </div>
-            @else
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-12 ml-14">
-                    
-                    {{-- SLIDER 1: Weight Distribution --}}
-                    <div class="relative">
-                        <div class="flex justify-between items-end mb-4">
-                            <div>
-                                <h4 class="font-bold text-gray-800">Assessment Weights</h4>
-                                <p class="text-xs text-gray-500 mt-1">Adjust the impact of Quizzes vs. Final Exam.</p>
-                            </div>
-                            @if(!$hasExams || !$hasQuizzes)
-                                <span class="text-[10px] font-bold uppercase tracking-widest bg-gray-100 text-gray-400 px-2 py-1 rounded">Locked</span>
-                            @endif
-                        </div>
-
-                        <div class="relative w-full mt-2">
-                            <input type="range" id="weight-slider" min="0" max="100" value="{{ $quizWeight }}"
-                                class="{{ $isWeightDisabled ? 'opacity-50 cursor-not-allowed' : '' }}"
-                                {{ $isWeightDisabled ? 'disabled' : '' }}
-                                oninput="window.updateWeightUI()"
-                                style="color: #6b7280;">
-                                
-                            <div class="flex justify-between mt-4 text-sm font-bold">
-                                <span id="quiz-weight-text" class="{{ $hasQuizzes ? 'text-yellow-600' : 'text-gray-300' }}">Quizzes: {{ $quizWeight }}%</span>
-                                <span id="exam-weight-text" class="{{ $hasExams ? 'text-red-600' : 'text-gray-300' }}">Exam: {{ $savedExamWeight }}%</span>
-                            </div>
-                        </div>
-                    </div>
-
-                    {{-- SLIDER 2: Passing Percentage --}}
-                    <div class="relative border-t md:border-t-0 md:border-l border-gray-100 pt-8 md:pt-0 md:pl-12">
-                        <div class="flex justify-between items-end mb-4">
-                            <div>
-                                <h4 class="font-bold text-gray-800">Passing Grade Required</h4>
-                                <p class="text-xs text-gray-500 mt-1">Minimum overall score to earn the certificate.</p>
-                            </div>
-                            <span id="passing-percentage-text" class="text-2xl font-black text-green-600">{{ $savedPassingPercentage }}%</span>
-                        </div>
-
-                        <input type="range" id="passing-slider" min="0" max="100" value="{{ $savedPassingPercentage }}"
-                            class="{{ $isPassingDisabled ? 'opacity-50 cursor-not-allowed' : '' }}"
-                            {{ $isPassingDisabled ? 'disabled' : '' }}
-                            oninput="window.updatePassingUI()"
-                            style="color: #16a34a;">
-
-                        {{-- Zero Percent Warning --}}
-                        <div id="zero-percent-warning" class="mt-5 p-4 bg-amber-50 border border-amber-200 rounded-xl items-start gap-3 transition-all duration-300 {{ $savedPassingPercentage == 0 ? 'flex' : 'hidden' }}">
-                            <i class="fas fa-exclamation-triangle text-amber-500 mt-0.5"></i>
-                            <div>
-                                <p class="text-sm font-bold text-amber-800">No Grading Enforced</p>
-                                <p class="text-xs text-amber-700 mt-1 leading-relaxed">At 0%, student answers will not be strictly graded. They can claim the certificate simply by traversing all materials and completing the assessments regardless of their final score.</p>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="mt-8 pt-6 border-t border-gray-100 flex justify-end">
-                    <button type="button" onclick="window.saveGradingSettings(this)" 
-                        class="px-6 py-3 bg-gray-900 text-white text-sm font-bold rounded-xl hover:bg-gray-800 transition-all shadow-sm flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-                        {{ $isLocked ? 'disabled' : '' }}>
-                        <i class="fas fa-save"></i> <span>Save Grading Settings</span>
-                    </button>
-                </div>
-            @endif
-        </div>
-
-        <div class="bg-red-50 rounded-3xl p-6 border border-red-100 mt-8">
-            <h3 class="text-red-800 font-bold mb-2">Danger Zone</h3>
-            <p class="text-sm text-red-600 mb-4">Deleting this module will permanently remove it and all associated content. This action cannot be undone.</p>
-            <button onclick="window.openMaterialDeleteModal()" class="px-6 py-2.5 bg-white border border-red-200 text-red-600 text-sm font-bold rounded-xl hover:bg-red-600 hover:text-white transition-all shadow-sm">
-                Delete Module
-            </button>
-        </div>
-
-    </div> 
-
-    {{-- MODALS PLACED OUTSIDE THE RELATIVE WRAPPER TO GUARANTEE FULL SCREEN STRETCH --}}
-    
-    <div id="material-delete-modal" class="fixed inset-0 z-[99999] hidden items-center justify-center p-4">
-        <div class="absolute inset-0 bg-gray-900/60" onclick="window.closeMaterialDeleteModal()"></div>
-        <div class="bg-white rounded-2xl shadow-2xl overflow-hidden border border-gray-100 p-6 text-center relative z-10 w-full max-w-sm">
-            <div class="h-16 w-16 bg-red-50 text-red-500 rounded-full flex items-center justify-center mx-auto mb-4 text-3xl"><i class="fas fa-trash-alt"></i></div>
-            <h3 class="text-xl font-bold text-gray-900 mb-2">Delete Module?</h3>
-            <p class="text-gray-500 text-sm mb-6">Are you sure you want to permanently delete this material? All associated content will be lost.</p>
-            <div class="flex gap-3 mt-2">
-                <button type="button" onclick="window.closeMaterialDeleteModal()" class="w-full py-3 bg-gray-100 text-gray-700 font-bold rounded-xl hover:bg-gray-200 transition active:scale-95">Cancel</button>
-                <button type="button" id="confirm-material-delete-btn" onclick="window.executeMaterialDelete()" class="w-full py-3 bg-red-600 text-white font-bold rounded-xl hover:bg-red-700 transition active:scale-95 shadow-md flex items-center justify-center gap-2">
-                    <i class="fas fa-trash-alt"></i> Delete
+                <h3 class="text-sm font-black text-red-800 uppercase tracking-wider mb-2 relative z-10">Danger Zone</h3>
+                <p class="text-xs text-red-600/80 mb-5 relative z-10 leading-relaxed">Permanently delete this module and wipe all student progress.</p>
+                <button onclick="openModal('deleteConfirmModal', 'deleteConfirmBox')" class="w-full py-3 bg-white text-red-600 border border-red-200 font-bold rounded-xl shadow-sm hover:bg-red-600 hover:text-white transition relative z-10">
+                    Delete Module
                 </button>
             </div>
+
         </div>
     </div>
+</div>
 
-    <div id="student-delete-modal" class="fixed inset-0 z-[99999] hidden items-center justify-center p-4">
-        <div class="absolute inset-0 bg-gray-900/60 backdrop-blur-sm" onclick="window.closeDeleteModal()"></div>
-        <div class="bg-white rounded-2xl shadow-2xl overflow-hidden border border-gray-100 p-6 text-center relative z-10 w-full max-w-sm">
-            <div class="h-16 w-16 bg-red-50 text-red-500 rounded-full flex items-center justify-center mx-auto mb-4 text-3xl"><i class="fas fa-exclamation-triangle"></i></div>
-            <h3 class="text-xl font-bold text-gray-900 mb-2">Revoke Access?</h3>
-            <p id="delete-modal-text" class="text-gray-500 text-sm mb-6">Are you sure you want to remove access for the selected student(s)? They will not be able to view this module.</p>
-            <div class="flex gap-3 mt-2">
-                <button type="button" onclick="window.closeDeleteModal()" class="w-full py-3 bg-gray-100 text-gray-700 font-bold rounded-xl hover:bg-gray-200 transition active:scale-95">Cancel</button>
-                <button type="button" id="confirm-delete-btn" onclick="window.executeDelete()" class="w-full py-3 bg-red-600 text-white font-bold rounded-xl hover:bg-red-700 transition active:scale-95 shadow-md flex items-center justify-center gap-2">
-                    <i class="fas fa-trash-alt"></i> Confirm
-                </button>
+{{-- ========================================== --}}
+{{-- MODALS & OVERLAYS --}}
+{{-- ========================================== --}}
+
+{{-- Custom Alert Modal (Smooth transitions, no native alerts, NO blur) --}}
+<div id="customAlertModal" class="fixed inset-0 z-[10000] hidden opacity-0 transition-opacity duration-300 flex items-center justify-center p-4">
+    <div class="absolute inset-0 bg-gray-900/60" onclick="closeCustomAlert()"></div>
+    <div id="customAlertBox" class="bg-white rounded-3xl w-full max-w-sm shadow-2xl overflow-hidden transform scale-95 transition-all duration-300 text-center p-6 relative z-10">
+        <div id="customAlertIconContainer" class="w-16 h-16 rounded-full mx-auto mb-4 flex items-center justify-center text-3xl">
+            <i id="customAlertIcon" class="fas fa-info"></i>
+        </div>
+        <h3 id="customAlertTitle" class="text-xl font-black text-gray-900 mb-2">Notice</h3>
+        <p id="customAlertMessage" class="text-sm text-gray-500 mb-6"></p>
+        <button type="button" id="customAlertBtn" onclick="closeCustomAlert()" class="w-full px-4 py-3 bg-gray-100 text-gray-700 font-bold rounded-xl hover:bg-gray-200 transition">
+            Okay
+        </button>
+    </div>
+</div>
+
+{{-- Snackbar (For silent, non-blocking notifications) --}}
+<div id="snackbar" class="fixed bottom-6 right-6 transform translate-y-24 opacity-0 transition-all duration-300 z-[9999] flex items-center gap-3 px-6 py-4 rounded-2xl shadow-2xl font-medium text-sm border">
+    <i id="snackbar-icon" class="fas fa-check-circle text-xl"></i>
+    <span id="snackbar-message">Notification message</span>
+</div>
+
+{{-- 1. Publish Confirmation Modal --}}
+<div id="publishConfirmModal" class="fixed inset-0 z-[9999] hidden opacity-0 transition-opacity duration-300 flex items-center justify-center p-4">
+    <div class="absolute inset-0 bg-gray-900/60" onclick="closeModal('publishConfirmModal', 'publishConfirmBox')"></div>
+    <div id="publishConfirmBox" class="bg-white rounded-3xl max-w-md w-full p-8 text-center shadow-2xl relative z-10 transform scale-95 transition-all duration-300">
+        <div class="w-16 h-16 bg-[#a52a2a]/10 text-[#a52a2a] rounded-full flex items-center justify-center mx-auto mb-4 text-3xl">
+            <i class="fas fa-paper-plane"></i>
+        </div>
+        <h3 class="text-2xl font-black text-gray-900 mb-2">Submit for Review?</h3>
+        <p class="text-gray-500 mb-6 text-sm leading-relaxed">Once submitted, this module will be reviewed by an Administrator before being published to the public explore page.</p>
+        <div class="flex gap-3">
+            <button type="button" onclick="closeModal('publishConfirmModal', 'publishConfirmBox')" class="flex-1 py-3 bg-gray-100 text-gray-700 font-bold rounded-xl hover:bg-gray-200 transition">Cancel</button>
+            <button type="button" id="confirmPublishBtn" onclick="submitToPublish()" class="flex-1 py-3 bg-[#a52a2a] text-white font-bold rounded-xl shadow-lg shadow-[#a52a2a]/20 hover:bg-red-800 transition flex justify-center items-center">Yes, Submit</button>
+        </div>
+    </div>
+</div>
+
+{{-- 2. Revert to Draft Confirmation Modal --}}
+<div id="revertConfirmModal" class="fixed inset-0 z-[9999] hidden opacity-0 transition-opacity duration-300 flex items-center justify-center p-4">
+    <div class="absolute inset-0 bg-gray-900/60" onclick="closeModal('revertConfirmModal', 'revertConfirmBox')"></div>
+    <div id="revertConfirmBox" class="bg-white rounded-3xl max-w-md w-full p-8 text-center shadow-2xl relative z-10 transform scale-95 transition-all duration-300">
+        <div class="w-16 h-16 bg-amber-50 text-amber-500 rounded-full flex items-center justify-center mx-auto mb-4 text-3xl">
+            <i class="fas fa-undo"></i>
+        </div>
+        <h3 class="text-2xl font-black text-gray-900 mb-2">Revert to Draft?</h3>
+        <p class="text-gray-500 mb-6 text-sm leading-relaxed">Are you sure you want to revert this module to draft? It will be hidden from the public explore page and students.</p>
+        <div class="flex gap-3">
+            <button type="button" onclick="closeModal('revertConfirmModal', 'revertConfirmBox')" class="flex-1 py-3 bg-gray-100 text-gray-700 font-bold rounded-xl hover:bg-gray-200 transition">Cancel</button>
+            <button type="button" onclick="executeRevertToDraft()" id="executeRevertBtn" class="flex-1 py-3 bg-amber-500 text-white font-bold rounded-xl shadow-lg shadow-amber-500/20 hover:bg-amber-600 transition flex justify-center items-center">Yes, Revert</button>
+        </div>
+    </div>
+</div>
+
+{{-- 3. Add Student Modal --}}
+<div id="addStudentModal" class="fixed inset-0 z-[9999] hidden opacity-0 transition-opacity duration-300 flex items-center justify-center p-4">
+    <div class="absolute inset-0 bg-gray-900/60" onclick="closeModal('addStudentModal', 'addStudentBox')"></div>
+    <div id="addStudentBox" class="bg-white rounded-3xl max-w-sm w-full p-8 shadow-2xl relative z-10 transform scale-95 transition-all duration-300">
+        <div class="flex justify-between items-center mb-6">
+            <h3 class="text-xl font-black text-gray-900">Add Student</h3>
+            <button onclick="closeModal('addStudentModal', 'addStudentBox')" class="text-gray-400 hover:text-gray-600 transition"><i class="fas fa-times"></i></button>
+        </div>
+        <div class="mb-6">
+            <label class="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-2">Student Email Address</label>
+            <div class="relative">
+                <i class="fas fa-envelope absolute left-4 top-1/2 -translate-y-1/2 text-gray-400"></i>
+                <input type="email" id="newStudentEmail" placeholder="student@deped.gov.ph" class="w-full pl-10 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all text-sm font-medium">
             </div>
         </div>
+        <button id="submitAddStudentBtn" onclick="submitAddStudent()" class="w-full py-3 bg-blue-600 text-white font-bold rounded-xl hover:bg-blue-700 transition flex justify-center items-center shadow-lg shadow-blue-600/20">
+            Grant Access
+        </button>
     </div>
+</div>
 
-    <div id="custom-snackbar" class="fixed bg-[#a52a2a] bottom-6 right-6 z-[99999] transform translate-y-24 opacity-0 transition-all duration-300 flex items-center gap-3 px-5 py-4 rounded-xl shadow-2xl font-medium text-sm text-white">
-        <div id="snackbar-icon" class="text-xl"></div>
-        <span id="snackbar-message"></span>
-        <button onclick="closeSnackbar()" class="ml-4 text-white/70 hover:text-white transition"><i class="fas fa-times"></i></button>
+{{-- 4. Import Students Modal --}}
+<div id="importStudentModal" class="fixed inset-0 z-[9999] hidden opacity-0 transition-opacity duration-300 flex items-center justify-center p-4">
+    <div class="absolute inset-0 bg-gray-900/60" onclick="closeModal('importStudentModal', 'importStudentBox')"></div>
+    <div id="importStudentBox" class="bg-white rounded-3xl max-w-sm w-full p-8 shadow-2xl relative z-10 transform scale-95 transition-all duration-300">
+        <div class="flex justify-between items-center mb-6">
+            <h3 class="text-xl font-black text-gray-900">Import List</h3>
+            <button onclick="closeModal('importStudentModal', 'importStudentBox')" class="text-gray-400 hover:text-gray-600 transition"><i class="fas fa-times"></i></button>
+        </div>
+        <div class="mb-6 text-center">
+            <p class="text-sm text-gray-500 mb-4">Upload a CSV/Excel file containing a single column with the header <strong>"email"</strong>.</p>
+            <input type="file" id="importFileInput" accept=".csv, .xlsx, .xls" class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-bold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 transition">
+        </div>
+        <button id="submitImportBtn" onclick="submitImport()" class="w-full py-3 bg-gray-900 text-white font-bold rounded-xl hover:bg-black transition flex justify-center items-center shadow-lg shadow-gray-900/20">
+            Upload & Import
+        </button>
     </div>
+</div>
 
+{{-- 5. Delete Module Modal --}}
+<div id="deleteConfirmModal" class="fixed inset-0 z-[9999] hidden opacity-0 transition-opacity duration-300 flex items-center justify-center p-4">
+    <div class="absolute inset-0 bg-gray-900/60" onclick="closeModal('deleteConfirmModal', 'deleteConfirmBox')"></div>
+    <div id="deleteConfirmBox" class="bg-white rounded-3xl max-w-md w-full p-8 text-center shadow-2xl relative z-10 transform scale-95 transition-all duration-300">
+        <div class="w-16 h-16 bg-red-50 text-red-500 rounded-full flex items-center justify-center mx-auto mb-4 text-3xl">
+            <i class="fas fa-exclamation-triangle"></i>
+        </div>
+        <h3 class="text-2xl font-black text-gray-900 mb-2">Delete Module?</h3>
+        <p class="text-gray-500 mb-6 text-sm leading-relaxed">This action cannot be undone. All lessons, content, assessments, and student progress will be permanently erased.</p>
+        <div class="flex gap-3">
+            <button type="button" onclick="closeModal('deleteConfirmModal', 'deleteConfirmBox')" class="flex-1 py-3 bg-gray-100 text-gray-700 font-bold rounded-xl hover:bg-gray-200 transition">Cancel</button>
+            <button type="button" onclick="executeDelete()" id="executeDeleteBtn" class="flex-1 py-3 bg-red-600 text-white font-bold rounded-xl shadow-lg shadow-red-600/20 hover:bg-red-700 transition flex justify-center items-center">Delete Permanently</button>
+        </div>
+    </div>
 </div>
 
 <script>
-    // --- Grading Logic ---
+    // Initialize Gradient Sliders on Load
+    document.addEventListener('DOMContentLoaded', () => {
+        if(document.getElementById('weight-slider')) {
+            window.updateWeightUI();
+            window.updatePassingUI();
+        }
+    });
+
+    // --- GRADING UI LOGIC (Matches Image Gradients) ---
     window.updateWeightUI = function() {
         const slider = document.getElementById('weight-slider');
         if (!slider) return;
-        
         const quizWeight = parseInt(slider.value);
-        const examWeight = 100 - quizWeight;
+        
+        // Dynamic Gradient: Amber (left) to Red (right)
+        slider.style.background = `linear-gradient(to right, #fbbf24 ${quizWeight}%, #ef4444 ${quizWeight}%)`;
         
         document.getElementById('quiz-weight-text').innerText = `Quizzes: ${quizWeight}%`;
-        document.getElementById('exam-weight-text').innerText = `Exam: ${examWeight}%`;
-        
-        slider.style.background = `linear-gradient(to right, #eab308 ${quizWeight}%, #ef4444 ${quizWeight}%)`;
+        document.getElementById('exam-weight-text').innerText = `Exam: ${100 - quizWeight}%`;
     };
 
     window.updatePassingUI = function() {
         const slider = document.getElementById('passing-slider');
         if (!slider) return;
-        
         const val = parseInt(slider.value);
+        
+        // Dynamic Gradient: Green (left) to Gray (right)
+        slider.style.background = `linear-gradient(to right, #22c55e ${val}%, #e5e7eb ${val}%)`;
+        
         document.getElementById('passing-percentage-text').innerText = `${val}%`;
-
-        slider.style.background = `linear-gradient(to right, #16a34a ${val}%, #e5e7eb ${val}%)`;
-
+        
         const warning = document.getElementById('zero-percent-warning');
         if (val === 0) {
-            warning.classList.remove('hidden');
-            warning.classList.add('flex');
+            warning.classList.remove('hidden'); warning.classList.add('flex');
         } else {
-            warning.classList.remove('flex');
-            warning.classList.add('hidden');
+            warning.classList.remove('flex'); warning.classList.add('hidden');
         }
     };
 
+    // Initialize immediately when script runs (for AJAX loads)
     setTimeout(() => {
-        if(document.getElementById('weight-slider')) window.updateWeightUI();
-        if(document.getElementById('passing-slider')) window.updatePassingUI();
-
-        @if($needsWeightSync)
-            console.log("Anomaly detected: Syncing grading weights...");
-            window.saveGradingSettings(null, true);
-        @endif
+        if(document.getElementById('weight-slider')) {
+            window.updateWeightUI();
+        }
+        if(document.getElementById('passing-slider')) {
+            window.updatePassingUI();
+        }
     }, 50);
 
-    window.saveGradingSettings = async function(btn = null, isSilent = false) {
+    window.saveGradingSettings = async function(btn = null) {
         const quizWeight = document.getElementById('weight-slider') ? parseInt(document.getElementById('weight-slider').value) : 0;
-        const examWeight = 100 - quizWeight; 
-        
         const passingScore = document.getElementById('passing-slider') ? parseInt(document.getElementById('passing-slider').value) : 0;
         const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || '{{ csrf_token() }}';
 
         let originalHtml = '';
         if (btn) {
             originalHtml = btn.innerHTML;
-            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> <span>Saving...</span>';
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Saving...';
             btn.disabled = true;
         }
 
@@ -619,814 +675,471 @@
             const response = await fetch(`/dashboard/materials/{{ $material->id }}/grading`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrfToken, 'Accept': 'application/json' },
-                body: JSON.stringify({ exam_weight: examWeight, passing_percentage: passingScore })
+                body: JSON.stringify({ exam_weight: 100 - quizWeight, passing_percentage: passingScore })
             });
             const data = await response.json();
-            if(!response.ok) throw new Error(data.message || "Server Error");
             
-            if (!isSilent) {
-                showSnackbar('Grading settings saved successfully!', 'success');
+            if(response.ok && data.success) {
+                showCustomAlert('Success', 'Grading settings saved successfully!', 'success');
+            } else {
+                throw new Error(data.message || "Failed to save.");
             }
-
         } catch (e) {
-            if (!isSilent) {
-                showSnackbar(e.message || 'Failed to save grading settings.', 'error');
-            }
-        } finally {
-            if (btn) {
-                btn.innerHTML = originalHtml;
-                btn.disabled = false;
-            }
-        }
-    };
-
-
-    // --- Individual Invite Logic ---
-    window.sendIndividualInvite = async function (btn, accessId) {
-        const btnTextEl = btn.querySelector('.btn-text');
-        const originalHtml = btn.innerHTML;
-
-        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Sending...';
-        btn.disabled = true;
-
-        const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || '{{ csrf_token() }}';
-
-        try {
-            const response = await fetch(`/dashboard/materials/access/${accessId}/invite`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRF-TOKEN': csrfToken,
-                    'Accept': 'application/json'
-                }
-            });
-
-            const data = await response.json();
-
-            if (response.ok && data.success) {
-                showSnackbar('Invitation sent successfully!', 'success');
-
-                btn.innerHTML = '<i class="fas fa-paper-plane"></i> <span class="btn-text">Send Again</span>';
-
-                const container = btn.closest('div');
-                const badge = container.querySelector('.status-badge');
-                if (badge) {
-                    badge.innerText = 'INVITED';
-                    badge.className = 'status-badge px-2.5 py-1 bg-blue-100 text-blue-700 border-blue-200 rounded-md text-[10px] font-bold uppercase tracking-wider border';
-                }
-            } else {
-                showSnackbar(data.message || 'Failed to send invite.', 'error');
-                btn.innerHTML = originalHtml;
-            }
-        } catch (error) {
-            showSnackbar('A network error occurred.', 'error');
-            btn.innerHTML = originalHtml;
-        } finally {
-            btn.disabled = false;
-        }
-    };
-
-    // --- Visibility Toggle Logic ---
-    window.toggleVisibility = async function (checkbox) {
-        const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || '{{ csrf_token() }}';
-        checkbox.disabled = true;
-
-        try {
-            const response = await fetch('{{ route("dashboard.materials.toggle-visibility", $material->id ?? 0) }}', {
-                method: 'PATCH',
-                headers: {
-                    'X-CSRF-TOKEN': csrfToken,
-                    'Accept': 'application/json',
-                    'Content-Type': 'application/json'
-                }
-            });
-
-            const data = await response.json();
-
-            if (response.ok && data.success) {
-                showSnackbar(data.message, 'success');
-
-                const isPublic = data.is_public;
-
-                const banner = document.getElementById('visibility-banner');
-                const icon = document.getElementById('visibility-icon');
-                const title = document.getElementById('visibility-title');
-                const desc = document.getElementById('visibility-desc');
-                const accessCodeDisplay = document.getElementById('access-code-display');
-
-                if (isPublic) {
-                    banner.className = "flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 rounded-xl border mb-6 transition-colors duration-300 bg-green-50 border-green-200";
-                    icon.className = "fas fa-globe-asia text-green-600";
-                    title.innerText = "Public Material";
-                    desc.innerText = "This material is open to everyone. The list below shows all currently enrolled users and their progress.";
-                    desc.className = "text-sm mt-1 text-green-700";
-
-                    if (accessCodeDisplay) accessCodeDisplay.classList.add('opacity-50', 'pointer-events-none');
-                } else {
-                    banner.className = "flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 rounded-xl border mb-6 transition-colors duration-300 bg-gray-50 border-gray-200";
-                    icon.className = "fas fa-lock text-gray-500";
-                    title.innerText = "Private Material";
-                    desc.innerText = "Only the specific Emails listed below can view this module.";
-                    desc.className = "text-sm mt-1 text-gray-500";
-
-                    if (accessCodeDisplay) accessCodeDisplay.classList.remove('opacity-50', 'pointer-events-none');
-                }
-            } else {
-                checkbox.checked = !checkbox.checked;
-                throw new Error(data.message || 'Failed to update visibility.');
-            }
-        } catch (error) {
-            console.error(error);
-            showSnackbar(error.message || 'A network error occurred.', 'error');
-            checkbox.checked = !checkbox.checked;
-        } finally {
-            checkbox.disabled = false;
-        }
-    };
-
-    // --- Bulk Send Emails Logic ---
-    window.notifyStudents = async function (btn) {
-        const rows = document.querySelectorAll('#students-tbody .student-row');
-        const pendingAccesses = [];
-
-        rows.forEach(row => {
-            const badge = row.querySelector('.status-badge');
-            if (badge && badge.innerText.trim().toUpperCase() === 'PENDING') {
-                const checkbox = row.querySelector('.email-checkbox');
-                if (checkbox && checkbox.value) {
-                    pendingAccesses.push({ id: checkbox.value, row: row });
-                }
-            }
-        });
-
-        if (pendingAccesses.length === 0) {
-            showSnackbar('There are no pending students to invite.', 'info');
-            return;
-        }
-
-        const originalHtml = btn.innerHTML;
-        btn.disabled = true;
-
-        const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || '{{ csrf_token() }}';
-        let successCount = 0;
-
-        try {
-            for (let i = 0; i < pendingAccesses.length; i++) {
-                const access = pendingAccesses[i];
-                
-                btn.innerHTML = `<i class="fas fa-spinner fa-spin"></i> Sending ${i + 1}/${pendingAccesses.length}...`;
-                
-                const response = await fetch(`/dashboard/materials/access/${access.id}/invite`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-CSRF-TOKEN': csrfToken,
-                        'Accept': 'application/json'
-                    }
-                });
-
-                const data = await response.json();
-
-                if (response.ok && data.success) {
-                    successCount++;
-                    
-                    const badge = access.row.querySelector('.status-badge');
-                    if (badge) {
-                        badge.innerText = 'INVITED';
-                        badge.className = 'status-badge px-2.5 py-1 bg-blue-100 text-blue-700 border-blue-200 rounded-md text-[10px] font-bold uppercase tracking-wider border';
-                    }
-                    const btnText = access.row.querySelector('.invite-btn .btn-text');
-                    if (btnText) {
-                        btnText.innerText = 'Send Again';
-                    }
-                }
-            }
-
-            if (successCount > 0) {
-                showSnackbar(`Successfully sent invites to ${successCount} pending student(s).`, 'success');
-            } else {
-                showSnackbar('Failed to send emails. Please try again.', 'error');
-            }
-        } catch (error) {
-            showSnackbar('A network error occurred during the sending process.', 'error');
-        } finally {
-            btn.innerHTML = originalHtml;
-            btn.disabled = false;
-        }
-    };
-
-    // --- Dynamic Material Status Logic ---
-    window.changeMaterialStatus = async function (targetStatus, btn) {
-        const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || '{{ csrf_token() }}';
-        
-        const originalHtml = btn.innerHTML;
-        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processing...';
-        btn.disabled = true;
-
-        try {
-            const response = await fetch('{{ route("dashboard.materials.toggle-status", $material->id ?? 0) }}', {
-                method: 'PATCH',
-                headers: {
-                    'X-CSRF-TOKEN': csrfToken,
-                    'Accept': 'application/json',
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({ status: targetStatus })
-            });
-
-            const data = await response.json();
-
-            if (response.ok && data.success) {
-                showSnackbar(data.message || 'Status updated successfully!', 'success');
-                
-                setTimeout(() => window.location.reload(), 1000);
-            } else {
-                throw new Error(data.message || 'Failed to update status.');
-            }
-        } catch (error) {
-            console.error(error);
-            showSnackbar(error.message || 'A network error occurred.', 'error');
-            btn.innerHTML = originalHtml;
-            btn.disabled = false;
-        }
-    };
-
-    // --- Snackbar Logic ---
-    var snackbarTimeout;
-    window.showSnackbar = function (message, type = 'error') {
-        const snackbar = document.getElementById('custom-snackbar');
-        const msgEl = document.getElementById('snackbar-message');
-        const iconEl = document.getElementById('snackbar-icon');
-
-        snackbar.className = "fixed bottom-6 right-6 z-[99999] transform translate-y-24 opacity-0 transition-all duration-300 flex items-center gap-3 px-5 py-4 rounded-xl shadow-2xl font-medium text-sm text-white";
-        if (type === 'error') {
-            snackbar.classList.add('bg-[#a52a2a]'); iconEl.innerHTML = '<i class="fas fa-exclamation-circle"></i>';
-        } else if (type === 'success') {
-            snackbar.classList.add('bg-green-600'); iconEl.innerHTML = '<i class="fas fa-check-circle"></i>';
-        } else {
-            snackbar.classList.add('bg-gray-800'); iconEl.innerHTML = '<i class="fas fa-info-circle"></i>';
-        }
-
-        msgEl.innerText = message;
-        setTimeout(() => snackbar.classList.remove('translate-y-24', 'opacity-0'), 10);
-        clearTimeout(snackbarTimeout);
-        snackbarTimeout = setTimeout(closeSnackbar, 4000);
-    };
-
-    window.closeSnackbar = function () {
-        document.getElementById('custom-snackbar').classList.add('translate-y-24', 'opacity-0');
-    };
-
-    // --- State and Pagination Management ---
-    var allRows = [], currentRows = [], currentPage = 1, pageSize = 10, sortColumnIndex = null, sortIsAscending = true, sortType = 'alpha';
-
-    setTimeout(() => { initializeTableData(); }, 50);
-
-    function initializeTableData() {
-        allRows = Array.from(document.querySelectorAll("#students-tbody .student-row"));
-        applyFilterAndSort();
-    }
-
-    function applyFilterAndSort() {
-        const query = document.getElementById('search-student').value.toLowerCase();
-
-        currentRows = allRows.filter(row => {
-            const email = row.querySelector('.email-cell').innerText.toLowerCase();
-            const name = row.querySelector('.name-cell').innerText.toLowerCase();
-            return email.includes(query) || name.includes(query);
-        });
-
-        if (sortColumnIndex !== null) {
-            currentRows.sort((a, b) => {
-                let valA = a.cells[sortColumnIndex].getAttribute('data-value') || a.cells[sortColumnIndex].innerText.trim();
-                let valB = b.cells[sortColumnIndex].getAttribute('data-value') || b.cells[sortColumnIndex].innerText.trim();
-                if (sortType === 'numeric') {
-                    return sortIsAscending ? valA.localeCompare(valB, undefined, { numeric: true }) : valB.localeCompare(valA, undefined, { numeric: true });
-                } else {
-                    return sortIsAscending ? valA.localeCompare(valB) : valB.localeCompare(valA);
-                }
-            });
-        }
-        updateTablePagination();
-    }
-
-    function updateTablePagination() {
-        const tbody = document.getElementById("students-tbody");
-        const emptyState = document.getElementById("empty-state-row");
-        const paginationWrapper = document.getElementById("pagination-wrapper");
-
-        allRows.forEach(row => row.style.display = 'none');
-        if (currentRows.length === 0) {
-            if (emptyState) emptyState.style.display = '';
-            paginationWrapper.classList.remove('flex', 'sm:flex-row'); paginationWrapper.classList.add('hidden');
-            return;
-        }
-
-        if (emptyState) emptyState.style.display = 'none';
-        paginationWrapper.classList.remove('hidden'); paginationWrapper.classList.add('flex', 'sm:flex-row');
-
-        const totalPages = Math.ceil(currentRows.length / pageSize);
-        if (currentPage > totalPages) currentPage = totalPages;
-        if (currentPage < 1) currentPage = 1;
-
-        const startIdx = (currentPage - 1) * pageSize;
-        const endIdx = Math.min(startIdx + pageSize, currentRows.length);
-
-        for (let i = startIdx; i < endIdx; i++) {
-            currentRows[i].style.display = ''; tbody.appendChild(currentRows[i]);
-        }
-
-        document.getElementById('page-start-info').innerText = startIdx + 1;
-        document.getElementById('page-end-info').innerText = endIdx;
-        document.getElementById('page-total-info').innerText = currentRows.length;
-
-        renderPaginationUI(totalPages);
-        document.getElementById('select-all').checked = false;
-        updateBulkDeleteBtn();
-    }
-
-    function renderPaginationUI(totalPages) {
-        const controls = document.getElementById('pagination-controls');
-        controls.innerHTML = '';
-
-        const createPageBtn = (text, page, disabled = false, active = false) => {
-            const btn = document.createElement('button');
-            btn.innerHTML = text;
-            btn.disabled = disabled;
-            btn.className = `px-3 py-1 min-w-[32px] rounded-lg text-sm font-bold transition-all border ${active
-                ? 'bg-[#a52a2a] text-white border-[#a52a2a] shadow-sm'
-                : disabled
-                    ? 'bg-transparent text-gray-300 border-transparent cursor-not-allowed'
-                    : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50 hover:text-[#a52a2a] hover:border-[#a52a2a]/30 shadow-sm'
-                }`;
-            if (!disabled && !active) {
-                btn.onclick = () => { currentPage = page; updateTablePagination(); };
-            }
-            return btn;
-        };
-
-        controls.appendChild(createPageBtn('<i class="fas fa-chevron-left text-xs"></i>', currentPage - 1, currentPage === 1));
-
-        let startP = Math.max(1, currentPage - 1);
-        let endP = Math.min(totalPages, currentPage + 1);
-
-        if (currentPage === 1) endP = Math.min(3, totalPages);
-        if (currentPage === totalPages) startP = Math.max(1, totalPages - 2);
-
-        if (startP > 1) {
-            controls.appendChild(createPageBtn(1, 1, false, currentPage === 1));
-            if (startP > 2) controls.appendChild(createPageBtn('...', null, true));
-        }
-
-        for (let i = startP; i <= endP; i++) {
-            controls.appendChild(createPageBtn(i, i, false, i === currentPage));
-        }
-
-        if (endP < totalPages) {
-            if (endP < totalPages - 1) controls.appendChild(createPageBtn('...', null, true));
-            controls.appendChild(createPageBtn(totalPages, totalPages, false, currentPage === totalPages));
-        }
-
-        controls.appendChild(createPageBtn('<i class="fas fa-chevron-right text-xs"></i>', currentPage + 1, currentPage === totalPages));
-    }
-
-    window.filterStudents = function () { currentPage = 1; applyFilterAndSort(); };
-
-    window.sortTable = function (columnIndex, type) {
-        if (allRows.length === 0) return;
-        if (sortColumnIndex === columnIndex) {
-            sortIsAscending = !sortIsAscending;
-        } else {
-            sortColumnIndex = columnIndex;
-            sortIsAscending = true;
-            sortType = type;
-        }
-
-        const table = document.getElementById("students-table");
-        const headers = table.querySelectorAll('th i.fa-sort, th i.fa-sort-up, th i.fa-sort-down');
-        headers.forEach(icon => icon.className = 'fas fa-sort ml-1 text-gray-300 group-hover:text-gray-500');
-
-        const clickedHeaderIcon = table.querySelectorAll('th')[columnIndex].querySelector('i');
-        if (clickedHeaderIcon) {
-            clickedHeaderIcon.className = sortIsAscending ? 'fas fa-sort-up ml-1 text-[#a52a2a]' : 'fas fa-sort-down ml-1 text-[#a52a2a]';
-        }
-
-        applyFilterAndSort();
-    };
-
-    window.toggleSelectAll = function (selectAllCheckbox) {
-        const checkboxes = document.querySelectorAll('.email-checkbox');
-        checkboxes.forEach(cb => {
-            if (cb.closest('tr').style.display !== 'none') {
-                cb.checked = selectAllCheckbox.checked;
-            }
-        });
-        updateBulkDeleteBtn();
-    };
-
-    window.updateBulkDeleteBtn = function () {
-        const selectedCount = document.querySelectorAll('.email-checkbox:checked').length;
-        const bulkBtn = document.getElementById('bulk-delete-btn');
-        const countSpan = document.getElementById('selected-count');
-
-        if (selectedCount > 0) {
-            bulkBtn.classList.remove('hidden');
-            bulkBtn.classList.add('flex');
-            countSpan.innerText = selectedCount;
-        } else {
-            bulkBtn.classList.add('hidden');
-            bulkBtn.classList.remove('flex');
-            const selectAllCheck = document.getElementById('select-all');
-            if (selectAllCheck) selectAllCheck.checked = false;
-        }
-    };
-
-    async function refreshTableOnly() {
-        try {
-            const baseUrl = '{{ route("dashboard.materials.manage", $material->id ?? 0) }}';
-            const fetchUrl = baseUrl + (baseUrl.includes('?') ? '&' : '?') + '_t=' + new Date().getTime();
-
-            const response = await fetch(fetchUrl, { headers: { 'X-Requested-With': 'XMLHttpRequest' } });
-            const htmlText = await response.text();
-
-            const parser = new DOMParser();
-            const doc = parser.parseFromString(htmlText, 'text/html');
-            const newTbody = doc.querySelector('#students-tbody');
-
-            if (newTbody) {
-                document.getElementById('students-tbody').innerHTML = newTbody.innerHTML;
-                initializeTableData();
-            }
-        } catch (error) { showSnackbar('Failed to update table visually. Please refresh.', 'error'); }
-    }
-
-    // --- Add Email Access Logic ---
-    window.submitEmail = async function (btn) {
-        const emailInput = document.getElementById('student-email-input');
-        const emailValue = emailInput.value.trim();
-        const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || '{{ csrf_token() }}';
-
-        if (!emailValue || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailValue)) {
-            showSnackbar('Please enter a valid email address.', 'error');
-            return;
-        }
-
-        const originalHtml = btn.innerHTML;
-        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Adding...';
-        btn.disabled = true;
-
-        try {
-            const response = await fetch('{{ route("dashboard.materials.access.add", $material->id ?? 0) }}', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRF-TOKEN': csrfToken,
-                    'Accept': 'application/json'
-                },
-                body: JSON.stringify({ email: emailValue })
-            });
-            const data = await response.json();
-
-            if (response.ok && data.success) {
-                emailInput.value = '';
-                showSnackbar('Student added successfully!', 'success');
-                setTimeout(refreshTableOnly, 200);
-            } else if (response.status === 422) {
-                showSnackbar("Validation Error: " + data.errors.email[0], 'error');
-            } else {
-                showSnackbar(data.message || 'Failed to add email.', 'error');
-            }
-        } catch (error) {
-            showSnackbar('A network error occurred.', 'error');
-        } finally {
-            btn.innerHTML = originalHtml;
-            btn.disabled = false;
-        }
-    };
-
-    window.targetsToDelete = [];
-
-    window.openDeleteModal = function (id) {
-        if (id === 'bulk') {
-            const checked = Array.from(document.querySelectorAll('.email-checkbox:checked'));
-            window.targetsToDelete = checked.map(cb => cb.value);
-
-            if (window.targetsToDelete.length === 0) {
-                showSnackbar("Please select at least one student to delete.", 'error');
-                return;
-            }
-            document.getElementById('delete-modal-text').innerText = `Are you sure you want to remove access for ${window.targetsToDelete.length} selected student(s)?`;
-        } else {
-            window.targetsToDelete = [id];
-            document.getElementById('delete-modal-text').innerText = "Are you sure you want to remove access for this student?";
-        }
-
-        document.getElementById('student-delete-modal').classList.remove('hidden');
-        document.getElementById('student-delete-modal').classList.add('flex');
-    };
-
-    window.importEmailList = async function (input) {
-        if (!input.files || input.files.length === 0) return;
-
-        const file = input.files[0];
-        const formData = new FormData();
-        formData.append('file', file);
-
-        const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || '{{ csrf_token() }}';
-
-        showSnackbar('Importing Emails...', 'info');
-
-        try {
-            const response = await fetch('{{ route("dashboard.materials.access.import", $material->id ?? 0) }}', {
-                method: 'POST',
-                headers: { 'X-CSRF-TOKEN': csrfToken },
-                body: formData
-            });
-
-            const data = await response.json();
-
-            if (response.ok && data.success) {
-                showSnackbar(data.message, 'success');
-                setTimeout(refreshTableOnly, 200);
-            } else {
-                showSnackbar(data.message || 'Import failed.', 'error');
-            }
-        } catch (error) {
-            showSnackbar('A network error occurred during import.', 'error');
-        } finally {
-            input.value = '';
-        }
-    };
-
-    window.closeDeleteModal = function () {
-        document.getElementById('student-delete-modal').classList.add('hidden');
-        document.getElementById('student-delete-modal').classList.remove('flex');
-        window.targetsToDelete = [];
-    };
-
-    window.executeDelete = async function () {
-        if (!window.targetsToDelete || window.targetsToDelete.length === 0) return;
-
-        const btn = document.getElementById('confirm-delete-btn');
-        const originalHtml = btn.innerHTML;
-        const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || '{{ csrf_token() }}';
-
-        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Deleting...';
-        btn.disabled = true;
-
-        try {
-            let successCount = 0;
-
-            for (const id of window.targetsToDelete) {
-                let deleteUrl = `/dashboard/materials/access/${id}`;
-
-                const response = await fetch(deleteUrl, {
-                    method: 'DELETE',
-                    headers: {
-                        'X-CSRF-TOKEN': csrfToken,
-                        'Accept': 'application/json',
-                        'Content-Type': 'application/json'
-                    }
-                });
-
-                if (!response.ok) {
-                    let errMsg = `Server Error: ${response.status}`;
-                    try {
-                        const errData = await response.json();
-                        errMsg = errData.message || errMsg;
-                    } catch (e) {
-                        console.error("Failed to parse error as JSON");
-                    }
-                    throw new Error(errMsg);
-                }
-
-                const data = await response.json();
-
-                if (data.success) {
-                    successCount++;
-                } else {
-                    throw new Error(data.message || "Unknown error occurred.");
-                }
-            }
-
-            window.closeDeleteModal();
-
-            if (successCount > 0) {
-                showSnackbar(`Successfully removed ${successCount} student(s).`, 'success');
-                setTimeout(refreshTableOnly, 200);
-            }
-
-        } catch (error) {
-            console.error("Delete Exception:", error);
-            showSnackbar(error.message || 'A network error occurred.', 'error');
-        } finally {
-            if (btn) {
-                btn.innerHTML = originalHtml;
-                btn.disabled = false;
-            }
-            window.targetsToDelete = [];
-        }
-    };
-
-    // --- Material Delete Logic ---
-    window.openMaterialDeleteModal = function () {
-        document.getElementById('material-delete-modal').classList.remove('hidden');
-        document.getElementById('material-delete-modal').classList.add('flex');
-    };
-
-    window.closeMaterialDeleteModal = function () {
-        document.getElementById('material-delete-modal').classList.add('hidden');
-        document.getElementById('material-delete-modal').classList.remove('flex');
-    };
-
-    window.executeMaterialDelete = async function () {
-        const btn = document.getElementById('confirm-material-delete-btn');
-        const originalHtml = btn.innerHTML;
-        const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || '{{ csrf_token() }}';
-
-        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Deleting...'; btn.disabled = true;
-
-        try {
-            const response = await fetch('{{ route("dashboard.materials.destroy", $material->id ?? 0) }}', {
-                method: 'DELETE',
-                headers: { 'X-CSRF-TOKEN': csrfToken, 'Accept': 'application/json', 'Content-Type': 'application/json' }
-            });
-
-            if (response.ok) {
-                window.closeMaterialDeleteModal();
-                showSnackbar('Module deleted successfully.', 'success');
-                setTimeout(() => { loadPartial('{{ url("/dashboard/materials") }}', document.getElementById('nav-materials-btn')); }, 1000);
-            } else {
-                let data = {}; try { data = await response.json(); } catch (e) { }
-                showSnackbar(data.message || 'Failed to delete module.', 'error');
-            }
-        } catch (error) {
-            showSnackbar('A network error occurred.', 'error');
+            showCustomAlert('Error', e.message, 'error');
         } finally {
             if (btn) { btn.innerHTML = originalHtml; btn.disabled = false; }
         }
     };
 
-    setTimeout(() => {
-        const materialsBtn = document.getElementById('nav-materials-btn');
+    // --- MODAL ANIMATION HELPERS ---
+    function openModal(modalId, boxId) {
+        const modal = document.getElementById(modalId);
+        const box = document.getElementById(boxId);
+        modal.classList.remove('hidden');
+        setTimeout(() => {
+            modal.classList.remove('opacity-0');
+            modal.classList.add('opacity-100');
+            box.classList.remove('scale-95');
+            box.classList.add('scale-100');
+        }, 10);
+    }
 
-        if (materialsBtn) {
-            document.querySelectorAll('.nav-btn').forEach(btn => {
-                btn.classList.remove('bg-[#a52a2a]/10', 'text-[#a52a2a]', 'font-medium', 'border-r-4', 'border-[#a52a2a]');
-                btn.classList.add('text-gray-600', 'hover:bg-gray-100');
-            });
+    function closeModal(modalId, boxId) {
+        const modal = document.getElementById(modalId);
+        const box = document.getElementById(boxId);
+        modal.classList.remove('opacity-100');
+        modal.classList.add('opacity-0');
+        box.classList.remove('scale-100');
+        box.classList.add('scale-95');
+        setTimeout(() => {
+            modal.classList.add('hidden');
+        }, 300);
+    }
 
-            materialsBtn.classList.remove('text-gray-600', 'hover:bg-gray-100');
-            materialsBtn.classList.add('bg-[#a52a2a]/10', 'text-[#a52a2a]', 'font-medium', 'border-r-4', 'border-[#a52a2a]');
+    // --- CUSTOM ALERT MODAL (Replaces window.alert) ---
+    window.showCustomAlert = function (title, message, type = 'error', callback = null) {
+        const modal = document.getElementById('customAlertModal');
+        const box = document.getElementById('customAlertBox');
+        const iconContainer = document.getElementById('customAlertIconContainer');
+        const icon = document.getElementById('customAlertIcon');
+
+        document.getElementById('customAlertTitle').innerText = title;
+        document.getElementById('customAlertMessage').innerText = message;
+        document.getElementById('customAlertBtn').innerText = 'Okay'; // Reset button text
+        
+        window.customAlertCallback = callback;
+
+        if (type === 'success') {
+            iconContainer.className = 'w-16 h-16 rounded-full mx-auto mb-4 flex items-center justify-center text-3xl bg-green-100 text-green-500';
+            icon.className = 'fas fa-check-circle';
+        } else {
+            iconContainer.className = 'w-16 h-16 rounded-full mx-auto mb-4 flex items-center justify-center text-3xl bg-red-100 text-red-500';
+            icon.className = 'fas fa-exclamation-circle';
         }
-    }, 50);
 
-    // --- Tags Autocomplete & Management Logic ---
-    window.availableTags = [
-        "Science", "Earth Science", "Computer Science", "Biology", "Chemistry", "Physics",
-        "Mathematics", "Algebra", "Calculus", "Geometry",
-        "English", "Literature", "Grammar", "Filipino", "Pananaliksik",
-        "MAPEH", "Music", "Arts", "Physical Education", "Health",
-        "History", "World History", "Philippine History", "Contemporary Issues",
-        "Technology", "Programming", "Web Development", "First Aid"
-    ];
+        modal.classList.remove('hidden');
+        setTimeout(() => {
+            modal.classList.remove('opacity-0');
+            modal.classList.add('opacity-100');
+            box.classList.remove('scale-95');
+            box.classList.add('scale-100');
+        }, 10);
+    };
 
-    window.currentTags = {!! json_encode($material->tags ? $material->tags->pluck('name') : []) !!};
+    window.closeCustomAlert = function() {
+        const modal = document.getElementById('customAlertModal');
+        const box = document.getElementById('customAlertBox');
+        
+        box.classList.remove('scale-100');
+        box.classList.add('scale-95');
+        modal.classList.remove('opacity-100');
+        modal.classList.add('opacity-0');
+        
+        setTimeout(() => { 
+            modal.classList.add('hidden'); 
+            if(window.customAlertCallback) window.customAlertCallback();
+            window.customAlertCallback = null; // Clear callback after execution
+        }, 300);
+    };
 
-    setTimeout(() => { window.renderActiveTags(); }, 50);
+    // --- SNACKBAR ALERT ---
+    window.showSnackbar = function (message, type = 'success') {
+        const snackbar = document.getElementById('snackbar');
+        const icon = document.getElementById('snackbar-icon');
+        document.getElementById('snackbar-message').textContent = message;
 
-    window.handleTagKeydown = function (e) {
-        if (e.key === 'Enter') {
-            e.preventDefault();
-            const query = e.target.value.trim();
-            if (query !== '') {
-                window.addTag(query);
+        snackbar.className = `fixed bottom-6 right-6 transform translate-y-0 opacity-100 transition-all duration-300 z-[9999] flex items-center gap-3 px-6 py-4 rounded-2xl shadow-2xl font-bold text-sm border`;
+
+        if (type === 'success') {
+            snackbar.classList.add('bg-white', 'text-gray-800', 'border-gray-100');
+            icon.className = 'fas fa-check-circle text-green-500 text-xl';
+        } else {
+            snackbar.classList.add('bg-red-600', 'text-white', 'border-red-700');
+            icon.className = 'fas fa-exclamation-circle text-white text-xl';
+        }
+
+        if (window.snackbarTimer) clearTimeout(window.snackbarTimer);
+        window.snackbarTimer = setTimeout(() => {
+            snackbar.classList.replace('translate-y-0', 'translate-y-24');
+            snackbar.classList.replace('opacity-100', 'opacity-0');
+        }, 4000);
+    }
+
+    // --- BASIC INFORMATION EDITING ---
+    window.previewThumbnail = function(input) {
+        if (input.files && input.files[0]) {
+            var reader = new FileReader();
+            reader.onload = function(e) {
+                document.getElementById('thumbnailPreview').src = e.target.result;
             }
+            reader.readAsDataURL(input.files[0]);
         }
-    };
-
-    window.handleTagInput = function (e) {
-        const query = e.target.value.trim().toLowerCase();
-        const suggestionsBox = document.getElementById('tag-suggestions');
-
-        if (query === '') {
-            if (suggestionsBox) suggestionsBox.classList.add('hidden');
-            return;
-        }
-
-        const matchedTags = window.availableTags.filter(tag => {
-            const isNotAdded = !window.currentTags.map(t => t.toLowerCase()).includes(tag.toLowerCase());
-            const matchesQuery = tag.toLowerCase().includes(query);
-            return isNotAdded && matchesQuery;
-        });
-
-        window.renderSuggestions(matchedTags, query);
-    };
-
-    window.renderSuggestions = function (tags, query) {
-        const suggestionsBox = document.getElementById('tag-suggestions');
-        if (!suggestionsBox) return;
-
-        if (tags.length === 0) {
-            suggestionsBox.classList.add('hidden');
-            return;
-        }
-
-        suggestionsBox.innerHTML = '';
-        tags.forEach(tag => {
-            const regex = new RegExp(`(${query})`, "gi");
-            const highlightedText = tag.replace(regex, "<span class='text-[#a52a2a] font-bold'>$1</span>");
-
-            const div = document.createElement('div');
-            div.className = 'px-4 py-2.5 hover:bg-gray-50 cursor-pointer text-sm text-gray-700 border-b border-gray-50 last:border-0 transition-colors';
-            div.innerHTML = highlightedText;
-
-            div.onclick = function () {
-                window.addTag(tag);
-            };
-            suggestionsBox.appendChild(div);
-        });
-
-        suggestionsBox.classList.remove('hidden');
     }
 
-    window.addTag = async function (tagValue) {
-        const tagInput = document.getElementById('tag-input');
-        const suggestionsBox = document.getElementById('tag-suggestions');
+    window.saveMaterialDetails = async function() {
+        const btn = document.getElementById('saveDetailsBtn');
+        const originalHtml = btn.innerHTML;
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Saving...';
 
-        if (window.currentTags.map(t => t.toLowerCase()).includes(tagValue.toLowerCase())) {
-            if (tagInput) tagInput.value = '';
-            if (suggestionsBox) suggestionsBox.classList.add('hidden');
-            return;
+        const formData = new FormData();
+        formData.append('_method', 'PUT'); 
+        formData.append('title', document.getElementById('materialTitle').value);
+        formData.append('description', document.getElementById('materialDescription').value);
+        
+        const thumbnailInput = document.getElementById('thumbnailInput');
+        if (thumbnailInput.files.length > 0) {
+            formData.append('thumbnail', thumbnailInput.files[0]);
         }
 
-        window.currentTags.push(tagValue);
-        if (tagInput) tagInput.value = '';
-        if (suggestionsBox) suggestionsBox.classList.add('hidden');
-        window.renderActiveTags();
-
-        const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || '{{ csrf_token() }}';
         try {
-            const response = await fetch('{{ route("dashboard.materials.tags.add", $material->id ?? 0) }}', {
-                method: 'POST',
+            const response = await fetch(`{{ url('/dashboard/materials/'.$material->id) }}`, {
+                method: 'POST', 
                 headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRF-TOKEN': csrfToken,
-                    'Accept': 'application/json'
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+                    'Accept': 'application/json' // Explicitly ask for JSON so Laravel returns proper 422 errors
                 },
-                body: JSON.stringify({ tag: tagValue })
+                body: formData
             });
-            const data = await response.json();
-            if (!response.ok) throw new Error(data.message);
+
+            if (response.ok) {
+                showSnackbar('Details updated successfully!', 'success');
+                document.getElementById('header-title-display').textContent = document.getElementById('materialTitle').value;
+            } else {
+                // Read exact Laravel validation errors
+                const data = await response.json().catch(() => null);
+                let errorMsg = 'Failed to update details.';
+                if (data && data.errors) {
+                    errorMsg = Object.values(data.errors).flat().join('\n');
+                } else if (data && data.message) {
+                    errorMsg = data.message;
+                }
+                showCustomAlert('Update Failed', errorMsg, 'error');
+            }
         } catch (error) {
-            console.error('Failed to save tag:', error);
-            showSnackbar('Failed to save tag to database.', 'error');
-            window.currentTags = window.currentTags.filter(t => t !== tagValue);
-            window.renderActiveTags();
+            // Handle complete network failure or unexpected redirect crash
+            showCustomAlert('Error', 'An unexpected error occurred while saving.', 'error');
+        } finally {
+            btn.disabled = false;
+            btn.innerHTML = originalHtml;
         }
     }
 
-    window.removeTag = async function (tagValue) {
-        window.currentTags = window.currentTags.filter(t => t !== tagValue);
-        window.renderActiveTags();
+    // --- STATUS UPDATES (PUBLISH & REVERT) ---
+    window.attemptPublish = function() {
+        const tags = window.getActiveTags().map(t => t.toUpperCase());
+        
+        const gradeRegex = /^(KINDERGARTEN|GRADE\s*([1-9]|1[0-2]))$/;
+        const hasGrade = tags.some(tag => gradeRegex.test(tag));
+        const hasSubject = tags.some(tag => !gradeRegex.test(tag));
 
-        const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || '{{ csrf_token() }}';
-        try {
-            const safeTag = encodeURIComponent(tagValue);
-            let url = '{{ route("dashboard.materials.tags.remove", ["material" => $material->id ?? 0, "tag" => "PLACEHOLDER_TAG"]) }}';
-            url = url.replace('PLACEHOLDER_TAG', safeTag);
+        if (!hasGrade || !hasSubject) {
+            showCustomAlert('Missing Tags', 'You must add at least one Grade Level and one Subject tag before publishing.', 'error');
+            
+            const tagsSection = document.getElementById('tags-section');
+            if(tagsSection) tagsSection.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            
+            const tagInputWrap = document.getElementById('tag-input').parentElement;
+            tagInputWrap.classList.add('ring-2', 'ring-red-500');
+            setTimeout(() => tagInputWrap.classList.remove('ring-2', 'ring-red-500'), 2500);
+            return;
+        }
 
-            const response = await fetch(url, {
+        openModal('publishConfirmModal', 'publishConfirmBox');
+    }
+
+    window.submitToPublish = function () {
+        const btn = document.getElementById('confirmPublishBtn');
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Submitting...';
+
+        fetch(`{{ url('/dashboard/materials/'.$material->id.'/status') }}`, {
+            method: 'PATCH',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+            },
+            body: JSON.stringify({ status: 'pending' })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                closeModal('publishConfirmModal', 'publishConfirmBox');
+                showCustomAlert('Success', 'Module submitted for approval!', 'success', () => {
+                    loadPartial('{{ url('/dashboard/materials') }}', document.getElementById('nav-materials-btn'));
+                });
+            } else {
+                showCustomAlert('Error', data.message, 'error');
+                btn.disabled = false;
+                btn.innerHTML = 'Yes, Submit';
+            }
+        })
+        .catch(error => {
+            showCustomAlert('Error', 'An error occurred.', 'error');
+            btn.disabled = false;
+            btn.innerHTML = 'Yes, Submit';
+        });
+    }
+
+    window.revertToDraft = function() {
+        openModal('revertConfirmModal', 'revertConfirmBox');
+    }
+
+    window.executeRevertToDraft = function() {
+        const btn = document.getElementById('executeRevertBtn');
+        const originalHtml = btn.innerHTML;
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Reverting...';
+
+        fetch(`{{ url('/dashboard/materials/'.$material->id.'/status') }}`, {
+            method: 'PATCH',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+                'Accept': 'application/json'
+            },
+            body: JSON.stringify({ status: 'draft' })
+        })
+        .then(r => r.json())
+        .then(data => {
+            if(data.success) {
+                closeModal('revertConfirmModal', 'revertConfirmBox');
+                showSnackbar('Module reverted to draft.', 'success');
+                // Redirects completely out of the manage page back to the materials list on success!
+                setTimeout(() => loadPartial('{{ url('/dashboard/materials') }}', document.getElementById('nav-materials-btn')), 500);
+            } else {
+                showCustomAlert('Error', data.message || 'Failed to revert to draft.', 'error');
+                btn.disabled = false;
+                btn.innerHTML = originalHtml;
+            }
+        })
+        .catch(error => {
+            showCustomAlert('Error', 'An error occurred.', 'error');
+            btn.disabled = false;
+            btn.innerHTML = originalHtml;
+        });
+    }
+
+    // --- TOGGLE VISIBILITY ---
+    window.toggleVisibility = function (checkbox) {
+        fetch(`{{ url('/dashboard/materials/'.$material->id.'/visibility') }}`, {
+            method: 'PATCH',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+            },
+            body: JSON.stringify({ is_public: checkbox.checked })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                showSnackbar(data.message, 'success');
+            } else {
+                checkbox.checked = !checkbox.checked; 
+                showCustomAlert('Error', data.message, 'error');
+            }
+        });
+    }
+
+    // --- ACCESS MANAGEMENT ---
+    window.submitAddStudent = function () {
+        const email = document.getElementById('newStudentEmail').value;
+        const btn = document.getElementById('submitAddStudentBtn');
+
+        if (!email) { showSnackbar('Please enter an email address.', 'error'); return; }
+
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+
+        fetch(`{{ url('/dashboard/materials/'.$material->id.'/access') }}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+                'Accept': 'application/json'
+            },
+            body: JSON.stringify({ email: email })
+        })
+        .then(r => r.json())
+        .then(data => {
+            if (data.success) {
+                showSnackbar(data.message, 'success');
+                closeModal('addStudentModal', 'addStudentBox');
+                setTimeout(() => loadPartial('{{ url('/dashboard/materials/'.$material->id.'/manage') }}'), 500);
+            } else {
+                showCustomAlert('Error', data.message, 'error');
+                btn.disabled = false;
+                btn.innerHTML = 'Grant Access';
+            }
+        });
+    }
+
+    window.submitImport = function () {
+        const fileInput = document.getElementById('importFileInput');
+        const btn = document.getElementById('submitImportBtn');
+
+        if (!fileInput.files.length) { showSnackbar('Please select a file to import.', 'error'); return; }
+
+        const formData = new FormData();
+        formData.append('file', fileInput.files[0]);
+
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+
+        fetch(`{{ url('/dashboard/materials/'.$material->id.'/import-access') }}`, {
+            method: 'POST',
+            headers: {
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+                'Accept': 'application/json'
+            },
+            body: formData
+        })
+        .then(r => r.json())
+        .then(data => {
+            if (data.success) {
+                showSnackbar(data.message, 'success');
+                closeModal('importStudentModal', 'importStudentBox');
+                setTimeout(() => loadPartial('{{ url('/dashboard/materials/'.$material->id.'/manage') }}'), 500);
+            } else {
+                showCustomAlert('Error', data.message, 'error');
+                btn.disabled = false;
+                btn.innerHTML = 'Upload & Import';
+            }
+        });
+    }
+
+    window.revokeAccess = function (accessId, btnElement) {
+        showCustomAlert('Remove Student', 'Are you sure you want to remove this student? Their progress will be permanently lost.', 'error', () => {
+            const originalHtml = btnElement.innerHTML;
+            btnElement.innerHTML = '<i class="fas fa-spinner fa-spin text-xs"></i>';
+            btnElement.disabled = true;
+
+            fetch(`{{ url('/dashboard/materials/access') }}/${accessId}`, {
                 method: 'DELETE',
                 headers: {
-                    'X-CSRF-TOKEN': csrfToken,
-                    'Accept': 'application/json'
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+                }
+            }).then(r => r.json()).then(data => {
+                if (data.success) {
+                    btnElement.closest('tr').remove();
+                    showSnackbar('Student removed.', 'success');
+                } else {
+                    showCustomAlert('Error', 'Error removing student.', 'error');
+                    btnElement.innerHTML = originalHtml;
+                    btnElement.disabled = false;
                 }
             });
-            const data = await response.json();
-            if (!response.ok) throw new Error(data.message);
-        } catch (error) {
-            console.error('Failed to remove tag:', error);
-            showSnackbar('Failed to remove tag from database.', 'error');
-            window.currentTags.push(tagValue);
-            window.renderActiveTags();
-        }
+        });
+        document.getElementById('customAlertBtn').innerText = 'Yes, Remove';
     }
 
-    window.renderActiveTags = function () {
-        const activeTagsContainer = document.getElementById('active-tags-container');
-        if (!activeTagsContainer) return;
+    window.sendIndividualInvite = function(accessId, btnElement) {
+        const originalHtml = btnElement.innerHTML;
+        btnElement.innerHTML = '<i class="fas fa-spinner fa-spin text-xs"></i>';
+        btnElement.disabled = true;
 
-        activeTagsContainer.innerHTML = '';
+        fetch(`{{ url('/dashboard/materials/access') }}/${accessId}/invite`, {
+            method: 'POST',
+            headers: {
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+            }
+        }).then(r => r.json()).then(data => {
+            if (data.success) {
+                showSnackbar('Invitation sent!', 'success');
+                setTimeout(() => loadPartial('{{ url('/dashboard/materials/'.$material->id.'/manage') }}'), 500);
+            } else {
+                showCustomAlert('Error', 'Error sending invite.', 'error');
+                btnElement.innerHTML = originalHtml;
+                btnElement.disabled = false;
+            }
+        });
+    }
 
-        if (window.currentTags.length === 0) {
-            activeTagsContainer.innerHTML = '<span class="text-sm text-gray-400 italic">No tags added yet.</span>';
-            return;
+    // --- TAGS LOGIC ---
+    window.getActiveTags = function () {
+        const spans = document.querySelectorAll('#active-tags-container span');
+        return Array.from(spans).map(span => span.textContent.trim());
+    }
+
+    window.submitTag = function(value) {
+        window.addTagToBackend(value);
+    }
+
+    window.addTagToBackend = function(tagValue) {
+        tagValue = tagValue.trim().toUpperCase();
+        if (!tagValue) return;
+        
+        fetch(`{{ url('/dashboard/materials/'.$material->id.'/tags') }}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+            },
+            body: JSON.stringify({ tag: tagValue })
+        }).then(r => r.json()).then(data => {
+            if (data.success) {
+                const currentTags = window.getActiveTags();
+                if(!currentTags.includes(tagValue)) {
+                    renderActiveTags([...currentTags, tagValue]);
+                }
+                document.getElementById('tag-input').value = '';
+            } else {
+                showCustomAlert('Error', data.message, 'error');
+            }
+        });
+    }
+
+    document.getElementById('tag-input').addEventListener('keydown', function (e) {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            window.addTagToBackend(this.value);
         }
+    });
 
-        window.currentTags.forEach(tag => {
+    window.removeTag = function (tag) {
+        fetch(`{{ url('/dashboard/materials/'.$material->id.'/tags') }}/${encodeURIComponent(tag)}`, {
+            method: 'DELETE',
+            headers: {
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+            }
+        }).then(r => r.json()).then(data => {
+            if (data.success) {
+                const currentTags = window.getActiveTags();
+                renderActiveTags(currentTags.filter(t => t !== tag));
+            } else {
+                showSnackbar('Failed to remove tag.', 'error');
+            }
+        });
+    }
+
+    window.renderActiveTags = function (tags) {
+        const activeTagsContainer = document.getElementById('active-tags-container');
+        activeTagsContainer.innerHTML = '';
+        const uniqueTags = [...new Set(tags)];
+
+        uniqueTags.forEach(tag => {
             const tagEl = document.createElement('div');
-            tagEl.className = 'inline-flex items-center gap-1.5 px-3 py-1 bg-[#a52a2a]/10 text-[#a52a2a] border border-[#a52a2a]/20 rounded-lg text-xs font-bold transition-all';
+            tagEl.className = 'inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#a52a2a]/10 border border-[#a52a2a]/20 text-[#a52a2a] text-xs font-black uppercase tracking-wider rounded-lg shadow-sm';
 
             const spanEl = document.createElement('span');
             spanEl.textContent = tag;
@@ -1464,6 +1177,32 @@
         }).catch(err => {
             showSnackbar('Failed to copy code.', 'error');
         });
-    };
+    }
 
+    // --- DELETE LOGIC ---
+    window.executeDelete = function() {
+        const btn = document.getElementById('executeDeleteBtn');
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Deleting...';
+        
+        fetch(`{{ url('/dashboard/materials/'.$material->id) }}`, {
+            method: 'DELETE',
+            headers: {
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+                'Accept': 'application/json'
+            }
+        }).then(response => response.json())
+        .then(data => {
+            if(data.success) {
+                closeModal('deleteConfirmModal', 'deleteConfirmBox');
+                showCustomAlert('Success', 'Module deleted successfully.', 'success', () => {
+                    loadPartial('{{ url('/dashboard/materials') }}', document.getElementById('nav-materials-btn'));
+                });
+            } else {
+                showCustomAlert('Error', data.message || 'Error deleting module.', 'error');
+                btn.disabled = false;
+                btn.innerHTML = 'Delete Permanently';
+            }
+        });
+    }
 </script>
