@@ -8,11 +8,11 @@ use App\Http\Middleware\CheckRole;
 // ==========================================
 // STUDENT ROUTE (Must be outside the dashboard prefix/middleware)
 // ==========================================
-Route::get('/materials/{material}/enroll/{email}', [StudentEnrollmentController::class, 'acceptInvitation'])
+Route::get('/materials/{hashid}/enroll/{email}', [StudentEnrollmentController::class, 'acceptInvitation'])
     ->name('student.materials.enroll')
     ->middleware(['signed', 'auth']);
 
-Route::get('/dashboard/student/materials/{id}', [App\Http\Controllers\StudentEnrollmentController::class, 'show'])
+Route::get('/dashboard/student/materials/{hashid}', [App\Http\Controllers\StudentEnrollmentController::class, 'show'])
     ->name('student.materials.show')
     ->middleware(['auth']);
 
@@ -32,14 +32,13 @@ Route::get('/dashboard/certificates', [App\Http\Controllers\StudentEnrollmentCon
     ->name('student.certificates.index')
     ->middleware(['auth']);
 
-// Public Certificate Verification and Download
-Route::get('/certificate/verify/{enrollment_id}', [App\Http\Controllers\StudentEnrollmentController::class, 'completionPage'])
-    ->name('student.materials.achieved')
-    ->middleware(['signed']);
 
-Route::get('/certificate/download/{enrollment_id}', [App\Http\Controllers\StudentEnrollmentController::class, 'downloadCertificate'])
-    ->name('student.certificate.download')
-    ->middleware(['signed']); // Only allows downloads from signed links
+// Remove any ->middleware('signed') attachments here
+
+
+// Public Certificate Verification and Download
+Route::get('/certificate/{hashid}', [StudentEnrollmentController::class, 'completionPage'])->name('student.materials.achieved');
+Route::get('/certificate/download/{hashid}', [StudentEnrollmentController::class, 'downloadCertificate'])->name('student.certificate.download');
 
 // Route to preview the PDF template directly in the browser as HTML
 Route::get('/certificate/preview/{enrollment_id}', [App\Http\Controllers\StudentEnrollmentController::class, 'previewCertificateTemplate'])

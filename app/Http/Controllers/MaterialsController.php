@@ -21,6 +21,7 @@ use App\Models\LessonContent;
 use App\Models\ExamAnswer;
 use App\Models\QuizAnswer;
 use Carbon\Carbon;
+use Vinkla\Hashids\Facades\Hashids;
 use Exception;
 
 
@@ -278,7 +279,7 @@ class MaterialsController extends Controller
             $student->notify(new \App\Notifications\LmsAlertNotification(
                 'New Module Access',
                 $instructorName . ' granted you access to a private module: "' . $material->title . '".',
-                route('dashboard.materials.show', $material->id),
+                route('dashboard.materials.show', $material->hashid),
                 'fas fa-unlock-alt',
                 'text-blue-600'
             ));
@@ -338,7 +339,7 @@ class MaterialsController extends Controller
             ]);
 
             $targetStatus = $request->status;
-            $currentUser = auth()->user(); 
+            $currentUser = auth()->user();
 
             // Fetch the material BEFORE updating so we can check ownership and titles
             $material = \App\Models\Material::with('instructor')->findOrFail($id);
@@ -368,13 +369,13 @@ class MaterialsController extends Controller
                 ->update($updateData);
 
             // 4. --- NOTIFICATION LOGIC ---
-            
+
             // SCENARIO A: Teacher submits a material for approval
             if ($currentUser->role === 'teacher' && $targetStatus === 'pending') {
                 // Fetch all CID and Admin personnel
                 $approvers = \App\Models\User::whereIn('role', ['admin', 'cid'])->get();
                 $teacherName = $currentUser->first_name . ' ' . $currentUser->last_name;
-                
+
                 foreach ($approvers as $approver) {
                     $approver->notify(new \App\Notifications\LmsAlertNotification(
                         'Material Submitted for Review',
@@ -429,7 +430,7 @@ class MaterialsController extends Controller
             if ($targetStatus === 'published')
                 $statusText = 'Published and Live';
             if ($targetStatus === 'pending')
-                $statusText = 'Submitted for Approval'; 
+                $statusText = 'Submitted for Approval';
 
             return response()->json([
                 'success' => true,
@@ -488,7 +489,7 @@ class MaterialsController extends Controller
                     $student->notify(new \App\Notifications\LmsAlertNotification(
                         'New Module Access',
                         $instructorName . ' granted you access to a private module: "' . $material->title . '".',
-                        route('dashboard.materials.show', $material->id),
+                        route('dashboard.materials.show', $material->hashid),
                         'fas fa-unlock-alt',
                         'text-blue-600'
                     ));
@@ -1036,8 +1037,13 @@ class MaterialsController extends Controller
         ]);
     }
 
-    public function show(Material $material)
+    public function show($hashid)
     {
+        $decoded = Hashids::decode($hashid);
+        if (empty($decoded))
+            abort(404, 'Invalid link.');
+        $material = Material::findOrFail($decoded[0]);
+
         // 1. Security Check: If private, verify the student is on the access list
         if (!$material->is_public && auth()->user()->role === 'student') {
             $hasAccess = MaterialAccess::where('material_id', $material->id)
@@ -1156,8 +1162,13 @@ class MaterialsController extends Controller
         ]);
     }
 
-    public function study(Material $material)
+    public function study($hashid)
     {
+
+        $decoded = Hashids::decode($hashid);
+        if (empty($decoded))
+            abort(404, 'Invalid link.');
+        $material = Material::findOrFail($decoded[0]);
         $user = auth()->user();
 
         // 1. Fetch Enrollment to get Saved Progress
@@ -1203,7 +1214,7 @@ class MaterialsController extends Controller
             $examIds = \Illuminate\Support\Facades\DB::table('exams')
                 ->where('material_id', $material->id)
                 ->pluck('id');
-                
+
             // 2. Find all true QUIZZES (strictly filtering out regular reading 'content')
             $quizIds = \Illuminate\Support\Facades\DB::table('lesson_contents')
                 ->join('lessons', 'lesson_contents.lesson_id', '=', 'lessons.id')
@@ -1232,14 +1243,14 @@ class MaterialsController extends Controller
                 \App\Models\MaterialAccess::where('material_id', $material->id)
                     ->where('email', $user->email)
                     ->update(['status' => 'dropped']);
-                
+
                 $message = 'Successfully dropped the course.';
             } else {
                 // Scenario B: It's Read-only -> Completely DELETE the access instance
                 \App\Models\MaterialAccess::where('material_id', $material->id)
                     ->where('email', $user->email)
                     ->delete();
-                
+
                 $message = 'Successfully removed the material.';
             }
 
@@ -1467,38 +1478,43 @@ class MaterialsController extends Controller
                 $user->notify(new \App\Notifications\LmsAlertNotification(
                     'Certificate Unlocked!',
                     'Congratulations! You passed "' . $material->title . '" with a score of ' . $grades['totalScore'] . '% and earned your certificate.',
-                    route('dashboard.materials.certificate', $material->id),
+                    route('dashboard.materials.certificate', $material->hashid),
                     'fas fa-trophy',
                     'text-yellow-500' // Golden color for the trophy
                 ));
-                $redirectUrl = route('dashboard.materials.certificate', $material->id);
+                $redirectUrl = route('dashboard.materials.certificate', $material->hashid);
             } else {
                 // Scenario B: Read-only module completed -> NO System Notification, just redirect
-                $redirectUrl = route('dashboard.materials.show', $material->id);
+                $redirectUrl = route('dashboard.materials.show', $material->hashid);
             }
 
             return response()->json([
-                'success' => true, 
-                'passed' => true, 
+                'success' => true,
+                'passed' => true,
                 'has_certificate' => $hasAssessments,
                 'redirect_url' => $redirectUrl
             ]);
-            
+
         } else {
             $enrollment->update([
                 'status' => 'failed',
                 'progress_data' => json_encode(['lesson' => $totalTimelineCount - 1, 'content' => 0, 'highest_unlocked' => $totalTimelineCount])
             ]);
             return response()->json([
-                'success' => true, 
-                'passed' => false, 
-                'redirect_url' => route('dashboard.materials.result', $material->id)
+                'success' => true,
+                'passed' => false,
+                'redirect_url' => route('dashboard.materials.result', $material->hashid)
             ]);
         }
     }
 
-    public function result(\App\Models\Material $material)
+    public function result($hashid)
     {
+
+        $decoded = Hashids::decode($hashid);
+        if (empty($decoded))
+            abort(404, 'Invalid link.');
+        $material = Material::findOrFail($decoded[0]);
         $user = auth()->user();
         $grades = $this->calculateGrades($material, $user);
 
@@ -1509,8 +1525,13 @@ class MaterialsController extends Controller
         return view('dashboard.partials.student.materials-result', compact('material', 'grades', 'canPassWithExamRetake', 'maxPossibleScore'));
     }
 
-    public function retake(Request $request, \App\Models\Material $material)
+    public function retake(Request $request, $hashid)
     {
+        $decoded = Hashids::decode($hashid);
+        if (empty($decoded))
+            abort(404, 'Invalid link.');
+        $material = Material::findOrFail($decoded[0]);
+
         $user = auth()->user();
         $type = $request->type; // 'exam' or 'module'
 
@@ -1543,17 +1564,30 @@ class MaterialsController extends Controller
             ]);
         }
 
-        return redirect()->route('dashboard.materials.study', $material->id);
+        return redirect()->route('dashboard.materials.study', $material->hashid);
     }
 
-    public function certificate(\App\Models\Material $material)
+    public function certificate($hashid)
     {
+
+
+        // 1. Decode the material hashid from the URL
+        $decoded = \Vinkla\Hashids\Facades\Hashids::decode($hashid);
+        if (empty($decoded)) {
+            abort(404, 'Invalid link.');
+        }
+        $material = Material::findOrFail($decoded[0]);
+
+        // 2. Fetch the enrollment
         $enrollment = \App\Models\Enrollment::with(['user', 'material.instructor'])
             ->where('material_id', $material->id)
             ->where('user_id', auth()->id())
             ->firstOrFail();
+        // ADD THIS LINE TO ENCODE THE HASHID
+        $hashid = \Vinkla\Hashids\Facades\Hashids::encode($enrollment->id);
 
-        return view('dashboard.partials.student.certificate-achieved', compact('enrollment'));
+
+        return view('dashboard.partials.student.certificate-achieved', compact('enrollment', 'hashid'));
     }
 
     public function getNotifications()
@@ -1606,7 +1640,7 @@ class MaterialsController extends Controller
     {
         // Fetch the material with its relationships
         $material = Material::with([
-            'instructor', 
+            'instructor',
             // We add an orderBY constraint to the nested lesson contents
             'lessons' => function ($query) {
                 $query->orderBy('sort_order', 'asc'); // Ensures lessons themselves are in order
@@ -1614,7 +1648,7 @@ class MaterialsController extends Controller
             'lessons.contents' => function ($query) {
                 $query->orderBy('sort_order', 'asc'); // 👈 Sorts contents inside each lesson
             },
-            'exams' 
+            'exams'
         ])->findOrFail($id);
 
         // Authorization: Allow the instructor (owner), admins, or CID personnel
@@ -1792,11 +1826,15 @@ class MaterialsController extends Controller
 
         // Calculate Overall Averages
         $overallAverage = $studentLeaderboard->count() > 0 ? round($studentLeaderboard->avg('score'), 2) : 0;
-        
-        $validQuizScores = $studentLeaderboard->filter(function($s) { return $s->quiz_score_raw !== "0/0"; });
+
+        $validQuizScores = $studentLeaderboard->filter(function ($s) {
+            return $s->quiz_score_raw !== "0/0";
+        });
         $avgQuizScore = $validQuizScores->count() > 0 ? round($validQuizScores->avg('quiz_score'), 2) : 0;
-        
-        $validExamScores = $studentLeaderboard->filter(function($s) { return $s->exam_score_raw !== "0/0"; });
+
+        $validExamScores = $studentLeaderboard->filter(function ($s) {
+            return $s->exam_score_raw !== "0/0";
+        });
         $avgExamScore = $validExamScores->count() > 0 ? round($validExamScores->avg('exam_score'), 2) : 0;
 
         // 7. Item Analysis
@@ -1819,7 +1857,9 @@ class MaterialsController extends Controller
 
                 $opts = [];
                 if ($q->type === 'text') {
-                    $responses = $answers->groupBy(function($a) { return strtolower(trim($a->text_answer ?? '')); });
+                    $responses = $answers->groupBy(function ($a) {
+                        return strtolower(trim($a->text_answer ?? ''));
+                    });
                     foreach ($responses as $text => $group) {
                         $count = $group->count();
                         $isCorrect = $group->where('is_correct', 1)->isNotEmpty();
@@ -1829,15 +1869,18 @@ class MaterialsController extends Controller
                             'is_correct' => $isCorrect
                         ];
                     }
-                    usort($opts, function($a, $b) { return $b->pct <=> $a->pct; }); 
+                    usort($opts, function ($a, $b) {
+                        return $b->pct <=> $a->pct;
+                    });
                 } else {
                     $options = \Illuminate\Support\Facades\DB::table('quiz_options')->where('quiz_id', $q->id)->get();
                     foreach ($options as $o) {
                         if ($q->type === 'checkbox') {
-                            $selCount = $answers->filter(function($a) use ($o) {
-                                if (empty($a->text_answer)) return false;
+                            $selCount = $answers->filter(function ($a) use ($o) {
+                                if (empty($a->text_answer))
+                                    return false;
                                 $ids = explode(',', $a->text_answer);
-                                return in_array((string)$o->id, $ids);
+                                return in_array((string) $o->id, $ids);
                             })->count();
                         } else {
                             $selCount = $answers->where('quiz_option_id', $o->id)->count();
@@ -1863,7 +1906,7 @@ class MaterialsController extends Controller
 
         if ($hasExams) {
             $exams = \Illuminate\Support\Facades\DB::table('exams')->where('material_id', $material->id)->get();
-            
+
             foreach ($exams as $e) {
                 $answers = \Illuminate\Support\Facades\DB::table('exam_answers')->where('exam_id', $e->id)->get();
                 $cCount = $answers->where('is_correct', 1)->count();
@@ -1872,7 +1915,9 @@ class MaterialsController extends Controller
 
                 $opts = [];
                 if ($e->type === 'text') {
-                    $responses = $answers->groupBy(function($a) { return strtolower(trim($a->text_answer ?? '')); });
+                    $responses = $answers->groupBy(function ($a) {
+                        return strtolower(trim($a->text_answer ?? ''));
+                    });
                     foreach ($responses as $text => $group) {
                         $count = $group->count();
                         $isCorrect = $group->where('is_correct', 1)->isNotEmpty();
@@ -1882,15 +1927,18 @@ class MaterialsController extends Controller
                             'is_correct' => $isCorrect
                         ];
                     }
-                    usort($opts, function($a, $b) { return $b->pct <=> $a->pct; }); 
+                    usort($opts, function ($a, $b) {
+                        return $b->pct <=> $a->pct;
+                    });
                 } else {
                     $options = \Illuminate\Support\Facades\DB::table('exam_options')->where('exam_id', $e->id)->get();
                     foreach ($options as $o) {
                         if ($e->type === 'checkbox') {
-                            $selCount = $answers->filter(function($a) use ($o) {
-                                if (empty($a->text_answer)) return false;
+                            $selCount = $answers->filter(function ($a) use ($o) {
+                                if (empty($a->text_answer))
+                                    return false;
                                 $ids = explode(',', $a->text_answer);
-                                return in_array((string)$o->id, $ids);
+                                return in_array((string) $o->id, $ids);
                             })->count();
                         } else {
                             $selCount = $answers->where('exam_option_id', $o->id)->count();
@@ -1942,7 +1990,7 @@ class MaterialsController extends Controller
     {
         // 1. Fetch material & Authorization check
         $material = \App\Models\Material::with('instructor')->findOrFail($id);
-        
+
         if (\Illuminate\Support\Facades\Auth::user()->role === 'teacher' && $material->instructor_id !== \Illuminate\Support\Facades\Auth::id()) {
             abort(403, 'Unauthorized action.');
         }
@@ -2235,7 +2283,10 @@ class MaterialsController extends Controller
             }
 
         // ========================================================================
+        // ========================================================================
 
+        // 3. Setup Export Data
+        $isPrint = $request->input('action') === 'print';
         // 3. Setup Export Data
         $isPrint = $request->input('action') === 'print';
 
@@ -2268,6 +2319,10 @@ class MaterialsController extends Controller
             'isPrint' => $isPrint,
         ];
 
+        // 4. Return Print View or Download PDF
+        if ($isPrint) {
+            return view('dashboard.partials.shared.materials-report', $data);
+        }
         // 4. Return Print View or Download PDF
         if ($isPrint) {
             return view('dashboard.partials.shared.materials-report', $data);

@@ -11,6 +11,7 @@ use Illuminate\Support\Facades\Auth;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Support\Facades\URL;
 use SimpleSoftwareIO\QrCode\Facades\QrCode;
+use Vinkla\Hashids\Facades\Hashids; // <-- Import Hashids
 
 
 class StudentEnrollmentController extends Controller
@@ -36,37 +37,49 @@ class StudentEnrollmentController extends Controller
         return view('dashboard.partials.student.enrolled', compact('activeEnrollments', 'droppedAccesses'));
     }
 
-    public function acceptInvitation(Request $request, Material $material, $email)
-    {
-        // 1. Security check: Ensure the logged-in user is the one invited
-        if (Auth::user()->email !== $email) {
-            abort(403, 'This invitation was sent to a different email address.');
-        }
+    // BEFORE: 
+// public function acceptInvitation(Request $request, Material $material, $email)
 
-        // 2. Process Access Record
-        $access = MaterialAccess::where('material_id', $material->id)
-            ->where('email', $email)
-            ->firstOrFail();
+// AFTER:
+public function acceptInvitation(Request $request, $hashid, $email)
+{
+    // 1. Decode the hashid
+    $decoded = \Vinkla\Hashids\Facades\Hashids::decode($hashid);
+    if (empty($decoded)) {
+        abort(404, 'Invalid or corrupted invitation link.');
+    }
+    
+    // Find the material
+    $material = \App\Models\Material::findOrFail($decoded[0]);
 
-        // 3. Create Enrollment record (tracking progress)
-        Enrollment::firstOrCreate([
-            'material_id' => $material->id,
-            'user_id' => auth()->id(),
-        ], [
-            'status' => 'in_progress'
-        ]);
-
-        // 4. Update the material access status and assign the student's ID
-        $access->update([
-            'status' => 'enrolled',
-            'student_id' => auth()->id()
-        ]);
-
-        // THE FIX: Do a hard redirect straight to the full-page module URL
-        return redirect()->route('student.materials.show', $material->id)
-            ->with('success', 'Successfully enrolled!');
+    // 2. Security check: Ensure the logged-in user is the one invited
+    if (Auth::user()->email !== $email) {
+        abort(403, 'This invitation was sent to a different email address.');
     }
 
+    // 3. Process Access Record
+    $access = \App\Models\MaterialAccess::where('material_id', $material->id)
+        ->where('email', $email)
+        ->firstOrFail();
+
+    // 4. Create Enrollment record (tracking progress)
+    \App\Models\Enrollment::firstOrCreate([
+        'material_id' => $material->id,
+        'user_id' => auth()->id(),
+    ], [
+        'status' => 'in_progress'
+    ]);
+
+    // 5. Update the material access status and assign the student's ID
+    $access->update([
+        'status' => 'enrolled',
+        'student_id' => auth()->id()
+    ]);
+
+    // 6. Redirect back to the show page using the hashid!
+    return redirect()->route('student.materials.show', $hashid)
+        ->with('success', 'Successfully enrolled!');
+}
 
     public function enrollWithCode(Request $request)
     {
@@ -83,6 +96,8 @@ class StudentEnrollmentController extends Controller
         if (!$material) {
             return response()->json(['success' => false, 'message' => 'Invalid or expired access code.']);
         }
+        // Generate the Hashid for the redirect
+    $hashid = \Vinkla\Hashids\Facades\Hashids::encode($material->id);
 
         // 2. Check if already enrolled
         $alreadyEnrolled = Enrollment::where('material_id', $material->id)
@@ -92,7 +107,7 @@ class StudentEnrollmentController extends Controller
         if ($alreadyEnrolled) {
             return response()->json([
                 'success' => true,
-                'redirect_url' => route('student.materials.show', $material->id)
+                'redirect_url' => route('student.materials.show', $material->hashid)
             ]);
         }
 
@@ -114,12 +129,19 @@ class StudentEnrollmentController extends Controller
 
         return response()->json([
             'success' => true,
-            'redirect_url' => route('student.materials.show', $material->id)
+            'redirect_url' => route('student.materials.show', $material->hashid)
         ]);
     }
 
-    public function show($id)
+    public function show($hashid)
     {
+        $decoded = Hashids::decode($hashid);
+        // If the hash is invalid or tampered with, throw a 404
+        if (empty($decoded)) {
+            abort(404, 'Invalid material link.');
+        }
+        $id = $decoded[0];
+    
         $material = Material::findOrFail($id);
         $user = Auth::user();
 
@@ -131,12 +153,12 @@ class StudentEnrollmentController extends Controller
 
         // 2. Check if the user has permission to VIEW the overview page
         $hasAccess = false;
-        
+
         if (in_array($user->role, ['teacher', 'admin', 'superadmin'])) {
             $hasAccess = true;
         } elseif ($material->is_public) {
             // Public modules can be viewed by anyone
-            $hasAccess = true; 
+            $hasAccess = true;
         } else {
             // Private modules: Check if the student's email is on the access list (even if they dropped)
             $hasAccess = MaterialAccess::where('material_id', $material->id)
@@ -168,18 +190,23 @@ class StudentEnrollmentController extends Controller
             ]);
         }
 
-        // Generate a cryptographically signed URL
-        $signedUrl = URL::signedRoute('student.materials.achieved', ['enrollment_id' => $enrollment->id]);
+        $hashid = Hashids::encode($enrollment->id);
+        $url = route('student.materials.achieved', ['hashid' => $hashid]);
 
         return response()->json([
             'success' => true,
-            'redirect_url' => $signedUrl
+            'redirect_url' => $url
         ]);
     }
 
     // 2. UPDATE THIS METHOD
-    public function downloadCertificate($enrollment_id)
+    public function downloadCertificate($hashid)
     {
+
+        $decoded = Hashids::decode($hashid);
+        if (empty($decoded))
+            abort(404, 'Invalid certificate link.');
+        $enrollment_id = $decoded[0];
         // Find the specific enrollment directly
         $enrollment = Enrollment::with(['material.instructor', 'user'])
             ->findOrFail($enrollment_id);
@@ -189,8 +216,9 @@ class StudentEnrollmentController extends Controller
         }
 
         // Generate the encrypted URL for the QR Code
-        $signedUrl = \Illuminate\Support\Facades\URL::signedRoute('student.materials.achieved', ['enrollment_id' => $enrollment->id]);
-        $qrCode = base64_encode(\SimpleSoftwareIO\QrCode\Facades\QrCode::format('svg')->size(100)->generate($signedUrl));
+        // Generate the Hashid URL for the QR Code
+        $url = route('student.materials.achieved', ['hashid' => $hashid]);
+        $qrCode = base64_encode(QrCode::format('svg')->size(100)->generate($url));
 
         $data = [
             'studentName' => $enrollment->user->first_name . ' ' . $enrollment->user->last_name,
@@ -208,19 +236,26 @@ class StudentEnrollmentController extends Controller
     }
 
 
-    public function completionPage($enrollment_id)
+
+    public function completionPage($hashid)
     {
-        // Find the specific enrollment directly
+        $decoded = \Vinkla\Hashids\Facades\Hashids::decode($hashid);
+        if (empty($decoded)) {
+            abort(404, 'Invalid certificate link.');
+        }
+        $enrollment_id = $decoded[0];
+
         $enrollment = Enrollment::with(['material.instructor', 'user'])
             ->findOrFail($enrollment_id);
 
-        // Ensure it is actually completed
         if ($enrollment->status !== 'completed') {
             abort(403, 'This certificate is not valid or incomplete.');
         }
 
-        return view('dashboard.partials.student.certificate-achieved', compact('enrollment'));
+        // You MUST include 'hashid' here
+        return view('dashboard.partials.student.certificate-achieved', compact('enrollment', 'hashid'));
     }
+
 
     public function myCertificates()
     {
@@ -229,13 +264,22 @@ class StudentEnrollmentController extends Controller
             ->where('user_id', Auth::id())
             ->where('status', 'completed')
             ->latest('updated_at') // Sorts by most recently completed
-            ->get();
+            ->get()
+            ->map(function ($enrollment) {
+                // Dynamically add the hashid to each enrollment object
+                $enrollment->hashid = Hashids::encode($enrollment->id);
+                return $enrollment;
+            });
 
         // Pass the data to the certificates blade file
         return view('dashboard.partials.student.certificates', compact('completedEnrollments'));
     }
-    public function previewCertificateTemplate($enrollment_id)
+    public function previewCertificateTemplate($hashid)
     {
+        $decoded = Hashids::decode($hashid);
+        if (empty($decoded))
+            abort(404, 'Invalid certificate link.');
+        $enrollment_id = $decoded[0];
         // 1. Fetch the enrollment with necessary relationships
         $enrollment = Enrollment::with(['material.instructor', 'user'])
             ->findOrFail($enrollment_id);
@@ -246,8 +290,8 @@ class StudentEnrollmentController extends Controller
         }
 
         // 3. Prepare the data (same logic as downloadCertificate)
-        $signedUrl = URL::signedRoute('student.materials.achieved', ['enrollment_id' => $enrollment->id]);
-        $qrCode = base64_encode(QrCode::format('svg')->size(100)->generate($signedUrl));
+        $url = route('student.materials.achieved', ['hashid' => $hashid]);
+        $qrCode = base64_encode(QrCode::format('svg')->size(100)->generate($url));
 
         $data = [
             'studentName' => $enrollment->user->first_name . ' ' . $enrollment->user->last_name,

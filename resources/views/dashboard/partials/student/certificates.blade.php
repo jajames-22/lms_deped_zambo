@@ -13,8 +13,7 @@
             @php $material = $enrollment->material; @endphp
 
             <div class="bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-xl hover:border-[#a52a2a]/30 transition-all duration-300 group flex flex-col overflow-hidden cursor-pointer"
-                onclick="sessionStorage.setItem('lastActiveTab', '{{ route('student.certificates.index') }}'); sessionStorage.setItem('lastActiveBtn', 'nav-certificates-btn'); window.location.href = '{{ URL::signedRoute('student.materials.achieved', ['enrollment_id' => $enrollment->id]) }}'">
-
+                onclick="sessionStorage.setItem('lastActiveTab', '{{ route('student.certificates.index') }}'); sessionStorage.setItem('lastActiveBtn', 'nav-certificates-btn'); window.location.href = '{{ route('student.materials.achieved', ['hashid' => \Vinkla\Hashids\Facades\Hashids::encode($enrollment->id)]) }}'">
                 {{-- Certificate Top Graphic --}}
                 <div
                     class="h-32 bg-gradient-to-br from-[#a52a2a] to-red-900 relative flex items-center justify-center overflow-hidden">

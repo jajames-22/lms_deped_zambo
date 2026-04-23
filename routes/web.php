@@ -118,23 +118,22 @@ Route::middleware(['auth', 'verified', CheckAccountStatus::class])->group(functi
         Route::post('/explore-layout/reorder', [ExploreLayoutController::class, 'reorder'])->name('dashboard.explore-layout.reorder');
         Route::get('/explore-layout/search-materials', [ExploreLayoutController::class, 'searchMaterials'])->name('dashboard.explore-layout.search');
 
-        /*
-        |--------------------------------------------------------------------------
-        | MATERIALS MANAGEMENT & STUDYING
-        |--------------------------------------------------------------------------
-        */
-        // Student Execution & Views
-        Route::get('/materials/{material}/show', [MaterialsController::class, 'show'])->name('dashboard.materials.show');
-        Route::get('/materials/{material}/study', [MaterialsController::class, 'study'])->name('dashboard.materials.study');
-        Route::get('/materials/{material}/result', [MaterialsController::class, 'result'])->name('dashboard.materials.result');
-        Route::get('/materials/{material}/certificate', [MaterialsController::class, 'certificate'])->name('dashboard.materials.certificate');
-        
-        // Student Actions
+        Route::patch('/materials/{material}/toggle-featured', [MaterialsController::class, 'toggleFeatured'])->name('dashboard.materials.toggle-featured');
+
+        Route::get('/materials/{hashid}/show', [MaterialsController::class, 'show'])->name('dashboard.materials.show');
         Route::post('/materials/{material}/enroll', [MaterialsController::class, 'enroll'])->name('materials.enroll');
+        Route::get('/materials/{hashid}/study', [MaterialsController::class, 'study'])->name('dashboard.materials.study');
         Route::post('/materials/{material}/unenroll', [MaterialsController::class, 'unenroll'])->name('dashboard.materials.unenroll');
         Route::post('/materials/{material}/progress', [MaterialsController::class, 'saveProgress'])->name('dashboard.materials.progress');
         Route::post('/materials/{material}/complete', [MaterialsController::class, 'complete'])->name('dashboard.materials.complete');
-        Route::post('/materials/{material}/retake', [MaterialsController::class, 'retake'])->name('dashboard.materials.retake');
+        Route::get('/materials/{hashid}/result', [MaterialsController::class, 'result'])->name('dashboard.materials.result');
+        Route::post('/materials/{hashid}/retake', [MaterialsController::class, 'retake'])->name('dashboard.materials.retake');
+        Route::get('/materials/{hashid}/certificate', [MaterialsController::class, 'certificate'])->name('dashboard.materials.certificate');
+        
+
+        Route::get('/notifications', [MaterialsController::class, 'getNotifications'])->name('dashboard.notifications');
+        Route::post('/notifications/{id}/read', [MaterialsController::class, 'markNotificationRead']);
+
         Route::post('/materials/{material}/download-count', [StudentController::class, 'incrementDownload']);
 
         // Management, Admin & Toggles
@@ -199,7 +198,8 @@ Route::middleware(['auth', 'verified', CheckAccountStatus::class])->group(functi
 |--------------------------------------------------------------------------
 */
 Route::get('/explore', [App\Http\Controllers\DashboardController::class, 'publicExplore'])->name('explore.public');
-Route::get('/explore/materials/{id}/show', [App\Http\Controllers\DashboardController::class, 'publicMaterialShow'])->name('explore.materials.show');
+Route::get('/explore/materials/{hashid}/show', [App\Http\Controllers\DashboardController::class, 'publicMaterialShow'])->name('explore.materials.show');
+// web.php (Guest Section)
 Route::get('/explore/tags/{tag}/json', [App\Http\Controllers\DashboardController::class, 'viewByTagJson'])->name('explore.tag.json');
 
 Route::middleware(['auth', CheckAccountStatus::class])->group(function () {

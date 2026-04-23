@@ -21,7 +21,7 @@
             <div class="flex transition-transform duration-700 ease-in-out h-full w-full" id="carousel-track">
                 @foreach($featuredMaterials as $index => $material)
                     <div class="w-full h-full flex-shrink-0 relative cursor-pointer"
-                         onclick="window.location.href = '{{ route('dashboard.materials.show', $material->id) }}';">
+                         onclick="window.location.href = '{{ route('dashboard.materials.show', $material->hashid) }}';">
                         
                         <div class="absolute inset-0 bg-gradient-to-r from-black/80 via-black/40 to-transparent z-10"></div>
                         <img src="{{ $material->thumbnail ? asset('storage/' . $material->thumbnail) : 'https://images.unsplash.com/photo-1532094349884-543bc11b234d?q=80&w=1000' }}" 
@@ -141,7 +141,7 @@
                 <div class="flex overflow-x-auto no-scrollbar gap-6 pb-6 snap-x px-2">
                     @foreach($section->materials as $material)
                         <div class="w-72 flex-none snap-start group bg-white border border-gray-200 hover:border-[#a52a2a]/30 rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-all duration-300 flex flex-col cursor-pointer"
-                             onclick="window.location.href = '{{ route('dashboard.materials.show', $material->id) }}';">
+                             onclick="window.location.href = '{{ route('dashboard.materials.show', $material->hashid) }}';">
                             <div class="relative w-full aspect-[4/3] overflow-hidden">
                                 <img src="{{ $material->thumbnail ? asset('storage/' . $material->thumbnail) : 'https://images.unsplash.com/photo-1509228468518-180dd4864904?q=80&w=400' }}" 
                                      class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500">
@@ -172,7 +172,7 @@
         <div class="flex overflow-x-auto no-scrollbar pb-4 px-2">
             @foreach($popularMaterials as $index => $material)
             <div class="flex-none flex items-center gap-4 group cursor-pointer"
-                 onclick="window.location.href = '{{ route('dashboard.materials.show', $material->id) }}';">
+                 onclick="window.location.href = '{{ route('dashboard.materials.show', $material->hashid) }}';">
                 <span class="text-7xl md:text-8xl font-black text-gray-200 group-hover:text-[#a52a2a]/20 transition-colors italic leading-none">
                     {{ $index + 1 }}
                 </span>
@@ -207,7 +207,7 @@
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 px-2">
             @forelse($schoolMaterials as $material)
                 <div class="flex items-start gap-4 p-4 rounded-2xl hover:bg-white hover:shadow-xl border border-transparent hover:border-gray-100 transition-all cursor-pointer group bg-gray-50/50"
-                     onclick="window.location.href = '{{ route('dashboard.materials.show', $material->id) }}';">
+                     onclick="window.location.href = '{{ route('dashboard.materials.show', $material->hashid) }}';">
                     <div class="h-24 w-24 flex-none rounded-xl bg-gray-200 overflow-hidden relative shadow-sm">
                         <img src="{{ $material->thumbnail ? asset('storage/' . $material->thumbnail) : 'https://images.unsplash.com/photo-1497633762265-9d179a990aa6?q=80&w=200' }}" 
                              class="w-full h-full object-cover group-hover:scale-110 transition-transform">
@@ -297,7 +297,7 @@
                     
                     return `
                         <div class="group bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-all cursor-pointer flex flex-col"
-                             onclick="window.location.href = '/dashboard/materials/${material.id}/show';">
+                             onclick="window.location.href = '/dashboard/materials/${material.hashid}/show';">ha
                             <div class="relative aspect-[4/3] overflow-hidden w-full">
                                 <img src="${imgUrl}" class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500">
                                 <div class="absolute inset-0 bg-black/20 group-hover:bg-black/40 transition-colors duration-500"></div>

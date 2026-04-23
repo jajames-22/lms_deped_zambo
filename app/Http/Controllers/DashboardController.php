@@ -7,6 +7,7 @@ use Illuminate\Support\Facades\Auth;
 use App\Models\Quadrant;
 use App\Models\Assessment;
 use App\Models\School;
+use Vinkla\Hashids\Facades\Hashids;
 use App\Models\User;
 use App\Models\Material;
 use Illuminate\Support\Facades\Storage;
@@ -220,14 +221,12 @@ class DashboardController extends Controller
                 'pendingStudentsCount',
                 'unassignedUsersCount'
             ));
-        }
-
-        elseif ($role === 'cid') {
+        } elseif ($role === 'cid') {
             // --- A. TOP METRICS ---
             $pendingMaterials = \App\Models\Material::where('status', 'pending')->count();
             $publishedMaterials = \App\Models\Material::where('status', 'published')->count();
             $activeTeachers = \App\Models\User::where('role', 'teacher')->where('status', 'verified')->count();
-            
+
             $totalExamAnswers = \App\Models\ExamAnswer::count();
             $correctExamAnswers = \App\Models\ExamAnswer::where('is_correct', true)->count();
             $averageScore = $totalExamAnswers > 0 ? round(($correctExamAnswers / $totalExamAnswers) * 100, 1) : 0;
@@ -245,10 +244,10 @@ class DashboardController extends Controller
             for ($i = 5; $i >= 0; $i--) {
                 $month = now()->subMonths($i);
                 $masteryLabels[] = $month->format('M');
-                
+
                 $monthAnswers = \App\Models\ExamAnswer::whereMonth('created_at', $month->month)
-                                                      ->whereYear('created_at', $month->year);
-                
+                    ->whereYear('created_at', $month->year);
+
                 $tot = $monthAnswers->count();
                 $cor = (clone $monthAnswers)->where('is_correct', true)->count();
                 $masteryData[] = $tot > 0 ? round(($cor / $tot) * 100) : 0;
@@ -478,7 +477,7 @@ class DashboardController extends Controller
     public function loadMaterialsPartial()
     {
         $role = Auth::user()->role;
-        
+
         if (in_array($role, ['admin', 'cid'])) {
             return view('dashboard.partials.admin.materials');
         } else if ($role === 'teacher') {
@@ -691,7 +690,7 @@ class DashboardController extends Controller
     {
         // 1. Decode the input. It might be a single string or a JSON array.
         $decodedTags = json_decode(urldecode($tag), true);
-        
+
         // If it's not JSON (just a single string), put it into an array
         $searchTags = is_array($decodedTags) ? $decodedTags : [trim(urldecode($tag))];
 
@@ -702,9 +701,9 @@ class DashboardController extends Controller
             ->whereHas('tags', function ($query) use ($searchTags) {
                 // Search for materials matching ANY of the tags in the list
                 $query->whereIn('name', $searchTags);
-                
+
                 // Fallback: Check if any tag IDs were passed
-                foreach($searchTags as $t) {
+                foreach ($searchTags as $t) {
                     if (is_numeric($t)) {
                         $query->orWhere('tags.id', $t);
                     }
@@ -730,8 +729,16 @@ class DashboardController extends Controller
     }
 
 
-    public function publicMaterialShow($id)
+    public function publicMaterialShow($hashid)
     {
+        
+        $decoded = Hashids::decode($hashid);
+        // If the hash is invalid or tampered with, throw a 404
+        if (empty($decoded)) {
+            abort(404, 'Invalid material link.');
+        }
+        $id = $decoded[0];
+    
         // Fetch the material, ensuring it is public and published
         $material = \App\Models\Material::with(['instructor', 'tags', 'lessons.contents', 'exams'])
             ->where('is_public', true)
@@ -1303,8 +1310,8 @@ class DashboardController extends Controller
         // --- PRIVACY & ENROLLMENT LOGIC ---
         // Admins & CID bypass this and see everything. 
         if (!in_array($user->role, ['admin', 'cid'])) {
-            $materialsQuery->where(function($q) use ($user) {
-                
+            $materialsQuery->where(function ($q) use ($user) {
+
                 // Condition A: Material is public 
                 // ⚠️ NOTE: Change 'is_public' to match your actual database column 
                 // (e.g., if you use a string, change to ->where('visibility', 'public') )

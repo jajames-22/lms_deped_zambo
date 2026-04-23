@@ -32,6 +32,14 @@ class Material extends Model
         'is_featured' => 'boolean', 
     ];
 
+    protected $appends = ['hashid']; 
+
+    // Creates a custom $material->hashid attribute
+    public function getHashidAttribute()
+    {
+        return \Vinkla\Hashids\Facades\Hashids::encode($this->id);
+    }
+
     public function instructor()
     {
         return $this->belongsTo(User::class, 'instructor_id');

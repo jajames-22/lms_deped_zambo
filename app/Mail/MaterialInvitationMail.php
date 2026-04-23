@@ -20,14 +20,19 @@ class MaterialInvitationMail extends Mailable
 
     public function __construct(Material $material, $email)
     {
+        // 1. Assign the injected variables to the class properties FIRST
         $this->material = $material;
         $this->email = $email;
         
-        // Create a signed URL that expires in 7 days for security
+        // 2. Create the signed URL using the fixed syntax
         $this->enrollmentUrl = URL::temporarySignedRoute(
             'student.materials.enroll', 
             now()->addDays(7), 
-            ['material' => $material->id, 'email' => $email]
+            [
+                // FIXED: Removed the extra $ before material
+                'hashid' => \Vinkla\Hashids\Facades\Hashids::encode($this->material->id), 
+                'email' => $this->email
+            ]
         );
     }
 
@@ -41,7 +46,6 @@ class MaterialInvitationMail extends Mailable
     public function content(): Content
     {
         return new Content(
-            // Make sure to create this blade view in resources/views/emails/material_invite.blade.php
             view: 'emails.material-invite', 
         );
     }

@@ -193,7 +193,7 @@
 
     <header class="bg-white border-b border-gray-200 h-16 shrink-0 flex items-center justify-between px-4 lg:px-6 z-50 shadow-sm relative">
         <div class="flex items-center gap-4 w-1/4 lg:w-1/3 shrink-0">
-            <a href="{{ route('dashboard.materials.show', $material->id) }}" 
+            <a href="{{ route('dashboard.materials.show', $material->hashid) }}" 
                class="flex items-center text-gray-500 hover:text-[#a52a2a] font-bold transition-colors group px-2 lg:px-3 py-2 rounded-xl hover:bg-red-50">
                 <i class="fas fa-arrow-left mr-2 group-hover:-translate-x-1 transition-transform"></i>
                 <span class="hidden sm:inline">Exit</span>

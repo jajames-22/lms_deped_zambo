@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -13,10 +14,19 @@
     
     <title>Explore Materials - DepEd Zamboanga</title>
     <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        .font-cinzel {
+            font-family: 'Cinzel', serif;
+        }
+
         /* Hide scrollbar for Chrome, Safari and Opera */
         .no-scrollbar::-webkit-scrollbar {
             display: none;
         }
+
         /* Hide scrollbar for IE, Edge and Firefox */
         .no-scrollbar {
             -ms-overflow-style: none;  /* IE and Edge */
@@ -27,6 +37,7 @@
             font-family: 'Cinzel', serif;
         }
     </style>
+
 </head>
 <body class="bg-gray-50 text-gray-800 relative font-sans selection:bg-red-900 selection:text-white">
 
@@ -80,14 +91,14 @@
             <button onclick="navigateBack()" class="cursor-pointer flex items-center w-fit text-gray-500 hover:text-[#a52a2a] font-bold transition-colors group px-2 py-1 rounded-lg hover:bg-red-50 relative z-10 mb-2"> 
                 <i class="fas fa-arrow-left mr-2 group-hover:-translate-x-1 transition-transform"></i> <span class="hidden sm:inline">Back to Home</span> 
             </button>
-            
+
             {{-- PAGE HEADER & SEARCH BAR --}}
             <div class="px-2 flex flex-col md:flex-row md:items-end justify-between gap-6 mb-4 border-b border-gray-200/60 pb-6">
                 <div>
                     <h1 class="text-3xl md:text-4xl font-black text-gray-900 tracking-tight">Public Materials</h1>
                     <p class="text-gray-500 mt-2 text-sm md:text-base">Explore open-access learning resources from DepEd Zamboanga.</p>
                 </div>
-                
+
                 {{-- SEARCH BAR --}}
                 <div class="relative w-full md:w-80 group shrink-0">
                     <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
@@ -101,7 +112,7 @@
                     </button>
                 </div>
             </div>
-            
+
             {{-- 1. FEATURED BANNER CAROUSEL --}}
             @if($featuredMaterials->isNotEmpty())
                 <div class="relative w-full h-80 md:h-[400px] rounded-2xl overflow-hidden shadow-xl group" id="featured-carousel">
@@ -113,7 +124,7 @@
                                  data-desc="{{ $material->description }}" 
                                  data-instructor="{{ $material->instructor->first_name ?? 'Instructor' }} {{ $material->instructor->last_name ?? '' }}" 
                                  data-img="{{ $material->thumbnail ? asset('storage/' . $material->thumbnail) : 'https://images.unsplash.com/photo-1532094349884-543bc11b234d?q=80&w=1000' }}"
-                                 onclick="window.location.href = '{{ route('explore.materials.show', $material->id) }}';">
+                                 onclick="window.location.href = '{{ route('explore.materials.show', $material->hashid) }}';">
                                 
                                 <div class="absolute inset-0 bg-gradient-to-r from-black/80 via-black/40 to-transparent z-10"></div>
                                 <img src="{{ $material->thumbnail ? asset('storage/' . $material->thumbnail) : 'https://images.unsplash.com/photo-1532094349884-543bc11b234d?q=80&w=1000' }}" 
@@ -156,8 +167,9 @@
                                     <p class="text-xs text-gray-500 mt-1">{{ $section->subtitle }}</p>
                                 @endif
                             </div>
-                            
-                            <button onclick="showCategory('{{ addslashes($section->tag_name) }}', '{{ addslashes($section->title) }}')"
+
+                            <button
+                                onclick="showCategory('{{ addslashes($section->tag_name) }}', '{{ addslashes($section->title) }}')"
                                 class="text-xs font-bold text-[#a52a2a] uppercase tracking-widest hover:underline cursor-pointer">
                                 See All
                             </button>
@@ -171,11 +183,13 @@
                                      data-desc="{{ $material->description }}" 
                                      data-instructor="{{ $material->instructor->first_name ?? 'Instructor' }} {{ $material->instructor->last_name ?? '' }}" 
                                      data-img="{{ $material->thumbnail ? asset('storage/' . $material->thumbnail) : 'https://images.unsplash.com/photo-1509228468518-180dd4864904?q=80&w=400' }}"
-                                     onclick="window.location.href = '{{ route('explore.materials.show', $material->id) }}';">
+                                     onclick="window.location.href = '{{ route('explore.materials.show', $material->hashid) }}';">
                                     <div class="relative w-full aspect-[4/3] overflow-hidden">
-                                        <img src="{{ $material->thumbnail ? asset('storage/' . $material->thumbnail) : 'https://images.unsplash.com/photo-1509228468518-180dd4864904?q=80&w=400' }}" 
-                                             class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500">
-                                        <div class="absolute inset-0 bg-black/20 group-hover:bg-black/40 transition-colors duration-500"></div>
+                                        <img src="{{ $material->thumbnail ? asset('storage/' . $material->thumbnail) : 'https://images.unsplash.com/photo-1509228468518-180dd4864904?q=80&w=400' }}"
+                                            class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500">
+                                        <div
+                                            class="absolute inset-0 bg-black/20 group-hover:bg-black/40 transition-colors duration-500">
+                                        </div>
                                     </div>
                                     <div class="p-4">
                                         <h3 class="font-bold text-gray-900 text-sm line-clamp-1 group-hover:text-[#a52a2a] transition-colors duration-300">{{ $material->title }}</h3>
@@ -204,7 +218,7 @@
                          data-desc="{{ $material->description }}" 
                          data-instructor="{{ $material->instructor->first_name ?? 'Instructor' }} {{ $material->instructor->last_name ?? '' }}" 
                          data-img="{{ $material->thumbnail ? asset('storage/' . $material->thumbnail) : 'https://images.unsplash.com/photo-1517694712202-14dd9538aa97?q=80&w=300' }}"
-                         onclick="window.location.href = '{{ route('explore.materials.show', $material->id) }}';">
+                         onclick="window.location.href = '{{ route('explore.materials.show', $material->hashid) }}';">
                         <span class="text-6xl md:text-7xl font-black text-gray-200 group-hover:text-[#a52a2a]/20 transition-colors italic leading-none">{{ $index + 1 }}</span>
                         <div class="h-56 w-65 rounded-xl overflow-hidden -translate-x-6 shadow-md relative border border-gray-100">
                             <img src="{{ $material->thumbnail ? asset('storage/' . $material->thumbnail) : 'https://images.unsplash.com/photo-1517694712202-14dd9538aa97?q=80&w=300' }}" 
@@ -242,8 +256,11 @@
                     <i class="fas fa-arrow-left group-hover:-translate-x-1 transition-transform"></i>
                 </button>
                 <div>
-                    <p id="browsing-label" class="text-[10px] text-[#a52a2a] font-black uppercase tracking-[0.2em] mb-1">Browsing Category</p>
-                    <h1 id="selected-category-title" class="text-3xl md:text-4xl font-black text-gray-900 tracking-tight"></h1>
+                    <p id="browsing-label"
+                        class="text-[10px] text-[#a52a2a] font-black uppercase tracking-[0.2em] mb-1">Browsing Category
+                    </p>
+                    <h1 id="selected-category-title"
+                        class="text-3xl md:text-4xl font-black text-gray-900 tracking-tight"></h1>
                 </div>
             </div>
 
@@ -354,9 +371,9 @@
 
             // Filter results
             const results = Array.from(uniqueMaterials.values()).filter(mat => {
-                return mat.title.toLowerCase().includes(query) || 
-                       mat.desc.toLowerCase().includes(query) || 
-                       mat.instructor.toLowerCase().includes(query);
+                return mat.title.toLowerCase().includes(query) ||
+                    mat.desc.toLowerCase().includes(query) ||
+                    mat.instructor.toLowerCase().includes(query);
             });
 
             // Render Results
@@ -395,10 +412,10 @@
         @if(isset($featuredMaterials) && $featuredMaterials->count() > 1)
             window.currentSlide = 0;
             window.totalSlides = {{ $featuredMaterials->count() }};
-            
+
             if (window.carouselInterval) clearInterval(window.carouselInterval);
 
-            window.updateCarousel = function() {
+            window.updateCarousel = function () {
                 const track = document.getElementById('carousel-track');
                 const dots = document.querySelectorAll('.carousel-dot');
                 if (!track) return;
@@ -414,23 +431,23 @@
                 });
             }
 
-            window.moveCarousel = function(direction) {
+            window.moveCarousel = function (direction) {
                 window.currentSlide = (window.currentSlide + direction + window.totalSlides) % window.totalSlides;
                 window.updateCarousel();
                 window.resetInterval();
             }
 
-            window.goToSlide = function(index) {
+            window.goToSlide = function (index) {
                 window.currentSlide = index;
                 window.updateCarousel();
                 window.resetInterval();
             }
 
-            window.startInterval = function() {
-                window.carouselInterval = setInterval(() => { window.moveCarousel(1); }, 5000); 
+            window.startInterval = function () {
+                window.carouselInterval = setInterval(() => { window.moveCarousel(1); }, 5000);
             }
 
-            window.resetInterval = function() {
+            window.resetInterval = function () {
                 clearInterval(window.carouselInterval);
                 window.startInterval();
             }
@@ -441,42 +458,42 @@
             }, 50);
         @endif
 
-        // See All Category Logic
-        function showCategory(tagName, displayName) {
-            const mainContent = document.getElementById('main-explore-content');
-            const filteredContent = document.getElementById('filtered-explore-content');
-            const categoryTitle = document.getElementById('selected-category-title');
-            const materialsGrid = document.getElementById('filtered-materials-grid');
-            const browsingLabel = document.getElementById('browsing-label');
+            // See All Category Logic
+            function showCategory(tagName, displayName) {
+                const mainContent = document.getElementById('main-explore-content');
+                const filteredContent = document.getElementById('filtered-explore-content');
+                const categoryTitle = document.getElementById('selected-category-title');
+                const materialsGrid = document.getElementById('filtered-materials-grid');
+                const browsingLabel = document.getElementById('browsing-label');
 
-            mainContent.classList.add('hidden');
-            filteredContent.classList.remove('hidden');
+                mainContent.classList.add('hidden');
+                filteredContent.classList.remove('hidden');
 
-            browsingLabel.innerText = 'Browsing Category';
-            categoryTitle.innerText = displayName;
-            materialsGrid.innerHTML = `
+                browsingLabel.innerText = 'Browsing Category';
+                categoryTitle.innerText = displayName;
+                materialsGrid.innerHTML = `
                 <div class="col-span-full py-20 text-center">
                     <i class="fas fa-circle-notch fa-spin text-4xl text-[#a52a2a]/30"></i>
                     <p class="mt-4 text-gray-400 font-medium">Loading materials...</p>
                 </div>
             `;
 
-            window.scrollTo({ top: 0, behavior: 'smooth' });
+                window.scrollTo({ top: 0, behavior: 'smooth' });
 
-            fetch(`/explore/tags/${encodeURIComponent(tagName)}/json`)
-                .then(response => response.json())
-                .then(data => {
-                    if (data.length === 0) {
-                        materialsGrid.innerHTML = '<div class="col-span-full py-20 text-center"><p class="text-gray-500">No materials found in this category.</p></div>';
-                        return;
-                    }
+                fetch(`/explore/tags/${encodeURIComponent(tagName)}/json`)
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.length === 0) {
+                            materialsGrid.innerHTML = '<div class="col-span-full py-20 text-center"><p class="text-gray-500">No materials found in this category.</p></div>';
+                            return;
+                        }
 
-                    materialsGrid.innerHTML = data.map(material => {
-                        const imgUrl = material.thumbnail ? '/storage/' + material.thumbnail : 'https://images.unsplash.com/photo-1509228468518-180dd4864904?q=80&w=400';
-                        const instName = material.instructor ? material.instructor.first_name + ' ' + (material.instructor.last_name || '') : 'Instructor';
-                        const desc = material.description || '';
-                        
-                        return `
+                        materialsGrid.innerHTML = data.map(material => {
+                            const imgUrl = material.thumbnail ? '/storage/' + material.thumbnail : 'https://images.unsplash.com/photo-1509228468518-180dd4864904?q=80&w=400';
+                            const instName = material.instructor ? material.instructor.first_name + ' ' + (material.instructor.last_name || '') : 'Instructor';
+                            const desc = material.description || '';
+
+                            return `
                             <div class="group bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-all cursor-pointer flex flex-col"
                                  onclick="window.location.href = '/explore/materials/${material.id}/show';">
                                 <div class="relative aspect-[4/3] overflow-hidden w-full">
@@ -492,12 +509,12 @@
                                 </div>
                             </div>
                         `;
-                    }).join('');
-                })
-                .catch(error => {
-                    materialsGrid.innerHTML = '<div class="col-span-full py-20 text-center text-red-500">Failed to load materials. Please try again.</div>';
-                });
-        }
+                        }).join('');
+                    })
+                    .catch(error => {
+                        materialsGrid.innerHTML = '<div class="col-span-full py-20 text-center text-red-500">Failed to load materials. Please try again.</div>';
+                    });
+            }
 
         function resetExploreView() {
             document.getElementById('public-search-input').value = '';
@@ -507,4 +524,5 @@
         }
     </script>
 </body>
+
 </html>
