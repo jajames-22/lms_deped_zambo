@@ -2,7 +2,7 @@
 
 namespace App\Imports;
 
-use App\Models\Enrollment;
+use App\Models\MaterialAccess; // 👈 Changed from Enrollment
 use App\Models\User;
 use Maatwebsite\Excel\Concerns\ToModel;
 use Maatwebsite\Excel\Concerns\WithHeadingRow;
@@ -18,26 +18,28 @@ class EmailMaterialsAccessImport implements ToModel, WithHeadingRow
 
     public function model(array $row)
     {
-        // Fetch the email from the row
+        // Fetch the email from the row (Requires header in CSV to be 'email')
         $email = $row['email'] ?? null;
-        if (!$email)
+        
+        if (!$email) {
             return null;
+        }
 
-        // Check if this exact email is already in the list for this material
-        $exists = Enrollment::where('material_id', $this->materialId)
+        // 👈 Changed: Check the MaterialAccess table, not Enrollment
+        $exists = MaterialAccess::where('material_id', $this->materialId)
             ->where('email', $email)
             ->exists();
 
-        if ($exists)
+        if ($exists) {
             return null;
+        }
 
         // Check if they already have an account in the system
         $user = User::where('email', $email)->first();
 
-        // Save them. If they have an account -> 'enrolled'. If not -> 'pending'.
-        return new Enrollment([
+        // 👈 Changed: Save to MaterialAccess instead of Enrollment
+        return new MaterialAccess([
             'material_id' => $this->materialId,
-            'user_id' => $user ? $user->id : null,
             'email' => $email,
             'status' => $user ? 'enrolled' : 'pending',
         ]);
