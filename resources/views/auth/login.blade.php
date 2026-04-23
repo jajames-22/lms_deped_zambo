@@ -6,14 +6,62 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Login - DepEd Zamboanga</title>
     @vite(['resources/css/app.css', 'resources/js/app.js'])
+
+    {{-- Ensure Cinzel Font is Loaded --}}
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700;900&display=swap" rel="stylesheet">
+
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+        .font-cinzel {
+            font-family: 'Cinzel', serif;
+        }
+    </style>
 </head>
 
 <body class="font-sans antialiased text-gray-900 bg-gray-50">
     
-    <header style="background-color: #a52a2a;" class="fixed p-1 flex justify-center z-40 w-full items-center shadow-md">
-        <img src="{{ asset('storage/images/deped_zambo_header.png') }}" class="w-full max-w-4xl h-auto block"
-            alt="DepEd Zamboanga Header">
-    </header>
+    <header class="bg-[#a52a2a] text-white flex justify-center shadow-lg fixed top-0 z-50 w-full no-print">
+            <div class="px-4 py-3 md:px-8 md:py-6 max-w-[1200px] w-full">
+                <div class="flex flex-row sm:flex-row items-center justify-between gap-2 md:gap-6 relative">
+                    
+                    {{-- Mobile Menu Trigger --}}
+                    <button @click="sidebarOpen = true" class="absolute left-0 top-0 lg:hidden text-white hover:text-white/80 transition p-1">
+                        <i data-lucide="menu" class="w-6 h-6"></i>
+                    </button>
+
+                    {{-- Left Logos --}}
+                    <div class="flex items-center gap-2 md:gap-4 shrink-0 md:mt-0">
+                        <img src="{{ asset('images/deped.png') }}" alt="DepEd" class="h-10 sm:h-12 md:h-16 w-auto drop-shadow-md">
+                        <img src="{{ asset('images/r9.png') }}" alt="Region IX" class="h-10 sm:h-12 md:h-16 w-auto drop-shadow-md">
+                    </div>
+
+                    {{-- Central Branding --}}
+                    <div class="flex flex-col font-cinzel text-white items-start sm:items-start text-center sm:text-left flex-1 px-4 w-full">
+                        {{-- Wrapper to constrain the width of the horizontal line to exactly the text width --}}
+                        <div class="inline-flex flex-col items-start sm:items-start w-fit">
+                            <span class="text-[8px] sm:text-[10px] tracking-widest leading-tight font-bold">Republic of the Philippines</span>
+                            <span class="text-[8px] sm:text-[10px] tracking-widest leading-tight font-bold">Department of Education</span>
+                            
+                            {{-- Horizontal Line (Now restricted by the parent wrapper) --}}
+                            <div class="w-full border-b border-white my-1"></div>
+                            
+                            <h1 class="text-sm sm:text-lg md:text-xl lg:text-2xl tracking-wide font-bold leading-tight">
+                                {{ $site_settings->header_title ?? 'Zamboanga City Division' }}
+                            </h1>
+                        </div>
+                    </div>
+
+                    {{-- Right Logo --}}
+                    <div class="block md:block shrink-0">
+                        <img src="{{ asset('images/ts.png') }}" alt="Transparency Seal" class=" opacity-90 h-10 sm:h-12 md:h-16 w-auto drop-shadow-md">
+                    </div>
+                </div>
+            </div>
+        </header>
 
     <main>
         <section style="background-image: url('{{ asset('storage/images/deped_zamdiv.jpg') }}');"
