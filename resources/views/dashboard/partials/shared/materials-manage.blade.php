@@ -94,13 +94,13 @@
         <div class="flex flex-wrap items-center gap-2">
             
             {{-- Preview Button --}}
-            <a href="{{ url('/dashboard/materials/'.$material->id.'/preview') }}" class="px-4 py-2.5 bg-white text-gray-700 border border-gray-200 font-bold rounded-xl hover:bg-gray-50 transition shadow-sm flex items-center justify-center gap-2 text-sm">
+            <a href="{{ url('/dashboard/materials/'.$material->hashid.'/preview') }}" class="px-4 py-2.5 bg-white text-gray-700 border border-gray-200 font-bold rounded-xl hover:bg-gray-50 transition shadow-sm flex items-center justify-center gap-2 text-sm">
                 <i class="fas fa-desktop text-[#a52a2a]"></i> Preview
             </a>
 
             @if($isOwner || $isAdminOrCid)
                 {{-- Evaluation Result Button --}}
-                <a href="{{ url('/dashboard/materials/'.$material->id.'/evaluation-result') }}" class="px-4 py-2.5 bg-white text-gray-700 border border-gray-200 font-bold rounded-xl hover:bg-gray-50 transition shadow-sm flex items-center justify-center gap-2 text-sm">
+                <a href="{{ url('/dashboard/materials/'.$material->hashid.'/evaluation-result') }}" class="px-4 py-2.5 bg-white text-gray-700 border border-gray-200 font-bold rounded-xl hover:bg-gray-50 transition shadow-sm flex items-center justify-center gap-2 text-sm">
                     <i class="fas fa-clipboard-check text-blue-600"></i> Evaluation
                 </a>
                 
