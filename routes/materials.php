@@ -8,7 +8,7 @@ use App\Http\Middleware\CheckRole;
 // ==========================================
 // STUDENT ROUTE (Must be outside the dashboard prefix/middleware)
 // ==========================================
-Route::get('/materials/{material}/enroll/{email}', [StudentEnrollmentController::class, 'acceptInvitation'])
+Route::get('/materials/{hashid}/enroll/{email}', [StudentEnrollmentController::class, 'acceptInvitation'])
     ->name('student.materials.enroll')
     ->middleware(['signed', 'auth']);
 

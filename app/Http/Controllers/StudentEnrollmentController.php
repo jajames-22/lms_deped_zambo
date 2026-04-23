@@ -37,37 +37,49 @@ class StudentEnrollmentController extends Controller
         return view('dashboard.partials.student.enrolled', compact('activeEnrollments', 'droppedAccesses'));
     }
 
-    public function acceptInvitation(Request $request, Material $material, $email)
-    {
-        // 1. Security check: Ensure the logged-in user is the one invited
-        if (Auth::user()->email !== $email) {
-            abort(403, 'This invitation was sent to a different email address.');
-        }
+    // BEFORE: 
+// public function acceptInvitation(Request $request, Material $material, $email)
 
-        // 2. Process Access Record
-        $access = MaterialAccess::where('material_id', $material->id)
-            ->where('email', $email)
-            ->firstOrFail();
+// AFTER:
+public function acceptInvitation(Request $request, $hashid, $email)
+{
+    // 1. Decode the hashid
+    $decoded = \Vinkla\Hashids\Facades\Hashids::decode($hashid);
+    if (empty($decoded)) {
+        abort(404, 'Invalid or corrupted invitation link.');
+    }
+    
+    // Find the material
+    $material = \App\Models\Material::findOrFail($decoded[0]);
 
-        // 3. Create Enrollment record (tracking progress)
-        Enrollment::firstOrCreate([
-            'material_id' => $material->id,
-            'user_id' => auth()->id(),
-        ], [
-            'status' => 'in_progress'
-        ]);
-
-        // 4. Update the material access status and assign the student's ID
-        $access->update([
-            'status' => 'enrolled',
-            'student_id' => auth()->id()
-        ]);
-
-        // THE FIX: Do a hard redirect straight to the full-page module URL
-        return redirect()->route('student.materials.show', $material->id)
-            ->with('success', 'Successfully enrolled!');
+    // 2. Security check: Ensure the logged-in user is the one invited
+    if (Auth::user()->email !== $email) {
+        abort(403, 'This invitation was sent to a different email address.');
     }
 
+    // 3. Process Access Record
+    $access = \App\Models\MaterialAccess::where('material_id', $material->id)
+        ->where('email', $email)
+        ->firstOrFail();
+
+    // 4. Create Enrollment record (tracking progress)
+    \App\Models\Enrollment::firstOrCreate([
+        'material_id' => $material->id,
+        'user_id' => auth()->id(),
+    ], [
+        'status' => 'in_progress'
+    ]);
+
+    // 5. Update the material access status and assign the student's ID
+    $access->update([
+        'status' => 'enrolled',
+        'student_id' => auth()->id()
+    ]);
+
+    // 6. Redirect back to the show page using the hashid!
+    return redirect()->route('student.materials.show', $hashid)
+        ->with('success', 'Successfully enrolled!');
+}
 
     public function enrollWithCode(Request $request)
     {
@@ -84,6 +96,8 @@ class StudentEnrollmentController extends Controller
         if (!$material) {
             return response()->json(['success' => false, 'message' => 'Invalid or expired access code.']);
         }
+        // Generate the Hashid for the redirect
+    $hashid = \Vinkla\Hashids\Facades\Hashids::encode($material->id);
 
         // 2. Check if already enrolled
         $alreadyEnrolled = Enrollment::where('material_id', $material->id)
@@ -93,7 +107,7 @@ class StudentEnrollmentController extends Controller
         if ($alreadyEnrolled) {
             return response()->json([
                 'success' => true,
-                'redirect_url' => route('student.materials.show', $material->id)
+                'redirect_url' => route('student.materials.show', $material->hashid)
             ]);
         }
 
@@ -115,7 +129,7 @@ class StudentEnrollmentController extends Controller
 
         return response()->json([
             'success' => true,
-            'redirect_url' => route('student.materials.show', $material->id)
+            'redirect_url' => route('student.materials.show', $material->hashid)
         ]);
     }
 
