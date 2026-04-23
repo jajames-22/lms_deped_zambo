@@ -120,7 +120,7 @@
                         @endif
                     @elseif($statusStr === 'pending')
                         @if(in_array($userRole, ['admin', 'cid']))
-                            <button onclick="window.location.href='{{ route('dashboard.materials.evaluate', $material->id) }}'" class="px-5 py-2.5 bg-blue-600 text-white text-sm font-bold rounded-xl shadow-md hover:bg-blue-700 transition-all flex items-center gap-2">
+                            <button onclick="window.location.href='{{ route('dashboard.materials.evaluate', $material->hashid) }}'" class="px-5 py-2.5 bg-blue-600 text-white text-sm font-bold rounded-xl shadow-md hover:bg-blue-700 transition-all flex items-center gap-2">
                                 <i class="fas fa-clipboard-check"></i> Evaluate Material
                             </button>
                         @else
@@ -167,13 +167,13 @@
                         </button>
                     @endif
                     
-                    <button onclick="window.location.href='{{ route('dashboard.materials.preview', $material->id) }}'" class="w-full py-3 px-4 bg-indigo-50 border-2 border-indigo-200 text-indigo-700 font-bold rounded-xl hover:bg-indigo-600 hover:text-white hover:border-indigo-600 transition-all flex items-center justify-center gap-2 group shadow-sm" title="Preview Material & Answers">
+                    <button onclick="window.location.href='{{ route('dashboard.materials.preview', $material->hashid) }}'" class="w-full py-3 px-4 bg-indigo-50 border-2 border-indigo-200 text-indigo-700 font-bold rounded-xl hover:bg-indigo-600 hover:text-white hover:border-indigo-600 transition-all flex items-center justify-center gap-2 group shadow-sm" title="Preview Material & Answers">
                         <i class="fas fa-desktop group-hover:scale-110 transition-transform"></i> View Preview
                     </button>
 
                 
                     @if($isLive && (!empty($material->evaluation_json) || !empty($material->admin_remarks)))
-                        <button onclick="window.location.href='{{ route('dashboard.materials.evaluation-result', $material->id) }}'" class="w-full py-3 px-4 bg-blue-50 border-2 border-blue-200 text-blue-700 font-bold rounded-xl hover:bg-blue-600 hover:text-white hover:border-blue-600 transition-all flex items-center justify-center gap-2 group shadow-sm" title="View Evaluation Report">
+                        <button onclick="window.location.href='{{ route('dashboard.materials.evaluation-result', $material->hashid) }}'" class="w-full py-3 px-4 bg-blue-50 border-2 border-blue-200 text-blue-700 font-bold rounded-xl hover:bg-blue-600 hover:text-white hover:border-blue-600 transition-all flex items-center justify-center gap-2 group shadow-sm" title="View Evaluation Report">
                             <i class="fas fa-clipboard-check group-hover:scale-110 transition-transform"></i> View Report
                         </button>
                     @endif

@@ -147,11 +147,11 @@ Route::middleware(['auth', 'verified', CheckAccountStatus::class])->group(functi
         Route::get('/criteria', [DashboardController::class, 'loadCriteriaPartial'])->name('dashboard.criteria');
         Route::post('/criteria', [DashboardController::class, 'storeCriteria'])->name('dashboard.criteria.store');
 
-        Route::get('/materials/{material}/evaluate', [MaterialsController::class, 'evaluateMaterial'])->name('dashboard.materials.evaluate');
+        Route::get('/materials/{hashid}/evaluate', [MaterialsController::class, 'evaluateMaterial'])->name('dashboard.materials.evaluate');
 
-        Route::get('/materials/{id}/evaluation-result', [MaterialsController::class, 'evaluationResult'])->name('dashboard.materials.evaluation-result');
+        Route::get('/materials/{hashid}/evaluation-result', [MaterialsController::class, 'evaluationResult'])->name('dashboard.materials.evaluation-result');
 
-        Route::get('/materials/{material}/preview', [MaterialsController::class, 'preview'])->name('dashboard.materials.preview');
+        Route::get('/materials/{hashid}/preview', [MaterialsController::class, 'preview'])->name('dashboard.materials.preview');
         Route::get('/materials/{id}/analytics', [MaterialsController::class, 'analytics'])->name('dashboard.materials.analytics');
         Route::get('/materials/{id}/report', [MaterialsController::class, 'exportMaterialAnalyticsPdf'])->name('dashboard.materials.report');
     });

@@ -60,12 +60,17 @@ class MaterialsController extends Controller
         return view('dashboard.partials.admin.materials', compact('materials'));
     }
 
-    public function evaluateMaterial(Material $material)
+    public function evaluateMaterial($hashid)
     {
         // 1. Security Check: Allow Admins and CID to access the evaluation mode
         if (!in_array(auth()->user()->role, ['admin', 'cid'])) {
             abort(403, 'Unauthorized access. Only Admins and CID can evaluate materials.');
         }
+        $decoded = Hashids::decode($hashid);
+        if (empty($decoded))
+            abort(404, 'Invalid link.');
+        $material = Material::findOrFail($decoded[0]);
+        
 
         // 2. Eager load all the necessary relationships and sort them
         $material->load([
@@ -428,9 +433,9 @@ class MaterialsController extends Controller
                 'success' => true,
                 'new_status' => $targetStatus,
                 'message' => 'Module is now ' . $statusText,
-                // Redirect Admin and CID to the new evaluation results page
+                // FIX: Use $material->hashid here instead of $hashid or $id
                 'redirect_url' => in_array($currentUser->role, ['admin', 'cid']) && $request->has('evaluation_details')
-                    ? route('dashboard.materials.evaluation-result', $id)
+                    ? route('dashboard.materials.evaluation-result', $material->hashid)
                     : null
             ]);
 
@@ -445,9 +450,14 @@ class MaterialsController extends Controller
     /**
      * Show the final evaluation report after an Admin grades a material
      */
-    public function evaluationResult($id)
+    public function evaluationResult($hashid)
     {
-        $material = Material::with('instructor')->findOrFail($id);
+         $decoded = Hashids::decode($hashid);
+        // If the hash is invalid or tampered with, throw a 404
+        if (empty($decoded)) {
+            abort(404, 'Invalid material link.');
+        }
+        $material = Material::with('instructor')->findOrFail($decoded[0]);
 
         // Decode the JSON so the Blade view can loop through it
         $evaluationData = $material->evaluation_json ? json_decode($material->evaluation_json, true) : null;
@@ -1646,8 +1656,17 @@ class MaterialsController extends Controller
         return response()->json(['success' => true, 'message' => 'Already read']);
     }
 
-    public function preview($id)
+    public function preview($hashid)
     {
+         $decoded = Hashids::decode($hashid);
+        // If the hash is invalid or tampered with, throw a 404
+        if (empty($decoded)) {
+            abort(404, 'Invalid material link.');
+        }
+        $id = $decoded[0];
+    
+        // Fetch the material, ensuring it is public and published
+        
         // Fetch the material with its relationships
         $material = Material::with([
             'instructor',
