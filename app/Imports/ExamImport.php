@@ -88,7 +88,7 @@ class ExamImport implements ToCollection, WithHeadingRow
                     'type' => $questionType,
                     'question_text' => $questionText,
                     'media_url' => $mediaUrl,
-                    'is_case_sensitive' => $isCaseSensitive, // Safely imported case sensitivity
+                    'is_case_sensitive' => $isCaseSensitive, 
                     'updated_at' => now(),
                 ];
 
@@ -112,51 +112,35 @@ class ExamImport implements ToCollection, WithHeadingRow
 
                 // --- TRUE/FALSE ---
                 if ($questionType === 'true_false') {
-                    $correct = strtolower(trim($row['correct_answer'] ?? ''));
-
+                    $correctAnswer = strtolower(trim($row['correct_answer'] ?? ''));
                     DB::table('assessment_options')->insert([
-                        [
-                            'question_id' => $questionId,
-                            'option_text' => 'True',
-                            'is_correct' => in_array($correct, ['true', 'option 1', '1']),
-                            'created_at' => now(),
-                            'updated_at' => now()
-                        ],
-                        [
-                            'question_id' => $questionId,
-                            'option_text' => 'False',
-                            'is_correct' => in_array($correct, ['false', 'option 2', '2']),
-                            'created_at' => now(),
-                            'updated_at' => now()
-                        ]
+                        ['question_id' => $questionId, 'option_text' => 'True', 'is_correct' => in_array($correctAnswer, ['true', 'option 1', '1']), 'created_at' => now(), 'updated_at' => now()],
+                        ['question_id' => $questionId, 'option_text' => 'False', 'is_correct' => in_array($correctAnswer, ['false', 'option 2', '2']), 'created_at' => now(), 'updated_at' => now()]
                     ]);
-
                     continue;
                 }
 
-                // --- FLEXIBLE CORRECT ANSWER PARSING (for MCQ, Checkbox, Text) ---
                 $rawCorrect = strtolower(trim($row['correct_answer'] ?? ''));
                 $correctArray = array_map('trim', explode(',', $rawCorrect));
 
-                // --- OPTIONS LOOP ---
+                $hasOptions = false;
+
+                // --- STANDARD OPTIONS LOOP ---
                 for ($i = 1; $i <= 4; $i++) {
                     $col = 'option_' . $i;
-                    
-                    // Safety check to bypass empty Excel cells
                     if (!isset($row[$col]) || trim($row[$col]) === '') continue;
-
+                    
+                    $hasOptions = true;
+                    $isCorrect = false;
                     $optStr = 'option ' . $i;
                     $optNum = (string)$i;
 
-                    $isCorrect = false;
-
-                    // FIX: Treat 'text' type like 'checkbox' so multiple inputs can be valid simultaneously
+                    // FIX: Treat 'text' type like 'checkbox' so multiple answers can be marked correct simultaneously
                     if (in_array($questionType, ['checkbox', 'text'])) {
                         if (in_array($optStr, $correctArray) || in_array($optNum, $correctArray)) {
                             $isCorrect = true;
                         }
                     } else {
-                        // Standard Single MCQ
                         if ($rawCorrect === $optStr || $rawCorrect === $optNum) {
                             $isCorrect = true;
                         }
@@ -166,9 +150,27 @@ class ExamImport implements ToCollection, WithHeadingRow
                         'question_id' => $questionId,
                         'option_text' => trim($row[$col]),
                         'is_correct' => $isCorrect,
-                        'created_at' => now(),
+                        'created_at' => now(), 
                         'updated_at' => now(),
                     ]);
+                }
+
+                // --- FALLBACK FOR TEXT TYPE WITHOUT OPTION COLUMNS ---
+                // If a teacher leaves the options blank, extract the comma-separated strings directly
+                if ($questionType === 'text' && !$hasOptions && !empty($row['correct_answer'])) {
+                    $dynamicAnswers = array_map('trim', explode(',', $row['correct_answer']));
+                    
+                    foreach ($dynamicAnswers as $ans) {
+                        if ($ans !== '') {
+                            DB::table('assessment_options')->insert([
+                                'question_id' => $questionId,
+                                'option_text' => $ans, // Keep original case
+                                'is_correct' => true,
+                                'created_at' => now(),
+                                'updated_at' => now(),
+                            ]);
+                        }
+                    }
                 }
             }
 

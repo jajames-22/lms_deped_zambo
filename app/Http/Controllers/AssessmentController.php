@@ -96,125 +96,6 @@ class AssessmentController extends Controller
         return view('dashboard.partials.admin.assessments-create', compact('assessment', 'categories', 'isNew'));
     }
 
-    public function storeQuestions(Request $request, $id)
-    {
-        DB::beginTransaction();
-        try {
-            // 1. Update the main Assessment record
-            DB::table('assessments')->where('id', $id)->update([
-                'title' => $request->title ?? 'Untitled Assessment',
-                'year_level' => $request->year_level ?? '',
-                'description' => $request->description ?? '',
-                'status' => $request->status ?? 'draft',
-                'draft_json' => null,
-                'updated_at' => now()
-            ]);
-
-            $keptCategoryIds = [];
-            $keptQuestionIds = [];
-            $keptOptionIds = [];
-
-            $categories = $request->categories ?? [];
-
-            foreach ($categories as $index => $cat) {
-                // Check for existing ID
-                $categoryId = (isset($cat['id']) && is_numeric($cat['id'])) ? $cat['id'] : null;
-
-                $catData = [
-                    'assessment_id' => $id,
-                    'title' => $cat['title'] ?? 'New Section',
-                    'time_limit' => $cat['time_limit'] ?? 0,
-                    'sort_order' => $index + 1,
-                    'updated_at' => now(),
-                ];
-
-                // UPDATE if exists, else INSERT
-                if ($categoryId && DB::table('assessment_categories')->where('id', $categoryId)->exists()) {
-                    DB::table('assessment_categories')->where('id', $categoryId)->update($catData);
-                } else {
-                    $catData['created_at'] = now();
-                    $categoryId = DB::table('assessment_categories')->insertGetId($catData);
-                }
-                $keptCategoryIds[] = $categoryId;
-
-                foreach ($cat['questions'] ?? [] as $qIndex => $q) {
-                    $questionId = (isset($q['id']) && is_numeric($q['id'])) ? $q['id'] : null;
-
-                    $qData = [
-                        'category_id' => $categoryId,
-                        'type' => $q['type'] ?? 'mcq',
-                        'question_text' => $q['text'] ?? '',
-                        'media_url' => $q['media_url'] ?? null,
-                        'media_name' => $q['media_name'] ?? null,
-                        'is_case_sensitive' => $q['is_case_sensitive'] ?? false,
-                        'sort_order' => $qIndex + 1,
-                        'updated_at' => now(),
-                    ];
-
-                    if ($questionId && DB::table('assessment_questions')->where('id', $questionId)->exists()) {
-                        DB::table('assessment_questions')->where('id', $questionId)->update($qData);
-                    } else {
-                        $qData['created_at'] = now();
-                        $questionId = DB::table('assessment_questions')->insertGetId($qData);
-                    }
-                    $keptQuestionIds[] = $questionId;
-
-                    foreach ($q['options'] ?? [] as $opt) {
-                        $optId = (isset($opt['id']) && is_numeric($opt['id'])) ? $opt['id'] : null;
-
-                        $optData = [
-                            'question_id' => $questionId,
-                            'option_text' => $opt['text'] ?? '',
-                            'is_correct' => $opt['is_correct'] ?? false,
-                            'updated_at' => now(),
-                        ];
-
-                        if ($optId && DB::table('assessment_options')->where('id', $optId)->exists()) {
-                            DB::table('assessment_options')->where('id', $optId)->update($optData);
-                        } else {
-                            $optData['created_at'] = now();
-                            $optId = DB::table('assessment_options')->insertGetId($optData);
-                        }
-                        $keptOptionIds[] = $optId;
-                    }
-                }
-            }
-
-            // 2. TARGETED CLEANUP
-            // Only delete records that belong to this assessment but were NOT in the $kept arrays.
-
-            // Delete Options
-            DB::table('assessment_options')
-                ->whereIn('question_id', function ($query) use ($id) {
-                    $query->select('id')->from('assessment_questions')
-                        ->whereIn('category_id', function ($sub) use ($id) {
-                            $sub->select('id')->from('assessment_categories')->where('assessment_id', $id);
-                        });
-                })
-                ->whereNotIn('id', $keptOptionIds)
-                ->delete();
-
-            // Delete Questions
-            DB::table('assessment_questions')
-                ->whereIn('category_id', function ($query) use ($id) {
-                    $query->select('id')->from('assessment_categories')->where('assessment_id', $id);
-                })
-                ->whereNotIn('id', $keptQuestionIds)
-                ->delete();
-
-            // Delete Categories
-            DB::table('assessment_categories')
-                ->where('assessment_id', $id)
-                ->whereNotIn('id', $keptCategoryIds)
-                ->delete();
-
-            DB::commit();
-            return response()->json(['success' => true]);
-        } catch (Exception $e) {
-            DB::rollBack();
-            return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
-        }
-    }
     public function uploadMedia(Request $request)
     {
         // Ensure the file is present in the request
@@ -324,6 +205,126 @@ class AssessmentController extends Controller
         return Excel::download(new AssessmentTemplateExport, 'assessment_template.xlsx');
     }
 
+    public function storeQuestions(Request $request, $id)
+    {
+        DB::beginTransaction();
+        try {
+            // 1. Update the main Assessment record
+            DB::table('assessments')->where('id', $id)->update([
+                'title' => $request->title ?? 'Untitled Assessment',
+                'year_level' => $request->year_level ?? '',
+                'description' => $request->description ?? '',
+                'status' => $request->status ?? 'draft',
+                'draft_json' => null,
+                'updated_at' => now()
+            ]);
+
+            $keptCategoryIds = [];
+            $keptQuestionIds = [];
+            $keptOptionIds = [];
+
+            $categories = $request->categories ?? [];
+
+            foreach ($categories as $index => $cat) {
+                // Check for existing ID
+                $categoryId = (isset($cat['id']) && is_numeric($cat['id'])) ? $cat['id'] : null;
+
+                $catData = [
+                    'assessment_id' => $id,
+                    'title' => $cat['title'] ?? 'New Section',
+                    'time_limit' => $cat['time_limit'] ?? 0,
+                    'sort_order' => $index + 1,
+                    'updated_at' => now(),
+                ];
+
+                // UPDATE if exists, else INSERT
+                if ($categoryId && DB::table('assessment_categories')->where('id', $categoryId)->exists()) {
+                    DB::table('assessment_categories')->where('id', $categoryId)->update($catData);
+                } else {
+                    $catData['created_at'] = now();
+                    $categoryId = DB::table('assessment_categories')->insertGetId($catData);
+                }
+                $keptCategoryIds[] = $categoryId;
+
+                foreach ($cat['questions'] ?? [] as $qIndex => $q) {
+                    $questionId = (isset($q['id']) && is_numeric($q['id'])) ? $q['id'] : null;
+
+                    $qData = [
+                        'category_id' => $categoryId,
+                        'type' => $q['type'] ?? 'mcq',
+                        'question_text' => $q['text'] ?? '',
+                        'media_url' => $q['media_url'] ?? null,
+                        'media_name' => $q['media_name'] ?? null,
+                        'is_case_sensitive' => filter_var($q['is_case_sensitive'] ?? false, FILTER_VALIDATE_BOOLEAN),
+                        'sort_order' => $qIndex + 1,
+                        'updated_at' => now(),
+                    ];
+
+                    if ($questionId && DB::table('assessment_questions')->where('id', $questionId)->exists()) {
+                        DB::table('assessment_questions')->where('id', $questionId)->update($qData);
+                    } else {
+                        $qData['created_at'] = now();
+                        $questionId = DB::table('assessment_questions')->insertGetId($qData);
+                    }
+                    $keptQuestionIds[] = $questionId;
+
+                    foreach ($q['options'] ?? [] as $opt) {
+                        $optId = (isset($opt['id']) && is_numeric($opt['id'])) ? $opt['id'] : null;
+
+                        $optData = [
+                            'question_id' => $questionId,
+                            'option_text' => $opt['text'] ?? '',
+                            'is_correct' => filter_var($opt['is_correct'] ?? false, FILTER_VALIDATE_BOOLEAN),
+                            'updated_at' => now(),
+                        ];
+
+                        if ($optId && DB::table('assessment_options')->where('id', $optId)->exists()) {
+                            DB::table('assessment_options')->where('id', $optId)->update($optData);
+                        } else {
+                            $optData['created_at'] = now();
+                            $optId = DB::table('assessment_options')->insertGetId($optData);
+                        }
+                        $keptOptionIds[] = $optId;
+                    }
+                }
+            }
+
+            // 2. TARGETED CLEANUP
+            // Only delete records that belong to this assessment but were NOT in the $kept arrays.
+
+            // Delete Options
+            DB::table('assessment_options')
+                ->whereIn('question_id', function ($query) use ($id) {
+                    $query->select('id')->from('assessment_questions')
+                        ->whereIn('category_id', function ($sub) use ($id) {
+                            $sub->select('id')->from('assessment_categories')->where('assessment_id', $id);
+                        });
+                })
+                ->whereNotIn('id', $keptOptionIds)
+                ->delete();
+
+            // Delete Questions
+            DB::table('assessment_questions')
+                ->whereIn('category_id', function ($query) use ($id) {
+                    $query->select('id')->from('assessment_categories')->where('assessment_id', $id);
+                })
+                ->whereNotIn('id', $keptQuestionIds)
+                ->delete();
+
+            // Delete Categories
+            DB::table('assessment_categories')
+                ->where('assessment_id', $id)
+                ->whereNotIn('id', $keptCategoryIds)
+                ->delete();
+
+            DB::commit();
+            return response()->json(['success' => true]);
+        } catch (Exception $e) {
+            DB::rollBack();
+            return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
+        }
+    }
+
     public function importQuestions(Request $request, $id)
     {
         $request->validate([
@@ -381,7 +382,7 @@ class AssessmentController extends Controller
                                 'type' => $q['type'] ?? 'mcq',
                                 'question_text' => $q['text'] ?? '',
                                 'media_url' => $q['media_url'] ?? null,
-                                'is_case_sensitive' => $q['is_case_sensitive'] ?? false,
+                                'is_case_sensitive' => filter_var($q['is_case_sensitive'] ?? false, FILTER_VALIDATE_BOOLEAN),
                                 'sort_order' => $qIndex + 1,
                                 'updated_at' => now(),
                             ];
@@ -400,7 +401,7 @@ class AssessmentController extends Controller
                                 $optData = [
                                     'question_id' => $questionId,
                                     'option_text' => $opt['text'] ?? '',
-                                    'is_correct' => $opt['is_correct'] ?? false,
+                                    'is_correct' => filter_var($opt['is_correct'] ?? false, FILTER_VALIDATE_BOOLEAN),
                                     'updated_at' => now(),
                                 ];
 
@@ -421,16 +422,8 @@ class AssessmentController extends Controller
                 $this->cleanupRemovedItems($id, $keptCategoryIds, $keptQuestionIds, $keptOptionIds);
             }
 
-            // 3. Run the Excel import (This now uses the updated ExamImport logic)
-            // Note: The ExamImport should NOT clear data internally anymore; it should append/update.
+            // 3. Run the Excel import
             Excel::import(new ExamImport($id), $request->file('exam_file'));
-
-            // 4. FINAL TARGETED CLEANUP 
-            // We only delete items that weren't in the $kept arrays AND weren't just added by the Excel Import
-            // (Note: To be 100% perfect, you would need to merge IDs from ExamImport into the 'kept' arrays)
-
-            // If your ExamImport also needs to be non-destructive, ensure it returns or tracks its IDs.
-            // For a simpler "Safe Import", we commit the manual changes here.
 
             DB::commit();
 
@@ -521,8 +514,38 @@ class AssessmentController extends Controller
 
     public function removeAccess(AssessmentAccess $access)
     {
-        $access->delete();
-        return response()->json(['success' => true, 'message' => 'Student access revoked.']);
+        \Illuminate\Support\Facades\DB::beginTransaction();
+        try {
+            // Find the user associated with this LRN
+            $student = \App\Models\User::where('lrn', $access->lrn)->first();
+
+            if ($student) {
+                // Delete their assessment sessions for this specific assessment
+                \App\Models\AssessmentSession::where('user_id', $student->id)
+                    ->where('assessment_id', $access->assessment_id)
+                    ->delete();
+
+                // Delete their submitted answers for this specific assessment
+                \App\Models\StudentAnswer::where('user_id', $student->id)
+                    ->where('assessment_id', $access->assessment_id)
+                    ->delete();
+            }
+
+            // Finally, delete the access record
+            $access->delete();
+
+            \Illuminate\Support\Facades\DB::commit();
+            return response()->json([
+                'success' => true, 
+                'message' => 'Student access and all related progress data revoked.'
+            ]);
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\DB::rollBack();
+            return response()->json([
+                'success' => false, 
+                'message' => 'Error revoking access: ' . $e->getMessage()
+            ], 500);
+        }
     }
 
     public function toggleStatus(Request $request, Assessment $assessment)

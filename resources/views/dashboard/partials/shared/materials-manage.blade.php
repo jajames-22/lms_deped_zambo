@@ -519,7 +519,7 @@
                             <!-- Track -->
                             <div class="w-14 h-8 rounded-full border border-gray-200 transition-colors
                             peer-checked:bg-green-500 bg-gray-300
-                            peer-disabled:bg-green-200 peer-disabled:opacity-50
+                            peer-disabled:bg-red-200 peer-disabled:opacity-50
                             peer-disabled:cursor-not-allowed">
                             </div>
 

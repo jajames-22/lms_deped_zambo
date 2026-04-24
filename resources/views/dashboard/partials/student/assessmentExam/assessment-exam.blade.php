@@ -101,7 +101,7 @@
                 </button>
 
                 <div class="hidden md:flex items-center gap-2 text-sm font-bold text-gray-500 bg-gray-100 px-4 py-2 rounded-lg">
-                    <span id="progress-text">1 / {{ $totalRealQuestions }}</span>
+                    <span id="progress-text">{{ $totalRealQuestions > 0 ? '1 / ' . $totalRealQuestions : 'Instruction' }}</span>
                 </div>
 
                 <div id="timer-display" class="hidden items-center gap-2 bg-gray-900 text-white px-4 py-2 md:px-5 md:py-2.5 rounded-xl font-mono text-base md:text-lg font-bold tracking-wider shadow-sm transition-colors duration-300">
@@ -169,16 +169,29 @@
                                 </div>
                                 <div class="flex flex-col justify-center">
                                     @if(!$isInstruction)
-                                        @if($question->type === 'text')
-                                            @php
-                                                $savedText = isset($existingAnswers) && isset($existingAnswers[$question->id]) 
-                                                                ? $existingAnswers[$question->id]->answer_text 
-                                                                : '';
-                                            @endphp
-                                            <div class="w-full">
-                                                <textarea name="answers[{{ $question->id }}]" rows="6" placeholder="Type your answer here..." class="w-full p-5 border-2 border-gray-300 rounded-2xl focus:ring-4 focus:ring-[#a52a2a]/20 focus:border-[#a52a2a] outline-none transition-all text-gray-700 font-medium resize-y bg-gray-50/50">{{ $savedText }}</textarea>
-                                            </div>
-                                        @else
+        @if($question->type === 'text')
+            @php
+                $savedText = isset($existingAnswers) && isset($existingAnswers[$question->id]) 
+                                ? $existingAnswers[$question->id]->answer_text 
+                                : '';
+            @endphp
+            <div class="w-full flex flex-col">
+                <textarea name="answers[{{ $question->id }}]" rows="6" placeholder="Type your answer here..." class="w-full p-5 border-2 border-gray-300 rounded-2xl focus:ring-4 focus:ring-[#a52a2a]/20 focus:border-[#a52a2a] outline-none transition-all text-gray-700 font-medium resize-y bg-gray-50/50">{{ $savedText }}</textarea>
+                
+                {{-- CASE SENSITIVITY INDICATOR --}}
+                <div class="mt-3 flex items-center">
+                    @if($question->is_case_sensitive)
+                        <span class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-50 text-amber-700 text-xs font-bold border border-amber-200 shadow-sm">
+                            <i class="fas fa-exclamation-triangle"></i> Case-Sensitive
+                        </span>
+                    @else
+                        <span class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-gray-100 text-gray-500 text-xs font-bold border border-gray-200 shadow-sm">
+                            <i class="fas fa-font"></i> Not Case-Sensitive
+                        </span>
+                    @endif
+                </div>
+            </div>
+        @else
                                             @php
                                                 $savedOptions = [];
                                                 if(isset($existingAnswers) && isset($existingAnswers[$question->id]) && $existingAnswers[$question->id]->selected_options) {
@@ -229,10 +242,13 @@
                     <button type="button" id="next-btn" onclick="navigateQuestion(1)" class="px-8 py-3 bg-gray-900 text-white font-bold rounded-xl hover:bg-gray-800 transition-colors flex items-center gap-2 shadow-md">
                         <span class="hidden md:inline">Next</span> <i class="fas fa-arrow-right"></i>
                     </button>
-
-                    <button type="submit" id="submit-btn" class="hidden px-8 py-3 bg-[#a52a2a] text-white font-black rounded-xl hover:bg-red-800 transition-all shadow-lg shadow-[#a52a2a]/30 flex items-center gap-2">
-                        <i class="fas fa-paper-plane"></i> SUBMIT SECTION
-                    </button>
+<button type="submit" id="submit-btn" class="hidden px-8 py-3 bg-[#a52a2a] text-white font-black rounded-xl hover:bg-red-800 transition-all shadow-lg shadow-[#a52a2a]/30 flex items-center gap-2">
+    @if($totalRealQuestions === 0)
+        PROCEED <i class="fas fa-arrow-right ml-1"></i>
+    @else
+        <i class="fas fa-paper-plane"></i> SUBMIT SECTION
+    @endif
+</button>
                 </div>
             </div>
         </form>
@@ -480,19 +496,23 @@
         }
 
         function updateProgress() {
-            const currentCard = questions[currentIndex];
-            const isQ = currentCard.getAttribute('data-is-question') === 'true';
-            
-            if (isQ) {
-                let displayNum = currentCard.getAttribute('data-qnum');
-                progressText.innerText = `${displayNum} / ${totalRealQuestions}`;
-                const percentage = (displayNum / totalRealQuestions) * 100;
-                progressBar.style.width = `${percentage}%`;
-            } else {
-                progressText.innerText = `Instruction`;
-            }
+    const currentCard = questions[currentIndex];
+    const isQ = currentCard.getAttribute('data-is-question') === 'true';
+    
+    if (isQ) {
+        let displayNum = currentCard.getAttribute('data-qnum');
+        progressText.innerText = `${displayNum} / ${totalRealQuestions}`;
+        const percentage = (displayNum / totalRealQuestions) * 100;
+        progressBar.style.width = `${percentage}%`;
+    } else {
+        progressText.innerText = `Instruction`;
+        // If there are NO real questions, base progress on the instruction cards themselves
+        if (totalRealQuestions === 0 && totalCards > 0) {
+            const percentage = ((currentIndex + 1) / totalCards) * 100;
+            progressBar.style.width = `${percentage}%`;
         }
-
+    }
+}
         function tickTimer() {
             if (!isTimed) return; 
 
@@ -560,59 +580,68 @@
         }
 
         function submitAssessment(event) {
-            if (event && event.preventDefault) {
-                event.preventDefault(); // Prevent native form submission
-            }
-            
-            let answeredCount = 0;
-            questions.forEach(q => {
-                // Ignore instruction cards in the unanswered verification!
-                if (q.getAttribute('data-is-question') !== 'true') return;
+    if (event && event.preventDefault) {
+        event.preventDefault(); // Prevent native form submission
+    }
 
-                const checkedInputs = q.querySelectorAll('input[type="radio"]:checked, input[type="checkbox"]:checked');
-                const textArea = q.querySelector('textarea');
-                
-                if (checkedInputs.length > 0) {
-                    answeredCount++;
-                } else if (textArea && textArea.value.trim() !== '') {
-                    answeredCount++;
-                }
-            });
+    // Bypasses the confirmation modal completely if it's just instructions
+    if (totalRealQuestions === 0) {
+        executeSubmit();
+        return;
+    }
+    
+    let answeredCount = 0;
+    questions.forEach(q => {
+        // Ignore instruction cards in the unanswered verification!
+        if (q.getAttribute('data-is-question') !== 'true') return;
 
-            // Prepare Modal Content
-            let confirmMessage = "Are you sure you want to submit this section? You cannot return to it later.";
-            let iconClass = "fas fa-check-circle text-3xl text-[#a52a2a]";
-            let iconBg = "bg-red-50";
-
-            if (answeredCount < totalRealQuestions) {
-                confirmMessage = `You have only answered <span class="font-black text-[#a52a2a]">${answeredCount}</span> out of <span class="font-black text-gray-900">${totalRealQuestions}</span> questions. Are you sure you want to submit?`;
-                iconClass = "fas fa-exclamation-triangle text-3xl text-amber-500";
-                iconBg = "bg-amber-50";
-            }
-
-            // Inject dynamic text and icons
-            document.getElementById('confirm-submit-message').innerHTML = confirmMessage;
-            document.getElementById('confirm-modal-icon').className = iconClass;
-            document.getElementById('confirm-modal-icon-container').className = `w-20 h-20 ${iconBg} rounded-full flex items-center justify-center mx-auto mb-6 shadow-inner`;
-            
-            // Show Custom Confirm Modal
-            document.getElementById('confirm-submit-modal').classList.remove('hidden');
+        const checkedInputs = q.querySelectorAll('input[type="radio"]:checked, input[type="checkbox"]:checked');
+        const textArea = q.querySelector('textarea');
+        
+        if (checkedInputs.length > 0) {
+            answeredCount++;
+        } else if (textArea && textArea.value.trim() !== '') {
+            answeredCount++;
         }
+    });
+
+    // Prepare Modal Content
+    let confirmMessage = "Are you sure you want to submit this section? You cannot return to it later.";
+    let iconClass = "fas fa-check-circle text-3xl text-[#a52a2a]";
+    let iconBg = "bg-red-50";
+
+    if (answeredCount < totalRealQuestions) {
+        confirmMessage = `You have only answered <span class="font-black text-[#a52a2a]">${answeredCount}</span> out of <span class="font-black text-gray-900">${totalRealQuestions}</span> questions. Are you sure you want to submit?`;
+        iconClass = "fas fa-exclamation-triangle text-3xl text-amber-500";
+        iconBg = "bg-amber-50";
+    }
+
+    // Inject dynamic text and icons
+    document.getElementById('confirm-submit-message').innerHTML = confirmMessage;
+    document.getElementById('confirm-modal-icon').className = iconClass;
+    document.getElementById('confirm-modal-icon-container').className = `w-20 h-20 ${iconBg} rounded-full flex items-center justify-center mx-auto mb-6 shadow-inner`;
+    
+    // Show Custom Confirm Modal
+    document.getElementById('confirm-submit-modal').classList.remove('hidden');
+}
+
+function executeSubmit() {
+    clearInterval(timerInterval);
+    closeConfirmModal();
+    
+    // Change loading text dynamically
+    const loadingText = totalRealQuestions === 0 ? 'Proceeding...' : 'Submitting...';
+    submitBtn.innerHTML = `<i class="fas fa-spinner fa-spin"></i> ${loadingText}`;
+    submitBtn.disabled = true;
+    
+    triggerAutoSave();
+    form.submit(); 
+}
 
         function closeConfirmModal() {
             document.getElementById('confirm-submit-modal').classList.add('hidden');
         }
 
-        function executeSubmit() {
-            clearInterval(timerInterval);
-            closeConfirmModal();
-            
-            submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Submitting...';
-            submitBtn.disabled = true;
-            
-            triggerAutoSave();
-            form.submit(); 
-        }
     </script>
 </body>
 </html>
