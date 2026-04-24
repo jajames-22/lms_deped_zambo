@@ -518,15 +518,15 @@
 
                             <!-- Track -->
                             <div class="w-14 h-8 rounded-full border border-gray-200 transition-colors
-        peer-checked:bg-green-500 bg-gray-300
-        peer-disabled:bg-gray-200 peer-disabled:opacity-50
-        peer-disabled:cursor-not-allowed">
+                            peer-checked:bg-green-500 bg-gray-300
+                            peer-disabled:bg-green-200 peer-disabled:opacity-50
+                            peer-disabled:cursor-not-allowed">
                             </div>
 
                             <!-- Handle -->
                             <div class="absolute left-1 top-1 w-6 h-6 bg-white rounded-full shadow-sm transition-transform
-        peer-checked:translate-x-6
-        peer-disabled:bg-gray-100">
+                                peer-checked:translate-x-6
+                                peer-disabled:bg-gray-100">
                             </div>
                         </label>
                     </label>
