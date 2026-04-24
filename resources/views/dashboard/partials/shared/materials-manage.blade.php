@@ -145,16 +145,15 @@
                     class="px-4 py-2.5 bg-white text-gray-700 border border-gray-200 font-bold rounded-xl hover:bg-gray-50 transition shadow-sm flex items-center justify-center gap-2 text-sm">
                     <i class="fas fa-clipboard-check text-blue-600"></i> Evaluation
                 </a>
-
-                {{-- View Analytics Button --}}
+                
+            {{-- View Analytics Button --}}
                 @if($material->status === 'published')
-                    <button onclick="loadPartial('{{ url('/dashboard/materials/' . $material->id . '/analytics') }}')"
-                        class="px-4 py-2.5 bg-white text-gray-700 border border-gray-200 font-bold rounded-xl hover:bg-gray-50 transition shadow-sm flex items-center justify-center gap-2 text-sm">
-                        <i class="fas fa-chart-pie text-amber-600"></i> Analytics
-                    </button>
+                <button onclick="loadPartial('{{ url('/dashboard/materials/'.$material->id.'/analytics') }}', document.getElementById('nav-materials-btn'))" class="px-4 py-2.5 bg-white text-gray-700 border border-gray-200 font-bold rounded-xl hover:bg-gray-50 transition shadow-sm flex items-center justify-center gap-2 text-sm">
+                    <i class="fas fa-chart-pie text-amber-600"></i> Analytics
+                </button>
                 @endif
             @endif
-
+            
             {{-- Edit Content Button (LOCKED IF NOT DRAFT) --}}
             @if(!$isLocked)
                 <button onclick="loadPartial('{{ url('/dashboard/materials/' . $material->hashid . '/edit') }}')"
@@ -183,8 +182,7 @@
                 @if($material->status === 'pending')
                     @if($isAdminOrCid)
                         {{-- ADMIN/CID Evaluate Button (Standard Link for Full Screen) --}}
-                        <a href="{{ url('/dashboard/materials/' . $material->hashid . '/evaluate') }}"
-                            class="px-5 py-2.5 bg-blue-600 text-white font-bold rounded-xl shadow-md shadow-blue-600/20 hover:bg-blue-700 transition flex items-center justify-center gap-2 text-sm">
+                        <a href="{{ url('/dashboard/materials/'.$material->hashid.'/evaluate') }}" class="px-5 py-2.5 bg-blue-600 text-white font-bold rounded-xl shadow-md shadow-blue-600/20 hover:bg-blue-700 transition flex items-center justify-center gap-2 text-sm">
                             <i class="fas fa-clipboard-list"></i> Evaluate to Publish
                         </a>
                     @else

@@ -2,7 +2,7 @@
 <html>
 <head>
     <meta charset="utf-8">
-    <title>Admin Analytics Report</title>
+    <title>Material Analytics Report</title>
     <style>
         /* =======================================================
            1. COMMON STYLES (Applies to both Print and PDF)
@@ -14,13 +14,12 @@
             line-height: 1.4;
         }
         
-        header table { width: 100%; border-collapse: collapse; }
-        header td { border: none; padding: 0; }
+        table { width: 100%; border-collapse: collapse; }
         .title { font-size: 24px; font-weight: bold; text-transform: uppercase; color: #111; margin-top: 10px; letter-spacing: 0.5px; }
         .subtitle { font-size: 11px; color: #666; margin-top: 5px; }
 
         /* Section & Table Formatting */
-        .section-title { font-size: 16px; font-weight: bold; color: #a52a2a; border-bottom: 2px solid #eee; padding-bottom: 5px; margin-top: 30px; margin-bottom: 15px; text-transform: uppercase; letter-spacing: 1px; page-break-after: avoid; }
+        .section-title { font-size: 16px; font-weight: bold; color: #a52a2a; padding-bottom: 5px; margin-top: 30px; margin-bottom: 15px; text-transform: uppercase; letter-spacing: 1px; page-break-after: avoid; }
         
         .data-table { width: 100%; border-collapse: collapse; margin-bottom: 20px; page-break-inside: avoid; }
         .data-table th, .data-table td { padding: 12px 10px; border-bottom: 1px solid #eee; text-align: left; }
@@ -34,59 +33,50 @@
         .text-right { text-align: right; font-weight: bold; font-size: 15px; }
         .text-red { color: #dc2626; }
         .text-green { color: #16a34a; }
+        .text-blue { color: #3b82f6; }
+        
+        .empty-state { padding: 15px; background-color: #f9fafb; border: 1px dashed #e5e7eb; color: #6b7280; text-align: center; font-style: italic; font-size: 13px; margin-bottom: 20px; }
 
         /* =======================================================
-           2. DOMPDF SPECIFIC STYLES (When Download PDF is clicked)
+           2. DOMPDF SPECIFIC STYLES
            ======================================================= */
         @if(!isset($isPrint) || !$isPrint)
             @page { 
-                margin: 140px 40px 80px 40px; /* Top margin is exactly 140px to prevent overlap */
+                margin: 130px 40px 80px 40px; 
             }
             
             header { 
                 position: fixed; 
-                top: -140px;     /* Match the top margin to stick to the ceiling */
-                left: -40px;     /* Stretch into the left margin */
-                right: -40px;    /* Stretch into the right margin */
-                height: 90px; 
+                top: -130px;     
+                left: -40px;     
+                right: -40px;    
                 background-color: #ffffff; 
-                padding: 30px 40px 10px 40px; /* Pad content back into the center */
             }
+            .header-inner { padding: 30px 40px 15px 40px; }
             
             footer { 
                 position: fixed; 
                 bottom: -80px; 
                 left: -40px; 
                 right: -40px; 
-                height: 40px; 
-                background-color: #ffffff;  
-                padding: 15px 40px 0 40px; 
-                font-size: 10px; 
-                color: #777; 
+                background-color: #ffffff; 
             }
+            .footer-inner { padding: 15px 40px 0 40px; font-size: 10px; color: #777; }
             .page-number:before { content: "Page " counter(page); }
         @endif
 
         /* =======================================================
-           3. BROWSER PRINT SPECIFIC STYLES (When Print is clicked)
+           3. BROWSER PRINT SPECIFIC STYLES
            ======================================================= */
         @if(isset($isPrint) && $isPrint)
             @media print {
                 @page { margin: 0.5in; }
                 body { padding: 0; margin: 0; }
-                header { 
-                    padding-bottom: 15px; 
-                    margin-bottom: 20px; 
-                }
-                footer { 
-                    margin-top: 30px; 
-                    border-top: 1px solid #ddd; 
-                    padding-top: 10px; 
-                    font-size: 10px; 
-                    color: #777; 
-                    page-break-inside: avoid; 
-                }
-                .page-number { display: none; } /* Browsers add their own page numbers */
+                header { margin-bottom: 20px; }
+                .header-inner { padding-bottom: 15px; }
+                footer { margin-top: 30px; page-break-inside: avoid; }
+                .footer-inner { padding-top: 10px; font-size: 10px; color: #777; }
+                .page-number { display: none; }
             }
         @endif
     </style>
@@ -94,84 +84,69 @@
 <body>
 
     <header>
-        <table>
-            <tr>
-                <td style="width: 60%; vertical-align: bottom; padding-bottom: 5px;">
-                    @php
-                        // Dynamically switch image path for browser vs DomPDF
-                        $logoPath = isset($isPrint) && $isPrint ? asset('storage/images/lms-logo-red.png') : public_path('storage/images/lms-logo-red.png');
-                    @endphp
-                    <img src="{{ $logoPath }}" height="40" alt="LMS Logo" style="margin-bottom: 5px;">
-                    
-                    <div class="title">Admin Analytics Report</div>
-                    <div class="subtitle">Generated on: {{ now()->format('F j, Y - g:i A') }}</div>
-                </td>
-                <td style="width: 40%; text-align: right; vertical-align: bottom; padding-bottom: 8px;">
-                    <strong style="font-size: 16px; color: #111;">{{ auth()->user()->first_name }} {{ auth()->user()->last_name }}</strong><br>
-                    <span style="font-size: 10px; text-transform: uppercase; color: #888; letter-spacing: 1px;">{{ auth()->user()->role ?? 'Admin' }} Account</span>
-                </td>
-            </tr>
-        </table>
+        <div class="header-inner">
+            <table>
+                <tr>
+                    <td style="width: 60%; vertical-align: bottom;">
+                        @php
+                            $logoPath = isset($isPrint) && $isPrint ? asset('storage/images/lms-logo-red.png') : public_path('storage/images/lms-logo-red.png');
+                        @endphp
+                        <img src="{{ $logoPath }}" height="40" alt="LMS Logo" style="margin-bottom: 5px;">
+                        
+                        <div class="title">Material Analytics Report</div>
+                        <div class="subtitle">Generated on: {{ now()->format('F j, Y - g:i A') }}</div>
+                    </td>
+                    <td style="width: 40%; text-align: right; vertical-align: bottom; padding-bottom: 3px;">
+                        <strong style="font-size: 16px; color: #111;">{{ auth()->user()->first_name }} {{ auth()->user()->last_name }}</strong><br>
+                        <span style="font-size: 10px; text-transform: uppercase; color: #888; letter-spacing: 1px;">Instructor Account</span>
+                    </td>
+                </tr>
+            </table>
+        </div>
     </header>
 
     <main>
-        @if($showUsers)
-        <div class="section-title">1. User Demographics</div>
+        @if($showOverview)
+        <div class="section-title">1. Material Overview</div>
         <table class="data-table">
             <tr>
-                <th>Total Registered Users</th>
-                <td class="text-right">{{ number_format($totalStudents + $totalTeachers) }}</td>
+                <th>Total Learners Enrolled</th>
+                <td class="text-right">{{ number_format($totalLearners) }}</td>
             </tr>
             <tr>
-                <th>Daily Active Users</th>
-                <td class="text-right">{{ number_format($dailyActiveUsers) }}</td>
+                <th>Active Learners (Last 7 Days)</th>
+                <td class="text-right text-green">{{ number_format($activeLearners) }}</td>
             </tr>
             <tr>
-                <th>Weekly Active Users</th>
-                <td class="text-right">{{ number_format($weeklyActiveUsers ?? 0) }}</td>
-            </tr>
-            <tr>
-                <th>Total Participating Schools</th>
-                <td class="text-right text-green">{{ number_format($totalSchools) }}</td>
+                <th>Pending Enrollment Invites</th>
+                <td class="text-right text-red">{{ number_format($pendingRequests) }}</td>
             </tr>
         </table>
-
-        @if(count($topSchools) > 0)
-            <div class="sub-table-title">Top Schools by Student Count</div>
-            <table class="sub-table">
-                <tr>
-                    <th style="width: 75%; text-align: left;">School Name</th>
-                    <th style="width: 25%; text-align: right;">Total Students</th>
-                </tr>
-                @foreach($topSchools as $school)
-                <tr>
-                    <td>{{ $school['name'] }}</td>
-                    <td style="text-align: right; font-weight: bold; color: #3b82f6;">{{ number_format($school['count']) }}</td>
-                </tr>
-                @endforeach
-            </table>
-        @endif
         @endif
 
-        @if($showContent)
-        <div class="section-title">2. Content & Engagement</div>
+        @if($showEngagement)
+        <div class="section-title">2. Material Engagement</div>
         <table class="data-table">
             <tr>
-                <th>Total Platform Modules</th>
+                <th>Total Modules Created</th>
                 <td class="text-right">{{ number_format($totalMaterials) }}</td>
             </tr>
             <tr>
-                <th>Total Enrollments</th>
-                <td class="text-right">{{ number_format($totalEnrollments ?? 0) }}</td>
+                <th>Total Views Across All Modules</th>
+                <td class="text-right">{{ number_format($totalViews) }}</td>
             </tr>
             <tr>
-                <th>Overall Completion Rate</th>
-                <td class="text-right text-green">{{ $completionRate ?? 0 }}%</td>
+                <th>Completed Enrollments</th>
+                <td class="text-right text-green">{{ number_format($completedCount) }}</td>
+            </tr>
+            <tr>
+                <th>In Progress Enrollments</th>
+                <td class="text-right" style="color: #f59e0b;">{{ number_format($inProgressCount) }}</td>
             </tr>
         </table>
 
+        <div class="sub-table-title">Most Viewed Modules</div>
         @if(count($topMaterials) > 0)
-            <div class="sub-table-title">Most Popular Modules (By Views)</div>
             <table class="sub-table">
                 <tr>
                     <th style="width: 75%; text-align: left;">Module Title</th>
@@ -184,42 +159,71 @@
                 </tr>
                 @endforeach
             </table>
+        @else
+            <div class="empty-state">No module views recorded yet.</div>
         @endif
         @endif
 
-        @if($showHealth)
-        <div class="section-title">3. System Health & Storage</div>
-        <table class="data-table">
-            <tr>
-                <th>Total Server Capacity</th>
-                <td class="text-right">{{ $totalGb }} GB</td>
-            </tr>
-            <tr>
-                <th>Used Storage Space</th>
-                <td class="text-right {{ $storagePercentage > 85 ? 'text-red' : '' }}">
-                    {{ $usedGb }} GB ({{ $storagePercentage }}%)
-                </td>
-            </tr>
-            <tr>
-                <th>Available Storage Space</th>
-                <td class="text-right text-green">{{ $totalGb - $usedGb }} GB</td>
-            </tr>
-        </table>
+        @if($showPerformance)
+        <div class="section-title">3. Assessment Performance</div>
+        @if($correctAnswers == 0 && $incorrectAnswers == 0)
+            <div class="empty-state">No assessment attempts have been recorded yet. Scores will appear here once students take exams.</div>
+        @else
+            <table class="data-table">
+                <tr>
+                    <th>Global Material Average Score</th>
+                    <td class="text-right text-green">{{ $averageScore }}%</td>
+                </tr>
+                <tr>
+                    <th>Total Correct Answers</th>
+                    <td class="text-right text-blue">{{ number_format($correctAnswers) }}</td>
+                </tr>
+                <tr>
+                    <th>Total Incorrect Answers</th>
+                    <td class="text-right text-red">{{ number_format($incorrectAnswers) }}</td>
+                </tr>
+            </table>
+        @endif
+        @endif
+
+        @if($showTrends)
+        @php
+            $hasTrendData = collect($activityTrends)->sum('count') > 0;
+        @endphp
+        <div class="section-title">4. Activity Trends (Last 7 Days)</div>
+        @if(!$hasTrendData)
+            <div class="empty-state">No new enrollments or activity recorded in the last 7 days.</div>
+        @else
+            <table class="sub-table">
+                <tr>
+                    <th style="width: 75%; text-align: left;">Date</th>
+                    <th style="width: 25%; text-align: right;">New Enrollments</th>
+                </tr>
+                @foreach($activityTrends as $trend)
+                <tr>
+                    <td>{{ $trend['date'] }}</td>
+                    <td style="text-align: right; font-weight: bold; color: #10b981;">{{ number_format($trend['count']) }}</td>
+                </tr>
+                @endforeach
+            </table>
+        @endif
         @endif
     </main>
 
+    
     <footer>
-        <table style="width: 100%; border-collapse: collapse;">
-            <tr>
-                <td style="text-align: left; width: 80%;">{{ config('app.name', 'LMS Platform') }} • Official System Generated Report</td>
-                <td style="text-align: right; width: 20%;" class="page-number"></td>
-            </tr>
-        </table>
+        <div class="footer-inner">
+            <table>
+                <tr>
+                    <td style="text-align: left; width: 80%;">{{ config('app.name', 'LMS Platform') }} • Official Instructor Generated Report</td>
+                    <td style="text-align: right; width: 20%;" class="page-number"></td>
+                </tr>
+            </table>
+        </div>
     </footer>
 
     @if(isset($isPrint) && $isPrint)
     <script>
-        // Automatically open the print dialog when the page loads via the "Print" button
         window.onload = function() {
             window.print();
         };
