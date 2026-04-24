@@ -810,7 +810,8 @@ class AssessmentController extends Controller
 
                 $competencies->push((object) [
                     'title' => $data['title'],
-                    'mps' => $mps
+                    'mps' => $mps,
+                    'total_answers' => $totalAns
                 ]);
             }
 

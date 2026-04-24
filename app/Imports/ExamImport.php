@@ -22,6 +22,10 @@ class ExamImport implements ToCollection, WithHeadingRow
         DB::beginTransaction();
 
         try {
+            // Track sort orders so imported items append neatly instead of scattering to 0
+            $categorySortOrder = (DB::table('assessment_categories')->where('assessment_id', $this->assessmentId)->max('sort_order') ?? 0) + 1;
+            $questionSortOrders = [];
+
             foreach ($rows as $row) {
 
                 // --- FLEXIBLE QUESTION TEXT ---
@@ -44,6 +48,7 @@ class ExamImport implements ToCollection, WithHeadingRow
                 ];
 
                 if (!$category) {
+                    $categoryData['sort_order'] = $categorySortOrder++; // Assigned sort order
                     $categoryData['created_at'] = now();
                     $categoryId = DB::table('assessment_categories')->insertGetId($categoryData);
                 } else {
@@ -63,8 +68,14 @@ class ExamImport implements ToCollection, WithHeadingRow
                     default => 'mcq',
                 };
 
-                // --- MEDIA ---
+                // --- MEDIA & CASE SENSITIVITY ---
                 $mediaUrl = $row['image_url'] ?? $row['media_url'] ?? null;
+                $isCaseSensitive = filter_var($row['is_case_sensitive'] ?? false, FILTER_VALIDATE_BOOLEAN);
+
+                // Track question sort order per category
+                if (!isset($questionSortOrders[$categoryId])) {
+                    $questionSortOrders[$categoryId] = (DB::table('assessment_questions')->where('category_id', $categoryId)->max('sort_order') ?? 0) + 1;
+                }
 
                 // --- UPSERT QUESTION ---
                 $existingQuestion = DB::table('assessment_questions')
@@ -77,7 +88,7 @@ class ExamImport implements ToCollection, WithHeadingRow
                     'type' => $questionType,
                     'question_text' => $questionText,
                     'media_url' => $mediaUrl,
-                    'is_case_sensitive' => false,
+                    'is_case_sensitive' => $isCaseSensitive, // Safely imported case sensitivity
                     'updated_at' => now(),
                 ];
 
@@ -87,26 +98,15 @@ class ExamImport implements ToCollection, WithHeadingRow
                         ->update($questionData);
 
                     $questionId = $existingQuestion->id;
-                    DB::table('assessment_options')->where('question_id', $questionId)->delete();
+                    DB::table('assessment_options')->where('question_id', $questionId)->delete(); // Clear old to refresh
                 } else {
+                    $questionData['sort_order'] = $questionSortOrders[$categoryId]++; // Assigned sort order
                     $questionData['created_at'] = now();
                     $questionId = DB::table('assessment_questions')->insertGetId($questionData);
                 }
 
                 // --- SKIP OPTIONS FOR INSTRUCTION ---
                 if ($questionType === 'instruction') {
-                    continue;
-                }
-
-                // --- HANDLE TEXT TYPE ---
-                if ($questionType === 'text') {
-                    DB::table('assessment_options')->insert([
-                        'question_id' => $questionId,
-                        'option_text' => trim($row['correct_answer'] ?? ''),
-                        'is_correct' => true,
-                        'created_at' => now(),
-                        'updated_at' => now(),
-                    ]);
                     continue;
                 }
 
@@ -134,25 +134,29 @@ class ExamImport implements ToCollection, WithHeadingRow
                     continue;
                 }
 
-                // --- FLEXIBLE CORRECT ANSWER PARSING ---
+                // --- FLEXIBLE CORRECT ANSWER PARSING (for MCQ, Checkbox, Text) ---
                 $rawCorrect = strtolower(trim($row['correct_answer'] ?? ''));
                 $correctArray = array_map('trim', explode(',', $rawCorrect));
 
                 // --- OPTIONS LOOP ---
                 for ($i = 1; $i <= 4; $i++) {
                     $col = 'option_' . $i;
-                    if (empty($row[$col])) continue;
+                    
+                    // Safety check to bypass empty Excel cells
+                    if (!isset($row[$col]) || trim($row[$col]) === '') continue;
 
                     $optStr = 'option ' . $i;
                     $optNum = (string)$i;
 
                     $isCorrect = false;
 
-                    if ($questionType === 'checkbox') {
+                    // FIX: Treat 'text' type like 'checkbox' so multiple inputs can be valid simultaneously
+                    if (in_array($questionType, ['checkbox', 'text'])) {
                         if (in_array($optStr, $correctArray) || in_array($optNum, $correctArray)) {
                             $isCorrect = true;
                         }
                     } else {
+                        // Standard Single MCQ
                         if ($rawCorrect === $optStr || $rawCorrect === $optNum) {
                             $isCorrect = true;
                         }

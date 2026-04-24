@@ -193,11 +193,22 @@
                     <div class="w-6 h-6 rounded-full bg-red-900/10 text-red-900 flex items-center justify-center shrink-0"><i class="fas fa-chalkboard-teacher text-[10px]"></i></div>
                     <span class="truncate">{{ $material->instructor->first_name ?? '' }} {{ $material->instructor->last_name ?? '' }}</span>
                 </div>
+
+                <div class="mt-3">
+                    @if($material->is_public)
+                        <span class="text-[13px] bg-green-100 text-green-700 px-2 py-0.5 rounded font-bold uppercase tracking-widest">
+                            Public Module
+                        </span>
+                    @else
+                        <span class="text-[13px] bg-amber-200 text-amber-600 px-2 py-0.5 rounded font-bold uppercase tracking-widest">
+                            Private Module
+                        </span>
+                    @endif
+                </div>
             </div>
             
             <div class="px-4 py-3 bg-white border-b border-gray-100 shrink-0 flex justify-between items-center">
                 <h2 class="font-black text-gray-900 text-sm">Course Content</h2>
-                <span class="text-[10px] bg-green-100 text-green-700 px-2 py-0.5 rounded font-bold uppercase tracking-widest">Unlocked</span>
             </div>
 
             <nav class="flex-1 overflow-y-auto sidebar-scroll p-3 space-y-1">

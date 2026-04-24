@@ -19,7 +19,7 @@
         .sidebar-scroll::-webkit-scrollbar-track { background: transparent; }
         .sidebar-scroll::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 4px; }
         
-        /* FIX 1: Active blocks now act as flex containers that fill remaining space */
+        /* Active blocks now act as flex containers that fill remaining space */
         .lesson-container, .content-block { display: none; }
         .lesson-container.active, .content-block.active { 
             display: flex !important; 
@@ -274,7 +274,6 @@
             </nav>
         </aside>
 
-        {{-- FIX 2: Made the Main body a perfect flex chain --}}
         <main class="flex-1 flex flex-col min-w-0 bg-gray-50 h-full relative z-10">
             <div id="main-scroll-area" class="flex-1 overflow-y-auto w-full relative flex flex-col">
                 <div class="w-full max-w-7xl mx-auto px-4 py-8 sm:px-8 flex flex-col flex-1 min-h-0">
@@ -322,7 +321,6 @@
                                         $inputName = $section->is_exam ? "exam_answer_{$block->id}" : "answer_{$block->id}";
                                     @endphp
 
-                                    {{-- FIX 3: Flex Row container that expands to fill the padded boundaries --}}
                                     <div class="flex flex-col lg:flex-row gap-4 lg:gap-6 w-full flex-1 min-h-0">
                                         
                                         {{-- MEDIA PARSER --}}
@@ -339,7 +337,6 @@
                                                 @endphp
 
                                                 @if($isPdf)
-                                                    {{-- FIX 4: Removed hardcoded heights. Media naturally stretches or holds a 50vh minimum on mobile --}}
                                                     <div class="pdf-container media-container shadow-sm border border-gray-200 flex-1 min-h-[50vh] lg:min-h-0 flex flex-col" data-pdf-url="{{ $mediaUrl }}" id="media-{{ $lessonIndex }}-{{ $contentIndex }}">
                                                         <div class="pdf-toolbar shrink-0">
                                                             <div class="flex items-center gap-4">
@@ -404,7 +401,6 @@
 
                                         {{-- TEXT/QUESTIONS PARSER --}}
                                         @if($hasText)
-                                            {{-- FIX 5: Text column gets its own internal scroller if the text is incredibly long --}}
                                             <div class="w-full flex flex-col {{ $hasMedia ? 'lg:w-1/2 xl:w-5/12 lg:overflow-y-auto pr-1 lg:pr-2' : 'max-w-4xl mx-auto flex-1 overflow-y-visible lg:overflow-y-auto px-1 lg:px-2' }} min-h-0">
                                                 
                                                 @if($block->type === 'content' && $block->question_text)
@@ -576,7 +572,6 @@
             highestUnlockedLesson: {{ $savedProgress->highest_unlocked ?? 0 }}
         };
 
-        // FIX: Automatically lock the study sections if the student resumes inside an exam!
         let isExamLocked = (materialData[state.lesson] && materialData[state.lesson].is_exam) ? true : false;
         
         let pendingExamTarget = null;
@@ -729,21 +724,30 @@
             modal.classList.remove('opacity-100');
             modal.classList.add('opacity-0');
             setTimeout(() => { modal.classList.add('hidden'); }, 300);
-            pendingExamTarget = null;
+            
+            // NOTE: We DO NOT clear pendingExamTarget here anymore.
+            // It will be cleared inside confirmStartExam() after it is used!
         }
 
         function confirmStartExam() {
             isExamLocked = true;
-            closeExamConfirm();
             
-            if (pendingExamTarget !== null) {
-                saveProgressToServer();
-                state.lesson = pendingExamTarget;
+            // Save the target destination before we close the modal
+            let targetDestination = pendingExamTarget; 
+            
+            closeExamConfirm(); // Close the modal visually
+
+            // Navigate to the exact part of the exam safely!
+            if (targetDestination !== null) {
+                saveProgressToServer(false);
+                state.lesson = targetDestination;
                 state.content = 0;
+                
                 if (state.lesson > state.highestUnlockedLesson) {
                     state.highestUnlockedLesson = state.lesson;
                 }
-                pendingExamTarget = null;
+                
+                pendingExamTarget = null; // Clear it now that we have used it
                 renderState();
             }
         }
@@ -1175,7 +1179,6 @@
                             confetti({ particleCount: 150, spread: 80, origin: { y: 0.6 }, colors: ['#a52a2a', '#22c55e', '#fbbf24', '#3b82f6'] });
                         }
                         
-                        // Check if they actually earned a certificate, or just finished reading
                         if (data.has_certificate) {
                             showCustomAlert("Congratulations!", "You have passed this module and earned a certificate! Redirecting...", "success", function() {
                                 window.location.href = data.redirect_url;
@@ -1354,17 +1357,15 @@
                     const renderArea = instance.container.querySelector('.pdf-render-area');
                     
                     const targetWidth = renderArea.clientWidth - 32; 
-                    const targetHeight = renderArea.clientHeight - 40; // Offset for padding and breathing room
+                    const targetHeight = renderArea.clientHeight - 40; 
                     
                     if (targetWidth > 0 && targetHeight > 0) {
                         const scaleW = targetWidth / unscaledViewport.width;
                         const scaleH = targetHeight / unscaledViewport.height;
                         
                         if (unscaledViewport.width > unscaledViewport.height) {
-                            // Landscape
                             instance.scale = Math.min(scaleW, scaleH); 
                         } else {
-                            // Portrait
                             instance.scale = Math.min(scaleW, 1.5); 
                         }
                         

@@ -78,35 +78,33 @@
                             <strong class="text-white block mb-1">Mastery Category</strong>
                             Groups the students' overall average score into standard levels:
                                 <ul class="space-y-1">
-    <li class="flex justify-between">
-        <span class="text-green-600 font-bold">90% - 100%</span>
-        <span>Highly Proficient</span>
-    </li>
-    <li class="flex justify-between">
-        <span class="text-blue-600 font-bold">75% - 89%</span>
-        <span>Proficient</span>
-    </li>
-    <li class="flex justify-between">
-        <span class="text-amber-600 font-bold">50% - 74%</span>
-        <span>Nearly Proficient</span>
-    </li>
-    <li class="flex justify-between">
-        <span class="text-orange-600 font-bold">25% - 49%</span>
-        <span>Low Proficient</span>
-    </li>
-    <li class="flex justify-between">
-        <span class="text-red-600 font-bold">0% - 24%</span>
-        <span>Not Proficient</span>
-    </li>
-</ul>
+                                    <li class="flex justify-between">
+                                        <span class="text-green-600 font-bold">90% - 100%</span>
+                                        <span>Highly Proficient</span>
+                                    </li>
+                                    <li class="flex justify-between">
+                                        <span class="text-blue-600 font-bold">75% - 89%</span>
+                                        <span>Proficient</span>
+                                    </li>
+                                    <li class="flex justify-between">
+                                        <span class="text-amber-600 font-bold">50% - 74%</span>
+                                        <span>Nearly Proficient</span>
+                                    </li>
+                                    <li class="flex justify-between">
+                                        <span class="text-orange-600 font-bold">25% - 49%</span>
+                                        <span>Low Proficient</span>
+                                    </li>
+                                    <li class="flex justify-between">
+                                        <span class="text-red-600 font-bold">0% - 24%</span>
+                                        <span>Not Proficient</span>
+                                    </li>
+                                </ul>
                             <div class="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gray-900"></div>
                         </div>
                     </div>
                     <p class="text-lg font-black {{ $masteryColor }} leading-tight mb-1">{{ $overallMasteryLevel }}</p>
                     <p class="text-[10px] text-gray-500 mt-auto">Based on standard scale</p>
                 </div>
-
-                
 
                 {{-- 3 Most Mastered Competency (MMC) --}}
                 <div class="bg-blue-50/50 p-5 rounded-2xl shadow-sm border border-blue-100 flex flex-col justify-center">
@@ -119,7 +117,7 @@
                             <div class="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gray-900"></div>
                         </div>
                     </div>
-                    @if($mostMastered)
+                    @if($mostMastered && ($completedCount ?? 0) > 0)
                         <p class="text-sm font-bold text-gray-900 line-clamp-2 leading-tight">{{ $mostMastered->title }}</p>
                         <p class="text-[10px] font-bold text-blue-600 mt-1">{{ $mostMastered->mps }}% Accuracy</p>
                     @else
@@ -157,7 +155,6 @@
                     <p class="text-[10px] text-gray-500 mt-1 leading-tight">Met 75% standard</p>
                 </div>
 
-
                 {{-- 6. Least Mastered Competency (LMC) --}}
                 <div class="bg-red-50/50 p-5 rounded-2xl shadow-sm border border-red-100 flex flex-col justify-center">
                     <div class="flex items-center gap-1.5 mb-1 relative group w-fit cursor-help">
@@ -169,7 +166,7 @@
                             <div class="absolute top-full right-4 sm:left-1/2 sm:-translate-x-1/2 border-4 border-transparent border-t-gray-900"></div>
                         </div>
                     </div>
-                    @if($leastMastered)
+                    @if($leastMastered && ($completedCount ?? 0) > 0)
                         <p class="text-sm font-bold text-gray-900 line-clamp-2 leading-tight">{{ $leastMastered->title }}</p>
                         <p class="text-[10px] font-bold text-red-600 mt-1">{{ $leastMastered->mps }}% Accuracy</p>
                     @else
@@ -196,7 +193,13 @@
                     </div>
                     <div class="relative flex-1 w-full min-h-[220px] flex justify-center items-center">
                         @if(($completedCount ?? 0) == 0)
-                            <p class="text-gray-400 text-sm">No submissions yet.</p>
+                            <div class="flex flex-col items-center justify-center text-center p-6 w-full">
+                                <div class="w-12 h-12 bg-gray-50 rounded-full flex items-center justify-center mb-3">
+                                    <i class="fas fa-chart-bar text-gray-300 text-xl"></i>
+                                </div>
+                                <p class="text-sm font-medium text-gray-600">No submissions yet</p>
+                                <p class="text-xs text-gray-400 mt-1">Proficiency charts will generate once students complete the assessment.</p>
+                            </div>
                         @else
                             <canvas id="proficiencyChart"></canvas>
                         @endif
@@ -211,19 +214,26 @@
                             <p class="text-[11px] text-gray-500 mb-4">Shows how long students took to finish the test compared to their final scores.</p>
                         </div>
                         <div class="bg-gray-50 text-gray-700 px-3 py-1 rounded-lg text-xs font-bold border border-gray-200 whitespace-nowrap" title="Average Time Taken">
-                            <i class="fas fa-stopwatch mr-1 text-gray-400"></i> Avg: {{ $avgTimeFormat }}
+                            <i class="fas fa-stopwatch mr-1 text-gray-400"></i> Avg: {{ $avgTimeFormat ?? '0m 0s' }}
                         </div>
                     </div>
                     
                     <div class="relative flex-1 w-full min-h-[220px] flex justify-center items-center">
-                        @if(empty($scatterData))
-                            <p class="text-gray-400 text-sm">No pacing data available yet.</p>
+                        @if(empty($scatterData) || ($completedCount ?? 0) == 0)
+                            <div class="flex flex-col items-center justify-center text-center p-6 w-full">
+                                <div class="w-12 h-12 bg-gray-50 rounded-full flex items-center justify-center mb-3">
+                                    <i class="fas fa-stopwatch text-gray-300 text-xl"></i>
+                                </div>
+                                <p class="text-sm font-medium text-gray-600">No pacing data available</p>
+                                <p class="text-xs text-gray-400 mt-1">Insights will appear after the first student finishes the test.</p>
+                            </div>
                         @else
                             <canvas id="pacingScatterChart"></canvas>
                         @endif
                     </div>
 
                     {{-- Legend for Quadrants --}}
+                    @if(!empty($scatterData) && ($completedCount ?? 0) > 0)
                     <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-4">
                         <div class="flex items-center gap-1.5 bg-green-50/50 px-2 py-1.5 rounded border border-green-100">
                             <span class="w-2.5 h-2.5 rounded-full bg-[#10b981]"></span>
@@ -242,6 +252,7 @@
                             <span class="text-[10px] font-semibold text-amber-700 leading-tight">Slow & Inaccurate</span>
                         </div>
                     </div>
+                    @endif
                 </div>
             </div>
         </section>
@@ -250,84 +261,90 @@
         <section id="ui-competency-breakdown" class="scroll-mt-20">
             <h3 class="text-xl font-bold text-gray-800 mt-8 mb-4 border-b border-gray-200 pb-2">Competency Breakdown</h3>
             <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-4">
+                
                 {{-- Complete Competency Table --}}
                 <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden flex flex-col">
                     <div class="p-6 border-b border-gray-100">
                         <div class="flex gap-3">
-                                <h4 class="text-gray-700 font-semibold mb-1">Full Competency Breakdown</h4>
-
+                            <h4 class="text-gray-700 font-semibold mb-1">Full Competency Breakdown</h4>
                             <div class="relative group cursor-help">
-    <i class="fas fa-info-circle text-gray-400 transition-colors group-hover:text-[#a52a2a]"></i>
-
-    <div class="absolute top-full left-1/2 -translate-x-1/2 mt-2 w-60 p-3 bg-gray-900 text-white text-[11px] rounded-xl shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-[100] pointer-events-none">
-
-        <strong class="text-green-700 block mb-1">Advanced (90% - 100%)</strong>
-        <p class="text-gray-400 mb-2">Excellent mastery; near-perfect accuracy.</p>
-
-        <strong class="text-green-500 block mb-1">Upper Intermediate (75% - 89%)</strong>
-        <p class="text-gray-400 mb-2">Strong understanding with minor errors.</p>
-
-        <strong class="text-blue-600 block mb-1">Intermediate (60% - 74%)</strong>
-        <p class="text-gray-400 mb-2">Solid understanding but needs refinement.</p>
-
-        <strong class="text-amber-600 block mb-1">Basic (40% - 59%)</strong>
-        <p class="text-gray-400 mb-2">Basic understanding; inconsistent performance.</p>
-
-        <strong class="text-red-600 block mb-1">Beginner (0% - 39%)</strong>
-        <p class="text-gray-400">Limited understanding; requires support.</p>
-
-        <div class="absolute bottom-full left-1/2 -translate-x-1/2 border-4 border-transparent border-b-gray-900"></div>
-    </div>
-</div>
+                                <i class="fas fa-info-circle text-gray-400 transition-colors group-hover:text-[#a52a2a]"></i>
+                                <div class="absolute top-full left-1/2 -translate-x-1/2 mt-2 w-60 p-3 bg-gray-900 text-white text-[11px] rounded-xl shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-[100] pointer-events-none">
+                                    <strong class="text-green-700 block mb-1">Advanced (90% - 100%)</strong>
+                                    <p class="text-gray-400 mb-2">Excellent mastery; near-perfect accuracy.</p>
+                                    <strong class="text-green-500 block mb-1">Upper Intermediate (75% - 89%)</strong>
+                                    <p class="text-gray-400 mb-2">Strong understanding with minor errors.</p>
+                                    <strong class="text-blue-600 block mb-1">Intermediate (60% - 74%)</strong>
+                                    <p class="text-gray-400 mb-2">Solid understanding but needs refinement.</p>
+                                    <strong class="text-amber-600 block mb-1">Basic (40% - 59%)</strong>
+                                    <p class="text-gray-400 mb-2">Basic understanding; inconsistent performance.</p>
+                                    <strong class="text-red-600 block mb-1">Beginner (0% - 39%)</strong>
+                                    <p class="text-gray-400">Limited understanding; requires support.</p>
+                                    <div class="absolute bottom-full left-1/2 -translate-x-1/2 border-4 border-transparent border-b-gray-900"></div>
+                                </div>
+                            </div>
                         </div>
                         <p class="text-xs text-gray-400">Shows the average scores for each specific topic or subject area.</p>
                     </div>
-                    <div class="overflow-y-auto max-h-[350px]">
-                        <table class="w-full text-left text-sm text-gray-600">
-                            <thead class="bg-gray-50 text-xs uppercase text-gray-500 font-bold border-b border-gray-100 sticky top-0">
-                                <tr>
-                                    <th class="px-6 py-4 w-1/2">Topic / Subject Name</th>
-                                    <th class="px-6 py-4 text-center">Score (Accuracy)</th>
-                                    <th class="px-6 py-4 text-center">Status</th>
-                                </tr>
-                            </thead>
-                            <tbody class="divide-y divide-gray-100">
+                    
+                    @if(!isset($competencies) || count($competencies ?? []) === 0)
+                        <div class="p-12 flex flex-col items-center justify-center text-center flex-1">
+                            <p class="text-sm font-medium text-gray-600">No competency data available</p>
+                        </div>
+                    @else
+                        <div class="overflow-y-auto max-h-[350px]">
+                            <table class="w-full text-left text-sm text-gray-600">
+                                <thead class="bg-gray-50 text-xs uppercase text-gray-500 font-bold border-b border-gray-100 sticky top-0">
+                                    <tr>
+                                        <th class="px-6 py-4 w-1/2">Topic / Subject Name</th>
+                                        <th class="px-6 py-4 text-center">Score (Accuracy)</th>
+                                        <th class="px-6 py-4 text-center">Status</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="divide-y divide-gray-100">
                                 @forelse($competencies ?? [] as $cat)
                                     <tr class="hover:bg-gray-50/50 transition">
-                                        <td class="px-6 py-4 font-medium text-gray-900">{{ $cat->title }}</td>
+                                        <td class="px-6 py-4 font-medium text-gray-900">{{ $cat->title ?? 'Unknown' }}</td>
+                                        
                                         <td class="px-6 py-4 text-center">
-                                            <span class="px-2.5 py-1 rounded-md text-xs font-bold {{ $cat->mps >= 75 ? 'text-green-700 bg-green-100' : ($cat->mps <= 40 ? 'text-red-700 bg-red-100' : 'text-amber-700 bg-amber-100') }}">{{ $cat->mps }}%</span>
+                                            {{-- Check if the category actually has answers --}}
+                                            @if(($cat->total_answers ?? 0) == 0)
+                                                <span class="px-2.5 py-1 rounded-md text-xs font-bold text-gray-500 bg-gray-100 border border-gray-200">--</span>
+                                            @else
+                                                <span class="px-2.5 py-1 rounded-md text-xs font-bold {{ ($cat->mps ?? 0) >= 75 ? 'text-green-700 bg-green-100' : (($cat->mps ?? 0) < 40 ? 'text-red-700 bg-red-100' : 'text-amber-700 bg-amber-100') }}">
+                                                    {{ $cat->mps ?? 0 }}%
+                                                </span>
+                                            @endif
                                         </td>
+                                        
                                         <td class="px-6 py-4 text-center">
-                                            @if($cat->mps >= 90)
-    <span class="text-xs text-green-700 font-bold">
-        <i class="fas fa-star"></i> Advanced
-    </span>
-@elseif($cat->mps >= 75)
-    <span class="text-xs text-green-500 font-bold">
-        <i class="fas fa-check-circle"></i> Upper Intermediate
-    </span>
-@elseif($cat->mps >= 60)
-    <span class="text-xs text-blue-600 font-bold">
-        <i class="fas fa-arrow-up"></i> Intermediate
-    </span>
-@elseif($cat->mps >= 40)
-    <span class="text-xs text-amber-600 font-bold">
-        <i class="fas fa-minus-circle"></i> Basic
-    </span>
-@else
-    <span class="text-xs text-red-600 font-bold">
-        <i class="fas fa-times-circle"></i> Beginner
-    </span>
-@endif
+                                            {{-- Check if the category actually has answers --}}
+                                            @if(($cat->total_answers ?? 0) == 0)
+                                                <span class="text-[10px] text-gray-400 font-bold tracking-wider uppercase"><i class="fas fa-hourglass-half"></i> No Data</span>
+                                            @elseif(($cat->mps ?? 0) >= 90)
+                                                <span class="text-xs text-green-700 font-bold"><i class="fas fa-star"></i> Advanced</span>
+                                            @elseif(($cat->mps ?? 0) >= 75)
+                                                <span class="text-xs text-green-500 font-bold"><i class="fas fa-check-circle"></i> Upper Intermediate</span>
+                                            @elseif(($cat->mps ?? 0) >= 60)
+                                                <span class="text-xs text-blue-600 font-bold"><i class="fas fa-arrow-up"></i> Intermediate</span>
+                                            @elseif(($cat->mps ?? 0) >= 40)
+                                                <span class="text-xs text-amber-600 font-bold"><i class="fas fa-minus-circle"></i> Basic</span>
+                                            @else
+                                                <span class="text-xs text-red-600 font-bold"><i class="fas fa-times-circle"></i> Beginner</span>
+                                            @endif
                                         </td>
                                     </tr>
                                 @empty
-                                    <tr><td colspan="3" class="px-6 py-8 text-center text-gray-400">No competency data available.</td></tr>
+                                    <tr>
+                                        <td colspan="3" class="px-6 py-12 text-center">
+                                            <p class="text-sm font-medium text-gray-600">No competency data available</p>
+                                        </td>
+                                    </tr>
                                 @endforelse
                             </tbody>
-                        </table>
-                    </div>
+                            </table>
+                        </div>
+                    @endif
                 </div>
 
                 {{-- School Leaderboard --}}
@@ -339,30 +356,41 @@
                         </div>
                         <i class="fas fa-trophy text-3xl text-yellow-500 opacity-50"></i>
                     </div>
-                    <div class="overflow-y-auto max-h-[350px]">
-                        <table class="w-full text-left text-sm text-gray-600">
-                            <thead class="bg-gray-50 text-xs uppercase text-gray-500 font-bold border-b border-gray-100 sticky top-0">
-                                <tr>
-                                    <th class="px-6 py-4 w-12 text-center">Rank</th>
-                                    <th class="px-6 py-4">School Name</th>
-                                    <th class="px-6 py-4 text-center">Takers</th>
-                                    <th class="px-6 py-4 text-center">Score</th>
-                                </tr>
-                            </thead>
-                            <tbody class="divide-y divide-gray-100">
-                                @forelse($schoolLeaderboard ?? [] as $index => $school)
-                                    <tr class="hover:bg-gray-50/50 transition">
-                                        <td class="px-6 py-4 text-center font-bold {{ $index < 3 ? 'text-[#a52a2a]' : 'text-gray-400' }}">{{ $index + 1 }}</td>
-                                        <td class="px-6 py-4 font-medium text-gray-900">{{ $school->name }}</td>
-                                        <td class="px-6 py-4 text-center text-gray-500">{{ $school->student_count }}</td>
-                                        <td class="px-6 py-4 text-center font-bold text-gray-800">{{ $school->mps }}%</td>
+                    
+                    @if(!isset($schoolLeaderboard) || count($schoolLeaderboard ?? []) === 0)
+                        <div class="p-12 flex flex-col items-center justify-center text-center flex-1">
+                            <p class="text-sm font-medium text-gray-600">No school rankings available</p>
+                        </div>
+                    @else
+                        <div class="overflow-y-auto max-h-[350px]">
+                            <table class="w-full text-left text-sm text-gray-600">
+                                <thead class="bg-gray-50 text-xs uppercase text-gray-500 font-bold border-b border-gray-100 sticky top-0">
+                                    <tr>
+                                        <th class="px-6 py-4 w-12 text-center">Rank</th>
+                                        <th class="px-6 py-4">School Name</th>
+                                        <th class="px-6 py-4 text-center">Takers</th>
+                                        <th class="px-6 py-4 text-center">Score</th>
                                     </tr>
-                                @empty
-                                    <tr><td colspan="4" class="px-6 py-8 text-center text-gray-400">No school data available.</td></tr>
-                                @endforelse
-                            </tbody>
-                        </table>
-                    </div>
+                                </thead>
+                                <tbody class="divide-y divide-gray-100">
+                                    @foreach($schoolLeaderboard as $index => $school)
+                                        <tr class="hover:bg-gray-50/50 transition">
+                                            <td class="px-6 py-4 text-center font-bold {{ $index < 3 ? 'text-[#a52a2a]' : 'text-gray-400' }}">{{ $index + 1 }}</td>
+                                            <td class="px-6 py-4 font-medium text-gray-900">{{ $school->name ?? 'Unknown' }}</td>
+                                            <td class="px-6 py-4 text-center text-gray-500">{{ $school->student_count ?? 0 }}</td>
+                                            <td class="px-6 py-4 text-center font-bold text-gray-800">
+                                                @if(($completedCount ?? 0) == 0)
+                                                    <span class="text-gray-400 font-normal italic">--</span>
+                                                @else
+                                                    {{ $school->mps ?? 0 }}%
+                                                @endif
+                                            </td>
+                                        </tr>
+                                    @endforeach
+                                </tbody>
+                            </table>
+                        </div>
+                    @endif
                 </div>
             </div>
         </section>
@@ -375,101 +403,104 @@
                     <h4 class="text-gray-700 font-semibold mb-1">Item Statistics</h4>
                     <p class="text-xs text-gray-400">Shows how difficult each question was and which answers the students chose.</p>
                 </div>
-                <div class="overflow-x-auto max-h-[600px] custom-scrollbar">
-                    <table class="w-full text-left text-sm text-gray-600 min-w-[800px]">
-                        <thead class="bg-gray-50 text-xs uppercase text-gray-500 font-bold border-b border-gray-100 sticky top-0 z-10 shadow-sm">
-                            <tr>
-                                <th class="px-6 py-4 w-12 text-center">Item</th>
-                                <th class="px-6 py-4 w-1/3">Question Base</th>
-                                <th class="px-6 py-4 text-center">
-                                                <div class="flex items-center justify-center gap-1">
-                                                    Difficulty Index (p)
-                                                    <div class="relative group cursor-help">
-                                                        <i
-                                                            class="fas fa-question-circle text-gray-400 transition-colors group-hover:text-[#a52a2a]"></i>
-                                                        {{-- Tooltip Box (Updated) --}}
-                                                        <div
-                                                            class="absolute top-full left-1/2 -translate-x-1/2 mt-2 w-64 p-3 bg-gray-900 text-white text-[11px] rounded-xl shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-[100] font-normal normal-case tracking-normal pointer-events-none">
-                                                            <strong
-                                                                class="text-white block mb-2 border-b border-gray-700 pb-1">Difficulty
-                                                                Classification</strong>
-                                                            <ul class="space-y-1">
-                                                                <li class="flex justify-between"><span
-                                                                        class="text-blue-400 font-bold">81% -
-                                                                        100%</span><span>Very Easy</span></li>
-                                                                <li class="flex justify-between"><span
-                                                                        class="text-green-400 font-bold">61% -
-                                                                        80%</span><span>Easy</span></li>
-                                                                <li class="flex justify-between"><span
-                                                                        class="text-amber-400 font-bold">41% -
-                                                                        60%</span><span>Average</span></li>
-                                                                <li class="flex justify-between"><span
-                                                                        class="text-orange-400 font-bold">21% -
-                                                                        40%</span><span>Difficult</span></li>
-                                                                <li class="flex justify-between"><span
-                                                                        class="text-red-400 font-bold">0% - 20%</span><span>Very
-                                                                        Difficult</span></li>
-                                                            </ul>
-                                                            {{-- Arrow (Updated to point up) --}}
-                                                            <div
-                                                                class="absolute bottom-full left-1/2 -translate-x-1/2 border-4 border-transparent border-b-gray-900">
-                                                            </div>
-                                                        </div>
-                                                    </div>
+                
+                @if(!isset($itemAnalysis) || count($itemAnalysis ?? []) === 0)
+                    <div class="p-16 flex flex-col items-center justify-center text-center">
+                        <p class="text-base font-medium text-gray-600">No items available to analyze</p>
+                    </div>
+                @else
+                    <div class="overflow-x-auto max-h-[600px] custom-scrollbar">
+                        <table class="w-full text-left text-sm text-gray-600 min-w-[800px]">
+                            <thead class="bg-gray-50 text-xs uppercase text-gray-500 font-bold border-b border-gray-100 sticky top-0 z-10 shadow-sm">
+                                <tr>
+                                    <th class="px-6 py-4 w-12 text-center">Item</th>
+                                    <th class="px-6 py-4 w-1/3">Question Base</th>
+                                    <th class="px-6 py-4 text-center">
+                                        <div class="flex items-center justify-center gap-1">
+                                            Difficulty Index (p)
+                                            <div class="relative group cursor-help">
+                                                <i class="fas fa-question-circle text-gray-400 transition-colors group-hover:text-[#a52a2a]"></i>
+                                                <div class="absolute top-full left-1/2 -translate-x-1/2 mt-2 w-64 p-3 bg-gray-900 text-white text-[11px] rounded-xl shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-[100] font-normal normal-case tracking-normal pointer-events-none">
+                                                    <strong class="text-white block mb-2 border-b border-gray-700 pb-1">Difficulty Classification</strong>
+                                                    <ul class="space-y-1">
+                                                        <li class="flex justify-between"><span class="text-blue-400 font-bold">81% - 100%</span><span>Very Easy</span></li>
+                                                        <li class="flex justify-between"><span class="text-green-400 font-bold">61% - 80%</span><span>Easy</span></li>
+                                                        <li class="flex justify-between"><span class="text-amber-400 font-bold">41% - 60%</span><span>Average</span></li>
+                                                        <li class="flex justify-between"><span class="text-orange-400 font-bold">21% - 40%</span><span>Difficult</span></li>
+                                                        <li class="flex justify-between"><span class="text-red-400 font-bold">0% - 20%</span><span>Very Difficult</span></li>
+                                                    </ul>
+                                                    <div class="absolute bottom-full left-1/2 -translate-x-1/2 border-4 border-transparent border-b-gray-900"></div>
                                                 </div>
-                                            </th>
-                                <th class="px-6 py-4 w-1/2 text-center">
-                                    Answers Chosen
-                                </th>
-                            </tr>
-                        </thead>
-                        <tbody class="divide-y divide-gray-100">
-                            @forelse($itemAnalysis ?? [] as $index => $item)
-                                <tr class="hover:bg-gray-50/50 transition">
-                                    <td class="px-6 py-4 text-center font-bold text-gray-400">{{ $index + 1 }}</td>
-                                    <td class="px-6 py-4">
-                                        <p class="text-gray-900 font-medium line-clamp-2 mb-1">{!! strip_tags($item->question_text) !!}</p>
-                                        <span class="text-[10px] font-bold text-gray-400 uppercase tracking-wider">{{ $item->category_name }}</span>
-                                    </td>
-                                    
-                                    <td class="px-6 py-4 text-center">
-                                        <div class="flex flex-col items-center">
-                                            <span class="font-bold text-gray-900 text-base mb-1">{{ $item->difficulty_index }}%</span>
-                                            <div class="flex gap-2 text-[10px] font-bold text-gray-400 mb-1">
-                                                <span class="text-green-600"><i class="fas fa-check"></i> {{ $item->correct_count }}</span>
-                                                <span class="text-red-500"><i class="fas fa-times"></i> {{ $item->wrong_count }}</span>
                                             </div>
-                                            @if($item->difficulty_index >= 81) <span class="text-[10px] text-blue-500 font-bold uppercase">Very Easy</span>
-                                            @elseif($item->difficulty_index >= 61) <span class="text-[10px] text-green-500 font-bold uppercase">Easy</span>
-                                            @elseif($item->difficulty_index >= 41) <span class="text-[10px] text-amber-500 font-bold uppercase">Average</span>
-                                            @elseif($item->difficulty_index >= 21) <span class="text-[10px] text-orange-500 font-bold uppercase">Difficult</span>
-                                            @else <span class="text-[10px] text-red-500 font-bold uppercase">Very Difficult</span>
-                                            @endif
                                         </div>
-                                    </td>
-                                    
-                                    <td class="px-6 py-4">
-                                        <div class="flex flex-wrap gap-2">
-                                            @foreach($item->distractor_stats as $opt)
-                                                @php
-                                                    $isCorrect = $opt->is_correct;
-                                                    $isDeadDistractor = (!$isCorrect && $opt->pct == 0);
-                                                @endphp
-                                                <span class="px-2 py-1 text-[10px] rounded border {{ $isCorrect ? 'bg-green-50 border-green-200 text-green-700 font-bold shadow-sm' : ($isDeadDistractor ? 'bg-gray-100 border-dashed border-gray-300 text-gray-400 opacity-70' : 'bg-red-50 border-red-100 text-red-600') }}"
-                                                      title="{{ $isDeadDistractor ? 'Unused Answer: No student selected this.' : '' }}">
-                                                    {!! \Illuminate\Support\Str::limit(strip_tags($opt->text), 40) !!}: {{ $opt->pct }}%
-                                                    @if($isCorrect) <i class="fas fa-check ml-1"></i> @endif
-                                                </span>
-                                            @endforeach
-                                        </div>
-                                    </td>
+                                    </th>
+                                    <th class="px-6 py-4 w-1/2 text-center">Answers Chosen</th>
                                 </tr>
-                            @empty
-                                <tr><td colspan="4" class="px-6 py-12 text-center text-gray-400">No item data available.</td></tr>
-                            @endforelse
-                        </tbody>
-                    </table>
-                </div>
+                            </thead>
+                            <tbody class="divide-y divide-gray-100">
+                                @foreach($itemAnalysis as $index => $item)
+                                    @php
+                                        $correct = $item->correct_count ?? 0;
+                                        $wrong = $item->wrong_count ?? 0;
+                                        $totalItemAnswers = $correct + $wrong;
+                                    @endphp
+                                    <tr class="hover:bg-gray-50/50 transition">
+                                        <td class="px-6 py-4 text-center font-bold text-gray-400">{{ $index + 1 }}</td>
+                                        <td class="px-6 py-4">
+                                            <p class="text-gray-900 font-medium line-clamp-2 mb-1">{!! strip_tags($item->question_text ?? '') !!}</p>
+                                            <span class="text-[10px] font-bold text-gray-400 uppercase tracking-wider">{{ $item->category_name ?? '' }}</span>
+                                        </td>
+                                        
+                                        <td class="px-6 py-4 text-center">
+                                            <div class="flex flex-col items-center">
+                                                @if($totalItemAnswers == 0)
+                                                    <span class="font-bold text-gray-400 text-base mb-1">--</span>
+                                                    <span class="text-[10px] text-gray-400 font-bold tracking-wider uppercase"><i class="fas fa-hourglass-half"></i> No Data</span>
+                                                @else
+                                                    <span class="font-bold text-gray-900 text-base mb-1">{{ $item->difficulty_index ?? 0 }}%</span>
+                                                    <div class="flex gap-2 text-[10px] font-bold text-gray-400 mb-1">
+                                                        <span class="text-green-600"><i class="fas fa-check"></i> {{ $correct }}</span>
+                                                        <span class="text-red-500"><i class="fas fa-times"></i> {{ $wrong }}</span>
+                                                    </div>
+                                                    @if(($item->difficulty_index ?? 0) >= 81) <span class="text-[10px] text-blue-500 font-bold uppercase">Very Easy</span>
+                                                    @elseif(($item->difficulty_index ?? 0) >= 61) <span class="text-[10px] text-green-500 font-bold uppercase">Easy</span>
+                                                    @elseif(($item->difficulty_index ?? 0) >= 41) <span class="text-[10px] text-amber-500 font-bold uppercase">Average</span>
+                                                    @elseif(($item->difficulty_index ?? 0) >= 21) <span class="text-[10px] text-orange-500 font-bold uppercase">Difficult</span>
+                                                    @else <span class="text-[10px] text-red-500 font-bold uppercase">Very Difficult</span>
+                                                    @endif
+                                                @endif
+                                            </div>
+                                        </td>
+                                        
+                                        <td class="px-6 py-4">
+                                            @if($totalItemAnswers == 0)
+                                                <div class="flex items-center gap-2 text-gray-400 text-xs italic">
+                                                    Waiting for student responses...
+                                                </div>
+                                            @else
+                                                <div class="flex flex-wrap gap-2">
+                                                    @foreach($item->distractor_stats ?? [] as $opt)
+                                                        @php
+                                                            $isCorrectOpt = $opt->is_correct ?? false;
+                                                            $optPct = $opt->pct ?? 0;
+                                                            $optText = $opt->text ?? '';
+                                                            $isDeadDistractor = (!$isCorrectOpt && $optPct == 0);
+                                                        @endphp
+                                                        <span class="px-2 py-1 text-[10px] rounded border {{ $isCorrectOpt ? 'bg-green-50 border-green-200 text-green-700 font-bold shadow-sm' : ($isDeadDistractor ? 'bg-gray-100 border-dashed border-gray-300 text-gray-400 opacity-70' : 'bg-red-50 border-red-100 text-red-600') }}"
+                                                              title="{{ $isDeadDistractor ? 'Unused Answer: No student selected this.' : '' }}">
+                                                            {!! \Illuminate\Support\Str::limit(strip_tags($optText), 40) !!}: {{ $optPct }}%
+                                                            @if($isCorrectOpt) <i class="fas fa-check ml-1"></i> @endif
+                                                        </span>
+                                                    @endforeach
+                                                </div>
+                                            @endif
+                                        </td>
+                                    </tr>
+                                @endforeach
+                            </tbody>
+                        </table>
+                    </div>
+                @endif
             </div>
         </section>
 
