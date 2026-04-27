@@ -22,6 +22,10 @@ class ExamImport implements ToCollection, WithHeadingRow
         DB::beginTransaction();
 
         try {
+            // Track sort orders so imported items append neatly instead of scattering to 0
+            $categorySortOrder = (DB::table('assessment_categories')->where('assessment_id', $this->assessmentId)->max('sort_order') ?? 0) + 1;
+            $questionSortOrders = [];
+
             foreach ($rows as $row) {
 
                 // --- FLEXIBLE QUESTION TEXT ---
@@ -44,6 +48,7 @@ class ExamImport implements ToCollection, WithHeadingRow
                 ];
 
                 if (!$category) {
+                    $categoryData['sort_order'] = $categorySortOrder++; // Assigned sort order
                     $categoryData['created_at'] = now();
                     $categoryId = DB::table('assessment_categories')->insertGetId($categoryData);
                 } else {
@@ -63,8 +68,14 @@ class ExamImport implements ToCollection, WithHeadingRow
                     default => 'mcq',
                 };
 
-                // --- MEDIA ---
+                // --- MEDIA & CASE SENSITIVITY ---
                 $mediaUrl = $row['image_url'] ?? $row['media_url'] ?? null;
+                $isCaseSensitive = filter_var($row['is_case_sensitive'] ?? false, FILTER_VALIDATE_BOOLEAN);
+
+                // Track question sort order per category
+                if (!isset($questionSortOrders[$categoryId])) {
+                    $questionSortOrders[$categoryId] = (DB::table('assessment_questions')->where('category_id', $categoryId)->max('sort_order') ?? 0) + 1;
+                }
 
                 // --- UPSERT QUESTION ---
                 $existingQuestion = DB::table('assessment_questions')
@@ -77,7 +88,7 @@ class ExamImport implements ToCollection, WithHeadingRow
                     'type' => $questionType,
                     'question_text' => $questionText,
                     'media_url' => $mediaUrl,
-                    'is_case_sensitive' => false,
+                    'is_case_sensitive' => $isCaseSensitive, 
                     'updated_at' => now(),
                 ];
 
@@ -87,8 +98,9 @@ class ExamImport implements ToCollection, WithHeadingRow
                         ->update($questionData);
 
                     $questionId = $existingQuestion->id;
-                    DB::table('assessment_options')->where('question_id', $questionId)->delete();
+                    DB::table('assessment_options')->where('question_id', $questionId)->delete(); // Clear old to refresh
                 } else {
+                    $questionData['sort_order'] = $questionSortOrders[$categoryId]++; // Assigned sort order
                     $questionData['created_at'] = now();
                     $questionId = DB::table('assessment_questions')->insertGetId($questionData);
                 }
@@ -98,57 +110,33 @@ class ExamImport implements ToCollection, WithHeadingRow
                     continue;
                 }
 
-                // --- HANDLE TEXT TYPE ---
-                if ($questionType === 'text') {
-                    DB::table('assessment_options')->insert([
-                        'question_id' => $questionId,
-                        'option_text' => trim($row['correct_answer'] ?? ''),
-                        'is_correct' => true,
-                        'created_at' => now(),
-                        'updated_at' => now(),
-                    ]);
-                    continue;
-                }
-
                 // --- TRUE/FALSE ---
                 if ($questionType === 'true_false') {
-                    $correct = strtolower(trim($row['correct_answer'] ?? ''));
-
+                    $correctAnswer = strtolower(trim($row['correct_answer'] ?? ''));
                     DB::table('assessment_options')->insert([
-                        [
-                            'question_id' => $questionId,
-                            'option_text' => 'True',
-                            'is_correct' => in_array($correct, ['true', 'option 1', '1']),
-                            'created_at' => now(),
-                            'updated_at' => now()
-                        ],
-                        [
-                            'question_id' => $questionId,
-                            'option_text' => 'False',
-                            'is_correct' => in_array($correct, ['false', 'option 2', '2']),
-                            'created_at' => now(),
-                            'updated_at' => now()
-                        ]
+                        ['question_id' => $questionId, 'option_text' => 'True', 'is_correct' => in_array($correctAnswer, ['true', 'option 1', '1']), 'created_at' => now(), 'updated_at' => now()],
+                        ['question_id' => $questionId, 'option_text' => 'False', 'is_correct' => in_array($correctAnswer, ['false', 'option 2', '2']), 'created_at' => now(), 'updated_at' => now()]
                     ]);
-
                     continue;
                 }
 
-                // --- FLEXIBLE CORRECT ANSWER PARSING ---
                 $rawCorrect = strtolower(trim($row['correct_answer'] ?? ''));
                 $correctArray = array_map('trim', explode(',', $rawCorrect));
 
-                // --- OPTIONS LOOP ---
+                $hasOptions = false;
+
+                // --- STANDARD OPTIONS LOOP ---
                 for ($i = 1; $i <= 4; $i++) {
                     $col = 'option_' . $i;
-                    if (empty($row[$col])) continue;
-
+                    if (!isset($row[$col]) || trim($row[$col]) === '') continue;
+                    
+                    $hasOptions = true;
+                    $isCorrect = false;
                     $optStr = 'option ' . $i;
                     $optNum = (string)$i;
 
-                    $isCorrect = false;
-
-                    if ($questionType === 'checkbox') {
+                    // FIX: Treat 'text' type like 'checkbox' so multiple answers can be marked correct simultaneously
+                    if (in_array($questionType, ['checkbox', 'text'])) {
                         if (in_array($optStr, $correctArray) || in_array($optNum, $correctArray)) {
                             $isCorrect = true;
                         }
@@ -162,9 +150,27 @@ class ExamImport implements ToCollection, WithHeadingRow
                         'question_id' => $questionId,
                         'option_text' => trim($row[$col]),
                         'is_correct' => $isCorrect,
-                        'created_at' => now(),
+                        'created_at' => now(), 
                         'updated_at' => now(),
                     ]);
+                }
+
+                // --- FALLBACK FOR TEXT TYPE WITHOUT OPTION COLUMNS ---
+                // If a teacher leaves the options blank, extract the comma-separated strings directly
+                if ($questionType === 'text' && !$hasOptions && !empty($row['correct_answer'])) {
+                    $dynamicAnswers = array_map('trim', explode(',', $row['correct_answer']));
+                    
+                    foreach ($dynamicAnswers as $ans) {
+                        if ($ans !== '') {
+                            DB::table('assessment_options')->insert([
+                                'question_id' => $questionId,
+                                'option_text' => $ans, // Keep original case
+                                'is_correct' => true,
+                                'created_at' => now(),
+                                'updated_at' => now(),
+                            ]);
+                        }
+                    }
                 }
             }
 

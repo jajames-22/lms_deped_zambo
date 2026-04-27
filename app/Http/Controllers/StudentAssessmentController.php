@@ -93,10 +93,19 @@ class StudentAssessmentController extends Controller
 
     public function exam(Request $request, $access_key)
     {
-        $assessment = \App\Models\Assessment::with(['categories.questions.options'])
-                        ->where('access_key', $access_key)
-                        ->where('status', 'published')
-                        ->firstOrFail();
+        // Add ordering based on the sort_order inside eager loading
+        $assessment = \App\Models\Assessment::with([
+            'categories' => function ($query) {
+                $query->orderBy('sort_order', 'asc');
+            },
+            'categories.questions' => function ($query) {
+                $query->orderBy('sort_order', 'asc');
+            },
+            'categories.questions.options'
+        ])
+        ->where('access_key', $access_key)
+        ->where('status', 'published')
+        ->firstOrFail();
 
         $user = \Illuminate\Support\Facades\Auth::user();
 
@@ -254,9 +263,10 @@ class StudentAssessmentController extends Controller
             ->pluck('category_id')
             ->toArray();
 
+        // Change 'id' to 'sort_order' to fetch the true next category in line
         $nextCategory = $assessment->categories()
             ->whereNotIn('id', $completedCategoryIds)
-            ->orderBy('id', 'asc')
+            ->orderBy('sort_order', 'asc')
             ->first();
 
         if ($nextCategory) {
@@ -279,10 +289,18 @@ class StudentAssessmentController extends Controller
 
     public function results($access_key)
     {
-        // 1. Fetch the assessment and all questions/options
-        $assessment = \App\Models\Assessment::with(['categories.questions.options'])
-            ->where('access_key', $access_key)
-            ->firstOrFail();
+        // 1. Fetch the assessment and all questions/options, sorted correctly
+        $assessment = \App\Models\Assessment::with([
+            'categories' => function ($query) {
+                $query->orderBy('sort_order', 'asc');
+            },
+            'categories.questions' => function ($query) {
+                $query->orderBy('sort_order', 'asc');
+            },
+            'categories.questions.options'
+        ])
+        ->where('access_key', $access_key)
+        ->firstOrFail();
 
         $user = \Illuminate\Support\Facades\Auth::user();
 

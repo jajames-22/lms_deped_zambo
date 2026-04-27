@@ -151,14 +151,22 @@
                                         title="View Analytics">
                                         <i class="fas fa-chart-line text-sm"></i>
                                     </button>
+
+                                    <button onclick="window.location.href='{{ route('dashboard.materials.preview', $material->hashid) }}'"
+                                        class="w-8 h-8 flex items-center justify-center text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition shadow-none"
+                                        title="{{ $btnTooltip }}">
+                                        <i class="fas {{ $btnIcon }} text-sm"></i>
+                                    </button>
+                                    
+                                    @elseif($statusStr === 'draft')
+                                     <button onclick="loadPartial('{{ url('/dashboard/materials/'.$material->id.'/edit') }}')"
+                                        class="w-8 h-8 flex items-center justify-center text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition shadow-none"
+                                        title="{{ $btnTooltip }}">
+                                        <i class="fas {{ $btnIcon }} text-sm"></i>
+                                    </button>
+                                                                    
                                     @endif
 
-                                    <button onclick="window.location.href='{{ route('dashboard.materials.preview', $material->id) }}'"
-    class="w-8 h-8 flex items-center justify-center text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition shadow-none"
-    title="{{ $btnTooltip }}">
-    <i class="fas {{ $btnIcon }} text-sm"></i>
-</button>
-                                    
                                     <button onclick="MaterialTableManager.confirmDelete({{ $material->id }}, '{{ route('dashboard.materials.destroy', $material->id) }}', this)" 
                                         class="w-8 h-8 flex items-center justify-center text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition shadow-none" title="Delete">
                                         <i class="fas fa-trash-alt text-sm"></i>

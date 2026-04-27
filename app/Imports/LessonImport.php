@@ -22,6 +22,11 @@ class LessonImport implements ToCollection, WithHeadingRow
         DB::beginTransaction();
 
         try {
+            // Track sort orders so imported items don't break the timeline
+            $lessonSortOrder = (DB::table('lessons')->where('material_id', $this->materialId)->max('sort_order') ?? 0) + 1;
+            $examSortOrder = (DB::table('exams')->where('material_id', $this->materialId)->max('sort_order') ?? 0) + 1;
+            $contentSortOrders = [];
+
             foreach ($rows as $row) {
                 // 1. Extract Question/Content Text
                 $contentText = $row['content_text'] ?? $row['question'] ?? null;
@@ -68,7 +73,6 @@ class LessonImport implements ToCollection, WithHeadingRow
                 // BRANCH A: EXAM IMPORT LOGIC (Upsert based on Question Text)
                 // --------------------------------------------------------
                 if ($sectionType === 'exam') {
-                    // Check if this question already exists in this material's exam
                     $existingExam = DB::table('exams')
                         ->where('material_id', $this->materialId)
                         ->where('question_text', $contentText)
@@ -79,16 +83,16 @@ class LessonImport implements ToCollection, WithHeadingRow
                         'type' => $itemType,
                         'question_text' => $contentText,
                         'media_url' => $mediaUrl,
-                        'is_case_sensitive' => $isCaseSensitive, // Dynamic Case Sensitivity
+                        'is_case_sensitive' => $isCaseSensitive, 
                         'updated_at' => now(),
                     ];
 
                     if ($existingExam) {
                         DB::table('exams')->where('id', $existingExam->id)->update($examData);
                         $examId = $existingExam->id;
-                        // Clear old options to refresh them from the new file
                         DB::table('exam_options')->where('exam_id', $examId)->delete();
                     } else {
+                        $examData['sort_order'] = $examSortOrder++; // Assigned sort order
                         $examData['created_at'] = now();
                         $examId = DB::table('exams')->insertGetId($examData);
                     }
@@ -112,6 +116,7 @@ class LessonImport implements ToCollection, WithHeadingRow
                             'section_type' => 'lesson',
                             'title' => $sectionTitle,
                             'time_limit' => $row['time_limit'] ?? 0,
+                            'sort_order' => $lessonSortOrder++, // Assigned sort order
                             'created_at' => now(),
                             'updated_at' => now(),
                         ]);
@@ -119,7 +124,11 @@ class LessonImport implements ToCollection, WithHeadingRow
                         $lessonId = $lesson->id;
                     }
 
-                    // Check if this content/quiz already exists in this lesson
+                    // Track content sort orders per lesson
+                    if (!isset($contentSortOrders[$lessonId])) {
+                        $contentSortOrders[$lessonId] = (DB::table('lesson_contents')->where('lesson_id', $lessonId)->max('sort_order') ?? 0) + 1;
+                    }
+
                     $existingContent = DB::table('lesson_contents')
                         ->where('lesson_id', $lessonId)
                         ->where('question_text', $contentText)
@@ -130,16 +139,16 @@ class LessonImport implements ToCollection, WithHeadingRow
                         'type' => $itemType,
                         'question_text' => $contentText,
                         'media_url' => $mediaUrl,
-                        'is_case_sensitive' => $isCaseSensitive, // Dynamic Case Sensitivity
+                        'is_case_sensitive' => $isCaseSensitive,
                         'updated_at' => now(),
                     ];
 
                     if ($existingContent) {
                         DB::table('lesson_contents')->where('id', $existingContent->id)->update($contentData);
                         $quizId = $existingContent->id;
-                        // Clear old options to refresh
                         DB::table('quiz_options')->where('quiz_id', $quizId)->delete();
                     } else {
+                        $contentData['sort_order'] = $contentSortOrders[$lessonId]++; // Assigned sort order
                         $contentData['created_at'] = now();
                         $quizId = DB::table('lesson_contents')->insertGetId($contentData);
                     }
@@ -170,7 +179,6 @@ class LessonImport implements ToCollection, WithHeadingRow
                 ['exam_id' => $examId, 'option_text' => 'False', 'is_correct' => ($correctAnswer === 'false' || $correctAnswer === 'option 2' || $correctAnswer === '2'), 'created_at' => now(), 'updated_at' => now()]
             ]);
         } else {
-            // Break down comma-separated answers for Checkboxes (e.g. "Option 1, Option 3" or "1, 3")
             $rawCorrect = strtolower(trim($row['correct_answer'] ?? ''));
             $correctArray = array_map('trim', explode(',', $rawCorrect));
 
@@ -182,13 +190,12 @@ class LessonImport implements ToCollection, WithHeadingRow
                 $optStr = 'option ' . $i;
                 $optNum = (string)$i;
 
-                if ($itemType === 'checkbox') {
-                    // For Checkboxes, see if the current option number/string is in the array list
+                // FIX: 'text' answers are treated like 'checkbox' so multiple answers can be marked correct simultaneously
+                if (in_array($itemType, ['checkbox', 'text'])) {
                     if (in_array($optStr, $correctArray) || in_array($optNum, $correctArray)) {
                         $isCorrect = true;
                     }
                 } else {
-                    // For standard MCQ, just do a direct string match
                     if ($rawCorrect === $optStr || $rawCorrect === $optNum) {
                         $isCorrect = true;
                     }
@@ -216,7 +223,6 @@ class LessonImport implements ToCollection, WithHeadingRow
                 ['quiz_id' => $quizId, 'option_text' => 'False', 'is_correct' => ($correctAnswer === 'false' || $correctAnswer === 'option 2' || $correctAnswer === '2'), 'created_at' => now(), 'updated_at' => now()]
             ]);
         } else {
-            // Break down comma-separated answers for Checkboxes (e.g. "Option 1, Option 3" or "1, 3")
             $rawCorrect = strtolower(trim($row['correct_answer'] ?? ''));
             $correctArray = array_map('trim', explode(',', $rawCorrect));
 
@@ -228,13 +234,12 @@ class LessonImport implements ToCollection, WithHeadingRow
                 $optStr = 'option ' . $i;
                 $optNum = (string)$i;
 
-                if ($itemType === 'checkbox') {
-                    // For Checkboxes, see if the current option number/string is in the array list
+                // FIX: 'text' answers are treated like 'checkbox' so multiple answers can be marked correct simultaneously
+                if (in_array($itemType, ['checkbox', 'text'])) {
                     if (in_array($optStr, $correctArray) || in_array($optNum, $correctArray)) {
                         $isCorrect = true;
                     }
                 } else {
-                    // For standard MCQ, just do a direct string match
                     if ($rawCorrect === $optStr || $rawCorrect === $optNum) {
                         $isCorrect = true;
                     }
