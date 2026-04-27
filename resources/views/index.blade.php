@@ -98,10 +98,8 @@
             <div class="relative z-10 w-full mx-auto">
                 <div class="text-center mb-12">
                     <span class="text-red-700 font-bold tracking-widest uppercase text-xs">Platform Benefits</span>
-                    <h2 class="text-3xl md:text-4xl font-extrabold text-gray-900 mt-2 mb-4 tracking-tight">Empowering
-                        Education Through Technology</h2>
-                    <p class="text-gray-500 max-w-2xl mx-auto text-lg">Tailored tools designed to enhance the teaching
-                        and learning experience.</p>
+                    <h2 class="text-3xl md:text-4xl font-extrabold text-gray-900 mt-2 mb-4 tracking-tight">Making Learning Easier with Technology</h2>
+                    <p class="text-gray-500 max-w-2xl mx-auto text-lg">Simple, easy-to-use digital modules to help teachers to teach and students to learn.</p>
                 </div>
 
                 <div
@@ -150,9 +148,9 @@
                                     </svg>
                                 </div>
                                 <div>
-                                    <strong class="block text-gray-900 mb-1">Track Progress & Certificates</strong>
-                                    <span class="text-sm leading-relaxed block">Monitor your learning journey and earn
-                                        certificates for completing materials.</span>
+                                    <strong class="block text-gray-900 mb-1">Interactive Assessments</strong>
+                                    <span class="text-sm leading-relaxed block">Take quizzes and exams securely directly
+                                        within the platform and see instant results.</span>
                                 </div>
                             </li>
                             <li class="flex items-start">
@@ -165,9 +163,9 @@
                                     </svg>
                                 </div>
                                 <div>
-                                    <strong class="block text-gray-900 mb-1">Interactive Assessments</strong>
-                                    <span class="text-sm leading-relaxed block">Take quizzes and exams securely directly
-                                        within the platform and see instant results.</span>
+                                    <strong class="block text-gray-900 mb-1">Track Progress & Certificates</strong>
+                                    <span class="text-sm leading-relaxed block">Monitor your learning journey and earn
+                                        certificates for completing materials.</span>
                                 </div>
                             </li>
                         </ul>
@@ -198,7 +196,7 @@
                                 </div>
                                 <div>
                                     <strong class="block text-gray-900 mb-1">Centralized Management</strong>
-                                    <span class="text-sm leading-relaxed block">Easily organize classes, track enrolled
+                                    <span class="text-sm leading-relaxed block">Easily organize lessons, track enrolled
                                         students, and manage materials in a unified dashboard.</span>
                                 </div>
                             </li>
@@ -228,7 +226,7 @@
                                 </div>
                                 <div>
                                     <strong class="block text-gray-900 mb-1">Streamlined Grading</strong>
-                                    <span class="text-sm leading-relaxed block">Automate quiz grading and manage robust
+                                    <span class="text-sm leading-relaxed block">Automate quiz grading and manage secured
                                         assessments with advanced security and access controls.</span>
                                 </div>
                             </li>
@@ -244,8 +242,8 @@
                 <div class="flex flex-col md:flex-row justify-between items-end mb-12">
                     <div class="max-w-2xl">
                         <h2 class="text-3xl font-bold text-gray-900 tracking-tight">Available Course Content</h2>
-                        <p class="text-gray-500 mt-2 text-lg">Access a rich variety of dynamic digital resources
-                            tailored for DepEd Zamboanga learners.</p>
+                        <p class="text-gray-500 mt-2 text-lg">Access a wide variety of dynamic digital resources
+                            specialized for DepEd Zamboanga learners.</p>
                     </div>
                     <a href="{{ route('explore.public') }}"
                         class="mt-6 md:mt-0 group flex items-center text-red-800 font-semibold hover:text-red-600 transition-colors bg-red-50 hover:bg-red-100 px-6 py-3 rounded-full">
@@ -272,8 +270,8 @@
                         <div>
                             <h3 class="font-bold text-gray-900 text-xl mb-2">Self-Paced Modules</h3>
                             <p class="text-sm text-gray-500 mb-3">Standardized Self-Learning Modules (SLMs) and
-                                interactive activity sheets mapped to the curriculum.</p>
-                            <span class="text-xs font-semibold text-blue-700 bg-blue-50 px-3 py-1 rounded-full">Primary
+                                interactive materials mapped to the curriculum.</p>
+                            <span class="text-xs font-semibold text-blue-700 bg-blue-50 px-3 py-1 rounded-full">Standard
                                 Learning</span>
                         </div>
                     </div>
@@ -293,7 +291,7 @@
                         <div>
                             <h3 class="font-bold text-gray-900 text-xl mb-2">Video Lessons</h3>
                             <p class="text-sm text-gray-500 mb-3">Engaging recorded lectures and demonstrations prepared
-                                by top division educators.</p>
+                                by division educators.</p>
                             <span
                                 class="text-xs font-semibold text-red-700 bg-red-50 px-3 py-1 rounded-full">Multimedia</span>
                         </div>
@@ -311,7 +309,7 @@
                         </div>
                         <div>
                             <h3 class="font-bold text-gray-900 text-xl mb-2">Formative Assessments</h3>
-                            <p class="text-sm text-gray-500 mb-3">Secure quizzes, periodic tests, and performance tasks
+                            <p class="text-sm text-gray-500 mb-3">Secure quizzes and final exams
                                 to effectively measure mastery.</p>
                             <span
                                 class="text-xs font-semibold text-green-700 bg-green-50 px-3 py-1 rounded-full">Evaluation</span>
@@ -329,7 +327,7 @@
                         </div>
                         <div>
                             <h3 class="font-bold text-gray-900 text-xl mb-2">Supplementary Files</h3>
-                            <p class="text-sm text-gray-500 mb-3">Downloadable presentations, reading materials, charts,
+                            <p class="text-sm text-gray-500 mb-3">Downloadable PDFs, reading materials, multimedias
                                 and additional learning aides.</p>
                             <span
                                 class="text-xs font-semibold text-purple-700 bg-purple-50 px-3 py-1 rounded-full">Resources</span>

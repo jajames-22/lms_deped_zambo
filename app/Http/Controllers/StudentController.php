@@ -19,8 +19,6 @@ class StudentController extends Controller
     /**
      * Load the main student directory table
      */
-
-
     public function loadStudentsPartial()
     {
         // Fetch only students and eager-load their school and district to prevent N+1 performance issues
@@ -128,7 +126,6 @@ class StudentController extends Controller
     public function explore()
     {
         // 1. Keep your existing logic for the Hero Banner and Popular rankings
-        // Fetch all materials the admin has explicitly marked as featured
         $featuredMaterials = Material::with('instructor')
             ->where('is_featured', true)
             ->where('status', 'published')
@@ -143,15 +140,13 @@ class StudentController extends Controller
             ->orderBy('order', 'asc')
             ->get()
             ->map(function ($section) {
-
-                // Decode the JSON array of tags (fallback to array if it was the old string format)
                 $tagsArray = json_decode($section->tag_name, true);
                 if (!is_array($tagsArray))
                     $tagsArray = [$section->tag_name];
 
                 $section->materials = Material::with('instructor')
                     ->whereHas('tags', function ($q) use ($tagsArray) {
-                        $q->whereIn('name', $tagsArray); // <-- CHANGED to whereIn
+                        $q->whereIn('name', $tagsArray); 
                     })
                     ->where('status', 'published')
                     ->where('is_public', true)
@@ -182,21 +177,14 @@ class StudentController extends Controller
 
     public function viewByTagJson($tag)
     {
-        // 1. Decode the input. It might be a single string or a JSON array.
         $decodedTags = json_decode(urldecode($tag), true);
-
-        // If it's not JSON (just a single string), put it into an array
         $searchTags = is_array($decodedTags) ? $decodedTags : [trim(urldecode($tag))];
 
-        // 2. Query materials
         $materials = \App\Models\Material::with('instructor')
             ->where('status', 'published')
             ->where('is_public', true)
             ->whereHas('tags', function ($query) use ($searchTags) {
-                // Search for materials matching ANY of the tags in the list
                 $query->whereIn('name', $searchTags);
-
-                // Fallback: Check if any tag IDs were passed
                 foreach ($searchTags as $t) {
                     if (is_numeric($t)) {
                         $query->orWhere('tags.id', $t);
@@ -217,24 +205,29 @@ class StudentController extends Controller
 
     public function import(Request $request)
     {
-        // Added 'txt' to the allowed mimes to fix the CSV plain-text detection issue
         $request->validate([
-            'file' => 'required|mimes:xlsx,xls,csv,txt|max:5120' // Also bumped to 5MB just in case
+            'file' => 'required|file|max:10240' // Allow up to 10MB
         ]);
 
         try {
-            // Process the excel file using the StudentsImport class
-            Excel::import(new StudentsImport, $request->file('file'));
+            $import = new StudentsImport();
+            Excel::import($import, $request->file('file'));
+
+            // 🛑 Generate detailed feedback for the user
+            $message = "Successfully imported {$import->importedCount} students.";
+            if ($import->skippedCount > 0) {
+                $message .= " Skipped {$import->skippedCount} rows (missing data, duplicate LRN, or database error).";
+            }
 
             return response()->json([
                 'success' => true,
-                'message' => 'Students imported successfully!'
+                'message' => $message
             ]);
 
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Import failed. Check your file format. Error: ' . $e->getMessage()
+                'message' => 'Import failed. Error: ' . $e->getMessage()
             ], 500);
         }
     }
@@ -246,7 +239,6 @@ class StudentController extends Controller
             'Content-Disposition' => 'attachment; filename="Student_Import_Template.csv"',
         ];
 
-        // 👈 NEW: Added 'status' to the headers array
         $columns = [
             'lrn',
             'first_name',
@@ -258,14 +250,13 @@ class StudentController extends Controller
             'password',
             'grade_level',
             'school_id',
-            'status' // <--- Added
+            'status' 
         ];
 
         $callback = function () use ($columns) {
             $file = fopen('php://output', 'w');
             fputcsv($file, $columns);
 
-            // 👈 NEW: Added 'verified' as the sample status
             fputcsv($file, [
                 '123456789012',
                 'Juan',
@@ -277,7 +268,7 @@ class StudentController extends Controller
                 'SecretPass!',
                 'Grade 10',
                 '123456',
-                'verified' // <--- Added
+                'verified' 
             ]);
 
             fclose($file);
@@ -290,7 +281,7 @@ class StudentController extends Controller
     {
         $request->validate([
             'ids' => 'required|array',
-            'ids.*' => 'exists:users,id' // Ensure all IDs actually exist
+            'ids.*' => 'exists:users,id' 
         ]);
 
         \App\Models\User::whereIn('id', $request->ids)->delete();
@@ -311,10 +302,8 @@ class StudentController extends Controller
         if ($request->has('status_type') && $request->status_type === 'all') {
             // Do nothing, fetch all records
         } elseif ($request->has('statuses') && is_array($request->statuses)) {
-            // Filter by the array of selected statuses (e.g., ['verified', 'pending'])
             $query->whereIn('status', $request->statuses);
             
-            // Dynamically create the report title (e.g. "Verified & Pending ")
             $formattedStatuses = array_map('ucfirst', $request->statuses);
             $titleStatus = implode(' & ', $formattedStatuses) . ' ';
         }

@@ -209,27 +209,19 @@
                         </td>
                         <td class="px-6 py-4 font-mono font-bold text-gray-900 lrn-cell">{{ $access->lrn }}</td>
                         
-                        {{-- FIXED: Hide Name if Status is Offline --}}
-                        <td class="px-6 py-4 font-semibold text-gray-800 name-cell" data-value="{{ ($access->status !== 'offline' && $access->student) ? ($access->student->first_name . ' ' . $access->student->last_name) : 'ZZZ' }}">
-                            @if($access->status !== 'offline')
-                                @if($access->student)
-                                    {{ $access->student->first_name ?? '' }} {{ $access->student->last_name ?? '' }}
-                                @else
-                                    <span class="italic text-gray-400 text-xs">No account registered</span>
-                                @endif
+                        {{-- FIXED: Always show the name if the account exists in the database --}}
+                        <td class="px-6 py-4 font-semibold text-gray-800 name-cell" data-value="{{ $access->student ? ($access->student->first_name . ' ' . $access->student->last_name) : 'ZZZ' }}">
+                            @if($access->student)
+                                {{ $access->student->first_name ?? '' }} {{ $access->student->last_name ?? '' }}
                             @else
-                                <span class="italic text-gray-400 text-xs" title="Hidden until student joins the lobby">No account registered</span>
+                                <span class="italic text-gray-400 text-xs" title="This LRN is not registered in the system yet.">No account registered</span>
                             @endif
                         </td>
                         
-                        {{-- FIXED: Hide School if Status is Offline --}}
+                        {{-- FIXED: Always show the school if the account exists --}}
                         <td class="px-6 py-4 text-gray-500">
-                            @if($access->status !== 'offline')
-                                @if($access->student && $access->student->school)
-                                    {{ $access->student->school->name ?? '-' }}
-                                @else
-                                    <span class="text-gray-400 text-xs">-</span>
-                                @endif
+                            @if($access->student && $access->student->school)
+                                {{ $access->student->school->name ?? '-' }}
                             @else
                                 <span class="text-gray-400 text-xs">-</span>
                             @endif

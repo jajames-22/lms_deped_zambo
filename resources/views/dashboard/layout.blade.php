@@ -414,7 +414,7 @@
             }
             toggleNotifications(); 
             
-            const requiresFullReload = ['/show', '/study', '/result', '/certificate', '/lobby', '/exam'].some(kw => targetUrl.includes(keyword));
+            const requiresFullReload = ['/show', '/study', '/result', '/certificate', '/lobby', '/exam'].some(kw => targetUrl.includes(kw));
             if (requiresFullReload) window.location.href = targetUrl;
             else loadPartial(targetUrl, null); 
         }
