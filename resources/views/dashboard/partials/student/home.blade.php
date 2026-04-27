@@ -96,7 +96,7 @@
                             </div>
                         </div>
 
-                        <a href="{{ route('student.materials.show', $enrollment->material_id) }}"
+                        <a href="{{ route('student.materials.show', \Vinkla\Hashids\Facades\Hashids::encode($enrollment->material_id)) }}"
                             class="bg-white border border-gray-200 text-gray-700 px-5 py-2.5 rounded-lg text-xs font-bold hover:bg-gray-100 hover:text-blue-600 transition w-full sm:w-auto text-center shadow-sm whitespace-nowrap block sm:inline-block">
                             Resume <i class="fas fa-arrow-right ml-1"></i>
                         </a>
