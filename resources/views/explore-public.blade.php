@@ -32,10 +32,6 @@
             -ms-overflow-style: none;  /* IE and Edge */
             scrollbar-width: none;  /* Firefox */
         }
-
-        .font-cinzel {
-            font-family: 'Cinzel', serif;
-        }
     </style>
 
 </head>
@@ -81,37 +77,44 @@
             </div>
         </header>
 
-    {{-- Because the header is now "sticky", we don't need massive pt-32 padding to clear it --}}
     <main class="py-22 md:py-32">
         
-        {{-- CONTAINER A: MAIN EXPLORE VIEW (Width standardized to 1000px) --}}
-        <div id="main-explore-content" class="max-w-[1200px] mx-auto space-y-10 pb-16 relative px-4 sm:px-6 transition-opacity duration-300">
-
+        {{-- PERSISTENT PAGE HEADER & UNIFIED SEARCH BAR --}}
+        <div class="max-w-[1200px] mx-auto px-4 sm:px-6 mb-8 mt-4 relative z-20">
+            
             {{-- BACK BUTTON --}}
-            <button onclick="navigateBack()" class="cursor-pointer flex items-center w-fit text-gray-500 hover:text-[#a52a2a] font-bold transition-colors group px-2 py-1 rounded-lg hover:bg-red-50 relative z-10 mb-2"> 
+            <button onclick="navigateBack()" class="cursor-pointer flex items-center w-fit text-gray-500 hover:text-[#a52a2a] font-bold transition-colors group px-2 py-1 rounded-lg hover:bg-red-50 mb-4"> 
                 <i class="fas fa-arrow-left mr-2 group-hover:-translate-x-1 transition-transform"></i> <span class="hidden sm:inline">Back to Home</span> 
             </button>
 
-            {{-- PAGE HEADER & SEARCH BAR --}}
-            <div class="px-2 flex flex-col md:flex-row md:items-end justify-between gap-6 mb-4 border-b border-gray-200/60 pb-6">
-                <div>
+            <div class="flex flex-col md:flex-row md:items-end justify-between gap-6 border-b border-gray-200/60 pb-8">
+                <div class="flex-1">
                     <h1 class="text-3xl md:text-4xl font-black text-gray-900 tracking-tight">Public Materials</h1>
                     <p class="text-gray-500 mt-2 text-sm md:text-base">Explore open-access learning resources from DepEd Zamboanga.</p>
                 </div>
 
-                {{-- SEARCH BAR --}}
-                <div class="relative w-full md:w-80 group shrink-0">
-                    <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                        <i class="fas fa-search text-gray-400 group-focus-within:text-[#a52a2a] transition-colors"></i>
+                {{-- UNIFIED SEARCH BAR (Reference Image Style + System Colors/Roundness) --}}
+                <div class="w-full md:w-[32rem] flex shadow-sm rounded-2xl overflow-hidden border-2 border-gray-200 focus-within:border-[#a52a2a] focus-within:ring-4 focus-within:ring-[#a52a2a]/10 transition-all bg-gray-100 shrink-0">
+                    {{-- Search Icon Container --}}
+                    <div class="pl-5 pr-2 flex items-center justify-center text-gray-400">
+                        <i class="fas fa-search text-lg"></i>
                     </div>
+                    
+                    {{-- Input Field --}}
                     <input type="text" id="public-search-input" placeholder="Search materials..." 
-                           class="w-full pl-11 pr-24 py-3 bg-white border border-gray-200 rounded-xl shadow-sm outline-none focus:ring-2 focus:ring-[#a52a2a]/20 focus:border-[#a52a2a] text-gray-900 text-sm transition-all"
+                           class="w-full py-3.5 px-2 outline-none text-gray-900 bg-transparent placeholder-gray-400 font-medium"
                            onkeydown="if(event.key === 'Enter') executePublicSearch()">
-                    <button onclick="executePublicSearch()" class="absolute right-1.5 top-1/2 -translate-y-1/2 bg-[#a52a2a] hover:bg-red-800 text-white px-4 py-1.5 rounded-lg font-bold shadow-sm transition-all text-xs active:scale-95">
+                           
+                    {{-- Attached Search Button --}}
+                    <button onclick="executePublicSearch()" class="bg-[#a52a2a] hover:bg-red-800 text-white px-8 font-bold transition-all text-sm tracking-widest uppercase flex items-center justify-center">
                         Search
                     </button>
                 </div>
             </div>
+        </div>
+
+        {{-- CONTAINER A: MAIN EXPLORE VIEW (Width standardized to 1200px) --}}
+        <div id="main-explore-content" class="max-w-[1200px] mx-auto space-y-10 pb-16 relative px-4 sm:px-6 transition-opacity duration-300">
 
             {{-- 1. FEATURED BANNER CAROUSEL --}}
             @if($featuredMaterials->isNotEmpty())
@@ -191,7 +194,7 @@
                                             class="absolute inset-0 bg-black/20 group-hover:bg-black/40 transition-colors duration-500">
                                         </div>
                                     </div>
-                                    <div class="p-4">
+                                    <div class="p-4 flex-1 flex flex-col">
                                         <h3 class="font-bold text-gray-900 text-sm line-clamp-1 group-hover:text-[#a52a2a] transition-colors duration-300">{{ $material->title }}</h3>
                                         <p class="text-[10px] text-[#a52a2a] font-bold uppercase tracking-wider mt-1.5 truncate flex items-center gap-1.5">
                                             <i class="fas fa-chalkboard-user"></i> {{ $material->instructor->first_name ?? 'Instructor' }} {{ $material->instructor->last_name ?? '' }}
@@ -251,20 +254,18 @@
 
         {{-- CONTAINER B: FILTERED "SEE ALL" / SEARCH RESULTS VIEW --}}
         <div id="filtered-explore-content" class="max-w-[1000px] mx-auto hidden px-4 sm:px-6 transition-opacity duration-300">
-            <div class="flex flex-col md:flex-row md:items-center gap-4 mb-10 border-b border-gray-200/60 pb-6">
-                <button onclick="resetExploreView()" class="h-10 w-10 flex items-center justify-center rounded-full bg-white border border-gray-200 text-gray-500 hover:text-[#a52a2a] transition shadow-sm group shrink-0">
+            
+            {{-- Because the main search bar is now persistent, we just show what we are currently looking at --}}
+            <div class="flex flex-col md:flex-row md:items-center gap-4 mb-10 pt-4 border-b border-gray-200/60 pb-6">
+                <button onclick="resetExploreView()" class="h-10 w-10 flex items-center justify-center rounded-full bg-white border border-gray-200 text-gray-500 hover:text-[#a52a2a] transition shadow-sm group shrink-0" title="Clear Search / Go Back">
                     <i class="fas fa-arrow-left group-hover:-translate-x-1 transition-transform"></i>
                 </button>
                 <div>
-                    <p id="browsing-label"
-                        class="text-[10px] text-[#a52a2a] font-black uppercase tracking-[0.2em] mb-1">Browsing Category
-                    </p>
-                    <h1 id="selected-category-title"
-                        class="text-3xl md:text-4xl font-black text-gray-900 tracking-tight"></h1>
+                    <p id="browsing-label" class="text-[10px] text-[#a52a2a] font-black uppercase tracking-[0.2em] mb-1">Browsing Category</p>
+                    <h1 id="selected-category-title" class="text-3xl md:text-4xl font-black text-gray-900 tracking-tight"></h1>
                 </div>
             </div>
 
-            {{-- 3 Columns inside the 1000px container looks perfectly spaced --}}
             <div id="filtered-materials-grid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
                 {{-- Populated dynamically via JS --}}
             </div>
@@ -346,7 +347,7 @@
                 return;
             }
 
-            // Swap visibility
+            // Swap visibility (Search bar stays visible because it's outside these containers)
             mainContent.classList.add('hidden');
             filteredContent.classList.remove('hidden');
             browsingLabel.innerText = 'Search Results For';
@@ -458,63 +459,63 @@
             }, 50);
         @endif
 
-            // See All Category Logic
-            function showCategory(tagName, displayName) {
-                const mainContent = document.getElementById('main-explore-content');
-                const filteredContent = document.getElementById('filtered-explore-content');
-                const categoryTitle = document.getElementById('selected-category-title');
-                const materialsGrid = document.getElementById('filtered-materials-grid');
-                const browsingLabel = document.getElementById('browsing-label');
+        // See All Category Logic
+        function showCategory(tagName, displayName) {
+            const mainContent = document.getElementById('main-explore-content');
+            const filteredContent = document.getElementById('filtered-explore-content');
+            const categoryTitle = document.getElementById('selected-category-title');
+            const materialsGrid = document.getElementById('filtered-materials-grid');
+            const browsingLabel = document.getElementById('browsing-label');
 
-                mainContent.classList.add('hidden');
-                filteredContent.classList.remove('hidden');
+            mainContent.classList.add('hidden');
+            filteredContent.classList.remove('hidden');
 
-                browsingLabel.innerText = 'Browsing Category';
-                categoryTitle.innerText = displayName;
-                materialsGrid.innerHTML = `
-                <div class="col-span-full py-20 text-center">
-                    <i class="fas fa-circle-notch fa-spin text-4xl text-[#a52a2a]/30"></i>
-                    <p class="mt-4 text-gray-400 font-medium">Loading materials...</p>
-                </div>
-            `;
+            browsingLabel.innerText = 'Browsing Category';
+            categoryTitle.innerText = displayName;
+            materialsGrid.innerHTML = `
+            <div class="col-span-full py-20 text-center">
+                <i class="fas fa-circle-notch fa-spin text-4xl text-[#a52a2a]/30"></i>
+                <p class="mt-4 text-gray-400 font-medium">Loading materials...</p>
+            </div>
+        `;
 
-                window.scrollTo({ top: 0, behavior: 'smooth' });
+            window.scrollTo({ top: 0, behavior: 'smooth' });
 
-                fetch(`/explore/tags/${encodeURIComponent(tagName)}/json`)
-                    .then(response => response.json())
-                    .then(data => {
-                        if (data.length === 0) {
-                            materialsGrid.innerHTML = '<div class="col-span-full py-20 text-center"><p class="text-gray-500">No materials found in this category.</p></div>';
-                            return;
-                        }
+            fetch(`/explore/tags/${encodeURIComponent(tagName)}/json`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.length === 0) {
+                        materialsGrid.innerHTML = '<div class="col-span-full py-20 text-center"><p class="text-gray-500">No materials found in this category.</p></div>';
+                        return;
+                    }
 
-                        materialsGrid.innerHTML = data.map(material => {
-                            const imgUrl = material.thumbnail ? '/storage/' + material.thumbnail : 'https://images.unsplash.com/photo-1509228468518-180dd4864904?q=80&w=400';
-                            const instName = material.instructor ? material.instructor.first_name + ' ' + (material.instructor.last_name || '') : 'Instructor';
-                            const desc = material.description || '';
+                    materialsGrid.innerHTML = data.map(material => {
+                        const imgUrl = material.thumbnail ? '/storage/' + material.thumbnail : 'https://images.unsplash.com/photo-1509228468518-180dd4864904?q=80&w=400';
+                        const instName = material.instructor ? material.instructor.first_name + ' ' + (material.instructor.last_name || '') : 'Instructor';
+                        const desc = material.description || '';
 
-                            return `
-                            <div class="group bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-all cursor-pointer flex flex-col"
-                                 onclick="window.location.href = '/explore/materials/${material.id}/show';">
-                                <div class="relative aspect-[4/3] overflow-hidden w-full">
-                                    <img src="${imgUrl}" class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500">
-                                    <div class="absolute inset-0 bg-black/20 group-hover:bg-black/40 transition-colors duration-500"></div>
-                                </div>
-                                <div class="p-4 flex-1 flex flex-col">
-                                    <h3 class="font-bold text-gray-900 text-sm line-clamp-1 group-hover:text-[#a52a2a] transition-colors">${material.title}</h3>
-                                    <p class="text-[10px] text-[#a52a2a] font-bold uppercase tracking-wider mt-1.5 flex items-center gap-1.5">
-                                        <i class="fas fa-chalkboard-user"></i> ${instName}
-                                    </p>
-                                    <p class="text-xs text-gray-500 mt-2 line-clamp-2">${desc}</p>
-                                </div>
+                        return `
+                        <div class="group bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-all cursor-pointer flex flex-col"
+                             onclick="window.location.href = '/explore/materials/${material.id}/show';">
+                            <div class="relative aspect-[4/3] overflow-hidden w-full">
+                                <img src="${imgUrl}" class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500">
+                                <div class="absolute inset-0 bg-black/20 group-hover:bg-black/40 transition-colors duration-500"></div>
                             </div>
-                        `;
-                        }).join('');
-                    })
-                    .catch(error => {
-                        materialsGrid.innerHTML = '<div class="col-span-full py-20 text-center text-red-500">Failed to load materials. Please try again.</div>';
-                    });
-            }
+                            <div class="p-4 flex-1 flex flex-col">
+                                <h3 class="font-bold text-gray-900 text-sm line-clamp-1 group-hover:text-[#a52a2a] transition-colors">${material.title}</h3>
+                                <p class="text-[10px] text-[#a52a2a] font-bold uppercase tracking-wider mt-1.5 flex items-center gap-1.5">
+                                    <i class="fas fa-chalkboard-user"></i> ${instName}
+                                </p>
+                                <p class="text-xs text-gray-500 mt-2 line-clamp-2">${desc}</p>
+                            </div>
+                        </div>
+                    `;
+                    }).join('');
+                })
+                .catch(error => {
+                    materialsGrid.innerHTML = '<div class="col-span-full py-20 text-center text-red-500">Failed to load materials. Please try again.</div>';
+                });
+        }
 
         function resetExploreView() {
             document.getElementById('public-search-input').value = '';
