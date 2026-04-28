@@ -1603,7 +1603,9 @@ class MaterialsController extends Controller
                     'fas fa-trophy',
                     'text-yellow-500' // Golden color for the trophy
                 ));
-                $redirectUrl = route('dashboard.materials.certificate', $material->hashid);
+                
+                // 🛑 FIXED: Redirect to the RESULTS page so they can see their score breakdown first!
+                $redirectUrl = route('dashboard.materials.result', $material->hashid);
             } else {
                 // Scenario B: Read-only module completed -> NO System Notification, just redirect
                 $redirectUrl = route('dashboard.materials.show', $material->hashid);
@@ -1621,6 +1623,7 @@ class MaterialsController extends Controller
                 'status' => 'failed',
                 'progress_data' => json_encode(['lesson' => $totalTimelineCount - 1, 'content' => 0, 'highest_unlocked' => $totalTimelineCount])
             ]);
+            
             return response()->json([
                 'success' => true,
                 'passed' => false,

@@ -1294,60 +1294,64 @@ class DashboardController extends Controller
     public function globalSearch(\Illuminate\Http\Request $request)
     {
         $query = $request->input('q');
+        
+        if (!$query || strlen($query) < 2) {
+            return response()->json(['materials' => [], 'users' => [], 'tags' => []]);
+        }
+
         $user = auth()->user();
 
-        if (!$query || strlen($query) < 2) {
-            return response()->json(['materials' => [], 'users' => []]);
-        }
-
-        // 1. Search Materials (Base Query isolating the text search)
-        $materialsQuery = \App\Models\Material::with('instructor:id,first_name,last_name')
-            ->where(function ($q) use ($query) {
-                $q->where('title', 'LIKE', "%{$query}%")
-                    ->orWhere('description', 'LIKE', "%{$query}%");
+        // 1. SEARCH MATERIALS (By Title, Description, OR TAGS!)
+        $materialsQuery = \App\Models\Material::with(['instructor', 'tags'])
+            ->where(function($q) use ($query) {
+                $q->where('title', 'like', "%{$query}%")
+                  ->orWhere('description', 'like', "%{$query}%")
+                  // 👇 This tells Laravel to also search inside the attached tags!
+                  ->orWhereHas('tags', function($tagQuery) use ($query) {
+                      $tagQuery->where('name', 'like', "%{$query}%");
+                  });
             });
 
-        // --- PRIVACY & ENROLLMENT LOGIC ---
-        // Admins & CID bypass this and see everything. 
-        if (!in_array($user->role, ['admin', 'cid'])) {
-            $materialsQuery->where(function ($q) use ($user) {
-
-                // Condition A: Material is public 
-                // ⚠️ NOTE: Change 'is_public' to match your actual database column 
-                // (e.g., if you use a string, change to ->where('visibility', 'public') )
-                $q->where('is_public', true)
-
-                    // Condition B: The user is the teacher who created the material
-                    ->orWhere('instructor_id', $user->id);
-
-                // Condition C: The user is a student who is currently enrolled
-                if ($user->role === 'student') {
-                    // ⚠️ NOTE: Change 'enrollments' to match the relationship name in your Material.php model
-                    $q->orWhereHas('enrollments', function ($eq) use ($user) {
-                        $eq->where('user_id', $user->id);
-                    });
-                }
+        // Apply Role-Based Visibility Filters
+        if ($user->role === 'student') {
+            $materialsQuery->where('status', 'published')
+                           ->where('is_public', true);
+        } elseif ($user->role === 'teacher') {
+            $materialsQuery->where(function($q) use ($user) {
+                $q->where('instructor_id', $user->id)
+                  ->orWhere(function($subQ) {
+                      $subQ->where('status', 'published')->where('is_public', true);
+                  });
             });
         }
 
-        // Execute query
-        $materials = $materialsQuery->limit(5)->get(['id', 'title', 'thumbnail', 'instructor_id']);
+        // Limit to 10 materials and attach HashID for the frontend links
+        $materials = $materialsQuery->take(10)->get()->map(function($mat) {
+            // Safely encode ID using Vinkla Hashids
+            $mat->hashid = \Vinkla\Hashids\Facades\Hashids::encode($mat->id);
+            return $mat;
+        });
 
+        // 2. SEARCH USERS (Only Admins and Teachers can search the directory)
         $users = [];
-
-        // 2. If Admin or CID, also search Users (Students/Teachers)
-        if (in_array($user->role, ['admin', 'cid'])) {
-            $users = \App\Models\User::where('first_name', 'LIKE', "%{$query}%")
-                ->orWhere('last_name', 'LIKE', "%{$query}%")
-                ->orWhere('employee_id', 'LIKE', "%{$query}%")
-                ->orWhere('lrn', 'LIKE', "%{$query}%")
-                ->limit(5)
-                ->get(['id', 'first_name', 'last_name', 'role']);
+        if (in_array($user->role, ['admin', 'teacher', 'cid'])) {
+            $users = \App\Models\User::where('first_name', 'like', "%{$query}%")
+                ->orWhere('last_name', 'like', "%{$query}%")
+                ->orWhere('email', 'like', "%{$query}%")
+                ->take(6)
+                ->get(['id', 'first_name', 'last_name', 'email', 'role']);
         }
 
+        // 3. SEARCH TAGS DIRECTLY (To show the Tag Pills)
+        $tags = \App\Models\Tag::where('name', 'like', "%{$query}%")
+            ->take(8)
+            ->get(['id', 'name']);
+
+        // Return everything to the layout.blade.php Javascript!
         return response()->json([
             'materials' => $materials,
-            'users' => $users
+            'users' => $users,
+            'tags' => $tags
         ]);
     }
 

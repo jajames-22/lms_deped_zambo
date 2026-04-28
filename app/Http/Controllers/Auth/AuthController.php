@@ -178,12 +178,15 @@ class AuthController extends Controller
         ]);
 
         $user = auth()->user();
+        
+        // 1. Update the email AND explicitly set verified_at to null
         $user->update([
-            'email' => $validated['email']
+            'email' => $validated['email'],
+            'email_verified_at' => null // This is crucial!
         ]);
 
-        // Trigger the verification email
-        event(new \Illuminate\Auth\Events\Registered($user));
+        // 2. Explicitly trigger the verification email (bypassing the event listener)
+        $user->sendEmailVerificationNotification();
 
         // Log them out so they must verify their email to log back in
         Auth::logout();

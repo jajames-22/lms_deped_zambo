@@ -455,7 +455,14 @@
                                                 @elseif($block->type === 'text')
                                                     <div class="bg-white rounded-3xl p-4 sm:p-6 shadow-sm border border-[#a52a2a]/20 relative overflow-hidden shrink-0">
                                                         <div class="absolute top-0 left-0 w-1.5 h-full bg-[#a52a2a]"></div>
-                                                        <h3 class="text-xl font-bold text-gray-900 mb-4">{{ $block->question_text }}</h3>
+                                                        <div class="flex items-start justify-between gap-4 mb-4">
+                                                            <h3 class="text-xl font-bold text-gray-900">{{ $block->question_text }}</h3>
+                                                            @if($isQuiz)
+                                                                <span class="shrink-0 text-[10px] uppercase font-black tracking-wider {{ ($block->is_case_sensitive ?? false) ? 'text-amber-600 bg-amber-50' : 'text-blue-600 bg-blue-50' }} px-2 py-1 rounded hidden sm:inline-block">
+                                                                    {{ ($block->is_case_sensitive ?? false) ? 'Case Sensitive' : 'Case Insensitive' }}
+                                                                </span>
+                                                            @endif
+                                                        </div>
                                                         <textarea name="{{ $inputName }}" rows="5" placeholder="Type your answer here..." {{ $isLocked ? 'disabled' : '' }}
                                                             class="w-full px-5 py-4 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#a52a2a] outline-none transition-all resize-none text-base sm:text-lg">{{ $existingAnswer->text_answer ?? '' }}</textarea>
                                                     </div>
@@ -463,6 +470,13 @@
                                                 
                                                 {{-- FEEDBACK BADGE (Only for Quizzes) --}}
                                                 @if($isQuiz)
+                                                    @php
+                                                        $correctAnswersText = '';
+                                                        if (!empty($block->options)) {
+                                                            $correctOpts = collect($block->options)->where('is_correct', 1)->pluck('option_text')->toArray();
+                                                            $correctAnswersText = implode(', ', $correctOpts);
+                                                        }
+                                                    @endphp
                                                     <div id="quiz-feedback-{{ $block->id }}" class="mt-6 shrink-0" style="display: {{ $isLocked ? 'block' : 'none' }};">
                                                         @if($isLocked)
                                                             @if($feedbackType === 'recorded_as_is')
@@ -470,10 +484,22 @@
                                                             @elseif($feedbackType === 'correct')
                                                                 <div class="p-4 bg-green-50 border border-green-200 rounded-xl flex items-center gap-3 text-green-700 font-bold"><i class="fas fa-check-circle text-xl"></i> Your answer is correct!</div>
                                                             @else
-                                                                <div class="p-4 bg-red-50 border border-red-200 rounded-xl flex items-center gap-3 text-red-700 font-bold"><i class="fas fa-times-circle text-xl"></i> Your answer is incorrect.</div>
+                                                                <div class="p-4 bg-red-50 border border-red-200 rounded-xl flex flex-col gap-2 text-red-700 font-bold">
+                                                                    <div class="flex items-center gap-3">
+                                                                        <i class="fas fa-times-circle text-xl"></i> Your answer is incorrect.
+                                                                    </div>
+                                                                    @if($correctAnswersText)
+                                                                        <div class="text-sm font-medium mt-1 text-red-800 bg-white/50 p-2 rounded-lg border border-red-100">
+                                                                            <span class="font-bold">Correct Answer(s):</span> {{ $correctAnswersText }}
+                                                                        </div>
+                                                                    @endif
+                                                                </div>
                                                             @endif
                                                         @endif
                                                     </div>
+                                                    
+                                                    {{-- Hidden input to store correct answer for JS to use if answered live --}}
+                                                    <input type="hidden" id="correct-answer-{{ $block->id }}" value="{{ htmlspecialchars($correctAnswersText) }}">
                                                 @endif
                                             </div>
                                         @endif
@@ -558,10 +584,6 @@
             <button type="button" id="custom-modal-btn" onclick="closeCustomModal()" class="w-full px-4 py-3 text-white font-bold rounded-xl transition shadow-md">Okay</button>
         </div>
     </div>
-
-    {{-- Confetti --}}
-    <canvas id="confetti-canvas" class="fixed inset-0 pointer-events-none z-50 hidden"></canvas>
-    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
 
     <script>
         const materialData = @json($timeline);
@@ -724,20 +746,15 @@
             modal.classList.remove('opacity-100');
             modal.classList.add('opacity-0');
             setTimeout(() => { modal.classList.add('hidden'); }, 300);
-            
-            // NOTE: We DO NOT clear pendingExamTarget here anymore.
-            // It will be cleared inside confirmStartExam() after it is used!
         }
 
         function confirmStartExam() {
             isExamLocked = true;
             
-            // Save the target destination before we close the modal
             let targetDestination = pendingExamTarget; 
             
-            closeExamConfirm(); // Close the modal visually
+            closeExamConfirm();
 
-            // Navigate to the exact part of the exam safely!
             if (targetDestination !== null) {
                 saveProgressToServer(false);
                 state.lesson = targetDestination;
@@ -747,7 +764,7 @@
                     state.highestUnlockedLesson = state.lesson;
                 }
                 
-                pendingExamTarget = null; // Clear it now that we have used it
+                pendingExamTarget = null; 
                 renderState();
             }
         }
@@ -845,6 +862,9 @@
             inputs.forEach(input => input.disabled = true);
 
             const container = document.getElementById(`quiz-feedback-${id}`);
+            const correctAnswerInput = document.getElementById(`correct-answer-${id}`);
+            const correctAnswerText = correctAnswerInput ? correctAnswerInput.value : '';
+
             if (container) {
                 let html = '';
                 if (feedbackType === 'recorded_as_is') {
@@ -852,7 +872,16 @@
                 } else if (feedbackType === 'correct') {
                     html = '<div class="p-4 bg-green-50 border border-green-200 rounded-xl flex items-center gap-3 text-green-700 font-bold"><i class="fas fa-check-circle text-xl"></i> Your answer is correct!</div>';
                 } else {
-                    html = '<div class="p-4 bg-red-50 border border-red-200 rounded-xl flex items-center gap-3 text-red-700 font-bold"><i class="fas fa-times-circle text-xl"></i> Your answer is incorrect.</div>';
+                    html = `<div class="p-4 bg-red-50 border border-red-200 rounded-xl flex flex-col gap-2 text-red-700 font-bold">
+                                <div class="flex items-center gap-3">
+                                    <i class="fas fa-times-circle text-xl"></i> Your answer is incorrect.
+                                </div>`;
+                    if (correctAnswerText) {
+                        html += `<div class="text-sm font-medium mt-1 text-red-800 bg-white/50 p-2 rounded-lg border border-red-100">
+                                    <span class="font-bold">Correct Answer(s):</span> ${correctAnswerText}
+                                </div>`;
+                    }
+                    html += `</div>`;
                 }
                 container.innerHTML = html;
                 container.style.display = 'block';
@@ -966,6 +995,11 @@
         }
 
         async function navigateContent(direction) {
+            const btnNext = document.getElementById('btn-next');
+            
+            // Prevent multiple clicks while loading/checking
+            if (direction === 1 && btnNext.disabled) return; 
+
             const currentSection = materialData[state.lesson];
             const currentItem = currentSection.items[state.content];
             const isQuiz = !currentSection.is_exam && currentItem && currentItem.type !== 'content';
@@ -981,15 +1015,14 @@
                                  document.querySelector(`[name="answer_${currentItem.id}[]"]`)?.disabled;
 
                 if (!isLocked) {
-                    const btn = document.getElementById('btn-next');
-                    const originalHtml = btn.innerHTML;
-                    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Checking...';
-                    btn.disabled = true;
+                    const originalHtml = btnNext.innerHTML;
+                    btnNext.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Checking...';
+                    btnNext.disabled = true;
 
                     const result = await saveProgressToServer(true); 
 
-                    btn.innerHTML = originalHtml;
-                    btn.disabled = false;
+                    btnNext.innerHTML = originalHtml;
+                    btnNext.disabled = false;
 
                     if(result && result.success) {
                         lockQuizQuestion(currentItem.id, currentItem.type, result.feedback_type);
@@ -1151,16 +1184,23 @@
         }
 
         async function finishModule() {
+            const btn = document.getElementById('btn-next');
+            
+            // 1. Immediately block any double-clicks!
+            if (btn.disabled || btn.dataset.processing === "true") return; 
+            btn.dataset.processing = "true";
+            
+            // 2. Change the button visually to "Processing"
+            const originalHtml = btn.innerHTML;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processing...';
+            btn.disabled = true;
+
+            // 3. Save final progress
             await saveProgressToServer(false); 
 
             document.getElementById('top-progress-bar').style.width = '100%';
             document.getElementById('top-progress-text').innerText = '100%';
             
-            const btn = document.getElementById('btn-next');
-            const originalHtml = btn.innerHTML;
-            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processing...';
-            btn.disabled = true;
-
             try {
                 const response = await fetch(`{{ route('dashboard.materials.complete', $material->id) }}`, {
                     method: 'POST',
@@ -1174,34 +1214,20 @@
                 const data = await response.json();
                 
                 if (data.success) {
-                    if (data.passed) {
-                        if (typeof confetti === 'function') {
-                            confetti({ particleCount: 150, spread: 80, origin: { y: 0.6 }, colors: ['#a52a2a', '#22c55e', '#fbbf24', '#3b82f6'] });
-                        }
-                        
-                        if (data.has_certificate) {
-                            showCustomAlert("Congratulations!", "You have passed this module and earned a certificate! Redirecting...", "success", function() {
-                                window.location.href = data.redirect_url;
-                            });
-                        } else {
-                            showCustomAlert("Module Completed!", "You have successfully finished reading this module. Redirecting...", "success", function() {
-                                window.location.href = data.redirect_url;
-                            });
-                        }
-                        
-                    } else {
-                        window.location.href = data.redirect_url;
-                    }
+                    // Instantly redirect to the results page (It will dynamically show pass/fail/certificate!)
+                    window.location.href = data.redirect_url;
                 } else {
                     showCustomAlert("Error", data.message || "Failed to process completion.");
                     btn.innerHTML = originalHtml;
                     btn.disabled = false;
+                    btn.dataset.processing = "false";
                 }
             } catch (error) {
                 console.error(error);
                 showCustomAlert("Error", "A network error occurred. Please check your connection.");
                 btn.innerHTML = originalHtml;
                 btn.disabled = false;
+                btn.dataset.processing = "false";
             }
         }
 
