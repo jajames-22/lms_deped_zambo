@@ -38,8 +38,17 @@
         <div
             class="bg-white border border-gray-100 p-5 rounded-2xl shadow-sm flex items-center justify-between md:col-span-1">
             <div>
-                <p class="text-gray-400 text-[10px] font-bold uppercase tracking-widest">Total Staff</p>
-                <h3 class="text-2xl font-black text-gray-900" id="total-teachers-count">{{ $teachers->count() }}</h3>
+                @php
+                    $label = match($filter) {
+                        'verified' => 'Verified Teachers',
+                        'pending' => 'Pending Teachers',
+                        'rejected' => 'Rejected Teachers',
+                        default => 'Teachers'
+                    };
+                @endphp
+
+            <p id="total-teachers-label" class="text-gray-400 text-[10px] font-bold uppercase tracking-widest">Total {{ $label }}</p>
+<h3 class="text-2xl font-black text-gray-900" id="total-teachers-count">{{ $teachers->count() }}</h3>
             </div>
             <div class="w-10 h-10 bg-blue-50 text-blue-600 rounded-lg flex items-center justify-center">
                 <i class="fas fa-users-cog text-lg"></i>
@@ -81,8 +90,21 @@
                 <button class="status-tab px-5 py-2 text-sm font-bold rounded-lg transition-all text-gray-500 hover:text-gray-700" data-status="verified">
                     Verified
                 </button>
-                <button class="status-tab px-5 py-2 text-sm font-bold rounded-lg transition-all text-gray-500 hover:text-gray-700" data-status="pending">
-                    Pending
+                <button class="status-tab flex items-center gap-1 px-5 py-2 text-sm font-bold rounded-lg transition-all text-gray-500 hover:text-gray-700" data-status="pending">
+                    <span>Pending</span>
+
+                    @php 
+                        // Safely calculate the number of pending materials from the loaded collection
+                        $pendingCount = collect($teachers)->filter(function($t) {
+                            return strtolower($t->status ?? 'pending') === 'pending';
+                        })->count();
+                    @endphp
+                    
+                    @if($pendingCount > 0)
+                        <span class="flex items-center justify-center min-w-[20px] h-[20px] px-1.5 bg-red-500 text-white text-[11px] font-bold rounded-full shadow-sm animate-pulse">
+                            {{ $pendingCount }}
+                        </span>
+                    @endif
                 </button>
                 <button class="status-tab px-5 py-2 text-sm font-bold rounded-lg transition-all text-gray-500 hover:text-gray-700" data-status="suspended">
                     Suspended
@@ -577,30 +599,44 @@
         currentFilteredRows = [...allTeacherRows];
         applyFilters();
     }, 50);
+function applyFilters() {
+    currentFilteredRows = allTeacherRows.filter(function (row) {
+        var text = row.textContent.toLowerCase();
+        var rowStatus = row.getAttribute('data-status');
+        var rowRole = row.getAttribute('data-role');
+        
+        var matchesSearch = text.includes(currentSearchFilter);
+        var matchesStatus = (currentStatusFilter === 'all') || (rowStatus === currentStatusFilter);
+        var matchesRole = (currentRoleFilter === 'all') || (rowRole === currentRoleFilter);
+        
+        return matchesSearch && matchesStatus && matchesRole;
+    });
 
-    function applyFilters() {
-        currentFilteredRows = allTeacherRows.filter(function (row) {
-            var text = row.textContent.toLowerCase();
-            var rowStatus = row.getAttribute('data-status');
-            var rowRole = row.getAttribute('data-role');
+    // Update the count number
+    var counterElement = document.getElementById('total-teachers-count');
+    if (counterElement) counterElement.textContent = currentFilteredRows.length;
+
+    // NEW: Update the label text dynamically
+    var labelElement = document.getElementById('total-teachers-label');
+    if (labelElement) {
+        var statusText = currentStatusFilter !== 'all' 
+            ? currentStatusFilter.charAt(0).toUpperCase() + currentStatusFilter.slice(1) + " " 
+            : "";
             
-            var matchesSearch = text.includes(currentSearchFilter);
-            var matchesStatus = (currentStatusFilter === 'all') || (rowStatus === currentStatusFilter);
-            var matchesRole = (currentRoleFilter === 'all') || (rowRole === currentRoleFilter);
+        var roleText = currentRoleFilter === 'teacher' 
+            ? 'Teachers' 
+            : (currentRoleFilter === 'cid' ? 'CID Personnel' : 'Personnel');
             
-            return matchesSearch && matchesStatus && matchesRole;
-        });
-
-        var counterElement = document.getElementById('total-teachers-count');
-        if (counterElement) counterElement.textContent = currentFilteredRows.length;
-
-        currentPage = 1;
-        applyPagination();
-
-        if (selectAllCheckbox) selectAllCheckbox.checked = false;
-        document.querySelectorAll('.teacher-checkbox').forEach(cb => cb.checked = false);
-        updateBulkActionUI();
+        labelElement.textContent = "Total " + statusText + roleText;
     }
+
+    currentPage = 1;
+    applyPagination();
+
+    if (selectAllCheckbox) selectAllCheckbox.checked = false;
+    document.querySelectorAll('.teacher-checkbox').forEach(cb => cb.checked = false);
+    updateBulkActionUI();
+}
 
     function applyPagination() {
         var tbody = document.querySelector('#teachersTable tbody');

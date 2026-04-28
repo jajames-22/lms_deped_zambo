@@ -35,7 +35,7 @@
 
     <div class="bg-gradient-to-r from-amber-500 to-orange-500 rounded-2xl p-6 text-white shadow-lg shadow-orange-900/20 flex items-center justify-between hover:scale-[1.02] transition-transform">
         <div>
-            <p class="text-orange-200 text-xs font-bold uppercase tracking-wider mb-1">Total Learning Modules</p>
+            <p class="text-orange-200 text-xs font-bold uppercase tracking-wider mb-1">Total Active Materials</p>
             <h3 class="text-3xl font-black">{{ number_format($totalMaterials) }}</h3>
         </div>
         <i class="fas fa-book-open text-5xl text-white/20"></i>
@@ -43,7 +43,7 @@
 
     <div class="bg-gradient-to-r from-rose-500 to-red-600 rounded-2xl p-6 text-white shadow-lg shadow-red-900/20 flex items-center justify-between hover:scale-[1.02] transition-transform">
         <div>
-            <p class="text-rose-200 text-xs font-bold uppercase tracking-wider mb-1">Total Assessments</p>
+            <p class="text-rose-200 text-xs font-bold uppercase tracking-wider mb-1">Total Active Assessments</p>
             <h3 class="text-3xl font-black">{{ number_format($totalAssessments) }}</h3>
         </div>
         <i class="fas fa-file-signature text-5xl text-white/20"></i>
@@ -87,7 +87,7 @@
 
     <div class="space-y-6">
         @php 
-            $totalAlerts = $pendingTeachersCount + $pendingStudentsCount + $unassignedUsersCount;
+            $totalAlerts = $pendingTeachersCount;
         @endphp
 
         @if($totalAlerts > 0)
@@ -106,19 +106,6 @@
                 </div>
                 @endif
                 
-                @if($pendingStudentsCount > 0)
-                <div class="flex items-center justify-between text-sm">
-                    <span class="text-gray-600"><i class="fas fa-user-graduate text-amber-500 w-5"></i> Students Awaiting Approval</span>
-                    <span class="font-bold text-gray-900">{{ $pendingStudentsCount }}</span>
-                </div>
-                @endif
-
-                @if($unassignedUsersCount > 0)
-                <div class="flex items-center justify-between text-sm">
-                    <span class="text-gray-600"><i class="fas fa-user-slash text-red-500 w-5"></i> Users Without a School</span>
-                    <span class="font-bold text-red-600">{{ $unassignedUsersCount }}</span>
-                </div>
-                @endif
             </div>
             
             <button onclick="loadPartial('{{ route('dashboard.teachers') }}', document.getElementById('nav-teachers-btn'))" class="w-full py-2.5 text-xs font-bold text-[#a52a2a] bg-red-50 rounded-xl hover:bg-red-100 transition uppercase tracking-wider shadow-sm">
