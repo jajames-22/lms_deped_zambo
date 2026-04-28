@@ -126,8 +126,8 @@ class DashboardController extends Controller
             $totalTeachers = User::where('role', 'teacher')->count();
             $totalSchools = School::count();
 
-            $totalMaterials = Material::count();
-            $totalAssessments = Assessment::count();
+            $totalMaterials = Material::where('status', 'published')->count();
+            $totalAssessments = Assessment::where('status', 'published')->count();
 
             // --- B. ENGAGEMENT & ADOPTION (CHART DATA) ---
             $dailyActiveUsers = User::where('updated_at', '>=', now()->subDay())->count();
@@ -194,9 +194,6 @@ class DashboardController extends Controller
 
             // --- E. ACTIONABLE ALERTS ---
             $pendingTeachersCount = User::where('role', 'teacher')->where('status', 'pending')->count();
-            $pendingStudentsCount = User::where('role', 'student')->where('status', 'pending')->count();
-            $unassignedUsersCount = User::whereNull('school_id')->whereIn('role', ['teacher', 'student'])->count();
-
             return view('dashboard.partials.admin.home', compact(
                 'totalStudents',
                 'totalTeachers',
@@ -217,9 +214,7 @@ class DashboardController extends Controller
                 'avgLearnerSuccessRate',
                 'completionRate',
                 'certificatesIssued',
-                'pendingTeachersCount',
-                'pendingStudentsCount',
-                'unassignedUsersCount'
+                'pendingTeachersCount'
             ));
         } elseif ($role === 'cid') {
             // --- A. TOP METRICS ---
@@ -485,16 +480,23 @@ class DashboardController extends Controller
         }
     }
 
+
     public function loadTeachersPartial()
     {
-        // Make sure we only grab users with the role of 'teacher'
-        // Eager load the school and district relationships to prevent crashing
-        $teachers = \App\Models\User::whereIn('role', ['teacher', 'cid'])
-            ->with('school.district')
-            ->get();
+        $filter = request('filter', 'all'); // ✅ default = 'all'
 
-        return view('dashboard.partials.admin.teachers', compact('teachers'));
+        $query = \App\Models\User::whereIn('role', ['teacher', 'cid'])
+            ->with('school.district');
+
+        if ($filter !== 'all') {
+            $query->where('status', $filter);
+        }
+
+        $teachers = $query->get();
+
+        return view('dashboard.partials.admin.teachers', compact('teachers', 'filter'));
     }
+
 
     public function loadAssessmentPartial()
     {
@@ -731,14 +733,14 @@ class DashboardController extends Controller
 
     public function publicMaterialShow($hashid)
     {
-        
+
         $decoded = Hashids::decode($hashid);
         // If the hash is invalid or tampered with, throw a 404
         if (empty($decoded)) {
             abort(404, 'Invalid material link.');
         }
         $id = $decoded[0];
-    
+
         // Fetch the material, ensuring it is public and published
         $material = \App\Models\Material::with(['instructor', 'tags', 'lessons.contents', 'exams'])
             ->where('is_public', true)
@@ -784,7 +786,7 @@ class DashboardController extends Controller
         // ==========================================
         // 2. CONTENT & ENGAGEMENT
         // ==========================================
-        $totalMaterials = \App\Models\Material::count();
+        $totalMaterials = \App\Models\Material::where('status', 'published')->count();
         $certificatesIssued = \App\Models\Enrollment::where('status', 'completed')->count();
         $totalEnrollments = \App\Models\Enrollment::count();
 
@@ -802,7 +804,7 @@ class DashboardController extends Controller
         // ==========================================
         // 3. ASSESSMENT & PERFORMANCE
         // ==========================================
-        $totalAssessments = \App\Models\Assessment::count();
+        $totalAssessments = \App\Models\Assessment::where('status', 'published')->count();
         $totalExamAnswers = \App\Models\ExamAnswer::count();
         $correctExamAnswers = \App\Models\ExamAnswer::where('is_correct', true)->count();
 
@@ -877,7 +879,7 @@ class DashboardController extends Controller
         }
 
         // 3. Fetch the Content & Engagement data
-        $totalMaterials = \App\Models\Material::count();
+        $totalMaterials = \App\Models\Material::where('status', 'published')->count();
         $totalEnrollments = \App\Models\Enrollment::count();
         $certificatesIssued = \App\Models\Enrollment::where('status', 'completed')->count();
         $completionRate = $totalEnrollments > 0 ? round(($certificatesIssued / $totalEnrollments) * 100) : 0;
@@ -953,7 +955,10 @@ class DashboardController extends Controller
             ->count();
 
         // 2. MATERIAL ENGAGEMENT
-        $totalMaterials = $myMaterialIds->count();
+        $totalMaterials = \App\Models\MaterialAccess::whereIn('material_id', $myMaterialIds)
+            ->where('status', 'published')
+            ->count();
+
         $totalViews = \App\Models\Material::where('instructor_id', $teacherId)->sum('views');
 
         $topMaterials = \App\Models\Material::where('instructor_id', $teacherId)
@@ -1030,7 +1035,9 @@ class DashboardController extends Controller
             ->count();
 
         // 3. MATERIAL ENGAGEMENT
-        $totalMaterials = $myMaterialIds->count();
+        $totalMaterials = \App\Models\MaterialAccess::whereIn('material_id', $myMaterialIds)
+            ->where('status', 'published')
+            ->count();
         $totalViews = \App\Models\Material::where('instructor_id', $teacherId)->sum('views');
 
         $topMaterials = \App\Models\Material::where('instructor_id', $teacherId)
