@@ -69,8 +69,22 @@ class MaterialsController extends Controller
         $decoded = Hashids::decode($hashid);
         if (empty($decoded))
             abort(404, 'Invalid link.');
-        $material = Material::findOrFail($decoded[0]);
 
+        $material = Material::findOrFail($decoded[0]);
+        $user = auth()->user();
+
+        // 🛑 NEW SECURITY CHECK: Prevent evaluating drafts
+        if ($material->status === 'draft' && $material->instructor_id !== $user->id) {
+            return response('
+            <div class="flex flex-col items-center justify-center h-[60vh] text-center px-4">
+                <div class="w-20 h-20 bg-red-50 text-[#a52a2a] rounded-full flex items-center justify-center mb-4">
+                    <i class="fas fa-file-signature text-3xl"></i>
+                </div>
+                <h2 class="text-2xl font-black text-gray-900 mb-2">Evaluation Locked</h2>
+                <p class="text-gray-500 max-w-md text-sm">This module is in <b>Draft</b> mode. You cannot evaluate it until the instructor submits it for review.</p>
+            </div>
+        ');
+        }
 
         // 2. Eager load all the necessary relationships and sort them
         $material->load([
@@ -227,6 +241,20 @@ class MaterialsController extends Controller
     public function manage($id)
     {
         $material = Material::findOrFail($id);
+
+        $user = auth()->user(); 
+
+        if (in_array($user->role, ['admin', 'cid']) && $material->status === 'draft' && $material->instructor_id !== $user->id) {
+            return response('
+            <div class="flex flex-col items-center justify-center h-[60vh] text-center px-4">
+                <div class="w-20 h-20 bg-red-50 text-[#a52a2a] rounded-full flex items-center justify-center mb-4">
+                    <i class="fas fa-lock text-3xl"></i>
+                </div>
+                <h2 class="text-2xl font-black text-gray-900 mb-2">Module Unavailable</h2>
+                <p class="text-gray-500 max-w-md text-sm">This module is currently in <b>Draft</b> mode. It may have been reverted for revisions and cannot be accessed until the instructor submits it again.</p>
+            </div>
+        ');
+        }
 
         $material->lessons_count = DB::table('lessons')
             ->where('material_id', $id)
@@ -870,7 +898,8 @@ class MaterialsController extends Controller
                         $sectionType = $cat['section_type'] ?? ($cat['type'] ?? 'lesson');
 
                         if ($sectionType === 'exam') {
-                            if ($hasProcessedExam) continue;
+                            if ($hasProcessedExam)
+                                continue;
                             $hasProcessedExam = true;
 
                             foreach ($cat['questions'] ?? [] as $qIndex => $q) {
@@ -1021,7 +1050,7 @@ class MaterialsController extends Controller
 
             // 4. Run the Excel Import
             Excel::import(new LessonImport($id), $request->file('module_file'));
-            
+
             DB::commit();
 
             return response()->json(['success' => true, 'message' => 'Lessons imported successfully!']);
@@ -1786,6 +1815,20 @@ class MaterialsController extends Controller
 
         // Authorization: Allow the instructor (owner), admins, or CID personnel
         $user = auth()->user();
+
+        if (in_array($user->role, ['admin', 'cid']) && $material->status === 'draft' && $material->instructor_id !== $user->id) {
+            return response('
+            <div class="flex flex-col items-center justify-center h-[60vh] text-center px-4">
+                <div class="w-20 h-20 bg-red-50 text-[#a52a2a] rounded-full flex items-center justify-center mb-4">
+                    <i class="fas fa-eye-slash text-3xl"></i>
+                </div>
+                <h2 class="text-2xl font-black text-gray-900 mb-2">Preview Unavailable</h2>
+                <p class="text-gray-500 max-w-md text-sm">This module is currently in <b>Draft</b> mode. It cannot be previewed until the instructor submits it.</p>
+            </div>
+        ');
+        }
+
+
         if (auth()->id() !== $material->instructor_id && !in_array($user->role, ['admin', 'cid'])) {
             abort(403, 'Unauthorized action.');
         }
@@ -2298,11 +2341,13 @@ class MaterialsController extends Controller
         $overallAverage = $studentLeaderboard->count() > 0 ? round($studentLeaderboard->avg('score'), 2) : 0;
 
         $validQuizScores = $studentLeaderboard->filter(function ($s) {
-            return $s->quiz_score_raw !== "0/0"; });
+            return $s->quiz_score_raw !== "0/0";
+        });
         $avgQuizScore = $validQuizScores->count() > 0 ? round($validQuizScores->avg('quiz_score'), 2) : 0;
 
         $validExamScores = $studentLeaderboard->filter(function ($s) {
-            return $s->exam_score_raw !== "0/0"; });
+            return $s->exam_score_raw !== "0/0";
+        });
         $avgExamScore = $validExamScores->count() > 0 ? round($validExamScores->avg('exam_score'), 2) : 0;
 
         // 7. Item Analysis
@@ -2326,7 +2371,8 @@ class MaterialsController extends Controller
                 $opts = [];
                 if ($q->type === 'text') {
                     $responses = $answers->groupBy(function ($a) {
-                        return strtolower(trim($a->text_answer ?? '')); });
+                        return strtolower(trim($a->text_answer ?? ''));
+                    });
                     foreach ($responses as $text => $group) {
                         $count = $group->count();
                         $isCorrect = $group->where('is_correct', 1)->isNotEmpty();
@@ -2337,7 +2383,8 @@ class MaterialsController extends Controller
                         ];
                     }
                     usort($opts, function ($a, $b) {
-                        return $b->pct <=> $a->pct; });
+                        return $b->pct <=> $a->pct;
+                    });
                 } else {
                     $options = \Illuminate\Support\Facades\DB::table('quiz_options')->where('quiz_id', $q->id)->get();
                     foreach ($options as $o) {
@@ -2382,7 +2429,8 @@ class MaterialsController extends Controller
                 $opts = [];
                 if ($e->type === 'text') {
                     $responses = $answers->groupBy(function ($a) {
-                        return strtolower(trim($a->text_answer ?? '')); });
+                        return strtolower(trim($a->text_answer ?? ''));
+                    });
                     foreach ($responses as $text => $group) {
                         $count = $group->count();
                         $isCorrect = $group->where('is_correct', 1)->isNotEmpty();
@@ -2393,7 +2441,8 @@ class MaterialsController extends Controller
                         ];
                     }
                     usort($opts, function ($a, $b) {
-                        return $b->pct <=> $a->pct; });
+                        return $b->pct <=> $a->pct;
+                    });
                 } else {
                     $options = \Illuminate\Support\Facades\DB::table('exam_options')->where('exam_id', $e->id)->get();
                     foreach ($options as $o) {

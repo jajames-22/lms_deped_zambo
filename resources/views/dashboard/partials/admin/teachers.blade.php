@@ -56,35 +56,45 @@
         </div>
     </div>
 
-    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        {{-- ROLE TABS --}}
-        <div class="inline-flex bg-gray-100 p-1 rounded-xl overflow-x-auto w-full sm:w-auto">
-            <button class="role-tab px-5 py-2 rounded-lg text-sm font-bold bg-white text-gray-900 shadow-sm transition-all pointer-events-none whitespace-nowrap" data-role="all">
-                All Roles
-            </button>
-            <button class="role-tab px-5 py-2 rounded-lg text-sm font-bold text-gray-500 hover:text-gray-900 transition-all whitespace-nowrap" data-role="teacher">
-                Teachers
-            </button>
-            <button class="role-tab px-5 py-2 rounded-lg text-sm font-bold text-gray-500 hover:text-gray-900 transition-all whitespace-nowrap" data-role="cid">
-                CID Personnel
-            </button>
+    {{-- IMPROVED TABS AND EXPORT BUTTON PLACEMENT --}}
+    <div class="flex flex-col xl:flex-row justify-between items-start xl:items-center gap-4">
+        <div class="flex flex-col sm:flex-row items-start sm:items-center gap-3 w-full xl:w-auto">
+            
+            {{-- ROLE TABS --}}
+            <div class="flex items-center space-x-1 bg-gray-200/50 p-1 rounded-xl w-fit shrink-0">
+                <button class="role-tab px-5 py-2 text-sm font-bold rounded-lg transition-all bg-white text-[#a52a2a] shadow-sm pointer-events-none" data-role="all">
+                    All Roles
+                </button>
+                <button class="role-tab px-5 py-2 text-sm font-bold rounded-lg transition-all text-gray-500 hover:text-gray-700" data-role="teacher">
+                    Teachers
+                </button>
+                <button class="role-tab px-5 py-2 text-sm font-bold rounded-lg transition-all text-gray-500 hover:text-gray-700" data-role="cid">
+                    CID
+                </button>
+            </div>
+
+            {{-- STATUS TABS --}}
+            <div class="flex items-center space-x-1 bg-gray-200/50 p-1 rounded-xl w-fit shrink-0">
+                <button class="status-tab px-5 py-2 text-sm font-bold rounded-lg transition-all bg-white text-[#a52a2a] shadow-sm pointer-events-none" data-status="all">
+                    All Status
+                </button>
+                <button class="status-tab px-5 py-2 text-sm font-bold rounded-lg transition-all text-gray-500 hover:text-gray-700" data-status="verified">
+                    Verified
+                </button>
+                <button class="status-tab px-5 py-2 text-sm font-bold rounded-lg transition-all text-gray-500 hover:text-gray-700" data-status="pending">
+                    Pending
+                </button>
+                <button class="status-tab px-5 py-2 text-sm font-bold rounded-lg transition-all text-gray-500 hover:text-gray-700" data-status="suspended">
+                    Suspended
+                </button>
+            </div>
         </div>
 
-        {{-- STATUS TABS --}}
-        <div class="flex flex-wrap items-center gap-2">
-            <button class="status-tab px-4 py-2 rounded-xl text-sm font-bold bg-[#a52a2a] text-white shadow-sm transition-all pointer-events-none" data-status="all">
-                All Status
-            </button>
-            <button class="status-tab px-4 py-2 rounded-xl text-sm font-bold bg-white text-gray-600 hover:bg-gray-50 border border-gray-200 transition-all" data-status="verified">
-                Verified
-            </button>
-            <button class="status-tab px-4 py-2 rounded-xl text-sm font-bold bg-white text-gray-600 hover:bg-gray-50 border border-gray-200 transition-all" data-status="pending">
-                Pending
-            </button>
-            <button class="status-tab px-4 py-2 rounded-xl text-sm font-bold bg-white text-gray-600 hover:bg-gray-50 border border-gray-200 transition-all" data-status="suspended">
-                Suspended
-            </button>
-        </div>
+        <button onclick="toggleExportModal()"
+            class="flex items-center justify-center gap-2 px-6 py-3 bg-gray-800 text-white font-bold rounded-xl shadow-sm hover:bg-gray-900 transition-all text-sm w-full xl:w-auto shrink-0 relative z-10">
+            <i class="fas fa-file-export"></i>
+            <span>Generate Report</span>
+        </button>
     </div>
 
     <div class="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden flex flex-col">
@@ -274,44 +284,76 @@
     </div>
 </div>
 
-{{-- EXPORT MODAL --}}
+{{-- IMPROVED EXPORT MODAL (ROLES AND STATUSES) --}}
 <div id="exportModal"
-    class="fixed inset-0 bg-gray-900/60 backdrop-blur-sm z-[110] hidden flex items-center justify-center opacity-0 transition-opacity duration-300">
-    <div class="bg-white rounded-3xl shadow-2xl w-full max-w-md p-6 transform scale-95 transition-transform duration-300 border border-gray-100"
+    class="fixed inset-0 bg-gray-900/60 backdrop-blur-sm z-[110] hidden flex items-center justify-center opacity-0 transition-opacity duration-300 p-4">
+    <div class="bg-white rounded-3xl shadow-2xl w-full max-w-lg p-6 md:p-8 transform scale-95 transition-transform duration-300 border border-gray-100"
         id="exportModalContent">
-        <div class="flex justify-between items-center mb-5">
-            <h3 class="text-xl font-black text-gray-900">Export Teacher List</h3>
-            <button onclick="toggleExportModal()" class="text-gray-400 hover:text-gray-600 border-0 bg-transparent"><i
+        <div class="flex justify-between items-center mb-6">
+            <h3 class="text-xl font-black text-gray-900">Export Directory Report</h3>
+            <button type="button" onclick="toggleExportModal()" class="text-gray-400 hover:text-gray-600 border-0 bg-transparent"><i
                     class="fas fa-times text-lg"></i></button>
         </div>
 
-        <p class="text-sm text-gray-500 mb-4">Select the account status to include in the generated report:</p>
         <form action="{{ route('teachers.report') }}" method="GET" target="_blank">
-            <div class="space-y-3 mb-6">
-                <label
-                    class="flex items-center gap-3 p-3 border border-gray-200 rounded-xl cursor-pointer hover:bg-gray-50 transition-colors">
-                    <input type="radio" id="export_status_all_teachers" name="status_type" value="all" checked
-                        class="w-5 h-5 text-[#a52a2a] border-gray-300 focus:ring-[#a52a2a]">
-                    <span class="text-gray-700 font-bold">All Teachers</span>
-                </label>
-                <label
-                    class="flex items-center gap-3 p-3 border border-gray-200 rounded-xl cursor-pointer hover:bg-green-50 transition-colors">
-                    <input type="checkbox" name="statuses[]" value="verified"
-                        class="export-status-cb-teacher w-5 h-5 text-green-600 rounded border-gray-300 focus:ring-green-600">
-                    <span class="text-green-700 font-bold">Verified</span>
-                </label>
-                <label
-                    class="flex items-center gap-3 p-3 border border-gray-200 rounded-xl cursor-pointer hover:bg-amber-50 transition-colors">
-                    <input type="checkbox" name="statuses[]" value="pending"
-                        class="export-status-cb-teacher w-5 h-5 text-amber-600 rounded border-gray-300 focus:ring-amber-600">
-                    <span class="text-amber-700 font-bold">Pending</span>
-                </label>
-                <label
-                    class="flex items-center gap-3 p-3 border border-gray-200 rounded-xl cursor-pointer hover:bg-red-50 transition-colors">
-                    <input type="checkbox" name="statuses[]" value="suspended"
-                        class="export-status-cb-teacher w-5 h-5 text-red-600 rounded border-gray-300 focus:ring-red-600">
-                    <span class="text-red-700 font-bold">Suspended</span>
-                </label>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+                
+                {{-- ROLE FILTERS --}}
+                <div>
+                    <p class="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3">Filter by Role</p>
+                    <div class="space-y-2">
+                        <label
+                            class="flex items-center gap-3 p-2.5 border border-gray-200 rounded-xl cursor-pointer hover:bg-gray-50 transition-colors">
+                            <input type="radio" id="export_role_all" name="role_type" value="all" checked
+                                class="w-4 h-4 text-[#a52a2a] border-gray-300 focus:ring-[#a52a2a]">
+                            <span class="text-gray-700 text-sm font-bold">All Roles</span>
+                        </label>
+                        <label
+                            class="flex items-center gap-3 p-2.5 border border-gray-200 rounded-xl cursor-pointer hover:bg-blue-50 transition-colors">
+                            <input type="checkbox" name="roles[]" value="teacher"
+                                class="export-role-cb w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-600">
+                            <span class="text-blue-700 text-sm font-bold">Teachers</span>
+                        </label>
+                        <label
+                            class="flex items-center gap-3 p-2.5 border border-gray-200 rounded-xl cursor-pointer hover:bg-purple-50 transition-colors">
+                            <input type="checkbox" name="roles[]" value="cid"
+                                class="export-role-cb w-4 h-4 text-purple-600 rounded border-gray-300 focus:ring-purple-600">
+                            <span class="text-purple-700 text-sm font-bold">CID Personnel</span>
+                        </label>
+                    </div>
+                </div>
+
+                {{-- STATUS FILTERS --}}
+                <div>
+                    <p class="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3">Filter by Status</p>
+                    <div class="space-y-2">
+                        <label
+                            class="flex items-center gap-3 p-2.5 border border-gray-200 rounded-xl cursor-pointer hover:bg-gray-50 transition-colors">
+                            <input type="radio" id="export_status_all" name="status_type" value="all" checked
+                                class="w-4 h-4 text-[#a52a2a] border-gray-300 focus:ring-[#a52a2a]">
+                            <span class="text-gray-700 text-sm font-bold">All Statuses</span>
+                        </label>
+                        <label
+                            class="flex items-center gap-3 p-2.5 border border-gray-200 rounded-xl cursor-pointer hover:bg-green-50 transition-colors">
+                            <input type="checkbox" name="statuses[]" value="verified"
+                                class="export-status-cb w-4 h-4 text-green-600 rounded border-gray-300 focus:ring-green-600">
+                            <span class="text-green-700 text-sm font-bold">Verified</span>
+                        </label>
+                        <label
+                            class="flex items-center gap-3 p-2.5 border border-gray-200 rounded-xl cursor-pointer hover:bg-amber-50 transition-colors">
+                            <input type="checkbox" name="statuses[]" value="pending"
+                                class="export-status-cb w-4 h-4 text-amber-600 rounded border-gray-300 focus:ring-amber-600">
+                            <span class="text-amber-700 text-sm font-bold">Pending</span>
+                        </label>
+                        <label
+                            class="flex items-center gap-3 p-2.5 border border-gray-200 rounded-xl cursor-pointer hover:bg-red-50 transition-colors">
+                            <input type="checkbox" name="statuses[]" value="suspended"
+                                class="export-status-cb w-4 h-4 text-red-600 rounded border-gray-300 focus:ring-red-600">
+                            <span class="text-red-700 text-sm font-bold">Suspended</span>
+                        </label>
+                    </div>
+                </div>
+
             </div>
 
             <div class="flex gap-3">
@@ -329,37 +371,43 @@
 </div>
 
 <script>
+    // --- EXPORT MODAL CHECKBOX LOGIC ---
     (function () {
-        var statusAllRadio = document.getElementById('export_status_all_teachers');
-        var statusCheckboxes = document.querySelectorAll('.export-status-cb-teacher');
+        function setupCheckboxGroup(radioId, cbClass, maxCount) {
+            var allRadio = document.getElementById(radioId);
+            var checkboxes = document.querySelectorAll(cbClass);
 
-        if (statusAllRadio && statusCheckboxes.length > 0) {
-            // If "All" is clicked, uncheck all individual boxes
-            statusAllRadio.addEventListener('change', function () {
-                if (this.checked) {
-                    statusCheckboxes.forEach(cb => cb.checked = false);
-                }
-            });
-
-            // If a specific box is clicked, check the total count
-            statusCheckboxes.forEach(cb => {
-                cb.addEventListener('change', function () {
-                    var checkedCount = document.querySelectorAll('.export-status-cb-teacher:checked').length;
-
-                    if (checkedCount === 3) {
-                        // All 3 checked -> switch to "All" radio automatically
-                        statusAllRadio.checked = true;
-                        statusCheckboxes.forEach(c => c.checked = false);
-                    } else if (checkedCount > 0) {
-                        // 1 or 2 checked -> uncheck the "All" radio
-                        statusAllRadio.checked = false;
-                    } else {
-                        // 0 checked -> default back to "All" radio
-                        statusAllRadio.checked = true;
+            if (allRadio && checkboxes.length > 0) {
+                // If "All" is clicked, uncheck all individual boxes
+                allRadio.addEventListener('change', function () {
+                    if (this.checked) {
+                        checkboxes.forEach(cb => cb.checked = false);
                     }
                 });
-            });
+
+                // If a specific box is clicked, check the total count
+                checkboxes.forEach(cb => {
+                    cb.addEventListener('change', function () {
+                        var checkedCount = document.querySelectorAll(cbClass + ':checked').length;
+
+                        if (checkedCount === maxCount) {
+                            // All checked -> switch to "All" radio automatically
+                            allRadio.checked = true;
+                            checkboxes.forEach(c => c.checked = false);
+                        } else if (checkedCount > 0) {
+                            // Some checked -> uncheck the "All" radio
+                            allRadio.checked = false;
+                        } else {
+                            // None checked -> default back to "All" radio
+                            allRadio.checked = true;
+                        }
+                    });
+                });
+            }
         }
+
+        setupCheckboxGroup('export_role_all', '.export-role-cb', 2);
+        setupCheckboxGroup('export_status_all', '.export-status-cb', 3);
     })();
 
     function toggleExportModal() {
@@ -654,7 +702,7 @@
         });
     }
 
-    // ROLE TAB LISTENER
+    // ROLE TAB LISTENER - UPDATED STYLE
     var roleTabs = document.querySelectorAll('.role-tab');
     roleTabs.forEach(function(tab) {
         var newTab = tab.cloneNode(true);
@@ -662,19 +710,19 @@
 
         newTab.addEventListener('click', function() {
             document.querySelectorAll('.role-tab').forEach(t => {
-                t.classList.remove('bg-white', 'text-gray-900', 'shadow-sm', 'pointer-events-none');
-                t.classList.add('text-gray-500');
+                t.classList.remove('bg-white', 'text-[#a52a2a]', 'shadow-sm', 'pointer-events-none');
+                t.classList.add('text-gray-500', 'hover:text-gray-700');
             });
             
-            this.classList.remove('text-gray-500');
-            this.classList.add('bg-white', 'text-gray-900', 'shadow-sm', 'pointer-events-none');
+            this.classList.remove('text-gray-500', 'hover:text-gray-700');
+            this.classList.add('bg-white', 'text-[#a52a2a]', 'shadow-sm', 'pointer-events-none');
             
             currentRoleFilter = this.getAttribute('data-role');
             applyFilters();
         });
     });
 
-    // STATUS TAB LISTENER
+    // STATUS TAB LISTENER - UPDATED STYLE
     var statusTabs = document.querySelectorAll('.status-tab');
     statusTabs.forEach(function(tab) {
         var newTab = tab.cloneNode(true);
