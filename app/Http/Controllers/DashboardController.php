@@ -1296,61 +1296,85 @@ class DashboardController extends Controller
         $query = $request->input('q');
         
         if (!$query || strlen($query) < 2) {
-            return response()->json(['materials' => [], 'users' => [], 'tags' => []]);
+            return response()->json([
+                'direct_materials' => [], 'related_materials' => [], 
+                'teachers' => [], 'students' => [], 'tags' => []
+            ]);
         }
 
         $user = auth()->user();
 
-        // 1. SEARCH MATERIALS (By Title, Description, OR TAGS!)
-        $materialsQuery = \App\Models\Material::with(['instructor', 'tags'])
+        // 1. DIRECT MATERIALS (Title or Description match)
+        $directQuery = \App\Models\Material::with(['instructor', 'tags'])
             ->where(function($q) use ($query) {
                 $q->where('title', 'like', "%{$query}%")
-                  ->orWhere('description', 'like', "%{$query}%")
-                  // 👇 This tells Laravel to also search inside the attached tags!
-                  ->orWhereHas('tags', function($tagQuery) use ($query) {
-                      $tagQuery->where('name', 'like', "%{$query}%");
-                  });
+                  ->orWhere('description', 'like', "%{$query}%");
+            });
+
+        // 2. RELATED MATERIALS (Instructor Name or Tag match - excluding direct matches)
+        $relatedQuery = \App\Models\Material::with(['instructor', 'tags'])
+            ->where(function($q) use ($query) {
+                $q->whereHas('instructor', function($instructorQuery) use ($query) {
+                    $instructorQuery->where('first_name', 'like', "%{$query}%")
+                                    ->orWhere('last_name', 'like', "%{$query}%");
+                })->orWhereHas('tags', function($tagQuery) use ($query) {
+                    $tagQuery->where('name', 'like', "%{$query}%");
+                });
+            })
+            ->where(function($q) use ($query) {
+                $q->where('title', 'not like', "%{$query}%")
+                  ->where('description', 'not like', "%{$query}%");
             });
 
         // Apply Role-Based Visibility Filters
         if ($user->role === 'student') {
-            $materialsQuery->where('status', 'published')
-                           ->where('is_public', true);
+            $directQuery->where('status', 'published')->where('is_public', true);
+            $relatedQuery->where('status', 'published')->where('is_public', true);
         } elseif ($user->role === 'teacher') {
-            $materialsQuery->where(function($q) use ($user) {
+            $directQuery->where(function($q) use ($user) {
                 $q->where('instructor_id', $user->id)
-                  ->orWhere(function($subQ) {
-                      $subQ->where('status', 'published')->where('is_public', true);
-                  });
+                  ->orWhere(function($sub) { $sub->where('status', 'published')->where('is_public', true); });
+            });
+            $relatedQuery->where(function($q) use ($user) {
+                $q->where('instructor_id', $user->id)
+                  ->orWhere(function($sub) { $sub->where('status', 'published')->where('is_public', true); });
             });
         }
 
-        // Limit to 10 materials and attach HashID for the frontend links
-        $materials = $materialsQuery->take(10)->get()->map(function($mat) {
-            // Safely encode ID using Vinkla Hashids
-            $mat->hashid = \Vinkla\Hashids\Facades\Hashids::encode($mat->id);
-            return $mat;
+        $direct_materials = $directQuery->take(10)->get()->map(function($mat) {
+            $mat->hashid = \Vinkla\Hashids\Facades\Hashids::encode($mat->id); return $mat;
         });
 
-        // 2. SEARCH USERS (Only Admins and Teachers can search the directory)
-        $users = [];
-        if (in_array($user->role, ['admin', 'teacher', 'cid'])) {
-            $users = \App\Models\User::where('first_name', 'like', "%{$query}%")
-                ->orWhere('last_name', 'like', "%{$query}%")
-                ->orWhere('email', 'like', "%{$query}%")
-                ->take(6)
-                ->get(['id', 'first_name', 'last_name', 'email', 'role']);
+        $related_materials = $relatedQuery->take(10)->get()->map(function($mat) {
+            $mat->hashid = \Vinkla\Hashids\Facades\Hashids::encode($mat->id); return $mat;
+        });
+
+        // 3. SEARCH USERS (Only Admins can see directory searches)
+        $teachers = [];
+        $students = [];
+        if ($user->role === 'admin') {
+            $teachers = \App\Models\User::whereIn('role', ['teacher', 'cid'])
+                ->where(function($q) use ($query) {
+                    $q->where('first_name', 'like', "%{$query}%")
+                      ->orWhere('last_name', 'like', "%{$query}%");
+                })->take(6)->get(['id', 'first_name', 'last_name', 'email', 'role']);
+
+            $students = \App\Models\User::where('role', 'student')
+                ->where(function($q) use ($query) {
+                    $q->where('first_name', 'like', "%{$query}%")
+                      ->orWhere('last_name', 'like', "%{$query}%")
+                      ->orWhere('lrn', 'like', "%{$query}%");
+                })->take(6)->get(['id', 'first_name', 'last_name', 'email', 'role']);
         }
 
-        // 3. SEARCH TAGS DIRECTLY (To show the Tag Pills)
-        $tags = \App\Models\Tag::where('name', 'like', "%{$query}%")
-            ->take(8)
-            ->get(['id', 'name']);
+        // 4. SEARCH TAGS DIRECTLY
+        $tags = \App\Models\Tag::where('name', 'like', "%{$query}%")->take(8)->get(['id', 'name']);
 
-        // Return everything to the layout.blade.php Javascript!
         return response()->json([
-            'materials' => $materials,
-            'users' => $users,
+            'direct_materials' => $direct_materials,
+            'related_materials' => $related_materials,
+            'teachers' => $teachers,
+            'students' => $students,
             'tags' => $tags
         ]);
     }
