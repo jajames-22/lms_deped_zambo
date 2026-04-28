@@ -17,23 +17,38 @@
 
 <body class="bg-gray-50 font-sans text-gray-900 min-h-screen flex items-center justify-center p-4 selection:bg-[#a52a2a] selection:text-white relative">
 
+    @php
+        // Determine if the student passed based on their total score vs passing score
+        $passed = $grades['totalScore'] >= $grades['passingScore'];
+    @endphp
+
     <div class="w-full max-w-2xl bg-white rounded-3xl shadow-2xl border border-gray-100 overflow-hidden animate-pop-in relative z-10">
         
-        {{-- HEADER --}}
-        <div class="bg-red-50 p-8 text-center border-b border-red-100 relative overflow-hidden">
-            <div class="w-24 h-24 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4 border-4 border-white shadow-sm relative z-10">
-                <i class="fas fa-times text-4xl text-red-500"></i>
+        {{-- HEADER (Dynamic based on Pass/Fail) --}}
+        @if($passed)
+            <div class="bg-green-50 p-8 text-center border-b border-green-100 relative overflow-hidden">
+                <div class="w-24 h-24 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4 border-4 border-white shadow-sm relative z-10">
+                    <i class="fas fa-trophy text-4xl text-green-500"></i>
+                </div>
+                <h1 class="text-3xl font-black text-gray-900 mb-2 relative z-10">Congratulations!</h1>
+                <p class="text-gray-600 relative z-10">You have successfully met the requirements for <span class="font-bold text-green-700">"{{ $material->title }}"</span>.</p>
             </div>
-            <h1 class="text-3xl font-black text-gray-900 mb-2 relative z-10">Module Incomplete</h1>
-            <p class="text-gray-600 relative z-10">You did not meet the passing requirements for <span class="font-bold text-[#a52a2a]">"{{ $material->title }}"</span>.</p>
-        </div>
+        @else
+            <div class="bg-red-50 p-8 text-center border-b border-red-100 relative overflow-hidden">
+                <div class="w-24 h-24 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4 border-4 border-white shadow-sm relative z-10">
+                    <i class="fas fa-times text-4xl text-red-500"></i>
+                </div>
+                <h1 class="text-3xl font-black text-gray-900 mb-2 relative z-10">Module Incomplete</h1>
+                <p class="text-gray-600 relative z-10">You did not meet the passing requirements for <span class="font-bold text-[#a52a2a]">"{{ $material->title }}"</span>.</p>
+            </div>
+        @endif
 
         {{-- SCORES --}}
         <div class="p-8">
             <div class="flex flex-col md:flex-row items-center justify-between gap-8 bg-gray-50 rounded-2xl p-6 border border-gray-200 mb-8">
                 <div class="text-center flex-1">
                     <p class="text-xs font-bold text-gray-400 uppercase tracking-widest mb-1">Your Total Score</p>
-                    <p class="text-5xl font-black text-red-600">{{ $grades['totalScore'] }}%</p>
+                    <p class="text-5xl font-black {{ $passed ? 'text-green-600' : 'text-red-600' }}">{{ $grades['totalScore'] }}%</p>
                 </div>
                 <div class="w-px h-16 bg-gray-300 hidden md:block"></div>
                 <div class="text-center flex-1">
@@ -71,26 +86,34 @@
                 @endif
             </div>
 
-            {{-- ACTION BUTTONS --}}
+            {{-- ACTION BUTTONS (Dynamic based on Pass/Fail) --}}
             <div class="flex flex-col sm:flex-row gap-4">
                 
-                {{-- Retake Entire Module --}}
-                <button onclick="openModal('retake-module-modal')" class="w-full py-4 bg-gray-100 text-gray-700 font-bold rounded-xl hover:bg-gray-200 transition shadow-sm flex items-center justify-center gap-2">
-                    <i class="fas fa-redo-alt"></i> Retake Entire Module
-                </button>
+                @if($passed)
+                    {{-- Certificate Button --}}
+                    <a href="{{ route('dashboard.materials.certificate', $material->hashid) }}" class="w-full py-4 bg-green-600 text-white font-bold rounded-xl hover:bg-green-700 transition shadow-lg shadow-green-600/20 flex items-center justify-center gap-2">
+                        <i class="fas fa-certificate"></i> View Certificate
+                    </a>
+                @else
+                    {{-- Retake Entire Module --}}
+                    <button onclick="openModal('retake-module-modal')" class="w-full py-4 bg-gray-100 text-gray-700 font-bold rounded-xl hover:bg-gray-200 transition shadow-sm flex items-center justify-center gap-2">
+                        <i class="fas fa-redo-alt"></i> Retake Entire Module
+                    </button>
 
-                {{-- Retake Exam Only (With Logic Lock) --}}
-                @if($grades['hasExams'])
-                    @if($canPassWithExamRetake)
-                        <button onclick="openModal('retake-exam-modal')" class="w-full py-4 bg-[#a52a2a] text-white font-bold rounded-xl hover:bg-red-800 transition shadow-lg shadow-[#a52a2a]/20 flex items-center justify-center gap-2">
-                            <i class="fas fa-pen-alt"></i> Retake Exam Only
-                        </button>
-                    @else
-                        <button onclick="openModal('impossible-exam-modal')" class="w-full py-4 bg-[#a52a2a] text-white font-bold rounded-xl hover:bg-red-800 transition shadow-lg shadow-[#a52a2a]/20 flex items-center justify-center gap-2">
-                            <i class="fas fa-pen-alt"></i> Retake Exam Only
-                        </button>
+                    {{-- Retake Exam Only (With Logic Lock) --}}
+                    @if($grades['hasExams'])
+                        @if($canPassWithExamRetake)
+                            <button onclick="openModal('retake-exam-modal')" class="w-full py-4 bg-[#a52a2a] text-white font-bold rounded-xl hover:bg-red-800 transition shadow-lg shadow-[#a52a2a]/20 flex items-center justify-center gap-2">
+                                <i class="fas fa-pen-alt"></i> Retake Exam Only
+                            </button>
+                        @else
+                            <button onclick="openModal('impossible-exam-modal')" class="w-full py-4 bg-[#a52a2a] text-white font-bold rounded-xl hover:bg-red-800 transition shadow-lg shadow-[#a52a2a]/20 flex items-center justify-center gap-2">
+                                <i class="fas fa-pen-alt"></i> Retake Exam Only
+                            </button>
+                        @endif
                     @endif
                 @endif
+
             </div>
             
             <div class="mt-6 text-center">
@@ -147,7 +170,7 @@
                 <i class="fas fa-lock"></i>
             </div>
             <h3 class="text-xl font-black text-gray-900 mb-2">Insufficient Score</h3>
-            <p class="text-sm text-gray-500 mb-4">Because your Quiz scores are too low, even getting a perfect 100% on the Exam retake will only bring your total score to <strong class="text-gray-800">{{ round($maxPossibleScore, 1) }}%</strong>, which is below the {{ $grades['passingScore'] }}% requirement.</p>
+            <p class="text-sm text-gray-500 mb-4">Because your Quiz scores are too low, even getting a perfect 100% on the Exam retake will only bring your total score to <strong class="text-gray-800">{{ round($maxPossibleScore ?? 0, 1) }}%</strong>, which is below the {{ $grades['passingScore'] }}% requirement.</p>
             <p class="text-sm text-[#a52a2a] font-bold mb-6">You must retake the entire module.</p>
             <button type="button" onclick="closeModal('impossible-exam-modal')" class="w-full px-4 py-3 bg-gray-900 text-white font-bold rounded-xl hover:bg-gray-800 transition shadow-md">Understood</button>
         </div>

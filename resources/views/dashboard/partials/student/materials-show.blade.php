@@ -389,6 +389,9 @@
                         {{-- Conditional Action Buttons (Certificate vs Result vs Read Again) --}}
                         @if(in_array($enrollmentStatus, ['completed', 'read']))
                             @if($dbHasExams || $dbHasQuizzes)
+                                <a href="{{ route('dashboard.materials.result', $material->hashid) }}" class="flex-1 sm:flex-none px-8 py-3.5 bg-blue-600 text-white font-bold rounded-xl hover:bg-blue-700 transition shadow-lg shadow-blue-600/20 flex items-center justify-center gap-2">
+                                    <i class="fas fa-chart-bar text-lg"></i> View Results
+                                </a>
                                 <a href="{{ route('dashboard.materials.certificate', $material->hashid) }}" class="flex-1 sm:flex-none px-8 py-3.5 bg-yellow-500 text-white font-bold rounded-xl hover:bg-yellow-600 transition shadow-lg shadow-yellow-500/20 flex items-center justify-center gap-2">
                                     <i class="fas fa-certificate text-lg"></i> View Certificate
                                 </a>
