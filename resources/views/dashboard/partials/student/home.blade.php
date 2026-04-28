@@ -71,7 +71,14 @@
             </div>
 
             <div class="p-6 flex flex-col gap-4">
-                @forelse($continueLearning as $enrollment)
+                {{-- FILTER OUT COMPLETED MATERIALS HERE --}}
+                @php
+                    $activeLearning = collect($continueLearning)->reject(function($enrollment) {
+                        return in_array($enrollment->status, ['completed', 'read']) || !is_null($enrollment->completed_at);
+                    });
+                @endphp
+
+                @forelse($activeLearning as $enrollment)
                     <div
                         class="bg-gray-50 p-4 rounded-xl border border-gray-100 flex flex-col sm:flex-row items-center gap-4 hover:border-[#a52a2a]/30 transition group">
 
@@ -95,9 +102,7 @@
                             {{-- DYNAMIC PROGRESS CALCULATION --}}
                             @php
                                 $progressPct = 0;
-                                if (in_array($enrollment->status, ['completed', 'read']) || !is_null($enrollment->completed_at)) {
-                                    $progressPct = 100;
-                                } elseif ($enrollment->progress_data) {
+                                if ($enrollment->progress_data) {
                                     $pData = json_decode($enrollment->progress_data);
                                     $highestUnlocked = isset($pData->highest_unlocked) ? (int) $pData->highest_unlocked : 0;
                                     $currentContent = isset($pData->content) ? (int) $pData->content : 0;
