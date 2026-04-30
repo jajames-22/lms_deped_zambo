@@ -51,7 +51,7 @@ Route::middleware(['auth', 'verified', CheckAccountStatus::class])->group(functi
         Route::put('/profile/password', [ProfileController::class, 'updatePassword'])->name('profile.password.update');
         Route::patch('/profile/avatar', [ProfileController::class, 'updateAvatar'])->name('profile.avatar.update');
         Route::get('/settings', [DashboardController::class, 'loadSettingsPartial'])->name('dashboard.settings');
-        
+
         // Notifications
         Route::get('/notifications', [MaterialsController::class, 'getNotifications'])->name('dashboard.notifications');
         Route::post('/notifications/{id}/read', [MaterialsController::class, 'markNotificationRead']);
@@ -60,8 +60,14 @@ Route::middleware(['auth', 'verified', CheckAccountStatus::class])->group(functi
         Route::get('/assessment', [DashboardController::class, 'loadAssessmentPartial'])->name('dashboard.assessment');
         Route::get('/analytics', [DashboardController::class, 'loadAnalyticsPartial'])->name('dashboard.analytics');
         Route::get('/explore', [DashboardController::class, 'loadExplorePartial'])->name('dashboard.explore');
+        // Existing Criteria Routes
         Route::get('/criteria', [DashboardController::class, 'loadCriteriaPartial'])->name('dashboard.criteria');
         Route::post('/criteria', [DashboardController::class, 'storeCriteria'])->name('dashboard.criteria.store');
+
+        // New Criteria Routes for the Card Layout and Builder
+        Route::get('/criteria/create/{id?}', [DashboardController::class, 'createCriteriaPartial'])->name('dashboard.criteria.create');
+        Route::delete('/criteria/{id}', [DashboardController::class, 'destroyCriteria'])->name('dashboard.criteria.destroy');
+        Route::post('/criteria/{id}/duplicate', [DashboardController::class, 'duplicateCriteria'])->name('dashboard.criteria.duplicate');
 
         // Schools Management
         Route::get('/schools', [DashboardController::class, 'loadSchoolsPartial'])->name('schools');
@@ -108,6 +114,7 @@ Route::middleware(['auth', 'verified', CheckAccountStatus::class])->group(functi
         Route::post('/assessments/{assessment}/import-access', [AssessmentController::class, 'importAccess'])->name('dashboard.assessments.access.import');
         Route::patch('/assessments/{assessment}/toggle-status', [AssessmentController::class, 'toggleStatus'])->name('dashboard.assessments.toggle-status');
         Route::patch('/assessments/{assessment}/toggle-results', [AssessmentController::class, 'toggleResults'])->name('dashboard.assessments.toggle-results');
+        Route::post('/assessments/{id}/duplicate', [AssessmentController::class, 'duplicate'])->name('dashboard.assessments.duplicate');
 
         // Admin Explore Layout Management
         Route::get('/explore-layout', [ExploreLayoutController::class, 'index'])->name('dashboard.explore-layout');
@@ -128,7 +135,7 @@ Route::middleware(['auth', 'verified', CheckAccountStatus::class])->group(functi
         Route::get('/materials/{hashid}/study', [MaterialsController::class, 'study'])->name('dashboard.materials.study');
         Route::get('/materials/{hashid}/result', [MaterialsController::class, 'result'])->name('dashboard.materials.result');
         Route::get('/materials/{hashid}/certificate', [MaterialsController::class, 'certificate'])->name('dashboard.materials.certificate');
-        
+
         // Student Actions
         Route::post('/materials/{material}/enroll', [MaterialsController::class, 'enroll'])->name('materials.enroll');
         Route::post('/materials/{material}/unenroll', [MaterialsController::class, 'unenroll'])->name('dashboard.materials.unenroll');
@@ -143,7 +150,7 @@ Route::middleware(['auth', 'verified', CheckAccountStatus::class])->group(functi
         Route::get('/materials/{hashid}/evaluation-result', [MaterialsController::class, 'evaluationResult'])->name('dashboard.materials.evaluation-result');
         Route::get('/materials/{id}/analytics', [MaterialsController::class, 'analytics'])->name('dashboard.materials.analytics');
         Route::get('/materials/{id}/report', [MaterialsController::class, 'exportMaterialAnalyticsPdf'])->name('dashboard.materials.report');
-        
+
         Route::patch('/materials/{material}/toggle-featured', [MaterialsController::class, 'toggleFeatured'])->name('dashboard.materials.toggle-featured');
         Route::post('/materials/{material}/tags', [MaterialsController::class, 'addTag'])->name('dashboard.materials.tags.add');
         Route::delete('/materials/{material}/tags/{tag}', [MaterialsController::class, 'removeTag'])->name('dashboard.materials.tags.remove');
@@ -154,7 +161,7 @@ Route::middleware(['auth', 'verified', CheckAccountStatus::class])->group(functi
         Route::patch('/materials/{id}/status', [MaterialsController::class, 'toggleStatus'])->name('dashboard.materials.status');
         Route::patch('/materials/{id}/visibility', [MaterialsController::class, 'toggleVisibility'])->name('dashboard.materials.visibility');
         Route::post('/materials/{id}/grading', [MaterialsController::class, 'updateGrading'])->name('dashboard.materials.grading');
-        
+
         // Access Management Routes
         Route::post('/materials/{id}/access', [MaterialsController::class, 'addAccess'])->name('dashboard.materials.access.add');
         Route::post('/materials/{id}/import-access', [MaterialsController::class, 'importAccess'])->name('dashboard.materials.access.import');

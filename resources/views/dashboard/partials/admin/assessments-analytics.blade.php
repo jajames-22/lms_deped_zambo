@@ -34,9 +34,9 @@
                     class="flex items-center gap-3 px-3 py-2.5 text-sm text-gray-600 hover:text-[#a52a2a] hover:bg-red-50 rounded-xl transition-all text-left">
                     <i class="fas fa-chart-pie w-4 text-center"></i> Executive Summary
                 </button>
-                <button onclick="scrollToSection('ui-proficiency-pacing'); toggleFabMenu();"
+                <button onclick="scrollToSection('ui-score-distribution'); toggleFabMenu();"
                     class="flex items-center gap-3 px-3 py-2.5 text-sm text-gray-600 hover:text-[#a52a2a] hover:bg-red-50 rounded-xl transition-all text-left">
-                    <i class="fas fa-tasks w-4 text-center"></i> Proficiency & Pacing
+                    <i class="fas fa-chart-area w-4 text-center"></i> Score Distribution
                 </button>
                 <button onclick="scrollToSection('ui-competency-breakdown'); toggleFabMenu();"
                     class="flex items-center gap-3 px-3 py-2.5 text-sm text-gray-600 hover:text-[#a52a2a] hover:bg-red-50 rounded-xl transition-all text-left">
@@ -74,13 +74,22 @@
                         <p class="text-gray-400 text-[10px] font-bold uppercase tracking-widest">Overall MPS</p>
                         <i
                             class="fas fa-question-circle text-gray-500 text-[10px] transition-colors group-hover:text-gray-300"></i>
-                        <div
-                            class="absolute bottom-full left-0 mb-2 w-56 p-3 bg-white text-gray-700 text-[11px] leading-relaxed rounded-xl shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50 border border-gray-100 font-normal tracking-normal pointer-events-none">
+                       <div
+                            class="absolute bottom-full left-0 mb-2 w-72 p-3 bg-white text-gray-700 text-[11px] leading-relaxed rounded-xl shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50 border border-gray-100 font-normal tracking-normal pointer-events-none">
                             <strong class="text-gray-900 block mb-1">Mean Percentage Score</strong>
-                            The average score of all the students who took the test. The standard target for mastery is
-                            usually 75%.
+                            The average score of all the students who took the test. The standard target for mastery is usually 75%.
+                            
+                            <div class="mt-2 pt-2 border-t border-gray-100">
+                                <strong class="text-gray-900 block mb-1">How it's computed:</strong>
+                                It is the sum of all individual student percentage scores divided by the total number of students.
+                            </div>
+                            
+                            <div class="mt-2 bg-gray-50 p-2 rounded border border-gray-100">
+                                <strong class="text-gray-900 block mb-1">Example:</strong>
+                                If Student A scores 80% and Student B scores 60%, the MPS is (80 + 60) / 2 = <strong>70%</strong>.
+                            </div>
                         </div>
-                    </div>
+                        </div>
                     <p class="text-4xl font-black text-white">{{ $overallMPS }}<span
                             class="text-xl text-gray-400">%</span></p>
                     <p class="text-[10px] text-gray-400 mt-1">Average student score</p>
@@ -171,24 +180,30 @@
                         {{ $totalStudents }} takers</p>
                 </div>
 
-                {{-- 5. Proficiency Rate --}}
+                {{-- 5. Proficient Students Count --}}
+                @php
+                    $proficientCount = ($proficiencyLevels['Highly Proficient (90-100%)'] ?? 0) + ($proficiencyLevels['Proficient (75-89%)'] ?? 0);
+                @endphp
                 <div class="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 flex flex-col justify-center">
                     <div class="flex items-center gap-1.5 mb-1 relative group w-fit cursor-help">
-                        <p class="text-gray-500 text-[10px] font-bold uppercase tracking-wider">Proficiency Rate</p>
+                        <p class="text-gray-500 text-[10px] font-bold uppercase tracking-wider">Proficient Students</p>
                         <i
                             class="fas fa-question-circle text-gray-300 text-[10px] transition-colors group-hover:text-[#a52a2a]"></i>
                         <div
                             class="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-56 p-3 bg-gray-900 text-gray-300 text-[11px] leading-relaxed rounded-xl shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50 font-normal normal-case tracking-normal pointer-events-none">
                             <strong class="text-white block mb-1">Standard Met</strong>
-                            The percentage of students who successfully met the 75% standard passing score.
+                            The number of students who achieved a Highly Proficient or Proficient rating (scored 75% or higher on the assessment).
                             <div
                                 class="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gray-900">
                             </div>
                         </div>
                     </div>
-                    <p class="text-2xl font-black text-blue-600">{{ $proficiencyRate ?? 0 }}<span
-                            class="text-lg text-gray-400">%</span></p>
-                    <p class="text-[10px] text-gray-500 mt-1 leading-tight">Met 75% standard</p>
+                    <p class="text-2xl font-black text-blue-600">
+                        {{ $proficientCount }} <span class="text-sm font-bold text-gray-400 tracking-wide uppercase">/ {{ $totalStudents }} Takers</span>
+                    </p>
+                    <p class="text-[10px] text-gray-500 mt-1 leading-tight">
+                        <strong>{{ $proficiencyRate ?? 0 }}%</strong> of the class met the 75% standard.
+                    </p>
                 </div>
 
                 {{-- 6. Least Mastered Competency (LMC) --}}
@@ -217,127 +232,43 @@
             </div>
         </section>
 
-        {{-- Section: Proficiency & Pacing --}}
-        <section id="ui-proficiency-pacing" class="scroll-mt-20">
-            <h3 class="text-xl font-bold text-gray-800 mt-8 mb-4 border-b border-gray-200 pb-2">Proficiency & Pacing
-            </h3>
-            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-4">
-                {{-- Proficiency Level Distribution --}}
-                <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex flex-col">
-                    <div class="flex justify-between items-start mb-2">
+        {{-- Section: Score & Proficiency Distribution (Full Width) --}}
+        <section id="ui-score-distribution" class="scroll-mt-20">
+            <h3 class="text-xl font-bold text-gray-800 mt-8 mb-4 border-b border-gray-200 pb-2">Score Distribution & Proficiency</h3>
+            
+            <div class="mt-4">
+                <div class="bg-white p-6 md:p-8 rounded-2xl shadow-sm border border-gray-100 flex flex-col">
+                    <div class="flex flex-col md:flex-row justify-between items-start mb-6 gap-4">
                         <div>
                             <div class="flex items-center gap-1.5 mb-1 relative group w-fit cursor-help">
-                                <h4 class="text-gray-700 font-semibold mb-1">Proficiency Level Distribution</h4>
-                                <i
-                                    class="fas fa-question-circle text-gray-300 text-[10px] transition-colors group-hover:text-[#a52a2a]"></i>
-                                <div
-                                    class="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-56 p-3 bg-gray-900 text-gray-300 text-[11px] leading-relaxed rounded-xl shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50 font-normal normal-case tracking-normal pointer-events-none">
-                                    <strong class="text-white block mb-1">Mastery Category</strong>
-                                    Groups the students' overall average score into standard levels:
-                                    <ul class="space-y-1">
-                                        <li class="flex justify-between">
-                                            <span class="text-green-600 font-bold">90% - 100%</span>
-                                            <span>Highly Proficient</span>
-                                        </li>
-                                        <li class="flex justify-between">
-                                            <span class="text-blue-600 font-bold">75% - 89%</span>
-                                            <span>Proficient</span>
-                                        </li>
-                                        <li class="flex justify-between">
-                                            <span class="text-amber-600 font-bold">50% - 74%</span>
-                                            <span>Nearly Proficient</span>
-                                        </li>
-                                        <li class="flex justify-between">
-                                            <span class="text-orange-600 font-bold">25% - 49%</span>
-                                            <span>Low Proficient</span>
-                                        </li>
-                                        <li class="flex justify-between">
-                                            <span class="text-red-600 font-bold">0% - 24%</span>
-                                            <span>Not Proficient</span>
-                                        </li>
-                                    </ul>
-                                    <div
-                                        class="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gray-900">
-                                    </div>
+                                <h4 class="text-gray-900 text-lg font-bold mb-1">Class Proficiency Curve</h4>
+                                <i class="fas fa-question-circle text-gray-300 text-sm transition-colors group-hover:text-[#a52a2a]"></i>
+                                <div class="absolute bottom-full left-0 mb-2 w-72 p-4 bg-gray-900 text-gray-300 text-[11px] leading-relaxed rounded-xl shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50 font-normal normal-case tracking-normal pointer-events-none">
+                                    <strong class="text-white block mb-1">Combined Insight</strong>
+                                    This chart maps the frequency of student scores directly into their corresponding mastery categories, providing an immediate visual curve of class performance.
+                                    <div class="absolute top-full left-6 border-4 border-transparent border-t-gray-900"></div>
                                 </div>
                             </div>
-                            <p class="text-[11px] text-gray-500 mb-4">Groups the students based on their overall mastery
-                                levels.</p>
+                            <p class="text-xs text-gray-500">Frequency of student scores mapped to standard proficiency levels.</p>
                         </div>
-                        <div
-                            class="bg-blue-50 text-blue-700 px-3 py-1 rounded-lg text-xs font-bold border border-blue-100 whitespace-nowrap">
-                            {{ number_format($completedCount ?? 0) }} Takers
+                        <div class="bg-blue-50 text-blue-700 px-4 py-2 rounded-xl text-sm font-bold border border-blue-100 whitespace-nowrap shadow-sm">
+                            <i class="fas fa-users mr-1"></i> {{ number_format($completedCount ?? 0) }} Total Takers
                         </div>
                     </div>
-                    <div class="relative flex-1 w-full min-h-[220px] flex justify-center items-center">
-                        @if(($completedCount ?? 0) == 0)
+
+                    <div class="relative flex-1 w-full min-h-[300px] md:min-h-[400px] flex justify-center items-center">
+                        @if(empty($combinedDistribution) || ($completedCount ?? 0) == 0)
                             <div class="flex flex-col items-center justify-center text-center p-6 w-full">
-                                <div class="w-12 h-12 bg-gray-50 rounded-full flex items-center justify-center mb-3">
-                                    <i class="fas fa-chart-bar text-gray-300 text-xl"></i>
+                                <div class="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center mb-4">
+                                    <i class="fas fa-chart-bar text-gray-300 text-3xl"></i>
                                 </div>
-                                <p class="text-sm font-medium text-gray-600">No submissions yet</p>
-                                <p class="text-xs text-gray-400 mt-1">Proficiency charts will generate once students
-                                    complete the assessment.</p>
+                                <p class="text-base font-bold text-gray-700">No distribution data yet</p>
+                                <p class="text-sm text-gray-500 mt-1">The proficiency curve will generate once students finish the test.</p>
                             </div>
                         @else
-                            <canvas id="proficiencyChart"></canvas>
+                            <canvas id="combinedDistributionChart"></canvas>
                         @endif
                     </div>
-                </div>
-
-                {{-- Analytical Insights: Pacing vs Accuracy Scatterplot --}}
-                <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex flex-col">
-                    <div class="flex justify-between items-start mb-2">
-                        <div>
-                            <h4 class="text-gray-700 font-semibold mb-1">Pacing vs. Accuracy Insight</h4>
-                            <p class="text-[11px] text-gray-500 mb-4">Shows how long students took to finish the test
-                                compared to their final scores.</p>
-                        </div>
-                        <div class="bg-gray-50 text-gray-700 px-3 py-1 rounded-lg text-xs font-bold border border-gray-200 whitespace-nowrap"
-                            title="Average Time Taken">
-                            <i class="fas fa-stopwatch mr-1 text-gray-400"></i> Avg: {{ $avgTimeFormat ?? '0m 0s' }}
-                        </div>
-                    </div>
-
-                    <div class="relative flex-1 w-full min-h-[220px] flex justify-center items-center">
-                        @if(empty($scatterData) || ($completedCount ?? 0) == 0)
-                            <div class="flex flex-col items-center justify-center text-center p-6 w-full">
-                                <div class="w-12 h-12 bg-gray-50 rounded-full flex items-center justify-center mb-3">
-                                    <i class="fas fa-stopwatch text-gray-300 text-xl"></i>
-                                </div>
-                                <p class="text-sm font-medium text-gray-600">No pacing data available</p>
-                                <p class="text-xs text-gray-400 mt-1">Insights will appear after the first student finishes
-                                    the test.</p>
-                            </div>
-                        @else
-                            <canvas id="pacingScatterChart"></canvas>
-                        @endif
-                    </div>
-
-                    {{-- Legend for Quadrants --}}
-                    @if(!empty($scatterData) && ($completedCount ?? 0) > 0)
-                        <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-4">
-                            <div
-                                class="flex items-center gap-1.5 bg-green-50/50 px-2 py-1.5 rounded border border-green-100">
-                                <span class="w-2.5 h-2.5 rounded-full bg-[#10b981]"></span>
-                                <span class="text-[10px] font-semibold text-green-700 leading-tight">Fast & Accurate</span>
-                            </div>
-                            <div class="flex items-center gap-1.5 bg-blue-50/50 px-2 py-1.5 rounded border border-blue-100">
-                                <span class="w-2.5 h-2.5 rounded-full bg-[#3b82f6]"></span>
-                                <span class="text-[10px] font-semibold text-blue-700 leading-tight">Slow & Accurate</span>
-                            </div>
-                            <div class="flex items-center gap-1.5 bg-red-50/50 px-2 py-1.5 rounded border border-red-100">
-                                <span class="w-2.5 h-2.5 rounded-full bg-[#ef4444]"></span>
-                                <span class="text-[10px] font-semibold text-red-700 leading-tight">Fast & Inaccurate</span>
-                            </div>
-                            <div
-                                class="flex items-center gap-1.5 bg-amber-50/50 px-2 py-1.5 rounded border border-amber-100">
-                                <span class="w-2.5 h-2.5 rounded-full bg-[#f59e0b]"></span>
-                                <span class="text-[10px] font-semibold text-amber-700 leading-tight">Slow &
-                                    Inaccurate</span>
-                            </div>
-                        </div>
-                    @endif
                 </div>
             </div>
         </section>
@@ -755,113 +686,80 @@ EXPORT MODAL WITH CHECKBOXES
         }
     }
 
-    // ==========================================
+// ==========================================
     // Chart Initialization
     // ==========================================
     window.assessmentCharts = window.assessmentCharts || {};
+    
     function initAssessmentCharts() {
-        if (window.assessmentCharts.proficiency) window.assessmentCharts.proficiency.destroy();
-        if (window.assessmentCharts.scatter) window.assessmentCharts.scatter.destroy();
+        // Destroy old instances to prevent overlaps on navigation
+        if (window.assessmentCharts.combined) window.assessmentCharts.combined.destroy();
 
-        @if(($completedCount ?? 0) > 0)
-            const ctxProf = document.getElementById('proficiencyChart');
-            if (ctxProf) {
-                window.assessmentCharts.proficiency = new Chart(ctxProf.getContext('2d'), {
+        // Combined Proficiency & Score Distribution Chart
+        @if(!empty($combinedDistribution))
+            const ctxDist = document.getElementById('combinedDistributionChart');
+            if (ctxDist) {
+                const combinedData = @json($combinedDistribution);
+                
+                window.assessmentCharts.combined = new Chart(ctxDist.getContext('2d'), {
                     type: 'bar',
                     data: {
-                        labels: [
-                            'Highly Proficient',
-                            'Proficient',
-                            'Nearly Proficient',
-                            'Low Proficient',
-                            'Not Proficient'
-                        ],
+                        // Passing an array forces Chart.js to stack the labels on multiple lines
+                        labels: combinedData.map(d => [d.raw, d.range]), 
                         datasets: [{
-                            data: [
-                                    {{ $proficiencyLevels['Highly Proficient (90-100%)'] ?? 0 }},
-                                    {{ $proficiencyLevels['Proficient (75-89%)'] ?? 0 }},
-                                    {{ $proficiencyLevels['Nearly Proficient (50-74%)'] ?? 0 }},
-                                    {{ $proficiencyLevels['Low Proficient (25-49%)'] ?? 0 }},
-                                {{ $proficiencyLevels['Not Proficient (0-24%)'] ?? 0 }}
-                            ],
-                            backgroundColor: [
-                                '#10b981', '#3b82f6', '#f59e0b', '#f97316', '#ef4444'
-                            ],
-                            borderRadius: 4,
-                            borderWidth: 0
+                            label: 'Number of Students',
+                            data: combinedData.map(d => d.count), // Y-axis is frequency
+                            backgroundColor: combinedData.map(d => d.color), // Dynamically color-coded
+                            borderRadius: 6,
+                            barPercentage: 0.9, 
+                            categoryPercentage: 1.0 // Makes the bars touch slightly
                         }]
                     },
                     options: {
                         responsive: true,
                         maintainAspectRatio: false,
-                        plugins: { legend: { display: false } },
+                        interaction: {
+                            mode: 'nearest',
+                            intersect: true, // TRUE means you must hover the physical pixels of the bar (0 bars cannot be hovered)
+                        },
+                        plugins: {
+                            legend: { display: false },
+                            tooltip: {
+                                backgroundColor: 'rgba(17, 24, 39, 0.9)',
+                                titleFont: { size: 14, weight: 'bold' },
+                                bodyFont: { size: 12 },
+                                padding: 12,
+                                callbacks: {
+                                    // Put the Count (Score) as the Title (Above)
+                                    title: function(context) { 
+                                        return context[0].raw + ' Student(s)'; 
+                                    },
+                                    // Put the Proficiency Level and Percentage as the Body (Below)
+                                    label: function(context) { 
+                                        const idx = context.dataIndex;
+                                        return combinedData[idx].level + ' (' + combinedData[idx].range + ')'; 
+                                    }
+                                }
+                            }
+                        },
                         scales: {
-                            y: { beginAtZero: true, ticks: { stepSize: 1 } },
-                            x: { grid: { display: false }, ticks: { font: { size: 10 } } }
+                            x: {
+                                grid: { display: false },
+                                ticks: { font: { size: 12 } },
+                                title: { display: true, text: 'Score Range (%)', font: { size: 13, weight: 'bold' }, color: '#4b5563' }
+                            },
+                            y: {
+                                beginAtZero: true,
+                                ticks: { stepSize: 1, font: { size: 12 } },
+                                title: { display: true, text: 'Number of Students', font: { size: 13, weight: 'bold' }, color: '#4b5563' },
+                                grid: { color: 'rgba(0,0,0,0.04)' } // Faint background lines
+                            }
                         }
                     }
                 });
             }
         @endif
-
-            @if(!empty($scatterData))
-                const ctxScatter = document.getElementById('pacingScatterChart');
-                if (ctxScatter) {
-                    const scatterData = @json($scatterData);
-                    const avgTime = {{ $avgTimeMins ?? 0 }};
-                    const avgScore = {{ $overallMPS ?? 0 }};
-
-                    window.assessmentCharts.scatter = new Chart(ctxScatter.getContext('2d'), {
-                        type: 'scatter',
-                        data: {
-                            datasets: [{
-                                label: 'Student Performance',
-                                data: scatterData,
-                                backgroundColor: function (context) {
-                                    const point = context.raw;
-                                    if (!point) return '#9ca3af';
-                                    if (point.x < avgTime && point.y >= avgScore) return '#10b981'; // Fast & Accurate
-                                    if (point.x >= avgTime && point.y >= avgScore) return '#3b82f6'; // Slow & Accurate
-                                    if (point.x < avgTime && point.y < avgScore) return '#ef4444'; // Fast & Inaccurate
-                                    if (point.x >= avgTime && point.y < avgScore) return '#f59e0b'; // Slow & Inaccurate
-                                },
-                                pointRadius: 5,
-                                pointHoverRadius: 7,
-                                borderWidth: 1,
-                                borderColor: 'white'
-                            }]
-                        },
-                        options: {
-                            responsive: true,
-                            maintainAspectRatio: false,
-                            plugins: {
-                                legend: { display: false },
-                                tooltip: {
-                                    callbacks: {
-                                        label: function (context) {
-                                            return `Time: ${context.raw.x}m, Score: ${context.raw.y}%`;
-                                        }
-                                    }
-                                }
-                            },
-                            scales: {
-                                x: {
-                                    title: { display: true, text: 'Time Taken (Minutes)', font: { size: 10, weight: 'bold' }, color: '#6b7280' },
-                                    grid: { color: (context) => context.tick.value === Math.round(avgTime) ? 'rgba(0,0,0,0.1)' : 'rgba(0,0,0,0.03)', lineWidth: (context) => context.tick.value === Math.round(avgTime) ? 2 : 1 },
-                                    ticks: { font: { size: 10 } }
-                                },
-                                y: {
-                                    title: { display: true, text: 'Score (%)', font: { size: 10, weight: 'bold' }, color: '#6b7280' },
-                                    beginAtZero: true,
-                                    max: 100,
-                                    grid: { color: (context) => context.tick.value === Math.round(avgScore) ? 'rgba(0,0,0,0.1)' : 'rgba(0,0,0,0.03)', lineWidth: (context) => context.tick.value === Math.round(avgScore) ? 2 : 1 },
-                                    ticks: { stepSize: 20, font: { size: 10 } }
-                                }
-                            }
-                        }
-                    });
-                }
-            @endif
     }
+    
     initAssessmentCharts();
 </script>

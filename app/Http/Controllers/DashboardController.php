@@ -10,6 +10,7 @@ use App\Models\School;
 use Vinkla\Hashids\Facades\Hashids;
 use App\Models\User;
 use App\Models\Material;
+use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Storage;
 
 class DashboardController extends Controller
@@ -130,8 +131,8 @@ class DashboardController extends Controller
             $totalAssessments = Assessment::where('status', 'published')->count();
 
             // --- B. ENGAGEMENT & ADOPTION (CHART DATA) ---
-            $dailyActiveUsers = User::where('updated_at', '>=', now()->subDay())->count();
-            $weeklyActiveUsers = User::where('updated_at', '>=', now()->subDays(7))->count();
+            $dailyActiveUsers = User::where('last_login_at', '>=', now()->subDay())->count();
+            $weeklyActiveUsers = User::where('last_login_at', '>=', now()->subDays(7))->count();
 
             // 7-Day Activity Trend for Line Chart
             $activityDates = [];
@@ -139,7 +140,8 @@ class DashboardController extends Controller
             for ($i = 6; $i >= 0; $i--) {
                 $date = now()->subDays($i)->format('Y-m-d');
                 $activityDates[] = now()->subDays($i)->format('M d');
-                $activityTrend[] = User::whereDate('updated_at', $date)->count();
+                // Change updated_at to last_login_at here as well
+                $activityTrend[] = User::whereDate('last_login_at', $date)->count();
             }
 
             // Top 5 Schools for Bar Chart
@@ -761,8 +763,8 @@ class DashboardController extends Controller
         $totalTeachers = \App\Models\User::where('role', 'teacher')->count();
         $totalSchools = \App\Models\School::count();
 
-        $dailyActiveUsers = \App\Models\User::where('updated_at', '>=', now()->subDay())->count();
-        $weeklyActiveUsers = \App\Models\User::where('updated_at', '>=', now()->subDays(7))->count();
+        $dailyActiveUsers = \App\Models\User::where('last_login_at', '>=', now()->subDay())->count();
+        $weeklyActiveUsers = \App\Models\User::where('last_login_at', '>=', now()->subDays(7))->count();
 
         // Top 5 Schools by Student Count
         $topSchoolsRaw = \App\Models\User::where('role', 'student')
@@ -855,8 +857,8 @@ class DashboardController extends Controller
         $totalTeachers = \App\Models\User::where('role', 'teacher')->count();
         $totalSchools = \App\Models\School::count();
 
-        $dailyActiveUsers = \App\Models\User::where('updated_at', '>=', now()->subDay())->count();
-        $weeklyActiveUsers = \App\Models\User::where('updated_at', '>=', now()->subDays(7))->count();
+        $dailyActiveUsers = \App\Models\User::where('last_login_at', '>=', now()->subDay())->count();
+        $weeklyActiveUsers = \App\Models\User::where('last_login_at', '>=', now()->subDays(7))->count();
 
         // Fetch Top Schools Data (For the PDF Table)
         $topSchoolsRaw = \App\Models\User::where('role', 'student')
@@ -1109,7 +1111,6 @@ class DashboardController extends Controller
     private function loadStudentAnalytics()
     {
         $studentId = \Illuminate\Support\Facades\Auth::id();
-
         // 1. ACHIEVEMENTS & PROGRESS
         $totalEnrollments = \App\Models\Enrollment::where('user_id', $studentId)->count();
         $completedCount = \App\Models\Enrollment::where('user_id', $studentId)->where('status', 'completed')->count();
@@ -1117,16 +1118,22 @@ class DashboardController extends Controller
 
         $completionRate = $totalEnrollments > 0 ? round(($completedCount / $totalEnrollments) * 100) : 0;
 
-        // NEW: Total Hours Learned (Sum of lesson time_limits from completed modules)
-        $totalMinutes = \Illuminate\Support\Facades\DB::table('enrollments')
+        // NEW: Accurate Total Time (Material Estimates + Actual Exam Seconds)
+        $materialMinutes = \Illuminate\Support\Facades\DB::table('enrollments')
             ->where('enrollments.user_id', $studentId)
             ->where('enrollments.status', 'completed')
             ->join('lessons', 'enrollments.material_id', '=', 'lessons.material_id')
             ->sum('lessons.time_limit');
 
-        $totalHours = round($totalMinutes / 60, 1);
+        $assessmentSeconds = \Illuminate\Support\Facades\DB::table('assessment_sessions')
+            ->where('user_id', $studentId)
+            ->selectRaw('SUM(TIMESTAMPDIFF(SECOND, created_at, updated_at)) as total')
+            ->value('total') ?? 0;
 
-        // 2. ALL-TIME QUIZ PERFORMANCE (Kept for accuracy charts)
+        // Convert assessment seconds to minutes, add to material minutes, convert to hours
+        $totalHours = round(($materialMinutes + ($assessmentSeconds / 60)) / 60, 1);
+
+        // 2. ALL-TIME QUIZ PERFORMANCE
         $totalAnswers = \App\Models\ExamAnswer::where('user_id', $studentId)->count();
         $correctAnswers = \App\Models\ExamAnswer::where('user_id', $studentId)->where('is_correct', true)->count();
         $incorrectAnswers = $totalAnswers - $correctAnswers;
@@ -1147,31 +1154,9 @@ class DashboardController extends Controller
             $examScores[] = $dailyScore;
         }
 
-        // 4. LEARNING STREAK (Consecutive days of activity)
-        $streak = 0;
-        $checkDate = now();
-
-        while (true) {
-            $hasActivity = \App\Models\ExamAnswer::where('user_id', $studentId)
-                ->whereDate('created_at', $checkDate->format('Y-m-d'))
-                ->exists() ||
-                \App\Models\Enrollment::where('user_id', $studentId)
-                    ->whereDate('updated_at', $checkDate->format('Y-m-d'))
-                    ->exists();
-
-            if ($hasActivity) {
-                $streak++;
-                $checkDate->subDay();
-            } else {
-                // If checking today and no activity, check if they had a streak going up until yesterday
-                if ($streak == 0 && $checkDate->isToday()) {
-                    $checkDate->subDay();
-                    continue;
-                }
-                break; // Streak broken
-            }
-        }
-
+        // 4. LEARNING STREAK (Now 100% Accurate & Lightning Fast)
+        $streak = \Illuminate\Support\Facades\Auth::user()->current_streak ?? 0;
+       
         // 5. TOPIC MASTERY (Average score grouped by Material)
         $masteryRaw = \Illuminate\Support\Facades\DB::table('exam_answers')
             ->join('exams', 'exam_answers.exam_id', '=', 'exams.id')
@@ -1301,11 +1286,14 @@ class DashboardController extends Controller
     public function globalSearch(\Illuminate\Http\Request $request)
     {
         $query = $request->input('q');
-        
+
         if (!$query || strlen($query) < 2) {
             return response()->json([
-                'direct_materials' => [], 'related_materials' => [], 
-                'teachers' => [], 'students' => [], 'tags' => []
+                'direct_materials' => [],
+                'related_materials' => [],
+                'teachers' => [],
+                'students' => [],
+                'tags' => []
             ]);
         }
 
@@ -1313,24 +1301,24 @@ class DashboardController extends Controller
 
         // 1. DIRECT MATERIALS (Title or Description match)
         $directQuery = \App\Models\Material::with(['instructor', 'tags'])
-            ->where(function($q) use ($query) {
+            ->where(function ($q) use ($query) {
                 $q->where('title', 'like', "%{$query}%")
-                  ->orWhere('description', 'like', "%{$query}%");
+                    ->orWhere('description', 'like', "%{$query}%");
             });
 
         // 2. RELATED MATERIALS (Instructor Name or Tag match - excluding direct matches)
         $relatedQuery = \App\Models\Material::with(['instructor', 'tags'])
-            ->where(function($q) use ($query) {
-                $q->whereHas('instructor', function($instructorQuery) use ($query) {
+            ->where(function ($q) use ($query) {
+                $q->whereHas('instructor', function ($instructorQuery) use ($query) {
                     $instructorQuery->where('first_name', 'like', "%{$query}%")
-                                    ->orWhere('last_name', 'like', "%{$query}%");
-                })->orWhereHas('tags', function($tagQuery) use ($query) {
+                        ->orWhere('last_name', 'like', "%{$query}%");
+                })->orWhereHas('tags', function ($tagQuery) use ($query) {
                     $tagQuery->where('name', 'like', "%{$query}%");
                 });
             })
-            ->where(function($q) use ($query) {
+            ->where(function ($q) use ($query) {
                 $q->where('title', 'not like', "%{$query}%")
-                  ->where('description', 'not like', "%{$query}%");
+                    ->where('description', 'not like', "%{$query}%");
             });
 
         // Apply Role-Based Visibility Filters
@@ -1338,22 +1326,26 @@ class DashboardController extends Controller
             $directQuery->where('status', 'published')->where('is_public', true);
             $relatedQuery->where('status', 'published')->where('is_public', true);
         } elseif ($user->role === 'teacher') {
-            $directQuery->where(function($q) use ($user) {
+            $directQuery->where(function ($q) use ($user) {
                 $q->where('instructor_id', $user->id)
-                  ->orWhere(function($sub) { $sub->where('status', 'published')->where('is_public', true); });
+                    ->orWhere(function ($sub) {
+                        $sub->where('status', 'published')->where('is_public', true); });
             });
-            $relatedQuery->where(function($q) use ($user) {
+            $relatedQuery->where(function ($q) use ($user) {
                 $q->where('instructor_id', $user->id)
-                  ->orWhere(function($sub) { $sub->where('status', 'published')->where('is_public', true); });
+                    ->orWhere(function ($sub) {
+                        $sub->where('status', 'published')->where('is_public', true); });
             });
         }
 
-        $direct_materials = $directQuery->take(10)->get()->map(function($mat) {
-            $mat->hashid = \Vinkla\Hashids\Facades\Hashids::encode($mat->id); return $mat;
+        $direct_materials = $directQuery->take(10)->get()->map(function ($mat) {
+            $mat->hashid = \Vinkla\Hashids\Facades\Hashids::encode($mat->id);
+            return $mat;
         });
 
-        $related_materials = $relatedQuery->take(10)->get()->map(function($mat) {
-            $mat->hashid = \Vinkla\Hashids\Facades\Hashids::encode($mat->id); return $mat;
+        $related_materials = $relatedQuery->take(10)->get()->map(function ($mat) {
+            $mat->hashid = \Vinkla\Hashids\Facades\Hashids::encode($mat->id);
+            return $mat;
         });
 
         // 3. SEARCH USERS (Only Admins can see directory searches)
@@ -1361,16 +1353,16 @@ class DashboardController extends Controller
         $students = [];
         if ($user->role === 'admin') {
             $teachers = \App\Models\User::whereIn('role', ['teacher', 'cid'])
-                ->where(function($q) use ($query) {
+                ->where(function ($q) use ($query) {
                     $q->where('first_name', 'like', "%{$query}%")
-                      ->orWhere('last_name', 'like', "%{$query}%");
+                        ->orWhere('last_name', 'like', "%{$query}%");
                 })->take(6)->get(['id', 'first_name', 'last_name', 'email', 'role']);
 
             $students = \App\Models\User::where('role', 'student')
-                ->where(function($q) use ($query) {
+                ->where(function ($q) use ($query) {
                     $q->where('first_name', 'like', "%{$query}%")
-                      ->orWhere('last_name', 'like', "%{$query}%")
-                      ->orWhere('lrn', 'like', "%{$query}%");
+                        ->orWhere('last_name', 'like', "%{$query}%")
+                        ->orWhere('lrn', 'like', "%{$query}%");
                 })->take(6)->get(['id', 'first_name', 'last_name', 'email', 'role']);
         }
 
@@ -1386,35 +1378,170 @@ class DashboardController extends Controller
         ]);
     }
 
-    public function loadCriteriaPartial()
+    // --- HELPER METHODS FOR JSON STORAGE ---
+    private function getJsonCriterias()
     {
-        $rubricData = [];
-
-        // Read the global rubric JSON file if it exists
-        if (\Illuminate\Support\Facades\Storage::exists('global_rubric.json')) {
-            $rubricData = json_decode(\Illuminate\Support\Facades\Storage::get('global_rubric.json'), true);
+        if (!Storage::exists('criterias.json')) {
+            return [];
         }
-
-        // Pass the entire data object (which contains 'rubric' and 'passing_rate')
-        return view('dashboard.partials.admin.criteria', ['rubric' => $rubricData]);
+        return json_decode(Storage::get('criterias.json'), true);
     }
 
-    public function storeCriteria(\Illuminate\Http\Request $request)
+    private function saveJsonCriterias(array $data)
     {
-        $request->validate([
+        Storage::put('criterias.json', json_encode($data, JSON_PRETTY_PRINT));
+    }
+
+    // --- DASHBOARD METHODS ---
+
+    /**
+     * Load the main Criteria list (Card Grid)
+     */
+    public function loadCriteriaPartial()
+    {
+        // Fetch array and convert to objects so Blade's $criteria->title syntax works perfectly
+        $criteriasArray = $this->getJsonCriterias();
+        $criterias = collect($criteriasArray)->map(function ($item) {
+            return (object) $item;
+        });
+
+        return view('dashboard.partials.admin.criteria', compact('criterias'));
+    }
+
+    /**
+     * Load the Criteria Builder (For Create and Edit)
+     */
+    public function createCriteriaPartial($id = null)
+    {
+        $criteria = null;
+
+        if ($id) {
+            $criterias = $this->getJsonCriterias();
+            $index = array_search($id, array_column($criterias, 'id'));
+
+            if ($index !== false) {
+                $criteria = (object) $criterias[$index];
+            }
+        }
+
+        return view('dashboard.partials.admin.criteria-create', compact('criteria'));
+    }
+
+    /**
+     * Store or Update a Criteria in the JSON file
+     */
+    public function storeCriteria(Request $request)
+    {
+        $validated = $request->validate([
+            'id' => 'nullable|string',
+            'title' => 'required|string|max:255',
+            'description' => 'nullable|string',
+            'passing_rate' => 'required|integer|min:1|max:100',
             'rubric' => 'required|array',
-            'passing_rate' => 'required|numeric|min:1|max:100' // Added validation for passing rate
         ]);
 
-        // Save the entire request payload (both passing_rate and rubric)
-        \Illuminate\Support\Facades\Storage::put(
-            'global_rubric.json',
-            json_encode($request->all(), JSON_PRETTY_PRINT)
-        );
+        try {
+            $criterias = $this->getJsonCriterias();
 
-        return response()->json([
-            'success' => true,
-            'message' => 'Criteria and Passing Rate updated successfully!'
-        ]);
+            // If no ID is provided, generate a unique one
+            $id = $request->id ?: Str::uuid()->toString();
+
+            $criteriaData = [
+                'id' => $id,
+                'title' => $validated['title'],
+                'description' => $validated['description'] ?? '',
+                'passing_rate' => $validated['passing_rate'],
+                'rubric' => $validated['rubric'],
+            ];
+
+            if ($request->id) {
+                // Updating existing
+                $index = array_search($id, array_column($criterias, 'id'));
+                if ($index !== false) {
+                    $criterias[$index] = $criteriaData;
+                } else {
+                    $criterias[] = $criteriaData; // Fallback if ID wasn't found
+                }
+            } else {
+                // Creating new
+                $criterias[] = $criteriaData;
+            }
+
+            $this->saveJsonCriterias($criterias);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Criteria saved successfully!'
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'An error occurred while saving to JSON.'
+            ], 500);
+        }
+    }
+
+    /**
+     * Delete a Criteria from the JSON file
+     */
+    public function destroyCriteria($id)
+    {
+        try {
+            $criterias = $this->getJsonCriterias();
+
+            // Filter out the one with the matching ID
+            $filtered = array_filter($criterias, function ($c) use ($id) {
+                return $c['id'] !== $id;
+            });
+
+            // Re-index array and save
+            $this->saveJsonCriterias(array_values($filtered));
+
+            return response()->json(['success' => true, 'message' => 'Criteria deleted.']);
+        } catch (\Exception $e) {
+            return response()->json(['success' => false, 'message' => 'Failed to delete.'], 500);
+        }
+    }
+
+    /**
+     * Duplicate an existing Criteria in the JSON file
+     */
+    public function duplicateCriteria($id)
+    {
+        try {
+            $criterias = $this->getJsonCriterias();
+            $index = array_search($id, array_column($criterias, 'id'));
+
+            if ($index !== false) {
+                $original = $criterias[$index];
+
+                // Create the duplicate
+                $newCriteria = $original;
+                $newCriteria['id'] = \Illuminate\Support\Str::uuid()->toString();
+                $newCriteria['title'] = $original['title'] . ' (Copy)';
+
+                // Insert the new criteria at the beginning of the array
+                array_unshift($criterias, $newCriteria);
+
+                $this->saveJsonCriterias($criterias);
+
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Criteria duplicated successfully.'
+                ]);
+            }
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Criteria not found.'
+            ], 404);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to duplicate the criteria.'
+            ], 500);
+        }
     }
 }

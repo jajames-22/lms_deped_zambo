@@ -868,7 +868,6 @@ MaterialBuilder.removeQuestionMedia = function (qId) {
     document.getElementById(`preview-${qId}`).className = "hidden";
     MaterialBuilder.handleAutosaveTrigger();
 };
-
 MaterialBuilder.saveCompleteMaterial = async function (btn, status) {
     clearTimeout(MaterialBuilder.autosaveTimer);
     MaterialBuilder.lastPayload = "";
@@ -916,6 +915,10 @@ MaterialBuilder.saveCompleteMaterial = async function (btn, status) {
                 "material_draft_" + wrapper.dataset.materialId,
             );
 
+            // FIX: Reset dirty flags so the beforeunload alert doesn't trigger on the next page
+            MaterialBuilder.hasChanged = false;
+            MaterialBuilder.sessionDirty = false;
+
             const title =
                 status === "published" ? "Module Published!" : "Draft Saved!";
             const msg =
@@ -954,6 +957,10 @@ MaterialBuilder.discardChangesAndExit = function (btn) {
 
             clearTimeout(MaterialBuilder.autosaveTimer);
             MaterialBuilder.lastPayload = "";
+
+            // FIX: Reset dirty flags before navigating away
+            MaterialBuilder.hasChanged = false;
+            MaterialBuilder.sessionDirty = false;
 
             const isNew = wrapper.dataset.isNew === "true";
 
