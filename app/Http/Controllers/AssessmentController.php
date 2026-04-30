@@ -1227,4 +1227,83 @@ class AssessmentController extends Controller
         $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('dashboard.partials.admin.assessments-report', $data);
         return $pdf->download('Assessment_Report_' . \Illuminate\Support\Str::slug($assessment->title) . '_' . now()->format('Y_m_d') . '.pdf');
     }
+
+    public function duplicate($id)
+    {
+        try {
+            DB::beginTransaction();
+
+            $assessment = DB::table('assessments')->where('id', $id)->first();
+            if (!$assessment) {
+                return response()->json(['success' => false, 'message' => 'Assessment not found.'], 404);
+            }
+
+            // 1. Insert new duplicate assessment
+            $newAssessmentId = DB::table('assessments')->insertGetId([
+                'title' => $assessment->title . ' (Copy)',
+                'year_level' => $assessment->year_level,
+                'description' => $assessment->description,
+                'access_key' => strtoupper(Str::random(6)), // Generate a fresh access key
+                'status' => 'draft', // Copies always start as drafts
+                'show_results' => $assessment->show_results ?? 1,
+                'draft_json' => $assessment->draft_json, // Duplicate the unsaved builder draft if it exists
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+
+            // 2. Deep clone the active categories -> questions -> options
+            $categories = DB::table('assessment_categories')->where('assessment_id', $id)->get();
+            foreach ($categories as $cat) {
+                $newCatId = DB::table('assessment_categories')->insertGetId([
+                    'assessment_id' => $newAssessmentId,
+                    'title' => $cat->title,
+                    'time_limit' => $cat->time_limit,
+                    'sort_order' => $cat->sort_order,
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ]);
+
+                $questions = DB::table('assessment_questions')->where('category_id', $cat->id)->get();
+                foreach ($questions as $q) {
+                    $newQId = DB::table('assessment_questions')->insertGetId([
+                        'category_id' => $newCatId,
+                        'type' => $q->type,
+                        'question_text' => $q->question_text,
+                        'media_url' => $q->media_url,
+                        'media_name' => $q->media_name ?? null,
+                        'is_case_sensitive' => $q->is_case_sensitive,
+                        'sort_order' => $q->sort_order,
+                        'created_at' => now(),
+                        'updated_at' => now(),
+                    ]);
+
+                    $options = DB::table('assessment_options')->where('question_id', $q->id)->get();
+                    foreach ($options as $opt) {
+                        DB::table('assessment_options')->insert([
+                            'question_id' => $newQId,
+                            'option_text' => $opt->option_text,
+                            'is_correct' => $opt->is_correct,
+                            'created_at' => now(),
+                            'updated_at' => now(),
+                        ]);
+                    }
+                }
+            }
+
+            DB::commit();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Assessment duplicated successfully.'
+            ]);
+
+        } catch (Exception $e) {
+            DB::rollBack();
+            Log::error('Error duplicating assessment: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'An error occurred while duplicating the assessment.'
+            ], 500);
+        }
+    }
 }

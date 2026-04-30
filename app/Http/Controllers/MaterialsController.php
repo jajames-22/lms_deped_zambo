@@ -10,6 +10,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
 use Maatwebsite\Excel\Facades\Excel;
+use Illuminate\Support\Facades\Storage;
 use App\Imports\LessonImport;
 use App\Models\Tag;
 use App\Imports\EmailMaterialsAccessImport;
@@ -60,7 +61,8 @@ class MaterialsController extends Controller
         return view('dashboard.partials.admin.materials', compact('materials'));
     }
 
-    public function evaluateMaterial($hashid)
+
+    public function evaluateMaterial(Request $request, $hashid)
     {
         // 1. Security Check: Allow Admins and CID to access the evaluation mode
         if (!in_array(auth()->user()->role, ['admin', 'cid'])) {
@@ -100,9 +102,21 @@ class MaterialsController extends Controller
             'exams.options'
         ]);
 
+        $criteriaId = $request->query('criteria_id');
+        $evaluationCriteria = null;
+
+        if ($criteriaId && \Illuminate\Support\Facades\Storage::exists('criterias.json')) {
+            $criteriasArray = json_decode(\Illuminate\Support\Facades\Storage::get('criterias.json'), true);
+            $index = array_search($criteriaId, array_column($criteriasArray, 'id'));
+            if ($index !== false) {
+                $evaluationCriteria = (object) $criteriasArray[$index];
+            }
+        }
+
         // 3. Return the specific evaluate view
-        return view('dashboard.partials.admin.evaluate-material', compact('material'));
+        return view('dashboard.partials.admin.evaluate-material', compact('material', 'evaluationCriteria'));
     }
+
 
     // ==========================================
     // --- TEACHER FUNCTIONS ---
@@ -242,7 +256,7 @@ class MaterialsController extends Controller
     {
         $material = Material::findOrFail($id);
 
-        $user = auth()->user(); 
+        $user = auth()->user();
 
         if (in_array($user->role, ['admin', 'cid']) && $material->status === 'draft' && $material->instructor_id !== $user->id) {
             return response('
@@ -283,7 +297,16 @@ class MaterialsController extends Controller
             }
         }
 
-        return view('dashboard.partials.shared.materials-manage', compact('material', 'whitelistedStudents'));
+        $availableCriterias = [];
+        if (Storage::exists('criterias.json')) {
+            $criteriasArray = json_decode(Storage::get('criterias.json'), true);
+            if (is_array($criteriasArray)) {
+                // Convert arrays to objects so Blade can read them as $criteria->title
+                $availableCriterias = collect($criteriasArray)->map(fn($item) => (object) $item);
+            }
+        }
+
+        return view('dashboard.partials.shared.materials-manage', compact('material', 'whitelistedStudents', 'availableCriterias'));
     }
 
     public function addAccess(Request $request, $id)
@@ -1632,7 +1655,7 @@ class MaterialsController extends Controller
                     'fas fa-trophy',
                     'text-yellow-500' // Golden color for the trophy
                 ));
-                
+
                 // 🛑 FIXED: Redirect to the RESULTS page so they can see their score breakdown first!
                 $redirectUrl = route('dashboard.materials.result', $material->hashid);
             } else {
@@ -1652,7 +1675,7 @@ class MaterialsController extends Controller
                 'status' => 'failed',
                 'progress_data' => json_encode(['lesson' => $totalTimelineCount - 1, 'content' => 0, 'highest_unlocked' => $totalTimelineCount])
             ]);
-            
+
             return response()->json([
                 'success' => true,
                 'passed' => false,
@@ -2603,6 +2626,125 @@ class MaterialsController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to update material: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    public function duplicate($id)
+    {
+        try {
+            \Illuminate\Support\Facades\DB::beginTransaction();
+
+            $material = \Illuminate\Support\Facades\DB::table('materials')->where('id', $id)->first();
+            if (!$material) {
+                return response()->json(['success' => false, 'message' => 'Material not found.'], 404);
+            }
+
+            // 1. Insert new duplicate material
+            $newMaterialId = \Illuminate\Support\Facades\DB::table('materials')->insertGetId([
+                'title' => $material->title . ' (Copy)',
+                'description' => $material->description,
+                'instructor_id' => auth()->id(), // Make the duplicating user the owner
+                'thumbnail' => $material->thumbnail,
+                'status' => 'draft', // Copies always start as drafts
+                'is_public' => 0, // Copies start as private
+                'access_code' => strtoupper(\Illuminate\Support\Str::random(6)), // Generate fresh access code
+                'exam_weight' => $material->exam_weight,
+                'passing_percentage' => $material->passing_percentage,
+                'draft_json' => $material->draft_json,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+
+            // 2. Clone Tags
+            $tags = \Illuminate\Support\Facades\DB::table('material_tag')->where('material_id', $id)->get();
+            foreach ($tags as $tag) {
+                \Illuminate\Support\Facades\DB::table('material_tag')->insert([
+                    'material_id' => $newMaterialId,
+                    'tag_id' => $tag->tag_id
+                ]);
+            }
+
+            // 3. Deep Clone Lessons & Lesson Contents (Quizzes/Content)
+            $lessons = \Illuminate\Support\Facades\DB::table('lessons')->where('material_id', $id)->get();
+            foreach ($lessons as $lesson) {
+                $newLessonId = \Illuminate\Support\Facades\DB::table('lessons')->insertGetId([
+                    'material_id' => $newMaterialId,
+                    'section_type' => $lesson->section_type,
+                    'title' => $lesson->title,
+                    'time_limit' => $lesson->time_limit,
+                    'sort_order' => $lesson->sort_order,
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ]);
+
+                $contents = \Illuminate\Support\Facades\DB::table('lesson_contents')->where('lesson_id', $lesson->id)->get();
+                foreach ($contents as $content) {
+                    $newContentId = \Illuminate\Support\Facades\DB::table('lesson_contents')->insertGetId([
+                        'lesson_id' => $newLessonId,
+                        'type' => $content->type,
+                        'question_text' => $content->question_text,
+                        'media_url' => $content->media_url,
+                        'media_name' => $content->media_name ?? null,
+                        'is_case_sensitive' => $content->is_case_sensitive,
+                        'sort_order' => $content->sort_order,
+                        'created_at' => now(),
+                        'updated_at' => now(),
+                    ]);
+
+                    $options = \Illuminate\Support\Facades\DB::table('quiz_options')->where('quiz_id', $content->id)->get();
+                    foreach ($options as $opt) {
+                        \Illuminate\Support\Facades\DB::table('quiz_options')->insert([
+                            'quiz_id' => $newContentId,
+                            'option_text' => $opt->option_text,
+                            'is_correct' => $opt->is_correct,
+                            'created_at' => now(),
+                            'updated_at' => now(),
+                        ]);
+                    }
+                }
+            }
+
+            // 4. Deep Clone Exams
+            $exams = \Illuminate\Support\Facades\DB::table('exams')->where('material_id', $id)->get();
+            foreach ($exams as $exam) {
+                $newExamId = \Illuminate\Support\Facades\DB::table('exams')->insertGetId([
+                    'material_id' => $newMaterialId,
+                    'type' => $exam->type,
+                    'question_text' => $exam->question_text,
+                    'media_url' => $exam->media_url,
+                    'media_name' => $exam->media_name ?? null,
+                    'is_case_sensitive' => $exam->is_case_sensitive,
+                    'sort_order' => $exam->sort_order,
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ]);
+
+                $examOptions = \Illuminate\Support\Facades\DB::table('exam_options')->where('exam_id', $exam->id)->get();
+                foreach ($examOptions as $opt) {
+                    \Illuminate\Support\Facades\DB::table('exam_options')->insert([
+                        'exam_id' => $newExamId,
+                        'option_text' => $opt->option_text,
+                        'is_correct' => $opt->is_correct,
+                        'created_at' => now(),
+                        'updated_at' => now(),
+                    ]);
+                }
+            }
+
+            \Illuminate\Support\Facades\DB::commit();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Material duplicated successfully.'
+            ]);
+
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\DB::rollBack();
+            \Illuminate\Support\Facades\Log::error('Error duplicating material: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'An error occurred while duplicating the material.'
             ], 500);
         }
     }

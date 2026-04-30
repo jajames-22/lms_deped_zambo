@@ -63,14 +63,22 @@
             <div id="assessment-card-{{ $assessment->id }}"
                 onclick="loadPartial('{{ route('dashboard.assessments.manage', $assessment->id) }}', document.getElementById('nav-assessment-btn'))"
                 class="assessment-card {{ $isLive ? 'live' : 'draft' }} flex flex-col h-full bg-white rounded-2xl border border-gray-200 {{ $isLive ? 'border-t-green-500 border-t-4' : 'border-t-amber-400 border-t-4' }} shadow-sm hover:shadow-lg transition-all duration-300 group overflow-hidden relative cursor-pointer">
-
-                <button
-                    onclick="event.stopPropagation(); AssessmentManager.delete('{{ $assessment->id }}', '{{ route('dashboard.assessments.destroy', $assessment->id) }}')"
-                    class="absolute top-3 right-3 h-7 w-7 rounded-full bg-gray-50 text-gray-400 opacity-0 group-hover:opacity-100 transition-all flex items-center justify-center hover:bg-red-100 hover:text-red-600 z-10"
-                    title="Delete Assessment">
-                    <i class="fas fa-trash-alt text-[11px]"></i>
-                </button>
-
+<div class="absolute top-3 right-3 flex gap-1.5 opacity-0 group-hover:opacity-100 transition-all z-10">
+                    <button
+                        onclick="event.stopPropagation(); AssessmentManager.duplicate('{{ $assessment->id }}', '{{ route('dashboard.assessments.duplicate', $assessment->id) }}')"
+                        class="h-7 w-7 rounded-full bg-gray-50 text-gray-400 flex items-center justify-center hover:bg-blue-100 hover:text-blue-600 shadow-sm transition-colors"
+                        title="Duplicate Assessment">
+                        <i class="fas fa-copy text-[11px]"></i>
+                    </button>
+                    
+                    <button
+                        onclick="event.stopPropagation(); AssessmentManager.delete('{{ $assessment->id }}', '{{ route('dashboard.assessments.destroy', $assessment->id) }}')"
+                        class="h-7 w-7 rounded-full bg-gray-50 text-gray-400 flex items-center justify-center hover:bg-red-100 hover:text-red-600 shadow-sm transition-colors"
+                        title="Delete Assessment">
+                        <i class="fas fa-trash-alt text-[11px]"></i>
+                    </button>
+                </div>
+                
                 <div class="p-5 flex-1 flex flex-col">
                     <div class="flex justify-between items-start mb-3 pr-6">
                         <div class="flex items-center gap-2">
@@ -220,6 +228,13 @@
             btn.innerText = 'Yes, Delete';
             cancelBtn.classList.remove('hidden');
             cancelBtn.onclick = () => modal.classList.add('hidden');
+        } else if (type === 'duplicate') {
+            iconContainer.classList.add('bg-blue-50', 'text-blue-500');
+            iconContainer.innerHTML = '<i class="fas fa-copy"></i>';
+            btn.classList.add('bg-blue-600', 'hover:bg-blue-700', 'shadow-blue-600/20');
+            btn.innerText = 'Yes, Duplicate';
+            cancelBtn.classList.remove('hidden');
+            cancelBtn.onclick = () => modal.classList.add('hidden');
         }
 
         modal.classList.remove('hidden');
@@ -269,6 +284,44 @@
                 btn.disabled = false;
             }
 
+        });
+    };
+
+    AssessmentManager.duplicate = function (id, url) {
+        AssessmentManager.showModal('duplicate', 'Duplicate Assessment?', 'Are you sure you want to duplicate this test? A new draft copy will be created.', async () => {
+
+            const card = document.getElementById('assessment-card-' + id);
+            if (!card) return;
+
+            const duplicateBtn = card.querySelectorAll('button')[0]; // First button is duplicate
+            const originalHtml = duplicateBtn.innerHTML;
+            duplicateBtn.innerHTML = '<i class="fas fa-spinner fa-spin text-[11px]"></i>';
+            duplicateBtn.disabled = true;
+
+            const csrf = document.querySelector('meta[name="csrf-token"]')?.content || "{{ csrf_token() }}";
+
+            try {
+                const response = await fetch(url, {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRF-TOKEN': csrf,
+                        'Accept': 'application/json'
+                    }
+                });
+
+                if (response.ok) {
+                    // Reload the partial to show the newly duplicated item
+                    loadPartial('{{ route('dashboard.assessment') }}', document.getElementById('nav-assessment-btn'));
+                } else {
+                    AssessmentManager.showModal('error', 'Duplication Failed', 'The server returned an error while duplicating.');
+                    duplicateBtn.innerHTML = originalHtml;
+                    duplicateBtn.disabled = false;
+                }
+            } catch (e) {
+                AssessmentManager.showModal('error', 'Network Error', 'Could not duplicate the assessment. Please check your connection.');
+                duplicateBtn.innerHTML = originalHtml;
+                duplicateBtn.disabled = false;
+            }
         });
     };
 

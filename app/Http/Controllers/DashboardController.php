@@ -10,6 +10,7 @@ use App\Models\School;
 use Vinkla\Hashids\Facades\Hashids;
 use App\Models\User;
 use App\Models\Material;
+use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Storage;
 
 class DashboardController extends Controller
@@ -1362,35 +1363,170 @@ class DashboardController extends Controller
         ]);
     }
 
-    public function loadCriteriaPartial()
+// --- HELPER METHODS FOR JSON STORAGE ---
+    private function getJsonCriterias()
     {
-        $rubricData = [];
-
-        // Read the global rubric JSON file if it exists
-        if (\Illuminate\Support\Facades\Storage::exists('global_rubric.json')) {
-            $rubricData = json_decode(\Illuminate\Support\Facades\Storage::get('global_rubric.json'), true);
+        if (!Storage::exists('criterias.json')) {
+            return [];
         }
-
-        // Pass the entire data object (which contains 'rubric' and 'passing_rate')
-        return view('dashboard.partials.admin.criteria', ['rubric' => $rubricData]);
+        return json_decode(Storage::get('criterias.json'), true);
     }
 
-    public function storeCriteria(\Illuminate\Http\Request $request)
+    private function saveJsonCriterias(array $data)
     {
-        $request->validate([
+        Storage::put('criterias.json', json_encode($data, JSON_PRETTY_PRINT));
+    }
+
+    // --- DASHBOARD METHODS ---
+
+    /**
+     * Load the main Criteria list (Card Grid)
+     */
+    public function loadCriteriaPartial()
+    {
+        // Fetch array and convert to objects so Blade's $criteria->title syntax works perfectly
+        $criteriasArray = $this->getJsonCriterias();
+        $criterias = collect($criteriasArray)->map(function ($item) {
+            return (object) $item;
+        });
+
+        return view('dashboard.partials.admin.criteria', compact('criterias'));
+    }
+
+    /**
+     * Load the Criteria Builder (For Create and Edit)
+     */
+    public function createCriteriaPartial($id = null)
+    {
+        $criteria = null;
+        
+        if ($id) {
+            $criterias = $this->getJsonCriterias();
+            $index = array_search($id, array_column($criterias, 'id'));
+            
+            if ($index !== false) {
+                $criteria = (object) $criterias[$index];
+            }
+        }
+
+        return view('dashboard.partials.admin.criteria-create', compact('criteria'));
+    }
+
+    /**
+     * Store or Update a Criteria in the JSON file
+     */
+    public function storeCriteria(Request $request)
+    {
+        $validated = $request->validate([
+            'id' => 'nullable|string',
+            'title' => 'required|string|max:255',
+            'description' => 'nullable|string',
+            'passing_rate' => 'required|integer|min:1|max:100',
             'rubric' => 'required|array',
-            'passing_rate' => 'required|numeric|min:1|max:100' // Added validation for passing rate
         ]);
 
-        // Save the entire request payload (both passing_rate and rubric)
-        \Illuminate\Support\Facades\Storage::put(
-            'global_rubric.json',
-            json_encode($request->all(), JSON_PRETTY_PRINT)
-        );
+        try {
+            $criterias = $this->getJsonCriterias();
+            
+            // If no ID is provided, generate a unique one
+            $id = $request->id ?: Str::uuid()->toString();
 
-        return response()->json([
-            'success' => true,
-            'message' => 'Criteria and Passing Rate updated successfully!'
-        ]);
+            $criteriaData = [
+                'id' => $id,
+                'title' => $validated['title'],
+                'description' => $validated['description'] ?? '',
+                'passing_rate' => $validated['passing_rate'],
+                'rubric' => $validated['rubric'],
+            ];
+
+            if ($request->id) {
+                // Updating existing
+                $index = array_search($id, array_column($criterias, 'id'));
+                if ($index !== false) {
+                    $criterias[$index] = $criteriaData;
+                } else {
+                    $criterias[] = $criteriaData; // Fallback if ID wasn't found
+                }
+            } else {
+                // Creating new
+                $criterias[] = $criteriaData;
+            }
+
+            $this->saveJsonCriterias($criterias);
+
+            return response()->json([
+                'success' => true, 
+                'message' => 'Criteria saved successfully!'
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false, 
+                'message' => 'An error occurred while saving to JSON.'
+            ], 500);
+        }
+    }
+
+    /**
+     * Delete a Criteria from the JSON file
+     */
+    public function destroyCriteria($id)
+    {
+        try {
+            $criterias = $this->getJsonCriterias();
+            
+            // Filter out the one with the matching ID
+            $filtered = array_filter($criterias, function ($c) use ($id) {
+                return $c['id'] !== $id;
+            });
+
+            // Re-index array and save
+            $this->saveJsonCriterias(array_values($filtered));
+
+            return response()->json(['success' => true, 'message' => 'Criteria deleted.']);
+        } catch (\Exception $e) {
+            return response()->json(['success' => false, 'message' => 'Failed to delete.'], 500);
+        }
+    }
+
+    /**
+     * Duplicate an existing Criteria in the JSON file
+     */
+    public function duplicateCriteria($id)
+    {
+        try {
+            $criterias = $this->getJsonCriterias();
+            $index = array_search($id, array_column($criterias, 'id'));
+            
+            if ($index !== false) {
+                $original = $criterias[$index];
+                
+                // Create the duplicate
+                $newCriteria = $original;
+                $newCriteria['id'] = \Illuminate\Support\Str::uuid()->toString();
+                $newCriteria['title'] = $original['title'] . ' (Copy)';
+                
+                // Insert the new criteria at the beginning of the array
+                array_unshift($criterias, $newCriteria);
+                
+                $this->saveJsonCriterias($criterias);
+                
+                return response()->json([
+                    'success' => true, 
+                    'message' => 'Criteria duplicated successfully.'
+                ]);
+            }
+            
+            return response()->json([
+                'success' => false, 
+                'message' => 'Criteria not found.'
+            ], 404);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false, 
+                'message' => 'Failed to duplicate the criteria.'
+            ], 500);
+        }
     }
 }

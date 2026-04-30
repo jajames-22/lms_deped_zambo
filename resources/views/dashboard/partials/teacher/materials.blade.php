@@ -77,12 +77,22 @@
                         </div>
                     @endif
                     
-                    <button
-                        onclick="event.stopPropagation(); MaterialManager.delete('{{ $material->id }}', '{{ route('dashboard.materials.destroy', $material->id) }}')"
-                        class="absolute top-3 right-3 h-7 w-7 rounded-full bg-white/90 backdrop-blur-sm text-gray-500 opacity-0 group-hover:opacity-100 transition-all flex items-center justify-center hover:bg-red-50 hover:text-red-600 z-10 shadow-sm"
-                        title="Delete Material">
-                        <i class="fas fa-trash-alt text-xs"></i>
-                    </button>
+                    {{-- DUPLICATE AND DELETE BUTTONS --}}
+                    <div class="absolute top-3 right-3 flex gap-1.5 opacity-0 group-hover:opacity-100 transition-all z-10">
+                        <button
+                            onclick="event.stopPropagation(); MaterialManager.duplicate('{{ $material->id }}', '{{ route('dashboard.materials.duplicate', $material->id) }}')"
+                            class="h-7 w-7 rounded-full bg-white/90 backdrop-blur-sm text-gray-500 flex items-center justify-center hover:bg-blue-50 hover:text-blue-600 shadow-sm transition-colors"
+                            title="Duplicate Material">
+                            <i class="fas fa-copy text-xs"></i>
+                        </button>
+                        
+                        <button
+                            onclick="event.stopPropagation(); MaterialManager.delete('{{ $material->id }}', '{{ route('dashboard.materials.destroy', $material->id) }}')"
+                            class="h-7 w-7 rounded-full bg-white/90 backdrop-blur-sm text-gray-500 flex items-center justify-center hover:bg-red-50 hover:text-red-600 shadow-sm transition-colors"
+                            title="Delete Material">
+                            <i class="fas fa-trash-alt text-xs"></i>
+                        </button>
+                    </div>
 
                     <div class="absolute top-3 left-3 flex items-center">
                         <span class="px-2 py-1 {{ $statusBg }} {{ $statusText }} backdrop-blur-sm text-[9px] font-bold rounded uppercase tracking-wider shadow-sm border border-white/40">
@@ -196,6 +206,13 @@
             btn.innerText = 'Yes, Delete';
             cancelBtn.classList.remove('hidden');
             cancelBtn.onclick = () => modal.classList.add('hidden');
+        } else if (type === 'duplicate') {
+            iconContainer.classList.add('bg-blue-50', 'text-blue-500');
+            iconContainer.innerHTML = '<i class="fas fa-copy"></i>';
+            btn.classList.add('bg-blue-600', 'hover:bg-blue-700', 'shadow-blue-600/20');
+            btn.innerText = 'Yes, Duplicate';
+            cancelBtn.classList.remove('hidden');
+            cancelBtn.onclick = () => modal.classList.add('hidden');
         }
 
         modal.classList.remove('hidden');
@@ -211,9 +228,9 @@
             const card = document.getElementById('material-card-' + id);
             if (!card) return;
 
-            const btn = card.querySelector('.fa-trash-alt').closest('button');
+            const btn = card.querySelector('button[title="Delete Material"]');
             const originalHtml = btn.innerHTML;
-            btn.innerHTML = '<i class="fas fa-spinner fa-spin text-sm"></i>';
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin text-xs"></i>';
             btn.disabled = true;
 
             const csrf = document.querySelector('meta[name="csrf-token"]')?.content || "{{ csrf_token() }}";
@@ -247,6 +264,46 @@
             }
         }); 
     }; 
+
+    MaterialManager.duplicate = function (id, url) {
+        MaterialManager.showModal('duplicate', 'Duplicate Material?', 'Are you sure you want to duplicate this material? A new draft copy will be created.', async () => {
+
+            const card = document.getElementById('material-card-' + id);
+            if (!card) return;
+
+            const duplicateBtn = card.querySelector('button[title="Duplicate Material"]');
+            if(!duplicateBtn) return;
+            
+            const originalHtml = duplicateBtn.innerHTML;
+            duplicateBtn.innerHTML = '<i class="fas fa-spinner fa-spin text-xs"></i>';
+            duplicateBtn.disabled = true;
+
+            const csrf = document.querySelector('meta[name="csrf-token"]')?.content || "{{ csrf_token() }}";
+
+            try {
+                const response = await fetch(url, {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRF-TOKEN': csrf,
+                        'Accept': 'application/json'
+                    }
+                });
+
+                if (response.ok) {
+                    // Reload the materials list to show the new duplicate
+                    loadPartial('{{ url('/dashboard/materials') }}', document.getElementById('nav-materials-btn'));
+                } else {
+                    MaterialManager.showModal('error', 'Duplication Failed', 'The server returned an error while duplicating.');
+                    duplicateBtn.innerHTML = originalHtml;
+                    duplicateBtn.disabled = false;
+                }
+            } catch (e) {
+                MaterialManager.showModal('error', 'Network Error', 'Could not duplicate the material. Please check your connection.');
+                duplicateBtn.innerHTML = originalHtml;
+                duplicateBtn.disabled = false;
+            }
+        });
+    };
 
     MaterialManager.filter = function(status, btnElement) {
         MaterialManager.currentStatus = status;

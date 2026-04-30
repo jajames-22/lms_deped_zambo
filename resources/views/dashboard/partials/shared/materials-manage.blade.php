@@ -182,11 +182,11 @@
 
                 @if($material->status === 'pending')
                     @if($isAdminOrCid)
-                        {{-- ADMIN/CID Evaluate Button (Standard Link for Full Screen) --}}
-                        <a href="{{ url('/dashboard/materials/' . $material->hashid . '/evaluate') }}"
+                        {{-- ADMIN/CID Evaluate Button (Triggers Criteria Modal) --}}
+                        <button onclick="openModal('evaluateCriteriaModal', 'evaluateCriteriaBox')"
                             class="px-5 py-2.5 bg-blue-600 text-white font-bold rounded-xl shadow-md shadow-blue-600/20 hover:bg-blue-700 transition flex items-center justify-center gap-2 text-sm">
                             <i class="fas fa-clipboard-list"></i> Evaluate to Publish
-                        </a>
+                        </button>
                     @else
                         {{-- Teacher Pending Badge --}}
                         <div
@@ -803,6 +803,52 @@
         </div>
     </div>
 </div>
+
+{{-- Evaluate Criteria Selection Modal --}}
+<div id="evaluateCriteriaModal"
+    class="fixed inset-0 z-[9999] hidden opacity-0 transition-opacity duration-300 flex items-center justify-center p-4">
+    <div class="absolute inset-0 bg-gray-900/60" onclick="closeModal('evaluateCriteriaModal', 'evaluateCriteriaBox')"></div>
+    <div id="evaluateCriteriaBox"
+        class="bg-white rounded-3xl max-w-md w-full p-8 shadow-2xl relative z-10 transform scale-95 transition-all duration-300">
+        <div class="flex justify-between items-center mb-6">
+            <h3 class="text-xl font-black text-gray-900">Select Criteria</h3>
+            <button onclick="closeModal('evaluateCriteriaModal', 'evaluateCriteriaBox')" class="text-gray-400 hover:text-gray-600 transition"><i class="fas fa-times"></i></button>
+        </div>
+        
+        <div class="mb-6">
+            <label class="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-2">Evaluation Rubric</label>
+            <p class="text-sm text-gray-500 mb-4">Choose the appropriate criteria template to evaluate this material against.</p>
+            
+            <div class="relative">
+                <i class="fas fa-list-check absolute left-4 top-1/2 -translate-y-1/2 text-gray-400"></i>
+                <select id="selectedCriteriaId" class="w-full pl-10 pr-10 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all text-sm font-bold text-gray-800 appearance-none">
+                    <option value="" disabled selected>-- Select a Criteria --</option>
+                    @foreach($availableCriterias ?? [] as $criteria)
+                        <option value="{{ $criteria->id }}">{{ $criteria->title }} ({{ $criteria->passing_rate }}% Pass)</option>
+                    @endforeach
+                </select>
+                <i class="fas fa-chevron-down absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none text-xs"></i>
+            </div>
+        </div>
+        
+        <button onclick="proceedToEvaluate()" class="w-full py-3 bg-blue-600 text-white font-bold rounded-xl shadow-lg shadow-blue-600/20 hover:bg-blue-700 transition flex items-center justify-center gap-2">
+            Proceed to Evaluation <i class="fas fa-arrow-right ml-1"></i>
+        </button>
+    </div>
+</div>
+
+<script>
+    // Add this inside the script tags of materials-manage.blade.php
+    window.proceedToEvaluate = function() {
+        const criteriaId = document.getElementById('selectedCriteriaId').value;
+        if(!criteriaId) {
+            showSnackbar('Please select an evaluation criteria.', 'error');
+            return;
+        }
+        // Redirect to evaluation page passing the chosen criteria ID
+        window.location.href = `{{ url('/dashboard/materials/' . $material->hashid . '/evaluate') }}?criteria_id=${criteriaId}`;
+    }
+</script>
 
 <script>
     // Initialize Gradient Sliders on Load
