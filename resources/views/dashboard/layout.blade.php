@@ -206,7 +206,7 @@
 
     {{-- FULL SEARCH RESULTS MODAL --}}
     <div id="fullSearchModal" class="fixed inset-0 z-[120] hidden opacity-0 transition-opacity duration-300">
-        <div class="absolute inset-0 bg-gray-900/60 backdrop-blur-sm" onclick="closeFullSearchModal()"></div>
+        <div class="absolute inset-0 bg-gray-900/60" onclick="closeFullSearchModal()"></div>
         <div class="relative flex items-start justify-center min-h-screen p-4 pt-10 md:pt-16">
             <div id="fullSearchModalBox" class="bg-gray-50 rounded-3xl shadow-2xl max-w-5xl w-full flex flex-col transform scale-95 transition-all duration-300 max-h-[85vh] overflow-hidden border border-gray-100">
                 
@@ -517,7 +517,7 @@
                         if (currentReqId !== globalSearchReqId) return;
 
                         lastSearchData = await response.json();
-                        renderDropdownResults(lastSearchData);
+                        renderDropdownResults(lastSearchData, query);
                         
                     } catch (error) {
                         if (currentReqId === globalSearchReqId) console.error("Search error:", error);
@@ -539,68 +539,93 @@
         }
 
         // Render the small dropdown overlay
-        function renderDropdownResults(data) {
+        function renderDropdownResults(data, query) {
             globalSearchResults.innerHTML = '';
             
-            const hasMaterials = data.materials && data.materials.length > 0;
-            const hasUsers = data.users && data.users.length > 0;
+            const hasDirect = data.direct_materials && data.direct_materials.length > 0;
+            const hasRelated = data.related_materials && data.related_materials.length > 0;
+            const hasTeachers = data.teachers && data.teachers.length > 0;
+            const hasStudents = data.students && data.students.length > 0;
             const hasTags = data.tags && data.tags.length > 0;
 
-            if (!hasMaterials && !hasUsers && !hasTags) {
+            if (!hasDirect && !hasRelated && !hasTeachers && !hasStudents && !hasTags) {
                 globalSearchResults.innerHTML = '<div class="p-5 text-center text-sm text-gray-500"><i class="fas fa-search text-gray-300 text-2xl mb-2 block"></i> No results found.</div>';
                 viewAllResultsBtn.classList.add('hidden');
             } else {
                 viewAllResultsBtn.classList.remove('hidden');
 
-                // Render Tags First
+                // Render Tags First (Unclickable)
                 if (hasTags) {
                     globalSearchResults.innerHTML += '<div class="px-4 py-2 mt-2 text-[10px] font-black text-gray-400 uppercase tracking-widest">Matched Tags</div>';
                     const tagsContainer = document.createElement('div');
                     tagsContainer.className = 'px-4 pb-2 flex flex-wrap gap-2';
-                    data.tags.slice(0, 5).forEach(tag => { // Show max 5 in dropdown
+                    data.tags.slice(0, 5).forEach(tag => { 
                         tagsContainer.innerHTML += `
-                            <span onclick="closeGlobalSearch(); loadPartial('{{ url('/dashboard/explore') }}?tag=${encodeURIComponent(tag.name)}', document.getElementById('nav-explore-btn'))" 
-                                  class="cursor-pointer inline-flex items-center px-2.5 py-1 rounded-md text-xs font-bold bg-[#a52a2a]/10 text-[#a52a2a] hover:bg-[#a52a2a]/20 border border-[#a52a2a]/20 transition-colors shadow-sm">
+                            <span class="cursor-default inline-flex items-center px-2.5 py-1 rounded-md text-xs font-bold bg-[#a52a2a]/10 text-[#a52a2a] border border-[#a52a2a]/20 shadow-sm">
                                 <i class="fas fa-hashtag mr-1 opacity-50"></i> ${tag.name}
                             </span>`;
                     });
                     globalSearchResults.appendChild(tagsContainer);
                 }
 
-                // Render Materials
-                if (hasMaterials) {
-                    globalSearchResults.innerHTML += `<div class="px-4 py-2 ${hasTags ? 'border-t border-gray-50' : 'mt-2'} text-[10px] font-black text-gray-400 uppercase tracking-widest">Modules</div>`;
-                    data.materials.slice(0, 4).forEach(mat => { // Show max 4 in dropdown
-                        const instructorName = mat.instructor ? `${mat.instructor.first_name} ${mat.instructor.last_name}` : 'Unknown';
-                        const thumbnailHtml = mat.thumbnail 
-                            ? `<img src="/storage/${mat.thumbnail}" class="w-8 h-8 rounded-lg object-cover shrink-0 border border-gray-200">`
-                            : `<div class="w-8 h-8 rounded-lg bg-red-50 text-[#a52a2a] flex items-center justify-center shrink-0 border border-red-100"><i class="fas fa-book text-xs"></i></div>`;
+                const buildMaterialHtml = (mat) => {
+                    const instructorName = mat.instructor ? `${mat.instructor.first_name} ${mat.instructor.last_name}` : 'Unknown';
+                    const thumbnailHtml = mat.thumbnail 
+                        ? `<img src="/storage/${mat.thumbnail}" class="w-8 h-8 rounded-lg object-cover shrink-0 border border-gray-200">`
+                        : `<div class="w-8 h-8 rounded-lg bg-red-50 text-[#a52a2a] flex items-center justify-center shrink-0 border border-red-100"><i class="fas fa-book text-xs"></i></div>`;
 
-                        let linkAction = (userRole === 'admin' || userRole === 'teacher') 
-                            ? `href="javascript:void(0)" onclick="closeGlobalSearch(); loadPartial('/dashboard/materials/${mat.hashid || mat.id}/manage', document.getElementById('nav-materials-btn'))"` 
-                            : `href="/dashboard/materials/${mat.hashid || mat.id}/show"`;
+                    let linkAction = (userRole === 'admin' || userRole === 'teacher') 
+                        ? `href="javascript:void(0)" onclick="closeGlobalSearch(); loadPartial('/dashboard/materials/${mat.hashid || mat.id}/manage', document.getElementById('nav-materials-btn'))"` 
+                        : `href="/dashboard/materials/${mat.hashid || mat.id}/show"`;
 
+                    return `
+                        <a ${linkAction} class="flex items-center gap-3 p-3 hover:bg-gray-50 transition cursor-pointer">
+                            ${thumbnailHtml}
+                            <div class="min-w-0 flex-1">
+                                <p class="text-sm font-bold text-gray-900 truncate">${mat.title}</p>
+                                <p class="text-[10px] text-gray-500 truncate">By ${instructorName}</p>
+                            </div>
+                        </a>`;
+                };
+
+                // Render Direct Materials
+                if (hasDirect) {
+                    globalSearchResults.innerHTML += `<div class="px-4 py-2 mt-2 border-t border-gray-50 text-[10px] font-black text-gray-400 uppercase tracking-widest">Modules & Materials</div>`;
+                    data.direct_materials.slice(0, 3).forEach(mat => {
+                        globalSearchResults.innerHTML += buildMaterialHtml(mat);
+                    });
+                }
+
+                // Render Related Materials
+                if (hasRelated) {
+                    globalSearchResults.innerHTML += `<div class="px-4 py-2 mt-2 border-t border-gray-50 text-[10px] font-black text-gray-400 uppercase tracking-widest truncate">Modules related to "${query}"</div>`;
+                    data.related_materials.slice(0, 3).forEach(mat => {
+                        globalSearchResults.innerHTML += buildMaterialHtml(mat);
+                    });
+                }
+
+                // Render Teachers
+                if (hasTeachers) {
+                    globalSearchResults.innerHTML += '<div class="px-4 py-2 mt-2 border-t border-gray-50 text-[10px] font-black text-gray-400 uppercase tracking-widest">Teachers & CID</div>';
+                    data.teachers.slice(0, 2).forEach(user => { 
                         globalSearchResults.innerHTML += `
-                            <a ${linkAction} class="flex items-center gap-3 p-3 hover:bg-gray-50 transition cursor-pointer">
-                                ${thumbnailHtml}
+                            <a href="javascript:void(0)" onclick="closeGlobalSearch(); loadPartial('/dashboard/teachers', document.getElementById('nav-teachers-btn'))" class="flex items-center gap-3 p-3 hover:bg-gray-50 transition cursor-pointer">
+                                <div class="w-8 h-8 rounded-full bg-purple-50 text-purple-600 flex items-center justify-center shrink-0 border border-purple-100"><i class="fas fa-user-tie text-xs"></i></div>
                                 <div class="min-w-0 flex-1">
-                                    <p class="text-sm font-bold text-gray-900 truncate">${mat.title}</p>
-                                    <p class="text-[10px] text-gray-500 truncate">By ${instructorName}</p>
+                                    <p class="text-sm font-bold text-gray-900 truncate">${user.first_name} ${user.last_name}</p>
+                                    <p class="text-[10px] text-gray-500 uppercase">${user.role}</p>
                                 </div>
                             </a>`;
                     });
                 }
 
-                // Render Users
-                if (hasUsers) {
-                    globalSearchResults.innerHTML += '<div class="px-4 py-2 mt-2 border-t border-gray-50 text-[10px] font-black text-gray-400 uppercase tracking-widest">Users</div>';
-                    data.users.slice(0, 3).forEach(user => { // Show max 3 in dropdown
-                        const roleRoute = user.role === 'teacher' ? '/dashboard/teachers' : '/dashboard/students';
-                        const roleBtn = user.role === 'teacher' ? 'nav-teachers-btn' : 'nav-students-btn';
-                        
+                // Render Students
+                if (hasStudents) {
+                    globalSearchResults.innerHTML += '<div class="px-4 py-2 mt-2 border-t border-gray-50 text-[10px] font-black text-gray-400 uppercase tracking-widest">Students</div>';
+                    data.students.slice(0, 2).forEach(user => { 
                         globalSearchResults.innerHTML += `
-                            <a href="javascript:void(0)" onclick="closeGlobalSearch(); loadPartial('${roleRoute}', document.getElementById('${roleBtn}'))" class="flex items-center gap-3 p-3 hover:bg-gray-50 transition cursor-pointer">
-                                <div class="w-8 h-8 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center shrink-0 border border-blue-100"><i class="fas fa-user text-xs"></i></div>
+                            <a href="javascript:void(0)" onclick="closeGlobalSearch(); loadPartial('/dashboard/students', document.getElementById('nav-students-btn'))" class="flex items-center gap-3 p-3 hover:bg-gray-50 transition cursor-pointer">
+                                <div class="w-8 h-8 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center shrink-0 border border-blue-100"><i class="fas fa-user-graduate text-xs"></i></div>
                                 <div class="min-w-0 flex-1">
                                     <p class="text-sm font-bold text-gray-900 truncate">${user.first_name} ${user.last_name}</p>
                                     <p class="text-[10px] text-gray-500 uppercase">${user.role}</p>
@@ -610,6 +635,138 @@
                 }
             }
             if (globalSearchDropdown) globalSearchDropdown.classList.remove('hidden');
+        }
+
+        // Render the Full Search Modal Content
+        function renderFullSearchResults(data, query) {
+            fullSearchSpinner.classList.add('hidden');
+            fullSearchResultsContainer.classList.remove('hidden');
+            fullSearchResultsContainer.innerHTML = '';
+
+            const hasDirect = data.direct_materials && data.direct_materials.length > 0;
+            const hasRelated = data.related_materials && data.related_materials.length > 0;
+            const hasTeachers = data.teachers && data.teachers.length > 0;
+            const hasStudents = data.students && data.students.length > 0;
+            const hasTags = data.tags && data.tags.length > 0;
+
+            if (!hasDirect && !hasRelated && !hasTeachers && !hasStudents && !hasTags) {
+                fullSearchResultsContainer.innerHTML = `
+                    <div class="py-16 text-center flex flex-col items-center">
+                        <div class="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mb-4">
+                            <i class="fas fa-search text-gray-300 text-3xl"></i>
+                        </div>
+                        <h3 class="text-xl font-bold text-gray-800">No results found</h3>
+                        <p class="text-gray-500 mt-2">We couldn't find anything matching your search. Try different keywords.</p>
+                    </div>`;
+                return;
+            }
+
+            // 1. Tags Section (Unclickable)
+            if (hasTags) {
+                let tagsHtml = `
+                    <div>
+                        <h3 class="text-lg font-black text-gray-900 border-b border-gray-200 pb-2 mb-4 flex items-center gap-2">
+                            <i class="fas fa-tags text-[#a52a2a]"></i> Matched Tags
+                        </h3>
+                        <div class="flex flex-wrap gap-2">`;
+                
+                data.tags.forEach(tag => {
+                    tagsHtml += `
+                        <span class="cursor-default px-4 py-2 bg-gray-100 text-[#a52a2a] font-bold rounded-xl text-sm border border-gray-200 shadow-sm">
+                            <i class="fas fa-hashtag opacity-50 mr-1"></i> ${tag.name}
+                        </span>`;
+                });
+                
+                tagsHtml += `</div></div>`;
+                fullSearchResultsContainer.innerHTML += tagsHtml;
+            }
+
+            const buildMaterialCard = (mat) => {
+                const instructorName = mat.instructor ? `${mat.instructor.first_name} ${mat.instructor.last_name}` : 'Unknown Instructor';
+                const thumbnailSrc = mat.thumbnail ? `/storage/${mat.thumbnail}` : 'https://images.unsplash.com/photo-1517694712202-14dd9538aa97?q=80&w=800';
+                
+                let linkAction = (userRole === 'admin' || userRole === 'teacher') 
+                    ? `onclick="closeFullSearchModal(); loadPartial('/dashboard/materials/${mat.hashid || mat.id}/manage', document.getElementById('nav-materials-btn'))"` 
+                    : `href="/dashboard/materials/${mat.hashid || mat.id}/show"`;
+
+                return `
+                    <a ${linkAction} class="bg-white border border-gray-200 rounded-2xl p-4 flex gap-4 hover:shadow-md hover:border-[#a52a2a]/30 transition-all cursor-pointer group">
+                        <div class="w-16 h-16 rounded-xl overflow-hidden shrink-0 border border-gray-100 bg-gray-50">
+                            <img src="${thumbnailSrc}" class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300">
+                        </div>
+                        <div class="flex flex-col justify-center min-w-0">
+                            <h4 class="font-bold text-gray-900 truncate mb-1 group-hover:text-[#a52a2a] transition-colors">${mat.title}</h4>
+                            <p class="text-xs text-gray-500 truncate flex items-center gap-1"><i class="fas fa-user-circle"></i> ${instructorName}</p>
+                            <span class="inline-block mt-1 text-[9px] font-bold px-2 py-0.5 bg-gray-100 text-gray-600 rounded w-max uppercase">${mat.status || 'Active'}</span>
+                        </div>
+                    </a>`;
+            };
+
+            // 2. Direct Materials
+            if (hasDirect) {
+                let matHtml = `
+                    <div>
+                        <h3 class="text-lg font-black text-gray-900 border-b border-gray-200 pb-2 mb-4 flex items-center gap-2">
+                            <i class="fas fa-book-open text-[#a52a2a]"></i> Modules & Materials <span class="bg-gray-100 text-gray-600 text-xs px-2 py-0.5 rounded-md ml-2">${data.direct_materials.length}</span>
+                        </h3>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">`;
+                data.direct_materials.forEach(mat => matHtml += buildMaterialCard(mat));
+                matHtml += `</div></div>`;
+                fullSearchResultsContainer.innerHTML += matHtml;
+            }
+
+            // 3. Related Materials
+            if (hasRelated) {
+                let matHtml = `
+                    <div>
+                        <h3 class="text-lg font-black text-gray-900 border-b border-gray-200 pb-2 mb-4 flex items-center gap-2 truncate">
+                            <i class="fas fa-link text-[#a52a2a]"></i> Modules related to "${query}" <span class="bg-gray-100 text-gray-600 text-xs px-2 py-0.5 rounded-md ml-2">${data.related_materials.length}</span>
+                        </h3>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">`;
+                data.related_materials.forEach(mat => matHtml += buildMaterialCard(mat));
+                matHtml += `</div></div>`;
+                fullSearchResultsContainer.innerHTML += matHtml;
+            }
+
+            const buildUserCard = (user, defaultRoleRoute, defaultRoleBtn, roleColorClass) => `
+                <a href="javascript:void(0)" onclick="closeFullSearchModal(); loadPartial('${defaultRoleRoute}', document.getElementById('${defaultRoleBtn}'))" 
+                    class="bg-white border border-gray-200 rounded-2xl p-4 flex items-center gap-3 hover:bg-gray-50 transition-colors cursor-pointer">
+                    <img src="https://ui-avatars.com/api/?name=${encodeURIComponent(user.first_name + ' ' + user.last_name)}&background=f3f4f6&color=374151" class="w-10 h-10 rounded-full border border-gray-200 shrink-0">
+                    <div class="min-w-0 flex-1">
+                        <h4 class="font-bold text-gray-900 truncate text-sm">${user.first_name} ${user.last_name}</h4>
+                        <span class="inline-block mt-0.5 text-[9px] font-bold px-1.5 py-0.5 rounded border uppercase ${roleColorClass}">${user.role}</span>
+                    </div>
+                </a>`;
+
+            // 4. Teachers & CID
+            if (hasTeachers) {
+                let userHtml = `
+                    <div>
+                        <h3 class="text-lg font-black text-gray-900 border-b border-gray-200 pb-2 mb-4 flex items-center gap-2">
+                            <i class="fas fa-user-tie text-[#a52a2a]"></i> Teachers & CID <span class="bg-gray-100 text-gray-600 text-xs px-2 py-0.5 rounded-md ml-2">${data.teachers.length}</span>
+                        </h3>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">`;
+                data.teachers.forEach(user => {
+                    userHtml += buildUserCard(user, '/dashboard/teachers', 'nav-teachers-btn', 'bg-purple-50 text-purple-700 border-purple-100');
+                });
+                userHtml += `</div></div>`;
+                fullSearchResultsContainer.innerHTML += userHtml;
+            }
+
+            // 5. Students
+            if (hasStudents) {
+                let userHtml = `
+                    <div>
+                        <h3 class="text-lg font-black text-gray-900 border-b border-gray-200 pb-2 mb-4 flex items-center gap-2">
+                            <i class="fas fa-user-graduate text-[#a52a2a]"></i> Students <span class="bg-gray-100 text-gray-600 text-xs px-2 py-0.5 rounded-md ml-2">${data.students.length}</span>
+                        </h3>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">`;
+                data.students.forEach(user => {
+                    userHtml += buildUserCard(user, '/dashboard/students', 'nav-students-btn', 'bg-blue-50 text-blue-700 border-blue-100');
+                });
+                userHtml += `</div></div>`;
+                fullSearchResultsContainer.innerHTML += userHtml;
+            }
         }
 
         // Trigger the Full Search Modal
@@ -622,16 +779,22 @@
             
             // Open Modal UI
             fullSearchQueryDisplay.textContent = query;
+            
+            // Step 1: Remove 'hidden' so the element is in the DOM
             fullSearchModal.classList.remove('hidden');
+            
+            // Step 2: Add a tiny delay to allow the browser to register the element before animating
             setTimeout(() => {
                 fullSearchModal.classList.remove('opacity-0');
+                fullSearchModal.classList.add('opacity-100'); // Explicitly add full opacity
+                
                 fullSearchModalBox.classList.remove('scale-95');
                 fullSearchModalBox.classList.add('scale-100');
             }, 10);
 
             // Either reuse the data if we just fetched it, or fetch again
             if (lastSearchData) {
-                renderFullSearchResults(lastSearchData);
+                renderFullSearchResults(lastSearchData, query); 
             } else {
                 fullSearchResultsContainer.classList.add('hidden');
                 fullSearchSpinner.classList.remove('hidden');
@@ -642,120 +805,13 @@
                 .then(res => res.json())
                 .then(data => {
                     lastSearchData = data;
-                    renderFullSearchResults(data);
+                    renderFullSearchResults(data, query); 
                 })
                 .catch(err => {
                     fullSearchSpinner.classList.add('hidden');
                     fullSearchResultsContainer.classList.remove('hidden');
                     fullSearchResultsContainer.innerHTML = '<div class="p-6 text-center text-red-500 font-bold">Failed to load search results.</div>';
                 });
-            }
-        }
-
-        // Render the Full Search Modal Content
-        function renderFullSearchResults(data) {
-            fullSearchSpinner.classList.add('hidden');
-            fullSearchResultsContainer.classList.remove('hidden');
-            fullSearchResultsContainer.innerHTML = '';
-
-            const hasMaterials = data.materials && data.materials.length > 0;
-            const hasUsers = data.users && data.users.length > 0;
-            const hasTags = data.tags && data.tags.length > 0;
-
-            if (!hasMaterials && !hasUsers && !hasTags) {
-                fullSearchResultsContainer.innerHTML = `
-                    <div class="py-16 text-center flex flex-col items-center">
-                        <div class="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mb-4">
-                            <i class="fas fa-search text-gray-300 text-3xl"></i>
-                        </div>
-                        <h3 class="text-xl font-bold text-gray-800">No results found</h3>
-                        <p class="text-gray-500 mt-2">We couldn't find anything matching your search. Try different keywords.</p>
-                    </div>`;
-                return;
-            }
-
-            // 1. Tags Section
-            if (hasTags) {
-                let tagsHtml = `
-                    <div>
-                        <h3 class="text-lg font-black text-gray-900 border-b border-gray-200 pb-2 mb-4 flex items-center gap-2">
-                            <i class="fas fa-tags text-[#a52a2a]"></i> Matched Tags
-                        </h3>
-                        <div class="flex flex-wrap gap-2">`;
-                
-                data.tags.forEach(tag => {
-                    tagsHtml += `
-                        <button onclick="closeFullSearchModal(); loadPartial('{{ url('/dashboard/explore') }}?tag=${encodeURIComponent(tag.name)}', document.getElementById('nav-explore-btn'))" 
-                            class="px-4 py-2 bg-gray-100 hover:bg-[#a52a2a] hover:text-white text-gray-700 font-bold rounded-xl text-sm transition-colors border border-gray-200 hover:border-[#a52a2a] shadow-sm">
-                            <i class="fas fa-hashtag opacity-50 mr-1"></i> ${tag.name}
-                        </button>`;
-                });
-                
-                tagsHtml += `</div></div>`;
-                fullSearchResultsContainer.innerHTML += tagsHtml;
-            }
-
-            // 2. Materials Section
-            if (hasMaterials) {
-                let matHtml = `
-                    <div>
-                        <h3 class="text-lg font-black text-gray-900 border-b border-gray-200 pb-2 mb-4 flex items-center gap-2">
-                            <i class="fas fa-book-open text-[#a52a2a]"></i> Modules & Materials <span class="bg-gray-100 text-gray-600 text-xs px-2 py-0.5 rounded-md ml-2">${data.materials.length}</span>
-                        </h3>
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">`;
-
-                data.materials.forEach(mat => {
-                    const instructorName = mat.instructor ? `${mat.instructor.first_name} ${mat.instructor.last_name}` : 'Unknown Instructor';
-                    const thumbnailSrc = mat.thumbnail ? `/storage/${mat.thumbnail}` : 'https://images.unsplash.com/photo-1517694712202-14dd9538aa97?q=80&w=800';
-                    
-                    let linkAction = (userRole === 'admin' || userRole === 'teacher') 
-                        ? `onclick="closeFullSearchModal(); loadPartial('/dashboard/materials/${mat.hashid || mat.id}/manage', document.getElementById('nav-materials-btn'))"` 
-                        : `href="/dashboard/materials/${mat.hashid || mat.id}/show"`;
-
-                    matHtml += `
-                        <a ${linkAction} class="bg-white border border-gray-200 rounded-2xl p-4 flex gap-4 hover:shadow-md hover:border-[#a52a2a]/30 transition-all cursor-pointer group">
-                            <div class="w-16 h-16 rounded-xl overflow-hidden shrink-0 border border-gray-100 bg-gray-50">
-                                <img src="${thumbnailSrc}" class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300">
-                            </div>
-                            <div class="flex flex-col justify-center min-w-0">
-                                <h4 class="font-bold text-gray-900 truncate mb-1 group-hover:text-[#a52a2a] transition-colors">${mat.title}</h4>
-                                <p class="text-xs text-gray-500 truncate flex items-center gap-1"><i class="fas fa-user-circle"></i> ${instructorName}</p>
-                                <span class="inline-block mt-1 text-[9px] font-bold px-2 py-0.5 bg-gray-100 text-gray-600 rounded w-max uppercase">${mat.status || 'Active'}</span>
-                            </div>
-                        </a>`;
-                });
-
-                matHtml += `</div></div>`;
-                fullSearchResultsContainer.innerHTML += matHtml;
-            }
-
-            // 3. Users Section
-            if (hasUsers) {
-                let userHtml = `
-                    <div>
-                        <h3 class="text-lg font-black text-gray-900 border-b border-gray-200 pb-2 mb-4 flex items-center gap-2">
-                            <i class="fas fa-users text-[#a52a2a]"></i> Directory Matches <span class="bg-gray-100 text-gray-600 text-xs px-2 py-0.5 rounded-md ml-2">${data.users.length}</span>
-                        </h3>
-                        <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">`;
-
-                data.users.forEach(user => {
-                    const roleRoute = user.role === 'teacher' ? '/dashboard/teachers' : '/dashboard/students';
-                    const roleBtn = user.role === 'teacher' ? 'nav-teachers-btn' : 'nav-students-btn';
-                    const roleColor = user.role === 'teacher' ? 'bg-purple-50 text-purple-700 border-purple-100' : 'bg-blue-50 text-blue-700 border-blue-100';
-
-                    userHtml += `
-                        <a href="javascript:void(0)" onclick="closeFullSearchModal(); loadPartial('${roleRoute}', document.getElementById('${roleBtn}'))" 
-                            class="bg-white border border-gray-200 rounded-2xl p-4 flex items-center gap-3 hover:bg-gray-50 transition-colors cursor-pointer">
-                            <img src="https://ui-avatars.com/api/?name=${encodeURIComponent(user.first_name + ' ' + user.last_name)}&background=f3f4f6&color=374151" class="w-10 h-10 rounded-full border border-gray-200 shrink-0">
-                            <div class="min-w-0 flex-1">
-                                <h4 class="font-bold text-gray-900 truncate text-sm">${user.first_name} ${user.last_name}</h4>
-                                <span class="inline-block mt-0.5 text-[9px] font-bold px-1.5 py-0.5 rounded border uppercase ${roleColor}">${user.role}</span>
-                            </div>
-                        </a>`;
-                });
-
-                userHtml += `</div></div>`;
-                fullSearchResultsContainer.innerHTML += userHtml;
             }
         }
 
@@ -766,11 +822,16 @@
         }
 
         function closeFullSearchModal() {
+            // Step 1: Trigger the animations immediately
             fullSearchModalBox.classList.remove('scale-100');
             fullSearchModalBox.classList.add('scale-95');
+            
             fullSearchModal.classList.remove('opacity-100');
+            fullSearchModal.classList.add('opacity-0'); // Add this BEFORE the timeout so it fades out
+
+            // Step 2: Wait for the 300ms transition duration to finish, THEN hide from DOM
             setTimeout(() => {
-                fullSearchModal.classList.add('opacity-0', 'hidden');
+                fullSearchModal.classList.add('hidden');
                 closeGlobalSearch(); // Reset the main input too
             }, 300);
         }

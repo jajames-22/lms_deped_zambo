@@ -71,7 +71,14 @@
             </div>
 
             <div class="p-6 flex flex-col gap-4">
-                @forelse($continueLearning as $enrollment)
+                {{-- FILTER OUT COMPLETED MATERIALS HERE --}}
+                @php
+                    $activeLearning = collect($continueLearning)->reject(function($enrollment) {
+                        return in_array($enrollment->status, ['completed', 'read']) || !is_null($enrollment->completed_at);
+                    });
+                @endphp
+
+                @forelse($activeLearning as $enrollment)
                     <div
                         class="bg-gray-50 p-4 rounded-xl border border-gray-100 flex flex-col sm:flex-row items-center gap-4 hover:border-[#a52a2a]/30 transition group">
 
@@ -91,9 +98,58 @@
                                 {{ $enrollment->material->title ?? 'Untitled Material' }}</h4>
                             <p class="text-[10px] text-gray-500 mb-3 uppercase tracking-wider">Last accessed:
                                 {{ $enrollment->updated_at->diffForHumans() }}</p>
+                            
+                            {{-- DYNAMIC PROGRESS CALCULATION --}}
+                            @php
+                                $progressPct = 0;
+                                if ($enrollment->progress_data) {
+                                    $pData = json_decode($enrollment->progress_data);
+                                    $highestUnlocked = isset($pData->highest_unlocked) ? (int) $pData->highest_unlocked : 0;
+                                    $currentContent = isset($pData->content) ? (int) $pData->content : 0;
+                                    $currentLesson = isset($pData->lesson) ? (int) $pData->lesson : 0;
+                                    
+                                    $lessons = \Illuminate\Support\Facades\DB::table('lessons')
+                                        ->where('material_id', $enrollment->material_id)
+                                        ->orderBy('created_at')
+                                        ->get();
+                                        
+                                    $timelineCounts = [];
+                                    foreach ($lessons as $lesson) {
+                                        $count = \Illuminate\Support\Facades\DB::table('lesson_contents')
+                                            ->where('lesson_id', $lesson->id)
+                                            ->count();
+                                        $timelineCounts[] = $count;
+                                    }
+                                    
+                                    $examCount = \Illuminate\Support\Facades\DB::table('exams')
+                                        ->where('material_id', $enrollment->material_id)
+                                        ->count();
+                                        
+                                    if ($examCount > 0) {
+                                        $timelineCounts[] = $examCount;
+                                    }
+                                    
+                                    $totalContents = array_sum($timelineCounts);
+                                    
+                                    $contentsPassed = 0;
+                                    for ($i = 0; $i < $highestUnlocked; $i++) {
+                                        if (isset($timelineCounts[$i])) {
+                                            $contentsPassed += $timelineCounts[$i];
+                                        }
+                                    }
+                                    
+                                    if ($currentLesson === $highestUnlocked) {
+                                        $contentsPassed += $currentContent;
+                                    }
+                                    
+                                    $progressPct = $totalContents > 0 ? min(100, round(($contentsPassed / $totalContents) * 100)) : 0;
+                                }
+                            @endphp
+
                             <div class="w-full bg-gray-200 rounded-full h-1.5 mb-1">
-                                <div class="bg-blue-600 h-1.5 rounded-full" style="width: 50%"></div>
+                                <div class="bg-blue-600 h-1.5 rounded-full transition-all duration-500" style="width: {{ $progressPct }}%"></div>
                             </div>
+                            <p class="text-[9px] text-gray-400 font-bold uppercase tracking-wider text-right">{{ $progressPct }}% Complete</p>
                         </div>
 
                         <a href="{{ route('student.materials.show', \Vinkla\Hashids\Facades\Hashids::encode($enrollment->material_id)) }}"
