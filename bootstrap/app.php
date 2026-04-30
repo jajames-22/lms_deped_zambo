@@ -15,6 +15,9 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->alias([
             'check.assessment.access' => \App\Http\Middleware\EnsureStudentHasAccess::class,
         ]);
+        $middleware->web(append: [
+            \App\Http\Middleware\UpdateLastLogin::class, // <-- ADD THIS LINE
+        ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         //

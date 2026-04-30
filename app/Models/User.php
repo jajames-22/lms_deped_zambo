@@ -41,7 +41,8 @@ class User extends Authenticatable implements MustVerifyEmail
         'role',
         'status',
         'lrn',           
-        'employee_id',  
+        'employee_id',
+        'last_login_at', // Add this!
     ];
 
     /**

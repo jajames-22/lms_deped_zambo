@@ -113,26 +113,6 @@
                 <h3 class="text-2xl font-bold text-gray-800">Module Exam Performance</h3>
             </div>
 
-            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-                <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
-                    <h4 class="text-gray-700 font-semibold mb-4 border-b pb-2">All-Time Exam Accuracy</h4>
-                    <div class="relative h-64 w-full flex justify-center items-center">
-                        @if($totalAnswers == 0)
-                            <p class="text-gray-400 text-sm mt-10">No Exam taken yet.</p>
-                        @else
-                            <canvas id="studentAccuracyChart"></canvas>
-                        @endif
-                    </div>
-                </div>
-
-                <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
-                    <h4 class="text-gray-700 font-semibold mb-4 border-b pb-2">Recent Exam Scores (Last 7 Days)</h4>
-                    <div class="relative h-64 w-full flex justify-center items-center">
-                        <canvas id="studentScoresChart"></canvas>
-                    </div>
-                </div>
-            </div>
-
             <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
                 <h4 class="text-gray-700 font-semibold mb-4 border-b pb-2">Topic Mastery</h4>
                 <p class="text-sm text-gray-500 mb-4">See which modules you are strongest in based on your Exam scores.</p>
@@ -290,37 +270,7 @@
             });
         }
         @endif
-
-        // 5. Scores Trend Line Chart
-        const ctxScores = document.getElementById('studentScoresChart');
-        if (ctxScores) {
-            window.dashboardCharts.studentScores = new Chart(ctxScores.getContext('2d'), {
-                type: 'line',
-                data: {
-                    labels: @json($examDates ?? []),
-                    datasets: [{
-                        label: 'Correct Answers',
-                        data: @json($examScores ?? []),
-                        borderColor: '#a52a2a', 
-                        backgroundColor: 'rgba(165, 42, 42, 0.1)',
-                        borderWidth: 3,
-                        fill: true,
-                        tension: 0.4
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: { legend: { display: false } },
-                    scales: {
-                        y: { beginAtZero: true, grid: { borderDash: [2, 4] }, ticks: { stepSize: 1 } },
-                        x: { grid: { display: false } }
-                    }
-                }
-            });
-        }
-
-        // 6. Topic Mastery Bar Chart
+// 6. Topic Mastery Bar Chart
         @if(count($masteryLabels ?? []) > 0)
         const ctxMastery = document.getElementById('topicMasteryChart');
         if (ctxMastery) {

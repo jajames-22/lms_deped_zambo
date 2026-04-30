@@ -748,7 +748,47 @@ class AssessmentController extends Controller
                 'Low Proficient (25-49%)' => 0,
                 'Not Proficient (0-24%)' => 0,
             ];
-            $scatterData = [];
+            
+            // Calculate precise raw score bounds for each bucket
+            $rawBounds = [
+                0 => ['min' => null, 'max' => null],
+                1 => ['min' => null, 'max' => null],
+                2 => ['min' => null, 'max' => null],
+                3 => ['min' => null, 'max' => null],
+                4 => ['min' => null, 'max' => null],
+            ];
+            
+            if ($totalQuestions > 0) {
+                for ($i = 0; $i <= $totalQuestions; $i++) {
+                    $pct = round(($i / $totalQuestions) * 100, 2);
+                    $b = 0;
+                    if ($pct >= 90) $b = 4;
+                    elseif ($pct >= 75) $b = 3;
+                    elseif ($pct >= 50) $b = 2;
+                    elseif ($pct >= 25) $b = 1;
+                    else $b = 0;
+
+                    if ($rawBounds[$b]['min'] === null) $rawBounds[$b]['min'] = $i;
+                    $rawBounds[$b]['max'] = $i;
+                }
+            }
+
+            // Formatter for the raw score label
+            $getRawLabel = function($b) use ($rawBounds, $totalQuestions) {
+                if ($totalQuestions == 0) return '0';
+                $min = $rawBounds[$b]['min'];
+                $max = $rawBounds[$b]['max'];
+                if ($min === null) return 'N/A'; // Occurs if a bucket is mathematically impossible
+                return $min === $max ? (string)$min : "{$min}-{$max}";
+            };
+
+            $combinedDistribution = [
+                ['range' => '0-24%', 'level' => 'Not Proficient', 'count' => 0, 'color' => '#ef4444', 'raw' => $getRawLabel(0)],
+                ['range' => '25-49%', 'level' => 'Low Proficient', 'count' => 0, 'color' => '#f97316', 'raw' => $getRawLabel(1)],
+                ['range' => '50-74%', 'level' => 'Nearly Proficient', 'count' => 0, 'color' => '#f59e0b', 'raw' => $getRawLabel(2)],
+                ['range' => '75-89%', 'level' => 'Proficient', 'count' => 0, 'color' => '#3b82f6', 'raw' => $getRawLabel(3)],
+                ['range' => '90-100%', 'level' => 'Highly Proficient', 'count' => 0, 'color' => '#10b981', 'raw' => $getRawLabel(4)],
+            ];
 
             foreach ($userScoresMap as $userId => $rawScore) {
                 $pct = $totalQuestions > 0 ? round(($rawScore / $totalQuestions) * 100, 2) : 0;
@@ -759,27 +799,14 @@ class AssessmentController extends Controller
                 if ($rawScore > $highestScoreRaw)
                     $highestScoreRaw = $rawScore;
 
-                if ($pct >= 90)
-                    $proficiencyLevels['Highly Proficient (90-100%)']++;
-                elseif ($pct >= 75)
-                    $proficiencyLevels['Proficient (75-89%)']++;
-                elseif ($pct >= 50)
-                    $proficiencyLevels['Nearly Proficient (50-74%)']++;
-                elseif ($pct >= 25)
-                    $proficiencyLevels['Low Proficient (25-49%)']++;
-                else
-                    $proficiencyLevels['Not Proficient (0-24%)']++;
-
-                $timeSecs = $userTimesRaw->get($userId, 0);
-                $timeMins = round($timeSecs / 60, 2);
-                if ($timeMins > 0) {
-                    $scatterData[] = [
-                        'x' => $timeMins,
-                        'y' => $pct
-                    ];
-                }
+                // Track standard proficiency levels & Build combined distribution array simultaneously
+                if ($pct >= 90) { $proficiencyLevels['Highly Proficient (90-100%)']++; $combinedDistribution[4]['count']++; }
+                elseif ($pct >= 75) { $proficiencyLevels['Proficient (75-89%)']++; $combinedDistribution[3]['count']++; }
+                elseif ($pct >= 50) { $proficiencyLevels['Nearly Proficient (50-74%)']++; $combinedDistribution[2]['count']++; }
+                elseif ($pct >= 25) { $proficiencyLevels['Low Proficient (25-49%)']++; $combinedDistribution[1]['count']++; }
+                else { $proficiencyLevels['Not Proficient (0-24%)']++; $combinedDistribution[0]['count']++; }
             }
-
+            
             $scoresCount = count($scoresArray);
             $overallMPS = $scoresCount > 0 ? round($totalPercentageSum / $scoresCount, 2) : 0;
 
@@ -907,7 +934,7 @@ class AssessmentController extends Controller
                 'competencies',
                 'topMisconceptions',
                 'itemAnalysis',
-                'scatterData',
+                'combinedDistribution',
                 'avgTimeMins'
             ));
 
@@ -922,7 +949,7 @@ class AssessmentController extends Controller
             $competencies = $schoolLeaderboard = $topMisconceptions = collect([]);
             $itemAnalysis = [];
             $avgTimeFormat = 'N/A';
-            $scatterData = [];
+            $combinedDistribution = [];
 
             return view('dashboard.partials.admin.assessments-analytics', compact(
                 'assessment',
@@ -942,7 +969,7 @@ class AssessmentController extends Controller
                 'competencies',
                 'topMisconceptions',
                 'itemAnalysis',
-                'scatterData',
+                'combinedDistribution',
                 'avgTimeMins'
             ));
         }
