@@ -204,7 +204,7 @@
                         <i class="fas fa-lock text-[#a52a2a]"></i> Change Password
                     </h3>
                     
-                    <form action="{{ route('password.update') }}" method="POST" onsubmit="submitPasswordForm(event, this)">
+                    <form action="{{ route('profile.password.update') }}" method="POST" onsubmit="submitPasswordForm(event, this)">
                         @csrf
                         @method('PUT')
                         

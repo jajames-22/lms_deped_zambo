@@ -48,7 +48,7 @@ Route::middleware(['auth', 'verified', CheckAccountStatus::class])->group(functi
         // Profile & Settings
         Route::get('/profile', [ProfileController::class, 'show'])->name('dashboard.profile');
         Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
-        Route::put('/profile/password', [ProfileController::class, 'updatePassword'])->name('password.update');
+        Route::put('/profile/password', [ProfileController::class, 'updatePassword'])->name('profile.password.update');
         Route::patch('/profile/avatar', [ProfileController::class, 'updateAvatar'])->name('profile.avatar.update');
         Route::get('/settings', [DashboardController::class, 'loadSettingsPartial'])->name('dashboard.settings');
         
