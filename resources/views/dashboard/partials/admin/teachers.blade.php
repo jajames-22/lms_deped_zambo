@@ -65,61 +65,64 @@
         </div>
     </div>
 
-    {{-- IMPROVED TABS AND EXPORT BUTTON PLACEMENT --}}
-    <div class="flex flex-col xl:flex-row justify-between items-start xl:items-center gap-4">
-        <div class="flex flex-col sm:flex-row items-start sm:items-center gap-3 w-full xl:w-auto">
-            
-            {{-- ROLE TABS --}}
-            <div class="flex items-center space-x-1 bg-gray-200/50 p-1 rounded-xl w-fit shrink-0">
-                <button class="role-tab px-5 py-2 text-sm font-bold rounded-lg transition-all bg-white text-[#a52a2a] shadow-sm pointer-events-none" data-role="all">
-                    All Roles
-                </button>
-                <button class="role-tab px-5 py-2 text-sm font-bold rounded-lg transition-all text-gray-500 hover:text-gray-700" data-role="teacher">
-                    Teachers
-                </button>
-                <button class="role-tab px-5 py-2 text-sm font-bold rounded-lg transition-all text-gray-500 hover:text-gray-700" data-role="cid">
-                    CID
-                </button>
-            </div>
+   <div class="flex flex-wrap items-center justify-between gap-4">
 
-            {{-- STATUS TABS --}}
-            <div class="flex items-center space-x-1 bg-gray-200/50 p-1 rounded-xl w-fit shrink-0">
-                <button class="status-tab px-5 py-2 text-sm font-bold rounded-lg transition-all bg-white text-[#a52a2a] shadow-sm pointer-events-none" data-status="all">
-                    All Status
-                </button>
-                <button class="status-tab px-5 py-2 text-sm font-bold rounded-lg transition-all text-gray-500 hover:text-gray-700" data-status="verified">
-                    Verified
-                </button>
-                <button class="status-tab flex items-center gap-1 px-5 py-2 text-sm font-bold rounded-lg transition-all text-gray-500 hover:text-gray-700" data-status="pending">
-                    <span>Pending</span>
+    <!-- LEFT: TABS -->
+    <div class="flex flex-wrap items-center gap-3">
 
-                    @php 
-                        // Safely calculate the number of pending materials from the loaded collection
-                        $pendingCount = collect($teachers)->filter(function($t) {
-                            return strtolower($t->status ?? 'pending') === 'pending';
-                        })->count();
-                    @endphp
-                    
-                    @if($pendingCount > 0)
-                        <span class="flex items-center justify-center min-w-[20px] h-[20px] px-1.5 bg-red-500 text-white text-[11px] font-bold rounded-full shadow-sm animate-pulse">
-                            {{ $pendingCount }}
-                        </span>
-                    @endif
-                </button>
-                <button class="status-tab px-5 py-2 text-sm font-bold rounded-lg transition-all text-gray-500 hover:text-gray-700" data-status="suspended">
-                    Suspended
-                </button>
-            </div>
+        <!-- ROLE TABS -->
+        <div class="flex items-center bg-gray-200/50 p-1 rounded-xl">
+            <button class="role-tab px-4 py-2 text-sm font-bold rounded-lg bg-white text-[#a52a2a] shadow-sm pointer-events-none">
+                All Roles
+            </button>
+            <button class="role-tab px-4 py-2 text-sm font-bold rounded-lg text-gray-500 hover:text-gray-700">
+                Teachers
+            </button>
+            <button class="role-tab px-4 py-2 text-sm font-bold rounded-lg text-gray-500 hover:text-gray-700">
+                CID
+            </button>
         </div>
 
-        <button onclick="toggleExportModal()"
-            class="flex items-center justify-center gap-2 px-6 py-3 bg-gray-800 text-white font-bold rounded-xl shadow-sm hover:bg-gray-900 transition-all text-sm w-full xl:w-auto shrink-0 relative z-10">
-            <i class="fas fa-file-export"></i>
-            <span>Generate Report</span>
-        </button>
+        <!-- STATUS TABS -->
+        <div class="flex items-center bg-gray-200/50 p-1 rounded-xl">
+            <button class="status-tab px-4 py-2 text-sm font-bold rounded-lg bg-white text-[#a52a2a] shadow-sm pointer-events-none">
+                All Status
+            </button>
+            <button class="status-tab px-4 py-2 text-sm font-bold rounded-lg text-gray-500 hover:text-gray-700">
+                Verified
+            </button>
+
+            <button class="status-tab flex items-center gap-1 px-4 py-2 text-sm font-bold rounded-lg text-gray-500 hover:text-gray-700">
+                <span>Pending</span>
+
+                @php 
+                    $pendingCount = collect($teachers)->filter(fn($t) => strtolower($t->status ?? 'pending') === 'pending')->count();
+                @endphp
+
+                @if($pendingCount > 0)
+                    <span class="flex items-center justify-center min-w-[20px] h-[20px] px-1.5 bg-red-500 text-white text-[11px] font-bold rounded-full">
+                        {{ $pendingCount }}
+                    </span>
+                @endif
+            </button>
+
+            <button class="status-tab px-4 py-2 text-sm font-bold rounded-lg text-gray-500 hover:text-gray-700">
+                Suspended
+            </button>
+        </div>
+
     </div>
 
-    <div class="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden flex flex-col">
+    <!-- RIGHT: BUTTON -->
+    <button onclick="toggleExportModal()"
+        class="flex items-center gap-2 px-5 py-2.5 bg-gray-800 text-white font-bold rounded-xl shadow-sm hover:bg-gray-900 transition text-sm shrink-0">
+        <i class="fas fa-file-export"></i>
+        <span>Generate Report</span>
+    </button>
+
+</div>
+
+<div class="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden flex flex-col">
         <div class="overflow-x-auto">
             <table class="w-full text-left border-collapse" id="teachersTable">
                 <thead class="bg-gray-50/50 text-xs uppercase text-gray-500 font-bold border-b border-gray-100">
@@ -258,6 +261,69 @@
             </div>
             <div class="flex items-center gap-1" id="pagination-controls">
             </div>
+        </div>
+    </div>
+</div>
+
+
+<div id="teacherImportConflictModal" class="fixed inset-0 z-[9999] hidden flex items-center justify-center p-4">
+    <div class="absolute inset-0 bg-gray-900/60 backdrop-blur-sm" onclick="closeTeacherConflictModal()"></div>
+    <div id="teacherImportConflictModalBox"
+        class="relative bg-white rounded-3xl shadow-2xl w-full max-w-3xl transform scale-95 opacity-0 transition-all duration-300 border border-gray-100 z-10 flex flex-col max-h-[92vh] overflow-hidden">
+
+        <div class="px-8 pt-7 pb-5 border-b border-gray-100 flex items-start gap-4">
+            <div class="w-14 h-14 bg-amber-100 text-amber-600 rounded-2xl flex items-center justify-center text-2xl shrink-0">
+                <i class="fas fa-exclamation-triangle"></i>
+            </div>
+            <div>
+                <h3 class="text-2xl font-black text-gray-900">Duplicate Records Detected</h3>
+                <p class="text-sm text-gray-500 mt-1">Compare existing and incoming personnel data, then choose how to handle duplicates.</p>
+            </div>
+        </div>
+
+        <div class="flex flex-1 min-h-0">
+            <div class="w-2/3 border-r border-gray-100 flex flex-col">
+                <div class="px-6 py-4 border-b border-gray-100 bg-gray-50">
+                    <p class="text-xs font-bold uppercase text-gray-500 tracking-wide">
+                        Conflicting Records (<span id="teacherDuplicateCountLabel">0</span>)
+                    </p>
+                </div>
+                <div id="teacherDuplicateList" class="flex-1 min-h-0 overflow-y-auto px-6 py-4 space-y-4"></div>
+            </div>
+
+            <div class="w-1/3 flex flex-col px-6 py-6">
+                <p class="text-sm font-semibold text-gray-700 mb-4">Choose Action</p>
+                <div class="space-y-4">
+                    <label class="flex gap-3 p-4 border rounded-xl cursor-pointer transition hover:bg-gray-50 has-[:checked]:border-blue-500 has-[:checked]:bg-blue-50">
+                        <input type="radio" name="teacher_conflict_strategy" value="skip" checked class="mt-1 w-5 h-5 text-blue-600 border-gray-300 focus:ring-blue-600 shrink-0">
+                        <div>
+                            <span class="font-bold text-gray-900 block">Skip Duplicates</span>
+                            <span class="text-xs text-gray-500">Only import new personnel.</span>
+                        </div>
+                    </label>
+                    <label class="flex gap-3 p-4 border rounded-xl cursor-pointer transition hover:bg-gray-50 has-[:checked]:border-red-500 has-[:checked]:bg-red-50">
+                        <input type="radio" name="teacher_conflict_strategy" value="update" class="mt-1 w-5 h-5 text-red-600 border-gray-300 focus:ring-red-600 shrink-0">
+                        <div>
+                            <span class="font-bold text-gray-900 block">Update Existing</span>
+                            <span class="text-xs text-gray-500">Overwrite existing data.</span>
+                        </div>
+                    </label>
+                </div>
+                <div class="mt-auto pt-6">
+                    <div class="text-xs text-gray-400 bg-gray-50 border border-gray-200 rounded-lg p-3">
+                        Tip: Updating will permanently replace existing personnel information.
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="px-8 py-5 border-t border-gray-100 bg-white flex justify-end gap-3">
+            <button type="button" onclick="closeTeacherConflictModal()"
+                class="px-5 py-2.5 bg-gray-100 text-gray-700 font-semibold rounded-xl hover:bg-gray-200 transition">Cancel</button>
+            <button type="button" id="confirmTeacherImportBtn" onclick="executeTeacherImport()"
+                class="px-5 py-2.5 bg-blue-600 text-white font-semibold rounded-xl shadow hover:bg-blue-700 transition flex items-center gap-2">
+                <i class="fas fa-upload"></i> Continue Import
+            </button>
         </div>
     </div>
 </div>
@@ -867,46 +933,159 @@ function applyFilters() {
             }
         }, 300);
     }
+ let pendingTeacherImportFile = null;
 
-    function handleTeacherImport(input) {
-        if (!input.files || !input.files[0]) return;
+function handleTeacherImport(input) {
+    if (!input.files || !input.files[0]) return;
+    pendingTeacherImportFile = input.files[0];
 
-        var formData = new FormData();
-        formData.append('file', input.files[0]);
+    const importBtn = document.getElementById('importTeacherBtn');
+    const originalContent = importBtn.innerHTML;
+    importBtn.disabled = true;
+    importBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Scanning...';
 
-        var importBtn = document.getElementById('importTeacherBtn');
-        var originalContent = importBtn.innerHTML;
+    const formData = new FormData();
+    formData.append('file', pendingTeacherImportFile);
+    formData.append('check_only', 1);
 
-        importBtn.disabled = true;
-        importBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> <span>Importing...</span>';
+    fetch('{{ route("teachers.import") }}', {
+        method: 'POST',
+        body: formData,
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest',
+            'X-CSRF-TOKEN': '{{ csrf_token() }}',
+            'Accept': 'application/json'
+        }
+    })
+    .then(async response => {
+        const data = await response.json();
+        if (!response.ok) throw data;
 
-        fetch('{{ route("teachers.import") }}', {
-            method: 'POST',
-            body: formData,
-            headers: {
-                'X-Requested-With': 'XMLHttpRequest',
-                'X-CSRF-TOKEN': '{{ csrf_token() }}',
-                'Accept': 'application/json'
-            }
-        })
-            .then(async response => {
-                var data = await response.json();
-                if (response.ok) {
-                    showImportModal('Import Successful!', data.message || 'Educators imported successfully!', 'success', () => {
-                        loadPartial("{{ route('dashboard.teachers') }}", document.getElementById('nav-teachers-btn'));
-                    });
-                } else {
-                    throw data;
-                }
-            })
-            .catch(error => {
-                console.error("Import error:", error);
-                showImportModal('Import Failed', error.message || "An error occurred during import. Please check your file format.", 'error');
-            })
-            .finally(() => {
-                importBtn.disabled = false;
-                importBtn.innerHTML = originalContent;
-                input.value = '';
-            });
+        if (data.has_duplicates) {
+            renderTeacherDuplicates(data.duplicates);
+            // Show the conflict modal
+            const modal = document.getElementById('teacherImportConflictModal');
+            const box   = document.getElementById('teacherImportConflictModalBox');
+            modal.classList.remove('hidden');
+            setTimeout(() => {
+                box.classList.remove('scale-95', 'opacity-0');
+                box.classList.add('scale-100', 'opacity-100');
+            }, 10);
+        } else {
+            executeTeacherImport(true);
+        }
+    })
+    .catch(error => {
+        showImportModal('Error', error.message || 'Failed to scan the file.', 'error');
+    })
+    .finally(() => {
+        importBtn.disabled = false;
+        importBtn.innerHTML = originalContent;
+        document.getElementById('teacherImportInput').value = '';
+    });
+}
+
+
+function executeTeacherImport(autoRun = false) {
+    if (!pendingTeacherImportFile) return;
+
+    const strategy = autoRun
+        ? 'skip'
+        : document.querySelector('input[name="teacher_conflict_strategy"]:checked').value;
+
+    const formData = new FormData();
+    formData.append('file', pendingTeacherImportFile);
+    formData.append('strategy', strategy);
+    formData.append('check_only', 0);
+
+    const confirmBtn = document.getElementById('confirmTeacherImportBtn');
+    if (confirmBtn) {
+        confirmBtn.disabled = true;
+        confirmBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processing...';
     }
+
+    fetch('{{ route("teachers.import") }}', {
+        method: 'POST',
+        body: formData,
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest',
+            'X-CSRF-TOKEN': '{{ csrf_token() }}',
+            'Accept': 'application/json'
+        }
+    })
+    .then(async response => {
+        const data = await response.json();
+        if (response.ok) {
+            if (!autoRun) closeTeacherConflictModal();
+            showImportModal('Import Complete!', data.message, 'success', () => {
+                loadPartial("{{ route('dashboard.teachers') }}", document.getElementById('nav-teachers-btn'));
+            });
+        } else {
+            throw data;
+        }
+    })
+    .catch(error => {
+        if (!autoRun) closeTeacherConflictModal();
+        setTimeout(() => showImportModal('Import Failed', error.message || 'An error occurred.', 'error'), 350);
+    })
+    .finally(() => {
+        document.getElementById('teacherImportInput').value = '';
+        pendingTeacherImportFile = null;
+    });
+}
+
+function closeTeacherConflictModal() {
+    const modal = document.getElementById('teacherImportConflictModal');
+    const box   = document.getElementById('teacherImportConflictModalBox');
+    box.classList.remove('scale-100', 'opacity-100');
+    box.classList.add('scale-95', 'opacity-0');
+    setTimeout(() => {
+        modal.classList.add('hidden');
+        document.getElementById('teacherImportInput').value = '';
+        pendingTeacherImportFile = null;
+    }, 300);
+}
+
+function renderTeacherDuplicates(data) {
+    const list  = document.getElementById('teacherDuplicateList');
+    const count = document.getElementById('teacherDuplicateCountLabel');
+    list.innerHTML = '';
+    count.textContent = data.length;
+
+    data.forEach(item => {
+        const checkDiff = (key, type) => {
+            const existVal = String(item.existing[key] || 'N/A').trim();
+            const incVal   = String(item.incoming[key] || 'N/A').trim();
+            const isDiff   = existVal.toLowerCase() !== incVal.toLowerCase();
+            const val      = type === 'existing' ? existVal : incVal;
+            return isDiff
+                ? `<span class="bg-red-100 text-red-700 px-1.5 py-0.5 rounded border border-red-200 font-bold">${val}</span>`
+                : val;
+        };
+
+        const div = document.createElement('div');
+        div.className = 'border border-gray-200 rounded-xl overflow-hidden bg-white shadow-sm';
+        div.innerHTML = `
+            <div class="px-4 py-2 bg-gray-50 border-b border-gray-200 text-xs font-bold text-gray-700">
+                Employee ID: <span class="text-blue-600">${item.employee_id}</span>
+            </div>
+            <div class="grid grid-cols-2 text-xs">
+                <div class="p-3 border-r border-gray-200 bg-blue-50/30 space-y-1.5">
+                    <p class="font-black text-blue-800 mb-2 border-b border-blue-100 pb-1">Existing in System</p>
+                    <p class="flex justify-between"><strong>Name:</strong> <span>${checkDiff('name', 'existing')}</span></p>
+                    <p class="flex justify-between"><strong>Grade:</strong> <span>${checkDiff('grade', 'existing')}</span></p>
+                    <p class="flex justify-between"><strong>Section:</strong> <span>${checkDiff('section', 'existing')}</span></p>
+                    <p class="flex justify-between"><strong>Gender:</strong> <span>${checkDiff('gender', 'existing')}</span></p>
+                </div>
+                <div class="p-3 bg-green-50/30 space-y-1.5">
+                    <p class="font-black text-green-800 mb-2 border-b border-green-100 pb-1">Incoming Data</p>
+                    <p class="flex justify-between"><strong>Name:</strong> <span>${checkDiff('name', 'incoming')}</span></p>
+                    <p class="flex justify-between"><strong>Grade:</strong> <span>${checkDiff('grade', 'incoming')}</span></p>
+                    <p class="flex justify-between"><strong>Section:</strong> <span>${checkDiff('section', 'incoming')}</span></p>
+                    <p class="flex justify-between"><strong>Gender:</strong> <span>${checkDiff('gender', 'incoming')}</span></p>
+                </div>
+            </div>`;
+        list.appendChild(div);
+    });
+}
 </script>

@@ -202,37 +202,83 @@ class StudentController extends Controller
         $material->increment('downloads');
         return response()->json(['success' => true]);
     }
-
     public function import(Request $request)
     {
         $request->validate([
-            'file' => 'required|file|max:10240' // Allow up to 10MB
+            // Added 'txt' because Laravel often reads CSVs as text/plain
+            'file' => 'required|file|mimes:xlsx,xls,csv,txt|max:5120', 
+            'strategy' => 'nullable|in:skip,update',
+            'check_only' => 'nullable|boolean'
         ]);
 
+        $checkOnly = filter_var($request->check_only, FILTER_VALIDATE_BOOLEAN);
+        $strategy = $request->strategy ?? 'skip';
+
         try {
-            $import = new StudentsImport();
+            $import = new StudentsImport($strategy, $checkOnly);
             Excel::import($import, $request->file('file'));
 
-            // 🛑 Generate detailed feedback for the user
-            $message = "Successfully imported {$import->importedCount} students.";
-            if ($import->skippedCount > 0) {
-                $message .= " Skipped {$import->skippedCount} rows (missing data, duplicate LRN, or database error).";
+            // If it was just a pre-check, return the found duplicates to the frontend
+            if ($checkOnly) {
+                // --- FIX: Format the duplicates to match the Javascript UI ---
+                $formattedDuplicates = collect($import->duplicates)->map(function ($dup) {
+                    if (isset($dup['existing']) && isset($dup['incoming'])) {
+                        return $dup;
+                    }
+
+                    $lrn = $dup['lrn'] ?? null;
+                    $existingUser = $lrn ? User::where('lrn', $lrn)->first() : null;
+
+                    // Format Names
+                    $existingName = $existingUser ? trim(($existingUser->first_name ?? '') . ' ' . ($existingUser->last_name ?? '')) : 'N/A';
+                    $incomingName = trim(($dup['first_name'] ?? '') . ' ' . ($dup['last_name'] ?? '')) ?: 'N/A';
+
+                    return [
+                        'lrn' => $lrn ?? 'Unknown',
+                        'name' => $incomingName, 
+                        
+                        // Populate the existing database record
+                        'existing' => [
+                            'name' => $existingName,
+                            'grade' => $existingUser->grade_level ?? 'N/A',
+                            'section' => $existingUser->section ?? 'N/A',
+                            'gender' => $existingUser->gender ?? 'N/A',
+                        ],
+                        
+                        // Populate the new spreadsheet record
+                        'incoming' => [
+                            'name' => $incomingName,
+                            'grade' => $dup['grade_level'] ?? $dup['grade'] ?? 'N/A',
+                            'section' => $dup['section'] ?? 'N/A',
+                            'gender' => $dup['gender'] ?? 'N/A',
+                        ]
+                    ];
+                })->values()->toArray();
+                // -------------------------------------------------------------
+
+                return response()->json([
+                    'has_duplicates' => count($formattedDuplicates) > 0,
+                    'duplicates' => $formattedDuplicates
+                ]);
             }
 
-            return response()->json([
-                'success' => true,
-                'message' => $message
-            ]);
+            // Standard import message builder
+            $message = "Successfully imported {$import->importedCount} new students.";
+            if ($strategy === 'update' && $import->updatedCount > 0) {
+                $message .= " Updated {$import->updatedCount} existing students.";
+            }
+            if ($import->skippedCount > 0) {
+                $message .= " Skipped {$import->skippedCount} invalid or duplicate rows.";
+            }
 
+            return response()->json(['message' => $message]);
+            
         } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Import failed. Error: ' . $e->getMessage()
-            ], 500);
+            return response()->json(['message' => 'Import failed: ' . $e->getMessage()], 500);
         }
     }
 
-    public function downloadTemplate()
+public function downloadTemplate()
     {
         $headers = [
             'Content-Type' => 'text/csv',
@@ -267,24 +313,22 @@ class StudentController extends Controller
                 'Pedro',                // C2: Middle Name
                 'Dela Cruz',            // D2: Last Name
                 'Jr.',                  // E2: Suffix
-                '=LOWER(SUBSTITUTE(B2 & D2, " ", "")) & RIGHT(A2, 4) & RIGHT(J2, 2)', // F2: Username
-                ' ',        // G2: Email (Visual cue for the admin)
-                '=CHAR(RANDBETWEEN(65,90))&CHAR(RANDBETWEEN(97,122))&RANDBETWEEN(0,9)&CHAR(RANDBETWEEN(97,122))&CHAR(RANDBETWEEN(65,90))&RANDBETWEEN(0,9)&CHAR(RANDBETWEEN(97,122))&CHAR(RANDBETWEEN(97,122))',          // H2: Password
+                '',                     // F2: Username (Left blank so backend auto-generates it)
+                '',                     // G2: Email (Optional)
+                '',                     // H2: Password (Left blank so backend defaults to Student123!)
                 'Grade 10',             // I2: Grade Level
-                '123456',               // J2: School ID
-                'pending',             // K2: Status
+                '',                     // J2: School ID (Left blank so backend uses default school)
+                'pending',              // K2: Status
                 
                 // 👈 L2: The Instruction Cell
-                'USERNAME: Do not change the formula in the username cell; it auto-generates. EMAIL: Leave the email column blank; students must provide this personally. IMPORTANT: Delete this entire sample row before importing.'
+                'INSTRUCTIONS: Only first_name and last_name are strictly required. You can safely leave username, password, email, and school_id BLANK to use system defaults. IMPORTANT: Delete this entire sample row before importing.'
             ]);
 
             fclose($file);
         };
 
         return response()->stream($callback, 200, $headers);
-    }
-
-    public function bulkDestroy(\Illuminate\Http\Request $request)
+    }    public function bulkDestroy(\Illuminate\Http\Request $request)
     {
         $request->validate([
             'ids' => 'required|array',

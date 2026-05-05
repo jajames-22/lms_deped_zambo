@@ -373,6 +373,68 @@
         <button onclick="closeSnackbar()" class="ml-4 text-white/70 hover:text-white transition"><i class="fas fa-times"></i></button>
     </div>
 </div>
+
+<div id="lrnConflictModal" class="fixed inset-0 z-[9999] hidden flex items-center justify-center p-4">
+    <div class="absolute inset-0 bg-gray-900/60 backdrop-blur-sm" onclick="closeLrnConflictModal()"></div>
+    <div id="lrnConflictModalBox"
+        class="relative bg-white rounded-3xl shadow-2xl w-full max-w-2xl transform scale-95 opacity-0 transition-all duration-300 border border-gray-100 z-10 flex flex-col max-h-[92vh] overflow-hidden">
+
+        <div class="px-8 pt-7 pb-5 border-b border-gray-100 flex items-start gap-4">
+            <div class="w-14 h-14 bg-amber-100 text-amber-600 rounded-2xl flex items-center justify-center text-2xl shrink-0">
+                <i class="fas fa-exclamation-triangle"></i>
+            </div>
+            <div>
+                <h3 class="text-2xl font-black text-gray-900">Duplicate LRNs Detected</h3>
+                <p class="text-sm text-gray-500 mt-1">The following LRNs are already in the whitelist. Choose how to handle them.</p>
+            </div>
+        </div>
+
+        <div class="flex flex-1 min-h-0">
+            <div class="w-2/3 border-r border-gray-100 flex flex-col">
+                <div class="px-6 py-4 border-b border-gray-100 bg-gray-50">
+                    <p class="text-xs font-bold uppercase text-gray-500 tracking-wide">
+                        Conflicting LRNs (<span id="lrnDuplicateCountLabel">0</span>)
+                    </p>
+                </div>
+                <div id="lrnDuplicateList" class="flex-1 min-h-0 overflow-y-auto px-6 py-4 space-y-4"></div>
+            </div>
+
+            <div class="w-1/3 flex flex-col px-6 py-6">
+                <p class="text-sm font-semibold text-gray-700 mb-4">Choose Action</p>
+                <div class="space-y-4">
+                    <label class="flex gap-3 p-4 border rounded-xl cursor-pointer transition hover:bg-gray-50 has-[:checked]:border-blue-500 has-[:checked]:bg-blue-50">
+                        <input type="radio" name="lrn_conflict_strategy" value="skip" checked class="mt-1 w-5 h-5 text-blue-600 border-gray-300 focus:ring-blue-600 shrink-0">
+                        <div>
+                            <span class="font-bold text-gray-900 block">Skip Duplicates</span>
+                            <span class="text-xs text-gray-500">Only add new LRNs.</span>
+                        </div>
+                    </label>
+                    <label class="flex gap-3 p-4 border rounded-xl cursor-pointer transition hover:bg-gray-50 has-[:checked]:border-red-500 has-[:checked]:bg-red-50">
+                        <input type="radio" name="lrn_conflict_strategy" value="update" class="mt-1 w-5 h-5 text-red-600 border-gray-300 focus:ring-red-600 shrink-0">
+                        <div>
+                            <span class="font-bold text-gray-900 block">Reset Existing</span>
+                            <span class="text-xs text-gray-500">Reset their status back to offline.</span>
+                        </div>
+                    </label>
+                </div>
+                <div class="mt-auto pt-6">
+                    <div class="text-xs text-gray-400 bg-gray-50 border border-gray-200 rounded-lg p-3">
+                        Tip: Resetting is useful if a student needs to retake the exam.
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="px-8 py-5 border-t border-gray-100 bg-white flex justify-end gap-3">
+            <button type="button" onclick="closeLrnConflictModal()"
+                class="px-5 py-2.5 bg-gray-100 text-gray-700 font-semibold rounded-xl hover:bg-gray-200 transition">Cancel</button>
+            <button type="button" id="confirmLrnImportBtn" onclick="executeLrnImport()"
+                class="px-5 py-2.5 bg-blue-600 text-white font-semibold rounded-xl shadow hover:bg-blue-700 transition flex items-center gap-2">
+                <i class="fas fa-upload"></i> Continue Import
+            </button>
+        </div>
+    </div>
+</div>
 <script>
     // ==========================================
     // DOM PREPARATION (Fixes Modal & Snackbar Trapping)
@@ -900,38 +962,132 @@
         }
     };
 
-    window.importLrnList = async function(input) {
-        if (!input.files || input.files.length === 0) return;
+    let pendingLrnImportFile = null;
 
-        const file = input.files[0];
-        const formData = new FormData();
-        formData.append('file', file);
-        
-        const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || '{{ csrf_token() }}';
+window.importLrnList = function(input) {
+    if (!input.files || input.files.length === 0) return;
+    pendingLrnImportFile = input.files[0];
+    input.value = '';
 
-        showSnackbar('Importing LRNs...', 'info');
+    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || '{{ csrf_token() }}';
+    const formData = new FormData();
+    formData.append('file', pendingLrnImportFile);
+    formData.append('check_only', 1);
 
-        try {
-            const response = await fetch('{{ route("dashboard.assessments.access.import", $assessment->id) }}', {
-                method: 'POST',
-                headers: { 'X-CSRF-TOKEN': csrfToken },
-                body: formData
-            });
+    showSnackbar('Scanning for duplicates...', 'info');
 
-            const data = await response.json();
+    fetch('{{ route("dashboard.assessments.access.import", $assessment->id) }}', {
+        method: 'POST',
+        headers: { 'X-CSRF-TOKEN': csrfToken },
+        body: formData
+    })
+    .then(async response => {
+        const data = await response.json();
+        if (!response.ok) throw data;
 
-            if (response.ok && data.success) {
-                showSnackbar(data.message, 'success');
-                setTimeout(refreshTableOnly, 200);
-            } else {
-                showSnackbar(data.message || 'Import failed.', 'error');
-            }
-        } catch (error) {
-            showSnackbar('A network error occurred during import.', 'error');
-        } finally {
-            input.value = ''; 
+        if (data.has_duplicates) {
+            renderLrnDuplicates(data.duplicates);
+            const modal = document.getElementById('lrnConflictModal');
+            const box   = document.getElementById('lrnConflictModalBox');
+            modal.classList.remove('hidden');
+            setTimeout(() => {
+                box.classList.remove('scale-95', 'opacity-0');
+                box.classList.add('scale-100', 'opacity-100');
+            }, 10);
+        } else {
+            executeLrnImport(true);
         }
-    };
+    })
+    .catch(() => showSnackbar('Failed to scan the file.', 'error'));
+};
+
+
+window.executeLrnImport = function(autoRun = false) {
+    if (!pendingLrnImportFile) return;
+
+    const strategy = autoRun
+        ? 'skip'
+        : document.querySelector('input[name="lrn_conflict_strategy"]:checked').value;
+
+    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || '{{ csrf_token() }}';
+    const formData  = new FormData();
+    formData.append('file', pendingLrnImportFile);
+    formData.append('strategy', strategy);
+    formData.append('check_only', 0);
+
+    const confirmBtn = document.getElementById('confirmLrnImportBtn');
+    if (confirmBtn) {
+        confirmBtn.disabled = true;
+        confirmBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processing...';
+    }
+
+    fetch('{{ route("dashboard.assessments.access.import", $assessment->id) }}', {
+        method: 'POST',
+        headers: { 'X-CSRF-TOKEN': csrfToken },
+        body: formData
+    })
+    .then(async response => {
+        const data = await response.json();
+        if (response.ok && data.success) {
+            if (!autoRun) closeLrnConflictModal();
+            showSnackbar(data.message, 'success');
+            setTimeout(refreshTableOnly, 200);
+        } else {
+            throw data;
+        }
+    })
+    .catch(error => {
+        if (!autoRun) closeLrnConflictModal();
+        showSnackbar(error.message || 'Import failed.', 'error');
+    })
+    .finally(() => {
+        pendingLrnImportFile = null;
+        if (confirmBtn) {
+            confirmBtn.disabled = false;
+            confirmBtn.innerHTML = '<i class="fas fa-upload"></i> Continue Import';
+        }
+    });
+};
+
+window.closeLrnConflictModal = function() {
+    const modal = document.getElementById('lrnConflictModal');
+    const box   = document.getElementById('lrnConflictModalBox');
+    box.classList.remove('scale-100', 'opacity-100');
+    box.classList.add('scale-95', 'opacity-0');
+    setTimeout(() => {
+        modal.classList.add('hidden');
+        pendingLrnImportFile = null;
+    }, 300);
+};
+
+function renderLrnDuplicates(data) {
+    const list  = document.getElementById('lrnDuplicateList');
+    const count = document.getElementById('lrnDuplicateCountLabel');
+    list.innerHTML = '';
+    count.textContent = data.length;
+
+    data.forEach(item => {
+        const div = document.createElement('div');
+        div.className = 'border border-gray-200 rounded-xl overflow-hidden bg-white shadow-sm';
+        div.innerHTML = `
+            <div class="px-4 py-2 bg-gray-50 border-b border-gray-200 text-xs font-bold text-gray-700">
+                LRN: <span class="text-blue-600 font-mono">${item.lrn}</span>
+            </div>
+            <div class="grid grid-cols-2 text-xs">
+                <div class="p-3 border-r border-gray-200 bg-blue-50/30 space-y-1.5">
+                    <p class="font-black text-blue-800 mb-2 border-b border-blue-100 pb-1">Already in Whitelist</p>
+                    <p class="flex justify-between"><strong>Status:</strong>
+                        <span class="bg-red-100 text-red-700 px-1.5 py-0.5 rounded border border-red-200 font-bold">${item.existing.status}</span>
+                    </p>
+                </div>
+                <div class="p-3 bg-green-50/30 space-y-1.5">
+                    <p class="font-black text-green-800 mb-2 border-b border-green-100 pb-1">Incoming Action</p>
+                    <p class="flex justify-between"><strong>Status:</strong> <span>${item.incoming.status}</span></p>
+                </div>
+            </div>`;
+        list.appendChild(div);
+    });
+}
 
     // --- Assessment Delete Logic ---
     window.openAssessmentDeleteModal = function() {

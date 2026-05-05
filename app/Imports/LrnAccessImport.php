@@ -3,40 +3,77 @@
 namespace App\Imports;
 
 use App\Models\AssessmentAccess;
-use Maatwebsite\Excel\Concerns\ToModel;
+use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Log;
+use Maatwebsite\Excel\Concerns\ToCollection;
 use Maatwebsite\Excel\Concerns\WithHeadingRow;
 
-class LrnAccessImport implements ToModel, WithHeadingRow
+class LrnAccessImport implements ToCollection, WithHeadingRow
 {
-    protected $assessmentId;
+    public $importedCount = 0;
+    public $skippedCount = 0;
+    public $duplicates = [];
 
-    public function __construct($assessmentId)
+    protected $assessmentId;
+    protected $strategy;
+    protected $checkOnly;
+
+    public function __construct($assessmentId, $strategy = 'skip', $checkOnly = false)
     {
         $this->assessmentId = $assessmentId;
+        $this->strategy     = $strategy;
+        $this->checkOnly    = $checkOnly;
     }
 
-    public function model(array $row)
+    public function collection(Collection $rows)
     {
-        // Use 'lrn' (lowercase) because WithHeadingRow converts headers to slug format
-        $lrn = $row['lrn'] ?? null;
+        foreach ($rows as $row) {
+            $lrn = trim($row['lrn'] ?? '');
 
-        if (!$lrn) {
-            return null;
+            if (empty($lrn)) {
+                if (!$this->checkOnly) $this->skippedCount++;
+                continue;
+            }
+
+            $existing = AssessmentAccess::where('assessment_id', $this->assessmentId)
+                ->where('lrn', $lrn)
+                ->first();
+
+            if ($existing) {
+                // Store the duplicate LRN for the conflict modal
+                $this->duplicates[] = ['lrn' => $lrn];
+
+                if ($this->checkOnly) continue;
+
+                if ($this->strategy === 'skip') {
+                    $this->skippedCount++;
+                    continue;
+                }
+
+                // 'update' strategy: reset status back to offline
+                try {
+                    $existing->update(['status' => 'offline']);
+                    $this->importedCount++;
+                } catch (\Exception $e) {
+                    Log::error('LRN Access Update Failed: ' . $e->getMessage());
+                    $this->skippedCount++;
+                }
+                continue;
+            }
+
+            if ($this->checkOnly) continue;
+
+            try {
+                AssessmentAccess::create([
+                    'assessment_id' => $this->assessmentId,
+                    'lrn'           => $lrn,
+                    'status'        => 'offline',
+                ]);
+                $this->importedCount++;
+            } catch (\Exception $e) {
+                Log::error('LRN Access Import Failed: ' . $e->getMessage());
+                $this->skippedCount++;
+            }
         }
-
-        // Optional: Skip if already exists for this assessment
-        $exists = AssessmentAccess::where('assessment_id', $this->assessmentId)
-            ->where('lrn', $lrn)
-            ->exists();
-
-        if ($exists) {
-            return null;
-        }
-
-        return new AssessmentAccess([
-            'assessment_id' => $this->assessmentId,
-            'lrn'           => $lrn,
-            'status'        => 'offline',
-        ]);
     }
 }

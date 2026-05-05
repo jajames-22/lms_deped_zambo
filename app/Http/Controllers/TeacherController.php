@@ -215,28 +215,68 @@ class TeacherController extends Controller
      * Handle the Excel/CSV upload and import personnel.
      */
     public function import(\Illuminate\Http\Request $request)
-    {
-        // Notice we include 'txt' to prevent the CSV plain-text detection bug
-        $request->validate([
-            'file' => 'required|mimes:xlsx,xls,csv,txt|max:5120'
-        ]);
+{
+    $request->validate([
+        'file'       => 'required|file|mimes:xlsx,xls,csv,txt|max:5120',
+        'strategy'   => 'nullable|in:skip,update',
+        'check_only' => 'nullable|boolean'
+    ]);
 
-        try {
-            // Process the file using the Maatwebsite Excel package
-            \Maatwebsite\Excel\Facades\Excel::import(new \App\Imports\TeachersImport, $request->file('file'));
+    $checkOnly = filter_var($request->check_only, FILTER_VALIDATE_BOOLEAN);
+    $strategy  = $request->strategy ?? 'skip';
+
+    try {
+        $import = new \App\Imports\TeachersImport($strategy, $checkOnly);
+        \Maatwebsite\Excel\Facades\Excel::import($import, $request->file('file'));
+
+        if ($checkOnly) {
+            $formattedDuplicates = collect($import->duplicates)->map(function ($dup) {
+                $employeeId  = $dup['employee_id'] ?? null;
+                $existingUser = $employeeId ? User::where('employee_id', $employeeId)->first() : null;
+
+                $existingName = $existingUser
+                    ? trim(($existingUser->first_name ?? '') . ' ' . ($existingUser->last_name ?? ''))
+                    : 'N/A';
+                $incomingName = trim(($dup['first_name'] ?? '') . ' ' . ($dup['last_name'] ?? '')) ?: 'N/A';
+
+                return [
+                    'employee_id' => $employeeId ?? 'Unknown',
+                    'name'        => $incomingName,
+                    'existing' => [
+                        'name'   => $existingName,
+                        'grade'  => $existingUser->grade_level ?? 'N/A',
+                        'section'=> $existingUser->section ?? 'N/A',
+                        'gender' => $existingUser->gender ?? 'N/A',
+                    ],
+                    'incoming' => [
+                        'name'   => $incomingName,
+                        'grade'  => $dup['grade_level'] ?? 'N/A',
+                        'section'=> $dup['section'] ?? 'N/A',
+                        'gender' => $dup['gender'] ?? 'N/A',
+                    ],
+                ];
+            })->values()->toArray();
 
             return response()->json([
-                'success' => true, 
-                'message' => 'Personnel imported successfully!'
+                'has_duplicates' => count($formattedDuplicates) > 0,
+                'duplicates'     => $formattedDuplicates,
             ]);
-
-        } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Import failed. Check your file format. Error: ' . $e->getMessage()
-            ], 500);
         }
+
+        $message = "Successfully imported {$import->importedCount} new personnel.";
+        if ($strategy === 'update' && $import->updatedCount > 0) {
+            $message .= " Updated {$import->updatedCount} existing personnel.";
+        }
+        if ($import->skippedCount > 0) {
+            $message .= " Skipped {$import->skippedCount} invalid or duplicate rows.";
+        }
+
+        return response()->json(['message' => $message]);
+
+    } catch (\Exception $e) {
+        return response()->json(['message' => 'Import failed: ' . $e->getMessage()], 500);
     }
+}
 public function report(Request $request)
     {
         // Start building the query (FIXED: role changed to teacher)

@@ -167,37 +167,46 @@
                     <i class="fas fa-lock"></i> Content Locked
                 </button>
             @endif
-
-            {{-- Status & Publish/Revert Actions --}}
+{{-- Status & Publish/Revert Actions --}}
             @if($material->status === 'draft')
-                <button onclick="attemptPublish()"
-                    class="px-5 py-2.5 bg-[#a52a2a] text-white font-bold rounded-xl shadow-md shadow-[#a52a2a]/20 hover:bg-red-800 transition flex items-center justify-center gap-2 text-sm">
+                <button onclick="attemptPublish()" class="px-5 py-2.5 bg-[#a52a2a] text-white font-bold rounded-xl shadow-md shadow-[#a52a2a]/20 hover:bg-red-800 transition flex items-center justify-center gap-2 text-sm">
                     <i class="fas fa-paper-plane"></i> Submit for Review
                 </button>
-            @else
-                <button onclick="revertToDraft()"
-                    class="px-4 py-2.5 bg-amber-50 border border-amber-200 text-amber-700 font-bold rounded-xl hover:bg-amber-100 transition flex items-center justify-center gap-2 text-sm">
-                    <i class="fas fa-undo"></i> Revert to Draft
-                </button>
-
-                @if($material->status === 'pending')
+            @elseif($material->status === 'published')
+                
+                {{-- CHECK FOR PENDING UNPUBLISH REQUEST --}}
+                @if(!empty($material->revert_reason))
+                    <div class="px-4 py-2.5 bg-amber-50 border border-amber-200 text-amber-700 font-bold rounded-xl flex items-center justify-center gap-2 cursor-default text-sm">
+                        <i class="fas fa-clock"></i> Unpublish Requested
+                    </div>
                     @if($isAdminOrCid)
-                        {{-- ADMIN/CID Evaluate Button (Triggers Criteria Modal) --}}
-                        <button onclick="openModal('evaluateCriteriaModal', 'evaluateCriteriaBox')"
-                            class="px-5 py-2.5 bg-blue-600 text-white font-bold rounded-xl shadow-md shadow-blue-600/20 hover:bg-blue-700 transition flex items-center justify-center gap-2 text-sm">
-                            <i class="fas fa-clipboard-list"></i> Evaluate to Publish
+                        <button onclick="openModal('reviewUnpublishModal', 'reviewUnpublishBox')" class="px-5 py-2.5 bg-blue-600 text-white font-bold rounded-xl shadow-md hover:bg-blue-700 transition flex items-center justify-center gap-2 text-sm">
+                            <i class="fas fa-clipboard-check"></i> Review Request
                         </button>
-                    @else
-                        {{-- Teacher Pending Badge --}}
-                        <div
-                            class="px-4 py-2.5 bg-gray-50 border border-gray-200 text-gray-600 font-bold rounded-xl flex items-center justify-center gap-2 cursor-default text-sm">
-                            <i class="fas fa-clock"></i> Pending Review
-                        </div>
                     @endif
                 @else
-                    <div
-                        class="px-4 py-2.5 bg-green-50 border border-green-200 text-green-700 font-bold rounded-xl flex items-center justify-center gap-2 cursor-default text-sm">
+                    @if($isAdminOrCid)
+                        <button onclick="revertToDraft()" class="px-4 py-2.5 bg-amber-50 border border-amber-200 text-amber-700 font-bold rounded-xl hover:bg-amber-100 transition flex items-center justify-center gap-2 text-sm">
+                            <i class="fas fa-undo"></i> Force Revert to Draft
+                        </button>
+                    @else
+                        <button onclick="openModal('requestUnpublishModal', 'requestUnpublishBox')" class="px-4 py-2.5 bg-amber-50 border border-amber-200 text-amber-700 font-bold rounded-xl hover:bg-amber-100 transition flex items-center justify-center gap-2 text-sm">
+                            <i class="fas fa-arrow-circle-down"></i> Request Unpublish
+                        </button>
+                    @endif
+                    <div class="px-4 py-2.5 bg-green-50 border border-green-200 text-green-700 font-bold rounded-xl flex items-center justify-center gap-2 cursor-default text-sm">
                         <i class="fas fa-check-circle"></i> Published
+                    </div>
+                @endif
+                
+            @elseif($material->status === 'pending')
+                @if($isAdminOrCid)
+                    <button onclick="openModal('evaluateCriteriaModal', 'evaluateCriteriaBox')" class="px-5 py-2.5 bg-blue-600 text-white font-bold rounded-xl shadow-md hover:bg-blue-700 transition flex items-center justify-center gap-2 text-sm">
+                        <i class="fas fa-clipboard-list"></i> Evaluate to Publish
+                    </button>
+                @else
+                    <div class="px-4 py-2.5 bg-gray-50 border border-gray-200 text-gray-600 font-bold rounded-xl flex items-center justify-center gap-2 cursor-default text-sm">
+                        <i class="fas fa-clock"></i> Pending Review
                     </div>
                 @endif
             @endif
@@ -209,6 +218,28 @@
 
         {{-- LEFT COLUMN: Details, Tables & Analytics --}}
         <div class="lg:col-span-8 space-y-6">
+
+        {{-- NEW: ADMIN FEEDBACK / REVERT REASON BANNER --}}
+            @if($material->status === 'draft' && !empty($material->revert_reason))
+                <div class="bg-amber-50 rounded-3xl border border-amber-200 p-6 md:p-8 flex flex-col md:flex-row gap-6 relative overflow-hidden">
+                    <div class="absolute -right-6 -top-6 text-amber-500/10 transform rotate-12 pointer-events-none z-0">
+                        <i class="fas fa-exclamation-circle text-9xl"></i>
+                    </div>
+                    <div class="relative z-10 flex items-start gap-4">
+                        <div class="w-12 h-12 bg-amber-100 text-amber-600 rounded-full flex items-center justify-center text-xl shrink-0 shadow-sm border border-amber-200">
+                            <i class="fas fa-undo"></i>
+                        </div>
+                        <div>
+                            <h3 class="text-lg font-black text-amber-900 mb-1">Module Returned to Draft</h3>
+                            <p class="text-sm text-amber-700 mb-4 leading-relaxed">An administrator has forced this module back to draft mode. Please review their feedback below, make the necessary changes, and submit it for review again.</p>
+                            <div class="bg-white/80 p-4 rounded-xl border border-amber-200/60 shadow-sm">
+                                <p class="text-[10px] font-black text-amber-800 uppercase tracking-wider mb-1">Administrator's Reason:</p>
+                                <p class="text-sm text-amber-900 font-medium italic">"{{ $material->revert_reason }}"</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            @endif
 
             {{-- BASIC INFORMATION EDIT --}}
             <div
@@ -642,14 +673,23 @@
                     <i class="fas fa-exclamation-triangle text-8xl"></i>
                 </div>
                 <h3 class="text-sm font-black text-red-800 uppercase tracking-wider mb-2 relative z-10">Danger Zone</h3>
-                <p class="text-xs text-red-600/80 mb-5 relative z-10 leading-relaxed">Permanently delete this module and
-                    wipe all student progress.</p>
-                <button onclick="openModal('deleteConfirmModal', 'deleteConfirmBox')"
-                    class="w-full py-3 bg-white text-red-600 border border-red-200 font-bold rounded-xl shadow-sm hover:bg-red-600 hover:text-white transition relative z-10">
-                    Delete Module
-                </button>
+                <p class="text-xs text-red-600/80 mb-5 relative z-10 leading-relaxed">Permanently delete this module and wipe all student progress.</p>
+                
+                @if($material->status === 'published')
+                    <button disabled class="w-full py-3 bg-red-100 text-red-400 font-bold rounded-xl cursor-not-allowed transition relative z-10">
+                        Cannot Delete Live Module
+                    </button>
+                    @if(empty($material->revert_reason))
+                        <p class="text-[10px] text-red-500 mt-2 text-center relative z-10">You must request to unpublish this module first.</p>
+                    @else
+                        <p class="text-[10px] text-red-500 mt-2 text-center relative z-10"><i class="fas fa-spinner fa-spin mr-1"></i> Waiting for admin to approve your unpublish request.</p>
+                    @endif
+                @else
+                    <button onclick="openModal('deleteConfirmModal', 'deleteConfirmBox')" class="w-full py-3 bg-white text-red-600 border border-red-200 font-bold rounded-xl shadow-sm hover:bg-red-600 hover:text-white transition relative z-10">
+                        Delete Module
+                    </button>
+                @endif
             </div>
-
         </div>
     </div>
 </div>
@@ -684,6 +724,46 @@
     <span id="snackbar-message">Notification message</span>
 </div>
 
+{{-- Request Unpublish Modal (For Teachers) --}}
+<div id="requestUnpublishModal" class="fixed inset-0 z-[9999] hidden opacity-0 transition-opacity duration-300 flex items-center justify-center p-4">
+    <div class="absolute inset-0 bg-gray-900/60" onclick="closeModal('requestUnpublishModal', 'requestUnpublishBox')"></div>
+    <div id="requestUnpublishBox" class="bg-white rounded-3xl max-w-md w-full p-8 text-center shadow-2xl relative z-10 transform scale-95 transition-all duration-300">
+        <div class="w-16 h-16 bg-amber-50 text-amber-500 rounded-full flex items-center justify-center mx-auto mb-4 text-3xl">
+            <i class="fas fa-arrow-circle-down"></i>
+        </div>
+        <h3 class="text-xl font-black text-gray-900 mb-2">Request to Unpublish</h3>
+        <p class="text-gray-500 mb-4 text-sm leading-relaxed">Please provide a reason for unpublishing this module. Administrators will review your request.</p>
+        
+        <textarea id="unpublishReasonInput" rows="3" placeholder="I need to fix critical errors in the material..." class="w-full mb-5 px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 outline-none transition-all text-sm"></textarea>
+        
+        <div class="flex gap-3">
+            <button type="button" onclick="closeModal('requestUnpublishModal', 'requestUnpublishBox')" class="flex-1 py-3 bg-gray-100 text-gray-700 font-bold rounded-xl hover:bg-gray-200 transition">Cancel</button>
+            <button type="button" onclick="submitUnpublishRequest()" id="submitUnpublishBtn" class="flex-1 py-3 bg-amber-500 text-white font-bold rounded-xl shadow-lg shadow-amber-500/20 hover:bg-amber-600 transition flex justify-center items-center">Send Request</button>
+        </div>
+    </div>
+</div>
+
+{{-- Review Unpublish Request Modal (For Admins) --}}
+<div id="reviewUnpublishModal" class="fixed inset-0 z-[9999] hidden opacity-0 transition-opacity duration-300 flex items-center justify-center p-4">
+    <div class="absolute inset-0 bg-gray-900/60" onclick="closeModal('reviewUnpublishModal', 'reviewUnpublishBox')"></div>
+    <div id="reviewUnpublishBox" class="bg-white rounded-3xl max-w-md w-full p-8 shadow-2xl relative z-10 transform scale-95 transition-all duration-300">
+        <div class="flex justify-between items-center mb-6">
+            <h3 class="text-xl font-black text-gray-900">Review Unpublish Request</h3>
+            <button onclick="closeModal('reviewUnpublishModal', 'reviewUnpublishBox')" class="text-gray-400 hover:text-gray-600 transition"><i class="fas fa-times"></i></button>
+        </div>
+        
+        <div class="p-4 bg-gray-50 border border-gray-200 rounded-xl mb-6">
+            <p class="text-[10px] text-gray-400 font-bold uppercase tracking-wider mb-2">Teacher's Reason:</p>
+            <p class="text-sm text-gray-700 font-medium italic">"{{ $material->revert_reason ?? 'No reason provided.' }}"</p>
+        </div>
+        
+        <div class="flex gap-3">
+            <button type="button" onclick="resolveUnpublishRequest('published', this)" class="flex-1 py-3 bg-white text-gray-600 border border-gray-200 font-bold rounded-xl hover:bg-gray-50 hover:text-red-600 transition">Decline</button>
+            <button type="button" onclick="resolveUnpublishRequest('draft', this)" class="flex-1 py-3 bg-amber-500 text-white font-bold rounded-xl shadow-lg shadow-amber-500/20 hover:bg-amber-600 transition flex justify-center items-center">Approve to Draft</button>
+        </div>
+    </div>
+</div>
+
 {{-- 1. Publish Confirmation Modal --}}
 <div id="publishConfirmModal"
     class="fixed inset-0 z-[9999] hidden opacity-0 transition-opacity duration-300 flex items-center justify-center p-4">
@@ -708,24 +788,20 @@
 </div>
 
 {{-- 2. Revert to Draft Confirmation Modal --}}
-<div id="revertConfirmModal"
-    class="fixed inset-0 z-[9999] hidden opacity-0 transition-opacity duration-300 flex items-center justify-center p-4">
+<div id="revertConfirmModal" class="fixed inset-0 z-[9999] hidden opacity-0 transition-opacity duration-300 flex items-center justify-center p-4">
     <div class="absolute inset-0 bg-gray-900/60" onclick="closeModal('revertConfirmModal', 'revertConfirmBox')"></div>
-    <div id="revertConfirmBox"
-        class="bg-white rounded-3xl max-w-md w-full p-8 text-center shadow-2xl relative z-10 transform scale-95 transition-all duration-300">
-        <div
-            class="w-16 h-16 bg-amber-50 text-amber-500 rounded-full flex items-center justify-center mx-auto mb-4 text-3xl">
+    <div id="revertConfirmBox" class="bg-white rounded-3xl max-w-md w-full p-8 text-center shadow-2xl relative z-10 transform scale-95 transition-all duration-300">
+        <div class="w-16 h-16 bg-amber-50 text-amber-500 rounded-full flex items-center justify-center mx-auto mb-4 text-3xl">
             <i class="fas fa-undo"></i>
         </div>
         <h3 class="text-2xl font-black text-gray-900 mb-2">Revert to Draft?</h3>
-        <p class="text-gray-500 mb-6 text-sm leading-relaxed">Are you sure you want to revert this module to draft? It
-            will be hidden from the public explore page and students.</p>
+        <p class="text-gray-500 mb-4 text-sm leading-relaxed">Are you sure you want to revert this module to draft? It will be hidden from the public explore page and students.</p>
+        
+        <textarea id="forceRevertReasonInput" rows="3" placeholder="Provide a reason for forcing this revert (Required)..." class="w-full mb-5 px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 outline-none transition-all text-sm"></textarea>
+
         <div class="flex gap-3">
-            <button type="button" onclick="closeModal('revertConfirmModal', 'revertConfirmBox')"
-                class="flex-1 py-3 bg-gray-100 text-gray-700 font-bold rounded-xl hover:bg-gray-200 transition">Cancel</button>
-            <button type="button" onclick="executeRevertToDraft()" id="executeRevertBtn"
-                class="flex-1 py-3 bg-amber-500 text-white font-bold rounded-xl shadow-lg shadow-amber-500/20 hover:bg-amber-600 transition flex justify-center items-center">Yes,
-                Revert</button>
+            <button type="button" onclick="closeModal('revertConfirmModal', 'revertConfirmBox')" class="flex-1 py-3 bg-gray-100 text-gray-700 font-bold rounded-xl hover:bg-gray-200 transition">Cancel</button>
+            <button type="button" onclick="executeRevertToDraft()" id="executeRevertBtn" class="flex-1 py-3 bg-amber-500 text-white font-bold rounded-xl shadow-lg shadow-amber-500/20 hover:bg-amber-600 transition flex justify-center items-center">Yes, Revert</button>
         </div>
     </div>
 </div>
@@ -836,6 +912,69 @@
         </button>
     </div>
 </div>
+
+<div id="emailConflictModal" class="fixed inset-0 z-[9999] hidden flex items-center justify-center p-4">
+    <div class="absolute inset-0 bg-gray-900/60 backdrop-blur-sm" onclick="closeMaterialConflictModal()"></div>
+    <div id="emailConflictModalBox"
+        class="relative bg-white rounded-3xl shadow-2xl w-full max-w-2xl transform scale-95 opacity-0 transition-all duration-300 border border-gray-100 z-10 flex flex-col max-h-[92vh] overflow-hidden">
+
+        <div class="px-8 pt-7 pb-5 border-b border-gray-100 flex items-start gap-4">
+            <div class="w-14 h-14 bg-amber-100 text-amber-600 rounded-2xl flex items-center justify-center text-2xl shrink-0">
+                <i class="fas fa-exclamation-triangle"></i>
+            </div>
+            <div>
+                <h3 class="text-2xl font-black text-gray-900">Duplicate Emails Detected</h3>
+                <p class="text-sm text-gray-500 mt-1">The following emails already have access to this module. Choose how to handle them.</p>
+            </div>
+        </div>
+
+        <div class="flex flex-1 min-h-0">
+            <div class="w-2/3 border-r border-gray-100 flex flex-col">
+                <div class="px-6 py-4 border-b border-gray-100 bg-gray-50">
+                    <p class="text-xs font-bold uppercase text-gray-500 tracking-wide">
+                        Conflicting Emails (<span id="emailDuplicateCountLabel">0</span>)
+                    </p>
+                </div>
+                <div id="emailDuplicateList" class="flex-1 min-h-0 overflow-y-auto px-6 py-4 space-y-4"></div>
+            </div>
+
+            <div class="w-1/3 flex flex-col px-6 py-6">
+                <p class="text-sm font-semibold text-gray-700 mb-4">Choose Action</p>
+                <div class="space-y-4">
+                    <label class="flex gap-3 p-4 border rounded-xl cursor-pointer transition hover:bg-gray-50 has-[:checked]:border-blue-500 has-[:checked]:bg-blue-50">
+                        <input type="radio" name="email_conflict_strategy" value="skip" checked class="mt-1 w-5 h-5 text-blue-600 border-gray-300 focus:ring-blue-600 shrink-0">
+                        <div>
+                            <span class="font-bold text-gray-900 block">Skip Duplicates</span>
+                            <span class="text-xs text-gray-500">Only add new emails.</span>
+                        </div>
+                    </label>
+                    <label class="flex gap-3 p-4 border rounded-xl cursor-pointer transition hover:bg-gray-50 has-[:checked]:border-red-500 has-[:checked]:bg-red-50">
+                        <input type="radio" name="email_conflict_strategy" value="update" class="mt-1 w-5 h-5 text-red-600 border-gray-300 focus:ring-red-600 shrink-0">
+                        <div>
+                            <span class="font-bold text-gray-900 block">Re-activate Access</span>
+                            <span class="text-xs text-gray-500">Reset their status to pending/enrolled.</span>
+                        </div>
+                    </label>
+                </div>
+                <div class="mt-auto pt-6">
+                    <div class="text-xs text-gray-400 bg-gray-50 border border-gray-200 rounded-lg p-3">
+                        Tip: Re-activating is useful for students whose access was dropped or expired.
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="px-8 py-5 border-t border-gray-100 bg-white flex justify-end gap-3">
+            <button type="button" onclick="closeMaterialConflictModal()"
+                class="px-5 py-2.5 bg-gray-100 text-gray-700 font-semibold rounded-xl hover:bg-gray-200 transition">Cancel</button>
+            <button type="button" id="confirmEmailImportBtn" onclick="executeMaterialImport()"
+                class="px-5 py-2.5 bg-blue-600 text-white font-semibold rounded-xl shadow hover:bg-blue-700 transition flex items-center gap-2">
+                <i class="fas fa-upload"></i> Continue Import
+            </button>
+        </div>
+    </div>
+</div>
+
 
 <script>
     // Add this inside the script tags of materials-manage.blade.php
@@ -1147,6 +1286,14 @@
     }
 
     window.executeRevertToDraft = function () {
+        const reasonInput = document.getElementById('forceRevertReasonInput');
+        const reason = reasonInput ? reasonInput.value.trim() : '';
+
+        if (!reason) {
+            showSnackbar('Please provide a reason for reverting to draft.', 'error');
+            return;
+        }
+
         const btn = document.getElementById('executeRevertBtn');
         const originalHtml = btn.innerHTML;
         btn.disabled = true;
@@ -1159,26 +1306,26 @@
                 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
                 'Accept': 'application/json'
             },
-            body: JSON.stringify({ status: 'draft' })
+            // FIX: Send as revert_reason instead of admin_remarks
+            body: JSON.stringify({ status: 'draft', revert_reason: reason }) 
         })
-            .then(r => r.json())
-            .then(data => {
-                if (data.success) {
-                    closeModal('revertConfirmModal', 'revertConfirmBox');
-                    showSnackbar('Module reverted to draft.', 'success');
-                    // Redirects completely out of the manage page back to the materials list on success!
-                    setTimeout(() => loadPartial('{{ url('/dashboard/materials') }}', document.getElementById('nav-materials-btn')), 500);
-                } else {
-                    showCustomAlert('Error', data.message || 'Failed to revert to draft.', 'error');
-                    btn.disabled = false;
-                    btn.innerHTML = originalHtml;
-                }
-            })
-            .catch(error => {
-                showCustomAlert('Error', 'An error occurred.', 'error');
+        .then(r => r.json())
+        .then(data => {
+            if (data.success) {
+                closeModal('revertConfirmModal', 'revertConfirmBox');
+                showSnackbar('Module reverted to draft.', 'success');
+                setTimeout(() => loadPartial('{{ url('/dashboard/materials') }}', document.getElementById('nav-materials-btn')), 500);
+            } else {
+                showCustomAlert('Error', data.message || 'Failed to revert to draft.', 'error');
                 btn.disabled = false;
                 btn.innerHTML = originalHtml;
-            });
+            }
+        })
+        .catch(error => {
+            showCustomAlert('Error', 'An error occurred.', 'error');
+            btn.disabled = false;
+            btn.innerHTML = originalHtml;
+        });
     }
 
     // --- TOGGLE VISIBILITY ---
@@ -1235,39 +1382,142 @@
             });
     }
 
-    window.submitImport = function () {
-        const fileInput = document.getElementById('importFileInput');
-        const btn = document.getElementById('submitImportBtn');
+    let pendingMaterialImportFile = null;
 
-        if (!fileInput.files.length) { showSnackbar('Please select a file to import.', 'error'); return; }
+window.submitImport = function() {
+    const fileInput = document.getElementById('importFileInput');
+    if (!fileInput.files.length) { showSnackbar('Please select a file to import.', 'error'); return; }
 
-        const formData = new FormData();
-        formData.append('file', fileInput.files[0]);
+    pendingMaterialImportFile = fileInput.files[0];
+    fileInput.value = '';
 
-        btn.disabled = true;
-        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+    const btn = document.getElementById('submitImportBtn');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Scanning...';
 
-        fetch(`{{ url('/dashboard/materials/' . $material->id . '/import-access') }}`, {
-            method: 'POST',
-            headers: {
-                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
-                'Accept': 'application/json'
-            },
-            body: formData
-        })
-            .then(r => r.json())
-            .then(data => {
-                if (data.success) {
-                    showSnackbar(data.message, 'success');
-                    closeModal('importStudentModal', 'importStudentBox');
-                    setTimeout(() => loadPartial('{{ url('/dashboard/materials/' . $material->id . '/manage') }}'), 500);
-                } else {
-                    showCustomAlert('Error', data.message, 'error');
-                    btn.disabled = false;
-                    btn.innerHTML = 'Upload & Import';
-                }
-            });
+    const formData = new FormData();
+    formData.append('file', pendingMaterialImportFile);
+    formData.append('check_only', 1);
+
+    fetch(`{{ url('/dashboard/materials/' . $material->id . '/import-access') }}`, {
+        method: 'POST',
+        headers: {
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+            'Accept': 'application/json'
+        },
+        body: formData
+    })
+    .then(r => r.json())
+    .then(data => {
+        btn.disabled = false;
+        btn.innerHTML = 'Upload & Import';
+
+        if (data.has_duplicates) {
+            closeModal('importStudentModal', 'importStudentBox');
+            renderMaterialEmailDuplicates(data.duplicates);
+            const modal = document.getElementById('emailConflictModal');
+            const box   = document.getElementById('emailConflictModalBox');
+            modal.classList.remove('hidden');
+            setTimeout(() => {
+                box.classList.remove('scale-95', 'opacity-0');
+                box.classList.add('scale-100', 'opacity-100');
+            }, 10);
+        } else {
+            executeMaterialImport(true);
+        }
+    })
+    .catch(() => {
+        btn.disabled = false;
+        btn.innerHTML = 'Upload & Import';
+        showSnackbar('Failed to scan the file.', 'error');
+    });
+};
+
+window.executeMaterialImport = function(autoRun = false) {
+    if (!pendingMaterialImportFile) return;
+
+    const strategy = autoRun
+        ? 'skip'
+        : document.querySelector('input[name="email_conflict_strategy"]:checked').value;
+
+    const confirmBtn = document.getElementById('confirmEmailImportBtn');
+    if (confirmBtn) {
+        confirmBtn.disabled = true;
+        confirmBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processing...';
     }
+
+    const formData = new FormData();
+    formData.append('file', pendingMaterialImportFile);
+    formData.append('strategy', strategy);
+    formData.append('check_only', 0);
+
+    fetch(`{{ url('/dashboard/materials/' . $material->id . '/import-access') }}`, {
+        method: 'POST',
+        headers: {
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+            'Accept': 'application/json'
+        },
+        body: formData
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            if (!autoRun) closeMaterialConflictModal();
+            showSnackbar(data.message, 'success');
+            setTimeout(() => loadPartial('{{ url('/dashboard/materials/' . $material->id . '/manage') }}'), 500);
+        } else {
+            showCustomAlert('Error', data.message, 'error');
+        }
+    })
+    .catch(() => showSnackbar('Import failed.', 'error'))
+    .finally(() => {
+        pendingMaterialImportFile = null;
+        if (confirmBtn) {
+            confirmBtn.disabled = false;
+            confirmBtn.innerHTML = '<i class="fas fa-upload"></i> Continue Import';
+        }
+    });
+};
+
+window.closeMaterialConflictModal = function() {
+    const modal = document.getElementById('emailConflictModal');
+    const box   = document.getElementById('emailConflictModalBox');
+    box.classList.remove('scale-100', 'opacity-100');
+    box.classList.add('scale-95', 'opacity-0');
+    setTimeout(() => {
+        modal.classList.add('hidden');
+        pendingMaterialImportFile = null;
+    }, 300);
+};
+
+function renderMaterialEmailDuplicates(data) {
+    const list  = document.getElementById('emailDuplicateList');
+    const count = document.getElementById('emailDuplicateCountLabel');
+    list.innerHTML = '';
+    count.textContent = data.length;
+
+    data.forEach(item => {
+        const div = document.createElement('div');
+        div.className = 'border border-gray-200 rounded-xl overflow-hidden bg-white shadow-sm';
+        div.innerHTML = `
+            <div class="px-4 py-2 bg-gray-50 border-b border-gray-200 text-xs font-bold text-gray-700 truncate">
+                Email: <span class="text-blue-600">${item.email}</span>
+            </div>
+            <div class="grid grid-cols-2 text-xs">
+                <div class="p-3 border-r border-gray-200 bg-blue-50/30 space-y-1.5">
+                    <p class="font-black text-blue-800 mb-2 border-b border-blue-100 pb-1">Already Has Access</p>
+                    <p class="flex justify-between"><strong>Status:</strong>
+                        <span class="bg-red-100 text-red-700 px-1.5 py-0.5 rounded border border-red-200 font-bold capitalize">${item.existing.status}</span>
+                    </p>
+                </div>
+                <div class="p-3 bg-green-50/30 space-y-1.5">
+                    <p class="font-black text-green-800 mb-2 border-b border-green-100 pb-1">Incoming Action</p>
+                    <p class="flex justify-between"><strong>Status:</strong> <span>${item.incoming.status}</span></p>
+                </div>
+            </div>`;
+        list.appendChild(div);
+    });
+}
 
     window.revokeAccess = function (accessId, btnElement) {
         showCustomAlert('Remove Student', 'Are you sure you want to remove this student? Their progress will be permanently lost.', 'error', () => {
@@ -1446,4 +1696,83 @@
                 }
             });
     }
-</script>   
+
+    // --- Unpublish Actions ---
+    window.submitUnpublishRequest = function() {
+        const reason = document.getElementById('unpublishReasonInput').value.trim();
+        if(!reason) {
+            showSnackbar('Please provide a reason for the request.', 'error');
+            return;
+        }
+
+        const btn = document.getElementById('submitUnpublishBtn');
+        const originalHtml = btn.innerHTML;
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Sending...';
+
+        fetch(`{{ url('/dashboard/materials/' . $material->id . '/status') }}`, {
+            method: 'PATCH',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+                'Accept': 'application/json'
+            },
+            body: JSON.stringify({ status: 'revert_requested', revert_reason: reason })
+        })
+        .then(r => r.json())
+        .then(data => {
+            if (data.success) {
+                closeModal('requestUnpublishModal', 'requestUnpublishBox');
+                showSnackbar('Unpublish request sent to admin.', 'success');
+                setTimeout(() => loadPartial('{{ url('/dashboard/materials') }}', document.getElementById('nav-materials-btn')), 500);
+            } else {
+                showCustomAlert('Error', data.message || 'Failed to send request.', 'error');
+                btn.disabled = false;
+                btn.innerHTML = originalHtml;
+            }
+        });
+    }
+
+    window.resolveUnpublishRequest = function(actionStatus, btn) {
+        const originalHtml = btn.innerHTML;
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Processing...';
+
+        fetch(`{{ url('/dashboard/materials/' . $material->id . '/status') }}`, {
+            method: 'PATCH',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+                'Accept': 'application/json'
+            },
+            body: JSON.stringify({ status: actionStatus })
+        })
+        .then(r => r.json())
+        .then(data => {
+            if (data.success) {
+                closeModal('reviewUnpublishModal', 'reviewUnpublishBox');
+                
+                if (actionStatus === 'draft') {
+                    // Admin approved the request
+                    showCustomAlert('Response Sent', 'The unpublish request was approved. The module is now in Draft mode and you will be redirected.', 'success', () => {
+                        loadPartial('{{ url('/dashboard/materials') }}', document.getElementById('nav-materials-btn'));
+                    });
+                } else {
+                    // Admin declined the request
+                    showCustomAlert('Response Sent', 'The unpublish request was declined. The module remains published.', 'success', () => {
+                        loadPartial('{{ url('/dashboard/materials/' . $material->id . '/manage') }}');
+                    });
+                }
+            } else {
+                showCustomAlert('Error', data.message || 'Action failed.', 'error');
+                btn.disabled = false;
+                btn.innerHTML = originalHtml;
+            }
+        })
+        .catch(error => {
+            showCustomAlert('Error', 'An error occurred while processing the request.', 'error');
+            btn.disabled = false;
+            btn.innerHTML = originalHtml;
+        });
+    }
+    </script>   
