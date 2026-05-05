@@ -913,6 +913,69 @@
     </div>
 </div>
 
+<div id="emailConflictModal" class="fixed inset-0 z-[9999] hidden flex items-center justify-center p-4">
+    <div class="absolute inset-0 bg-gray-900/60 backdrop-blur-sm" onclick="closeMaterialConflictModal()"></div>
+    <div id="emailConflictModalBox"
+        class="relative bg-white rounded-3xl shadow-2xl w-full max-w-2xl transform scale-95 opacity-0 transition-all duration-300 border border-gray-100 z-10 flex flex-col max-h-[92vh] overflow-hidden">
+
+        <div class="px-8 pt-7 pb-5 border-b border-gray-100 flex items-start gap-4">
+            <div class="w-14 h-14 bg-amber-100 text-amber-600 rounded-2xl flex items-center justify-center text-2xl shrink-0">
+                <i class="fas fa-exclamation-triangle"></i>
+            </div>
+            <div>
+                <h3 class="text-2xl font-black text-gray-900">Duplicate Emails Detected</h3>
+                <p class="text-sm text-gray-500 mt-1">The following emails already have access to this module. Choose how to handle them.</p>
+            </div>
+        </div>
+
+        <div class="flex flex-1 min-h-0">
+            <div class="w-2/3 border-r border-gray-100 flex flex-col">
+                <div class="px-6 py-4 border-b border-gray-100 bg-gray-50">
+                    <p class="text-xs font-bold uppercase text-gray-500 tracking-wide">
+                        Conflicting Emails (<span id="emailDuplicateCountLabel">0</span>)
+                    </p>
+                </div>
+                <div id="emailDuplicateList" class="flex-1 min-h-0 overflow-y-auto px-6 py-4 space-y-4"></div>
+            </div>
+
+            <div class="w-1/3 flex flex-col px-6 py-6">
+                <p class="text-sm font-semibold text-gray-700 mb-4">Choose Action</p>
+                <div class="space-y-4">
+                    <label class="flex gap-3 p-4 border rounded-xl cursor-pointer transition hover:bg-gray-50 has-[:checked]:border-blue-500 has-[:checked]:bg-blue-50">
+                        <input type="radio" name="email_conflict_strategy" value="skip" checked class="mt-1 w-5 h-5 text-blue-600 border-gray-300 focus:ring-blue-600 shrink-0">
+                        <div>
+                            <span class="font-bold text-gray-900 block">Skip Duplicates</span>
+                            <span class="text-xs text-gray-500">Only add new emails.</span>
+                        </div>
+                    </label>
+                    <label class="flex gap-3 p-4 border rounded-xl cursor-pointer transition hover:bg-gray-50 has-[:checked]:border-red-500 has-[:checked]:bg-red-50">
+                        <input type="radio" name="email_conflict_strategy" value="update" class="mt-1 w-5 h-5 text-red-600 border-gray-300 focus:ring-red-600 shrink-0">
+                        <div>
+                            <span class="font-bold text-gray-900 block">Re-activate Access</span>
+                            <span class="text-xs text-gray-500">Reset their status to pending/enrolled.</span>
+                        </div>
+                    </label>
+                </div>
+                <div class="mt-auto pt-6">
+                    <div class="text-xs text-gray-400 bg-gray-50 border border-gray-200 rounded-lg p-3">
+                        Tip: Re-activating is useful for students whose access was dropped or expired.
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="px-8 py-5 border-t border-gray-100 bg-white flex justify-end gap-3">
+            <button type="button" onclick="closeMaterialConflictModal()"
+                class="px-5 py-2.5 bg-gray-100 text-gray-700 font-semibold rounded-xl hover:bg-gray-200 transition">Cancel</button>
+            <button type="button" id="confirmEmailImportBtn" onclick="executeMaterialImport()"
+                class="px-5 py-2.5 bg-blue-600 text-white font-semibold rounded-xl shadow hover:bg-blue-700 transition flex items-center gap-2">
+                <i class="fas fa-upload"></i> Continue Import
+            </button>
+        </div>
+    </div>
+</div>
+
+
 <script>
     // Add this inside the script tags of materials-manage.blade.php
     window.proceedToEvaluate = function() {
@@ -1319,39 +1382,142 @@
             });
     }
 
-    window.submitImport = function () {
-        const fileInput = document.getElementById('importFileInput');
-        const btn = document.getElementById('submitImportBtn');
+    let pendingMaterialImportFile = null;
 
-        if (!fileInput.files.length) { showSnackbar('Please select a file to import.', 'error'); return; }
+window.submitImport = function() {
+    const fileInput = document.getElementById('importFileInput');
+    if (!fileInput.files.length) { showSnackbar('Please select a file to import.', 'error'); return; }
 
-        const formData = new FormData();
-        formData.append('file', fileInput.files[0]);
+    pendingMaterialImportFile = fileInput.files[0];
+    fileInput.value = '';
 
-        btn.disabled = true;
-        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+    const btn = document.getElementById('submitImportBtn');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Scanning...';
 
-        fetch(`{{ url('/dashboard/materials/' . $material->id . '/import-access') }}`, {
-            method: 'POST',
-            headers: {
-                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
-                'Accept': 'application/json'
-            },
-            body: formData
-        })
-            .then(r => r.json())
-            .then(data => {
-                if (data.success) {
-                    showSnackbar(data.message, 'success');
-                    closeModal('importStudentModal', 'importStudentBox');
-                    setTimeout(() => loadPartial('{{ url('/dashboard/materials/' . $material->id . '/manage') }}'), 500);
-                } else {
-                    showCustomAlert('Error', data.message, 'error');
-                    btn.disabled = false;
-                    btn.innerHTML = 'Upload & Import';
-                }
-            });
+    const formData = new FormData();
+    formData.append('file', pendingMaterialImportFile);
+    formData.append('check_only', 1);
+
+    fetch(`{{ url('/dashboard/materials/' . $material->id . '/import-access') }}`, {
+        method: 'POST',
+        headers: {
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+            'Accept': 'application/json'
+        },
+        body: formData
+    })
+    .then(r => r.json())
+    .then(data => {
+        btn.disabled = false;
+        btn.innerHTML = 'Upload & Import';
+
+        if (data.has_duplicates) {
+            closeModal('importStudentModal', 'importStudentBox');
+            renderMaterialEmailDuplicates(data.duplicates);
+            const modal = document.getElementById('emailConflictModal');
+            const box   = document.getElementById('emailConflictModalBox');
+            modal.classList.remove('hidden');
+            setTimeout(() => {
+                box.classList.remove('scale-95', 'opacity-0');
+                box.classList.add('scale-100', 'opacity-100');
+            }, 10);
+        } else {
+            executeMaterialImport(true);
+        }
+    })
+    .catch(() => {
+        btn.disabled = false;
+        btn.innerHTML = 'Upload & Import';
+        showSnackbar('Failed to scan the file.', 'error');
+    });
+};
+
+window.executeMaterialImport = function(autoRun = false) {
+    if (!pendingMaterialImportFile) return;
+
+    const strategy = autoRun
+        ? 'skip'
+        : document.querySelector('input[name="email_conflict_strategy"]:checked').value;
+
+    const confirmBtn = document.getElementById('confirmEmailImportBtn');
+    if (confirmBtn) {
+        confirmBtn.disabled = true;
+        confirmBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processing...';
     }
+
+    const formData = new FormData();
+    formData.append('file', pendingMaterialImportFile);
+    formData.append('strategy', strategy);
+    formData.append('check_only', 0);
+
+    fetch(`{{ url('/dashboard/materials/' . $material->id . '/import-access') }}`, {
+        method: 'POST',
+        headers: {
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+            'Accept': 'application/json'
+        },
+        body: formData
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            if (!autoRun) closeMaterialConflictModal();
+            showSnackbar(data.message, 'success');
+            setTimeout(() => loadPartial('{{ url('/dashboard/materials/' . $material->id . '/manage') }}'), 500);
+        } else {
+            showCustomAlert('Error', data.message, 'error');
+        }
+    })
+    .catch(() => showSnackbar('Import failed.', 'error'))
+    .finally(() => {
+        pendingMaterialImportFile = null;
+        if (confirmBtn) {
+            confirmBtn.disabled = false;
+            confirmBtn.innerHTML = '<i class="fas fa-upload"></i> Continue Import';
+        }
+    });
+};
+
+window.closeMaterialConflictModal = function() {
+    const modal = document.getElementById('emailConflictModal');
+    const box   = document.getElementById('emailConflictModalBox');
+    box.classList.remove('scale-100', 'opacity-100');
+    box.classList.add('scale-95', 'opacity-0');
+    setTimeout(() => {
+        modal.classList.add('hidden');
+        pendingMaterialImportFile = null;
+    }, 300);
+};
+
+function renderMaterialEmailDuplicates(data) {
+    const list  = document.getElementById('emailDuplicateList');
+    const count = document.getElementById('emailDuplicateCountLabel');
+    list.innerHTML = '';
+    count.textContent = data.length;
+
+    data.forEach(item => {
+        const div = document.createElement('div');
+        div.className = 'border border-gray-200 rounded-xl overflow-hidden bg-white shadow-sm';
+        div.innerHTML = `
+            <div class="px-4 py-2 bg-gray-50 border-b border-gray-200 text-xs font-bold text-gray-700 truncate">
+                Email: <span class="text-blue-600">${item.email}</span>
+            </div>
+            <div class="grid grid-cols-2 text-xs">
+                <div class="p-3 border-r border-gray-200 bg-blue-50/30 space-y-1.5">
+                    <p class="font-black text-blue-800 mb-2 border-b border-blue-100 pb-1">Already Has Access</p>
+                    <p class="flex justify-between"><strong>Status:</strong>
+                        <span class="bg-red-100 text-red-700 px-1.5 py-0.5 rounded border border-red-200 font-bold capitalize">${item.existing.status}</span>
+                    </p>
+                </div>
+                <div class="p-3 bg-green-50/30 space-y-1.5">
+                    <p class="font-black text-green-800 mb-2 border-b border-green-100 pb-1">Incoming Action</p>
+                    <p class="flex justify-between"><strong>Status:</strong> <span>${item.incoming.status}</span></p>
+                </div>
+            </div>`;
+        list.appendChild(div);
+    });
+}
 
     window.revokeAccess = function (accessId, btnElement) {
         showCustomAlert('Remove Student', 'Are you sure you want to remove this student? Their progress will be permanently lost.', 'error', () => {

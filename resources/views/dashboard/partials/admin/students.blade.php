@@ -231,14 +231,121 @@
 
     </div>
 </div>
+{{-- IMPORT CONFLICT RESOLUTION MODAL --}}
+<div id="importConflictModal" class="fixed inset-0 z-[9999] hidden flex items-center justify-center p-4">
+    
+    <!-- Backdrop -->
+    <div class="absolute inset-0 bg-gray-900/60 backdrop-blur-sm" onclick="closeConflictModal()"></div>
+    
+    <!-- Modal -->
+    <div id="importConflictModalBox"
+        class="relative bg-white rounded-3xl shadow-2xl w-full max-w-3xl
+        transform scale-95 opacity-0 transition-all duration-300
+        border border-gray-100 z-10 flex flex-col max-h-[92vh] overflow-hidden">
+
+        <!-- Header -->
+        <div class="px-8 pt-7 pb-5 border-b border-gray-100 flex items-start gap-4">
+            <div class="w-14 h-14 bg-amber-100 text-amber-600 rounded-2xl flex items-center justify-center text-2xl shrink-0">
+                <i class="fas fa-exclamation-triangle"></i>
+            </div>
+            <div>
+                <h3 class="text-2xl font-black text-gray-900">Duplicate Records Detected</h3>
+                <p class="text-sm text-gray-500 mt-1">
+                    Compare existing and incoming student data, then choose how to handle duplicates.
+                </p>
+            </div>
+        </div>
+
+        <!-- Content -->
+        <div class="flex flex-1 min-h-0">
+
+            <!-- LEFT: Duplicate List with Comparison -->
+            <div class="w-2/3 border-r border-gray-100 flex flex-col">
+
+                <!-- List Header -->
+                <div class="px-6 py-4 border-b border-gray-100 bg-gray-50">
+                    <p class="text-xs font-bold uppercase text-gray-500 tracking-wide">
+                        Conflicting Records (<span id="duplicateCountLabel">0</span>)
+                    </p>
+                </div>
+
+                <!-- List -->
+                <div id="duplicateList"
+                    class="flex-1 min-h-0 overflow-y-auto px-6 py-4 space-y-4">
+
+                    <!-- JS WILL INJECT ITEMS HERE -->
+
+                </div>
+            </div>
+
+            <!-- RIGHT: Options -->
+            <div class="w-1/3 flex flex-col px-6 py-6">
+                <p class="text-sm font-semibold text-gray-700 mb-4">Choose Action</p>
+
+                <div class="space-y-4">
+                    
+                    <!-- Skip -->
+                    <label class="flex gap-3 p-4 border rounded-xl cursor-pointer transition hover:bg-gray-50
+                        has-[:checked]:border-blue-500 has-[:checked]:bg-blue-50">
+                        <input type="radio" name="conflict_strategy" value="skip" checked
+                            class="mt-1 w-5 h-5 text-blue-600 border-gray-300 focus:ring-blue-600 shrink-0">
+                        <div>
+                            <span class="font-bold text-gray-900 block">Skip Duplicates</span>
+                            <span class="text-xs text-gray-500">
+                                Only import new students.
+                            </span>
+                        </div>
+                    </label>
+
+                    <!-- Update -->
+                    <label class="flex gap-3 p-4 border rounded-xl cursor-pointer transition hover:bg-gray-50
+                        has-[:checked]:border-red-500 has-[:checked]:bg-red-50">
+                        <input type="radio" name="conflict_strategy" value="update"
+                            class="mt-1 w-5 h-5 text-red-600 border-gray-300 focus:ring-red-600 shrink-0">
+                        <div>
+                            <span class="font-bold text-gray-900 block">Update Existing</span>
+                            <span class="text-xs text-gray-500">
+                                Overwrite existing data.
+                            </span>
+                        </div>
+                    </label>
+                </div>
+
+                <!-- Note -->
+                <div class="mt-auto pt-6">
+                    <div class="text-xs text-gray-400 bg-gray-50 border border-gray-200 rounded-lg p-3">
+                        Tip: Updating will permanently replace existing student information.
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- Footer -->
+        <div class="px-8 py-5 border-t border-gray-100 bg-white flex justify-end gap-3">
+            <button type="button"
+                onclick="closeConflictModal()"
+                class="px-5 py-2.5 bg-gray-100 text-gray-700 font-semibold rounded-xl hover:bg-gray-200 transition">
+                Cancel
+            </button>
+
+            <button type="button"
+                id="confirmImportBtn"
+                onclick="executeStudentImport()"
+                class="px-5 py-2.5 bg-blue-600 text-white font-semibold rounded-xl shadow hover:bg-blue-700 transition flex items-center gap-2">
+                <i class="fas fa-upload"></i> Continue Import
+            </button>
+        </div>
+
+    </div>
+</div>
 
 {{-- DELETE MODAL --}}
 <div id="deleteStudentModal" class="fixed inset-0 z-[9999] hidden flex items-center justify-center p-4">
     <div class="absolute inset-0 bg-gray-900/60 transition-opacity" onclick="closeDeleteStudentModal()"></div>
     <div id="deleteStudentModalBox"
         class="relative bg-white rounded-3xl shadow-2xl max-w-sm w-full p-8 text-center transform scale-95 opacity-0 transition-all duration-300 border border-gray-100 z-10">
-        <div
-            class="w-20 h-20 bg-red-50 text-red-500 rounded-full flex items-center justify-center mx-auto mb-5 shadow-inner">
+        <div class="w-20 h-20 bg-red-50 text-red-500 rounded-full flex items-center justify-center mx-auto mb-5 shadow-inner">
             <i class="fas fa-user-minus text-4xl"></i>
         </div>
         <h3 class="text-2xl font-black text-gray-900 mb-2">Remove Student?</h3>
@@ -246,14 +353,8 @@
             <span id="deleteStudentCountText" class="font-bold">this student's account</span>?
         </p>
         <div class="flex gap-3">
-            <button type="button" onclick="closeDeleteStudentModal()"
-                class="flex-1 px-4 py-3 bg-gray-100 text-gray-700 font-bold rounded-xl hover:bg-gray-200 transition">
-                Cancel
-            </button>
-            <button type="button" id="confirmDeleteStudentBtn"
-                class="flex-1 px-4 py-3 bg-red-600 text-white font-bold rounded-xl shadow-lg shadow-red-900/20 hover:bg-red-700 transition flex items-center justify-center">
-                <span>Remove</span>
-            </button>
+            <button type="button" onclick="closeDeleteStudentModal()" class="flex-1 px-4 py-3 bg-gray-100 text-gray-700 font-bold rounded-xl hover:bg-gray-200 transition">Cancel</button>
+            <button type="button" id="confirmDeleteStudentBtn" class="flex-1 px-4 py-3 bg-red-600 text-white font-bold rounded-xl shadow-lg shadow-red-900/20 hover:bg-red-700 transition flex items-center justify-center"><span>Remove</span></button>
         </div>
     </div>
 </div>
@@ -261,33 +362,22 @@
 {{-- SUCCESS / IMPORT MESSAGE MODAL --}}
 <div id="importMessageModal" class="fixed inset-0 z-[9999] hidden flex items-center justify-center p-4">
     <div class="absolute inset-0 bg-gray-900/60 transition-opacity" onclick="closeImportModal()"></div>
-    <div id="importMessageModalBox"
-        class="relative bg-white rounded-3xl shadow-2xl max-w-sm w-full p-8 text-center transform scale-95 opacity-0 transition-all duration-300 border border-gray-100 z-10">
-
-        <div id="importModalIconBox"
-            class="w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-5 shadow-inner bg-gray-50 text-gray-500">
+    <div id="importMessageModalBox" class="relative bg-white rounded-3xl shadow-2xl max-w-sm w-full p-8 text-center transform scale-95 opacity-0 transition-all duration-300 border border-gray-100 z-10">
+        <div id="importModalIconBox" class="w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-5 shadow-inner bg-gray-50 text-gray-500">
             <i id="importModalIcon" class="fas fa-info-circle text-4xl"></i>
         </div>
-
         <h3 id="importModalTitle" class="text-2xl font-black text-gray-900 mb-2">Notice</h3>
         <p id="importModalMessage" class="text-gray-500 mb-8 text-sm">Message content goes here.</p>
-
-        <button type="button" onclick="closeImportModal()" id="importModalBtn"
-            class="w-full px-4 py-3 bg-[#a52a2a] text-white font-bold rounded-xl shadow-md hover:bg-red-800 transition">
-            Okay
-        </button>
+        <button type="button" onclick="closeImportModal()" id="importModalBtn" class="w-full px-4 py-3 bg-[#a52a2a] text-white font-bold rounded-xl shadow-md hover:bg-red-800 transition">Okay</button>
     </div>
 </div>
 
 {{-- EXPORT MODAL --}}
-<div id="exportModal"
-    class="fixed inset-0 bg-gray-900/60 backdrop-blur-sm z-[9999] hidden flex items-center justify-center opacity-0 transition-opacity duration-300">
-    <div class="bg-white rounded-3xl shadow-2xl w-full max-w-md p-6 transform scale-95 transition-transform duration-300 border border-gray-100"
-        id="exportModalContent">
+<div id="exportModal" class="fixed inset-0 bg-gray-900/60 backdrop-blur-sm z-[9999] hidden flex items-center justify-center opacity-0 transition-opacity duration-300">
+    <div class="bg-white rounded-3xl shadow-2xl w-full max-w-md p-6 transform scale-95 transition-transform duration-300 border border-gray-100" id="exportModalContent">
         <div class="flex justify-between items-center mb-5">
             <h3 class="text-xl font-black text-gray-900">Export Student List</h3>
-            <button onclick="toggleExportModal()" class="text-gray-400 hover:text-gray-600 border-0 bg-transparent"><i
-                    class="fas fa-times text-lg"></i></button>
+            <button onclick="toggleExportModal()" class="text-gray-400 hover:text-gray-600 border-0 bg-transparent"><i class="fas fa-times text-lg"></i></button>
         </div>
 
         <p class="text-sm text-gray-500 mb-4">Select the account status to include in the generated report:</p>
@@ -312,20 +402,16 @@
             </div>
 
             <div class="flex gap-3">
-                <button type="button" onclick="toggleExportModal()"
-                    class="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-800 py-3 rounded-xl font-bold border-0 transition-colors">Cancel</button>
-                <button type="submit" name="action" value="print" onclick="setTimeout(toggleExportModal, 500)"
-                    class="flex-1 bg-gray-800 hover:bg-gray-900 text-white py-3 rounded-xl font-bold border-0 transition-colors flex items-center justify-center gap-2"><i
-                        class="fas fa-print"></i> Print</button>
-                <button type="submit" name="action" value="download" onclick="setTimeout(toggleExportModal, 500)"
-                    class="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-3 rounded-xl font-bold border-0 transition-colors flex items-center justify-center gap-2"><i
-                        class="fas fa-file-pdf"></i> PDF</button>
+                <button type="button" onclick="toggleExportModal()" class="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-800 py-3 rounded-xl font-bold border-0 transition-colors">Cancel</button>
+                <button type="submit" name="action" value="print" onclick="setTimeout(toggleExportModal, 500)" class="flex-1 bg-gray-800 hover:bg-gray-900 text-white py-3 rounded-xl font-bold border-0 transition-colors flex items-center justify-center gap-2"><i class="fas fa-print"></i> Print</button>
+                <button type="submit" name="action" value="download" onclick="setTimeout(toggleExportModal, 500)" class="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-3 rounded-xl font-bold border-0 transition-colors flex items-center justify-center gap-2"><i class="fas fa-file-pdf"></i> PDF</button>
             </div>
         </form>
     </div>
 </div>
 
 <script>
+    // --- EXPORT LOGIC ---
     (function () {
         var statusAllRadio = document.getElementById('export_status_all_students');
         var statusCheckboxes = document.querySelectorAll('.export-status-cb-student');
@@ -340,7 +426,6 @@
             statusCheckboxes.forEach(cb => {
                 cb.addEventListener('change', function () {
                     var checkedCount = document.querySelectorAll('.export-status-cb-student:checked').length;
-
                     if (checkedCount === 3) {
                         statusAllRadio.checked = true;
                         statusCheckboxes.forEach(c => c.checked = false);
@@ -704,7 +789,7 @@
         });
     });
 
-    // --- IMPORT MODAL LOGIC ---
+    // --- IMPORT LOGIC ---
     var importSuccessCallback = null;
 
     function showImportModal(title, message, type, callback = null) {
@@ -749,17 +834,23 @@
         }, 300);
     }
 
+    let pendingImportFile = null;
+
     function handleStudentImport(input) {
         if (!input.files || !input.files[0]) return;
-
-        var formData = new FormData();
-        formData.append('file', input.files[0]);
-
+        pendingImportFile = input.files[0];
+        
         var importBtn = document.getElementById('importStudentBtn');
         var originalContent = importBtn.innerHTML;
 
+        // Change button to show it's scanning
         importBtn.disabled = true;
-        importBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> <span>Importing...</span>';
+        importBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> <span>Scanning...</span>';
+
+        // 1. Run the Pre-Check
+        var formData = new FormData();
+        formData.append('file', pendingImportFile);
+        formData.append('check_only', 1);
 
         fetch('{{ route("students.import") }}', {
             method: 'POST',
@@ -770,24 +861,173 @@
                 'Accept': 'application/json'
             }
         })
-            .then(async response => {
-                var data = await response.json();
-                if (response.ok) {
-                    showImportModal('Import Successful!', data.message || 'Students imported successfully!', 'success', () => {
-                        loadPartial("{{ route('dashboard.students') }}", document.getElementById('nav-students-btn'));
-                    });
-                } else {
-                    throw data;
-                }
-            })
-            .catch(error => {
-                console.error("Import error:", error);
-                showImportModal('Import Failed', error.message || "An error occurred during import. Please check your file format.", 'error');
-            })
-            .finally(() => {
+        .then(async response => {
+            var data = await response.json();
+            if (!response.ok) throw data;
+
+            importBtn.disabled = false;
+            importBtn.innerHTML = originalContent;
+
+            if (data.has_duplicates) {
+                // 2A. Duplicates Found! Use your existing function to render the comparison view.
+                renderDuplicates(data.duplicates);
+                
+                var modal = document.getElementById('importConflictModal');
+                var box = document.getElementById('importConflictModalBox');
+                modal.classList.remove('hidden');
+                setTimeout(() => {
+                    box.classList.remove('scale-95', 'opacity-0');
+                    box.classList.add('scale-100', 'opacity-100');
+                }, 10);
+            } else {
+                // 2B. No Duplicates Found! Execute the import immediately.
+                executeStudentImport(true); 
+            }
+        })
+        .catch(error => {
+            console.error("Check error:", error);
+            importBtn.disabled = false;
+            importBtn.innerHTML = originalContent;
+            document.getElementById('studentImportInput').value = ''; 
+            pendingImportFile = null;
+            showImportModal('Error', error.message || "Failed to scan the file.", 'error');
+        });
+    }
+    
+    
+    function executeStudentImport(autoRun = false) {
+        if (!pendingImportFile) return;
+
+        let strategy = 'skip';
+        if (!autoRun) {
+            strategy = document.querySelector('input[name="conflict_strategy"]:checked').value;
+        }
+
+        var formData = new FormData();
+        formData.append('file', pendingImportFile);
+        formData.append('strategy', strategy); 
+        formData.append('check_only', 0); // 👈 CHANGED to 0 (Laravel accepts this as false)
+
+        var confirmBtn = document.getElementById('confirmImportBtn');
+        var importBtn = document.getElementById('importStudentBtn'); 
+        
+        if(confirmBtn) {
+            confirmBtn.disabled = true;
+            confirmBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processing...';
+        } else if (autoRun) {
+            importBtn.disabled = true;
+            importBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Importing...';
+        }
+
+        fetch('{{ route("students.import") }}', {
+            method: 'POST',
+            body: formData,
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest',
+                'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                'Accept': 'application/json'
+            }
+        })
+        .then(async response => {
+            var data = await response.json();
+            if (response.ok) {
+                if(!autoRun) closeConflictModal();
+                showImportModal('Import Complete!', data.message, 'success', () => {
+                    loadPartial("{{ route('dashboard.students') }}", document.getElementById('nav-students-btn'));
+                });
+            } else {
+                throw data;
+            }
+        })
+        .catch(error => {
+            console.error("Import error:", error);
+            if(!autoRun) closeConflictModal();
+            setTimeout(() => {
+                showImportModal('Import Failed', error.message || "An error occurred during import.", 'error');
+            }, 350);
+        })
+        .finally(() => {
+            document.getElementById('studentImportInput').value = ''; 
+            pendingImportFile = null;
+            if (autoRun && importBtn) {
                 importBtn.disabled = false;
-                importBtn.innerHTML = originalContent;
-                input.value = '';
-            });
+                importBtn.innerHTML = '<i class="fas fa-file-import"></i><span>Import</span>';
+            }
+        });
+    }
+
+    function closeConflictModal() {
+        var modal = document.getElementById('importConflictModal');
+        var box = document.getElementById('importConflictModalBox');
+        
+        box.classList.remove('scale-100', 'opacity-100');
+        box.classList.add('scale-95', 'opacity-0');
+        
+        setTimeout(() => {
+            modal.classList.add('hidden');
+            document.getElementById('studentImportInput').value = ''; 
+            pendingImportFile = null;
+        }, 300);
+    }
+
+    function renderDuplicates(data) {
+        const list = document.getElementById('duplicateList');
+        const count = document.getElementById('duplicateCountLabel');
+
+        list.innerHTML = '';
+        count.textContent = data.length;
+
+        data.forEach(item => {
+            
+            // Helper function to compare fields and highlight differences
+            const checkDiff = (key, type) => {
+                const existVal = String(item.existing[key] || 'N/A').trim();
+                const incVal = String(item.incoming[key] || 'N/A').trim();
+                const isDiff = existVal.toLowerCase() !== incVal.toLowerCase();
+
+                const val = type === 'existing' ? existVal : incVal;
+
+                // If values are different, return it wrapped in a red highlight badge
+                if (isDiff) {
+                    return `<span class="bg-red-100 text-red-700 px-1.5 py-0.5 rounded border border-red-200 font-bold">${val}</span>`;
+                }
+                
+                // If they match, just return standard text
+                return val;
+            };
+
+            const div = document.createElement('div');
+            div.className = "border border-gray-200 rounded-xl overflow-hidden bg-white shadow-sm";
+
+            div.innerHTML = `
+                <div class="px-4 py-2 bg-gray-50 border-b border-gray-200 text-xs font-bold text-gray-700">
+                    LRN: <span class="text-blue-600">${item.lrn}</span>
+                </div>
+
+                <div class="grid grid-cols-2 text-xs">
+
+                    <!-- EXISTING -->
+                    <div class="p-3 border-r border-gray-200 bg-blue-50/30 space-y-1.5">
+                        <p class="font-black text-blue-800 mb-2 border-b border-blue-100 pb-1">Existing in System</p>
+                        <p class="flex justify-between"><strong>Name:</strong> <span>${checkDiff('name', 'existing')}</span></p>
+                        <p class="flex justify-between"><strong>Grade:</strong> <span>${checkDiff('grade', 'existing')}</span></p>
+                        <p class="flex justify-between"><strong>Section:</strong> <span>${checkDiff('section', 'existing')}</span></p>
+                        <p class="flex justify-between"><strong>Gender:</strong> <span>${checkDiff('gender', 'existing')}</span></p>
+                    </div>
+
+                    <!-- NEW -->
+                    <div class="p-3 bg-green-50/30 space-y-1.5">
+                        <p class="font-black text-green-800 mb-2 border-b border-green-100 pb-1">Incoming Data</p>
+                        <p class="flex justify-between"><strong>Name:</strong> <span>${checkDiff('name', 'incoming')}</span></p>
+                        <p class="flex justify-between"><strong>Grade:</strong> <span>${checkDiff('grade', 'incoming')}</span></p>
+                        <p class="flex justify-between"><strong>Section:</strong> <span>${checkDiff('section', 'incoming')}</span></p>
+                        <p class="flex justify-between"><strong>Gender:</strong> <span>${checkDiff('gender', 'incoming')}</span></p>
+                    </div>
+
+                </div>
+            `;
+
+            list.appendChild(div);
+        });
     }
 </script>

@@ -20,25 +20,47 @@ class AssessmentController extends Controller
 {
 
     public function importAccess(Request $request, Assessment $assessment)
-    {
-        $request->validate([
-            'file' => 'required|mimes:xlsx,xls,csv|max:2048'
-        ]);
+{
+    $request->validate([
+        'file'       => 'required|mimes:xlsx,xls,csv,txt|max:2048',
+        'strategy'   => 'nullable|in:skip,update',
+        'check_only' => 'nullable|boolean',
+    ]);
 
-        try {
-            Excel::import(new LrnAccessImport($assessment->id), $request->file('file'));
+    $checkOnly = filter_var($request->check_only, FILTER_VALIDATE_BOOLEAN);
+    $strategy  = $request->strategy ?? 'skip';
+
+    try {
+        $import = new LrnAccessImport($assessment->id, $strategy, $checkOnly);
+        Excel::import($import, $request->file('file'));
+
+        if ($checkOnly) {
+            $formatted = collect($import->duplicates)->map(fn($dup) => [
+                'lrn'      => $dup['lrn'],
+                'existing' => ['status' => AssessmentAccess::where('assessment_id', $assessment->id)->where('lrn', $dup['lrn'])->value('status') ?? 'offline'],
+                'incoming' => ['status' => 'offline (reset)'],
+            ])->values()->toArray();
 
             return response()->json([
-                'success' => true,
-                'message' => 'LRN list imported successfully!'
+                'has_duplicates' => count($formatted) > 0,
+                'duplicates'     => $formatted,
             ]);
-        } catch (Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Import failed. Check if your file has an "lrn" header.'
-            ], 500);
         }
+
+        $message = "Successfully added {$import->importedCount} LRN(s).";
+        if ($import->skippedCount > 0) {
+            $message .= " Skipped {$import->skippedCount} duplicate or invalid rows.";
+        }
+
+        return response()->json(['success' => true, 'message' => $message]);
+
+    } catch (Exception $e) {
+        return response()->json([
+            'success' => false,
+            'message' => 'Import failed. Check if your file has an "lrn" header. Error: ' . $e->getMessage()
+        ], 500);
     }
+}
 
     public function index()
     {

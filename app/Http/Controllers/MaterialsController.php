@@ -603,45 +603,69 @@ class MaterialsController extends Controller
 
         return view('dashboard.partials.shared.evaluation-result', compact('material', 'evaluationData'));
     }
+public function importAccess(Request $request, $id)
+{
+    $request->validate([
+        'file'       => 'required|mimes:xlsx,xls,csv,txt|max:2048',
+        'strategy'   => 'nullable|in:skip,update',
+        'check_only' => 'nullable|boolean',
+    ]);
 
-    public function importAccess(Request $request, $id)
-    {
-        $request->validate(['file' => 'required|mimes:xlsx,xls,csv|max:2048']);
+    $checkOnly = filter_var($request->check_only, FILTER_VALIDATE_BOOLEAN);
+    $strategy  = $request->strategy ?? 'skip';
 
-        try {
-            $existingEmails = \App\Models\MaterialAccess::where('material_id', $id)->pluck('email')->toArray();
+    try {
+        $import = new EmailMaterialsAccessImport($id, $strategy, $checkOnly);
+        \Maatwebsite\Excel\Facades\Excel::import($import, $request->file('file'));
 
-            \Maatwebsite\Excel\Facades\Excel::import(new EmailMaterialsAccessImport($id), $request->file('file'));
+        if ($checkOnly) {
+            $formatted = collect($import->duplicates)->map(fn($dup) => [
+                'email'    => $dup['email'],
+                'existing' => ['status' => $dup['status']],
+                'incoming' => ['status' => 'pending / enrolled'],
+            ])->values()->toArray();
 
-            $newlyAddedAccesses = \App\Models\MaterialAccess::where('material_id', $id)
-                ->whereNotIn('email', $existingEmails)
-                ->get();
-
-            $material = \App\Models\Material::find($id);
-
-            // UPDATED: Grab full name
-            $instructor = auth()->user();
-            $instructorName = trim(($instructor->first_name ?? '') . ' ' . ($instructor->last_name ?? '')) ?: 'An Instructor';
-
-            foreach ($newlyAddedAccesses as $access) {
-                $student = \App\Models\User::where('email', $access->email)->first();
-
-                if ($student && $material) {
-                    $student->notify(new \App\Notifications\LmsAlertNotification(
-                        'New Module Access',
-                        $instructorName . ' granted you access to a private module: "' . $material->title . '".',
-                        route('dashboard.materials.show', $material->hashid),
-                        'fas fa-unlock-alt',
-                        'text-blue-600'
-                    ));
-                }
-            }
-
-            return response()->json(['success' => true, 'message' => 'List imported successfully!']);
-        } catch (\Exception $e) {
-            return response()->json(['success' => false, 'message' => 'Import failed. Check if your file has an "email" header. Error: ' . $e->getMessage()], 500);
+            return response()->json([
+                'has_duplicates' => count($formatted) > 0,
+                'duplicates'     => $formatted,
+            ]);
         }
+
+        // Send notifications only for newly added emails
+        $material = \App\Models\Material::find($id);
+        $instructor = auth()->user();
+        $instructorName = trim(($instructor->first_name ?? '') . ' ' . ($instructor->last_name ?? '')) ?: 'An Instructor';
+
+        foreach ($import->newEmails as $email) {
+            $student = \App\Models\User::where('email', $email)->first();
+            if ($student && $material) {
+                $student->notify(new \App\Notifications\LmsAlertNotification(
+                    'New Module Access',
+                    $instructorName . ' granted you access to a private module: "' . $material->title . '".',
+                    route('dashboard.materials.show', $material->hashid),
+                    'fas fa-unlock-alt',
+                    'text-blue-600'
+                ));
+            }
+        }
+
+        $message = "Successfully added {$import->importedCount} email(s).";
+        if ($strategy === 'update' && $import->updatedCount > 0) {
+            $message .= " Re-activated {$import->updatedCount} existing email(s).";
+        }
+        if ($import->skippedCount > 0) {
+            $message .= " Skipped {$import->skippedCount} duplicate or invalid rows.";
+        }
+
+        return response()->json(['success' => true, 'message' => $message]);
+
+    } catch (\Exception $e) {
+        return response()->json([
+            'success' => false,
+            'message' => 'Import failed. Check if your file has an "email" header. Error: ' . $e->getMessage()
+        ], 500);
     }
+}
 
     public function store(Request $request, $id)
     {
