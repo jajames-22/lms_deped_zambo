@@ -269,7 +269,7 @@ class StudentController extends Controller
                 'Jr.',                  // E2: Suffix
                 '=LOWER(SUBSTITUTE(B2 & D2, " ", "")) & RIGHT(A2, 4) & RIGHT(J2, 2)', // F2: Username
                 ' ',        // G2: Email (Visual cue for the admin)
-                'SecretPass!',          // H2: Password
+                '=CHAR(RANDBETWEEN(65,90))&CHAR(RANDBETWEEN(97,122))&RANDBETWEEN(0,9)&CHAR(RANDBETWEEN(97,122))&CHAR(RANDBETWEEN(65,90))&RANDBETWEEN(0,9)&CHAR(RANDBETWEEN(97,122))&CHAR(RANDBETWEEN(97,122))',          // H2: Password
                 'Grade 10',             // I2: Grade Level
                 '123456',               // J2: School ID
                 'pending',             // K2: Status
