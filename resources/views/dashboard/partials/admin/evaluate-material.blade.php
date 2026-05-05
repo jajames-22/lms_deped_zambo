@@ -261,6 +261,19 @@
     // Sort by our new custom order value instead of creation date
     $timeline = $timeline->sortBy('order_val')->values();
 
+// --- DETERMINE MODULE TYPE (Resource vs Certification) ---
+    $hasAssessment = false;
+    if (isset($material->exams) && $material->exams->count() > 0) {
+        $hasAssessment = true;
+    }
+    if (!$hasAssessment && isset($material->lessons)) {
+        foreach ($material->lessons as $lesson) {
+            if ($lesson->contents && $lesson->contents->whereIn('type', ['mcq', 'true_false', 'checkbox', 'text'])->count() > 0) {
+                $hasAssessment = true;
+                break;
+            }
+        }
+    }
 
     // --- FETCH DYNAMIC EVALUATION CRITERIA ---
     $rubricData = [];
@@ -347,18 +360,31 @@
                         {{ $material->instructor->last_name ?? '' }}</span>
                 </div>
 
-                <div class="mt-3">
+                <div class="mt-3 flex flex-wrap gap-2 items-center">                
+                    {{-- PUBLIC / PRIVATE --}}
                     @if($material->is_public)
-                        <span
-                            class="text-[13px] bg-green-100 text-green-700 px-2 py-0.5 rounded font-bold uppercase tracking-widest">
+                        <span class="text-[13px] bg-green-100 text-green-700 px-2 py-0.5 rounded font-bold uppercase tracking-widest">
                             Public Module
                         </span>
                     @else
-                        <span
-                            class="text-[13px] bg-amber-200 text-amber-600 px-2 py-0.5 rounded font-bold uppercase tracking-widest">
+                        <span class="text-[13px] bg-amber-200 text-amber-600 px-2 py-0.5 rounded font-bold uppercase tracking-widest">
                             Private Module
                         </span>
                     @endif
+
+                    {{-- MODULE TYPE --}}
+                    @if($hasAssessment)
+                        <span class="text-[13px] bg-red-100 text-red-700 px-2 py-0.5 rounded font-bold uppercase tracking-widest"
+                            title="Contains required quizzes or exams">
+                            Graded Material
+                        </span>
+                    @else
+                        <span class="text-[13px] bg-blue-100 text-blue-700 px-2 py-0.5 rounded font-bold uppercase tracking-widest"
+                            title="Read-only reference material">
+                            Learning Resource
+                        </span>
+                    @endif
+
                 </div>
             </div>
 
