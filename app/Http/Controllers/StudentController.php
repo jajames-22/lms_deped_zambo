@@ -236,7 +236,7 @@ class StudentController extends Controller
     {
         $headers = [
             'Content-Type' => 'text/csv',
-            'Content-Disposition' => 'attachment; filename="Student_Import_Template.csv"',
+            'Content-Disposition' => 'attachment; filename="Student_Import_Template.csv"', 
         ];
 
         $columns = [
@@ -250,25 +250,32 @@ class StudentController extends Controller
             'password',
             'grade_level',
             'school_id',
-            'status' 
+            'status',
+            'INSTRUCTIONS_(READ_ME)' // 👈 Added a dedicated instructions column
         ];
 
         $callback = function () use ($columns) {
             $file = fopen('php://output', 'w');
+            
+            // 1. Add the headers (Row 1)
             fputcsv($file, $columns);
 
+            // 2. Add the sample row with the instructions (Row 2)
             fputcsv($file, [
-                '123456789012',
-                'Juan',
-                'Pedro',
-                'Dela Cruz',
-                'Jr.',
-                'juan_delacruz',
-                'juan@deped.gov.ph',
-                'SecretPass!',
-                'Grade 10',
-                '123456',
-                'verified' 
+                '123456789012',         // A2: LRN 
+                'Juan',                 // B2: First Name
+                'Pedro',                // C2: Middle Name
+                'Dela Cruz',            // D2: Last Name
+                'Jr.',                  // E2: Suffix
+                '=LOWER(SUBSTITUTE(B2 & D2, " ", "")) & RIGHT(A2, 4) & RIGHT(J2, 2)', // F2: Username
+                ' ',        // G2: Email (Visual cue for the admin)
+                'SecretPass!',          // H2: Password
+                'Grade 10',             // I2: Grade Level
+                '123456',               // J2: School ID
+                'pending',             // K2: Status
+                
+                // 👈 L2: The Instruction Cell
+                'USERNAME: Do not change the formula in the username cell; it auto-generates. EMAIL: Leave the email column blank; students must provide this personally. IMPORTANT: Delete this entire sample row before importing.'
             ]);
 
             fclose($file);
