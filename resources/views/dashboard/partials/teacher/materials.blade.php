@@ -45,6 +45,13 @@
                     $statusLabel = 'Published';
                     $btnIcon = 'fa-layer-group';
                     $btnText = 'Manage Material';
+                } elseif ($statusStr === 'revert_requested') {
+                    $statusColor = 'bg-amber-500';
+                    $statusText = 'text-amber-800';
+                    $statusBg = 'bg-amber-100/95';
+                    $statusLabel = 'Unpublish Req.';
+                    $btnIcon = 'fa-layer-group';
+                    $btnText = 'Manage Material';
                 } elseif ($statusStr === 'pending') {
                     $statusColor = 'bg-amber-500';
                     $statusText = 'text-amber-800';
@@ -77,7 +84,7 @@
                         </div>
                     @endif
                     
-                    {{-- DUPLICATE AND DELETE BUTTONS --}}
+{{-- DUPLICATE AND DELETE BUTTONS --}}
                     <div class="absolute top-3 right-3 flex gap-1.5 opacity-0 group-hover:opacity-100 transition-all z-10">
                         <button
                             onclick="event.stopPropagation(); MaterialManager.duplicate('{{ $material->id }}', '{{ route('dashboard.materials.duplicate', $material->id) }}')"
@@ -86,14 +93,23 @@
                             <i class="fas fa-copy text-xs"></i>
                         </button>
                         
-                        <button
-                            onclick="event.stopPropagation(); MaterialManager.delete('{{ $material->id }}', '{{ route('dashboard.materials.destroy', $material->id) }}')"
-                            class="h-7 w-7 rounded-full bg-white/90 backdrop-blur-sm text-gray-500 flex items-center justify-center hover:bg-red-50 hover:text-red-600 shadow-sm transition-colors"
-                            title="Delete Material">
-                            <i class="fas fa-trash-alt text-xs"></i>
-                        </button>
+                        @if(in_array($statusStr, ['published', 'revert_requested']))
+                            <button disabled
+                                onclick="event.stopPropagation();"
+                                class="h-7 w-7 rounded-full bg-white/90 backdrop-blur-sm text-gray-300 flex items-center justify-center cursor-not-allowed shadow-sm transition-colors"
+                                title="Cannot delete published module. Request unpublish first.">
+                                <i class="fas fa-trash-alt text-xs"></i>
+                            </button>
+                        @else
+                            <button
+                                onclick="event.stopPropagation(); MaterialManager.delete('{{ $material->id }}', '{{ route('dashboard.materials.destroy', $material->id) }}')"
+                                class="h-7 w-7 rounded-full bg-white/90 backdrop-blur-sm text-gray-500 flex items-center justify-center hover:bg-red-50 hover:text-red-600 shadow-sm transition-colors"
+                                title="Delete Material">
+                                <i class="fas fa-trash-alt text-xs"></i>
+                            </button>
+                        @endif
                     </div>
-
+                    
                     <div class="absolute top-3 left-3 flex items-center">
                         <span class="px-2 py-1 {{ $statusBg }} {{ $statusText }} backdrop-blur-sm text-[9px] font-bold rounded uppercase tracking-wider shadow-sm border border-white/40">
                             {{ $statusLabel }}

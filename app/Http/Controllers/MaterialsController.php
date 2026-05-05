@@ -386,12 +386,12 @@ class MaterialsController extends Controller
         }
     }
 
-    public function toggleStatus(Request $request, $id)
+   public function toggleStatus(Request $request, $id)
     {
         try {
             // 1. Validate the basic status
             $request->validate([
-                'status' => 'required|in:draft,pending,published'
+                'status' => 'required|in:draft,pending,published,revert_requested'
             ]);
 
             $targetStatus = $request->status;
@@ -400,20 +400,101 @@ class MaterialsController extends Controller
             // Fetch the material BEFORE updating so we can check ownership and titles
             $material = \App\Models\Material::with('instructor')->findOrFail($id);
 
+            // ==========================================
+            // NEW: Handle Unpublish Request (Stays Published)
+            // ==========================================
+            if ($targetStatus === 'revert_requested') {
+                \Illuminate\Support\Facades\DB::table('materials')->where('id', $id)->update([
+                    // We DO NOT change 'status' here so it remains 'published'
+                    'revert_reason' => $request->revert_reason, 
+                    'updated_at' => now()
+                ]);
+
+                // Notify Admins
+                $approvers = \App\Models\User::whereIn('role', ['admin', 'cid'])->get();
+                $teacherName = $currentUser->first_name . ' ' . $currentUser->last_name;
+                foreach ($approvers as $approver) {
+                    $approver->notify(new \App\Notifications\LmsAlertNotification(
+                        'Unpublish Request',
+                        "{$teacherName} requested to unpublish the module \"{$material->title}\".",
+                        route('dashboard.materials.manage', $material->id),
+                        'fas fa-exclamation-circle',
+                        'text-amber-600'
+                    ));
+                }
+                return response()->json(['success' => true, 'message' => 'Unpublish request sent to administrators.']);
+            }
+
+            // ==========================================
+            // NEW: Handle Admin Review of Unpublish Request
+            // ==========================================
+            // Check if there is an active request via the revert_reason column
+            if (!empty($material->revert_reason) && in_array($currentUser->role, ['admin', 'cid'])) {
+                if ($targetStatus === 'draft') {
+                    // Approved: Move to draft and clear reason
+                    \Illuminate\Support\Facades\DB::table('materials')->where('id', $id)->update([
+                        'status' => 'draft',
+                        'revert_reason' => null,
+                        'updated_at' => now()
+                    ]);
+                    if ($material->instructor) {
+                        $material->instructor->notify(new \App\Notifications\LmsAlertNotification(
+                            'Unpublish Request Approved',
+                            'Your request to unpublish "' . $material->title . '" was approved. It is now in Draft mode.',
+                            route('dashboard.materials.manage', $material->id),
+                            'fas fa-check-circle',
+                            'text-green-600'
+                        ));
+                    }
+                    return response()->json(['success' => true, 'message' => 'Request approved. Module is now in Draft.']);
+                } elseif ($targetStatus === 'published') {
+                    // Rejected: Keep published and clear reason
+                    \Illuminate\Support\Facades\DB::table('materials')->where('id', $id)->update([
+                        'status' => 'published',
+                        'revert_reason' => null,
+                        'updated_at' => now()
+                    ]);
+                    if ($material->instructor) {
+                        $material->instructor->notify(new \App\Notifications\LmsAlertNotification(
+                            'Unpublish Request Declined',
+                            'Your request to unpublish "' . $material->title . '" was declined by an admin.',
+                            route('dashboard.materials.manage', $material->id),
+                            'fas fa-times-circle',
+                            'text-red-600'
+                        ));
+                    }
+                    return response()->json(['success' => true, 'message' => 'Request declined. Module remains Published.']);
+                }
+            }
+
             // Force teachers to go through 'pending' instead of direct publish
             if ($currentUser->role === 'teacher' && $targetStatus === 'published') {
                 $targetStatus = 'pending';
             }
 
-            // 2. Prepare the database update array
+            // Force teachers to go through 'pending' instead of direct publish
+            if ($currentUser->role === 'teacher' && $targetStatus === 'published') {
+                $targetStatus = 'pending';
+            }
+
+            // 2. Prepare the database update array for normal status toggles
             $updateData = [
                 'status' => $targetStatus,
                 'updated_at' => now()
             ];
 
+            // FIX: Catch the admin's force revert reason and put it in the dedicated column
+            if ($request->has('revert_reason')) {
+                $updateData['revert_reason'] = $request->revert_reason;
+            }
+
+            elseif (in_array($targetStatus, ['pending', 'published'])) {
+                $updateData['revert_reason'] = null;
+            }
+
             // 3. If the Admin/CID is evaluating, capture the Rubric Breakdown & Remarks
             if ($request->has('evaluation_details')) {
-                $updateData['admin_remarks'] = $request->admin_remarks;
+                $updateData['admin_remarks'] = $request->admin_remarks; // Stays safe for Evaluations
                 $updateData['evaluation_json'] = json_encode([
                     'score_percentage' => $request->score_percentage,
                     'details' => $request->evaluation_details
@@ -425,10 +506,8 @@ class MaterialsController extends Controller
                 ->update($updateData);
 
             // 4. --- NOTIFICATION LOGIC ---
-
             // SCENARIO A: Teacher submits a material for approval
             if ($currentUser->role === 'teacher' && $targetStatus === 'pending') {
-                // Fetch all CID and Admin personnel
                 $approvers = \App\Models\User::whereIn('role', ['admin', 'cid'])->get();
                 $teacherName = $currentUser->first_name . ' ' . $currentUser->last_name;
 
@@ -449,10 +528,8 @@ class MaterialsController extends Controller
                 $notifIcon = 'fas fa-info-circle';
                 $notifColor = 'text-blue-600';
 
-                // Determine the correct title of the evaluator
                 $evaluatorTitle = $currentUser->role === 'cid' ? 'CID Personnel' : 'An Admin';
 
-                // Customize notification based on the target status
                 if ($targetStatus === 'published') {
                     $notifTitle = 'Module Approved!';
                     $notifMessage = 'Congratulations! Your module "' . $material->title . '" has been evaluated and published by ' . $evaluatorTitle . '.';
@@ -464,13 +541,19 @@ class MaterialsController extends Controller
                     $notifIcon = 'fas fa-undo';
                     $notifColor = 'text-red-600';
                 } elseif ($targetStatus === 'draft') {
+                    // This handles the manual "Force Revert" button
                     $notifTitle = 'Module Reverted to Draft';
                     $notifMessage = $evaluatorTitle . ' reverted your module "' . $material->title . '" to Draft mode.';
+                    
+                    // FIX: Read from the correct request key for the notification
+                    if ($request->has('revert_reason') && !empty($request->revert_reason)) {
+                        $notifMessage .= ' Reason: "' . $request->revert_reason . '"';
+                    }
+                    
                     $notifIcon = 'fas fa-archive';
                     $notifColor = 'text-amber-600';
                 }
 
-                // Fire the notification if a relevant status change occurred
                 if ($notifTitle !== '') {
                     $material->instructor->notify(new \App\Notifications\LmsAlertNotification(
                         $notifTitle,
@@ -481,18 +564,15 @@ class MaterialsController extends Controller
                     ));
                 }
             }
-
+            
             $statusText = 'in Draft Mode';
-            if ($targetStatus === 'published')
-                $statusText = 'Published and Live';
-            if ($targetStatus === 'pending')
-                $statusText = 'Submitted for Approval';
+            if ($targetStatus === 'published') $statusText = 'Published and Live';
+            if ($targetStatus === 'pending') $statusText = 'Submitted for Approval';
 
             return response()->json([
                 'success' => true,
                 'new_status' => $targetStatus,
                 'message' => 'Module is now ' . $statusText,
-                // FIX: Use $material->hashid here instead of $hashid or $id
                 'redirect_url' => in_array($currentUser->role, ['admin', 'cid']) && $request->has('evaluation_details')
                     ? route('dashboard.materials.evaluation-result', $material->hashid)
                     : null
@@ -838,6 +918,10 @@ class MaterialsController extends Controller
     {
         \Illuminate\Support\Facades\DB::beginTransaction();
         try {
+            $material = \Illuminate\Support\Facades\DB::table('materials')->where('id', $id)->first();
+            if ($material && $material->status === 'published') {
+                return response()->json(['success' => false, 'message' => 'Cannot delete a published module. Please request to unpublish it to Draft first.'], 403);
+            }
             // 1. Delete Exam dependencies (Answers, Options, and the Exams themselves)
             $examIds = \Illuminate\Support\Facades\DB::table('exams')->where('material_id', $id)->pluck('id');
             if ($examIds->isNotEmpty()) {

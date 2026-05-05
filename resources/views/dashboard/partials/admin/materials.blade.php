@@ -82,6 +82,12 @@
                                 $statusLabel = 'Published';
                                 $btnIcon = 'fa-desktop';
                                 $btnTooltip = 'Manage Material';
+                            } elseif ($statusStr === 'revert_requested') {
+                                $statusColor = 'bg-amber-50 text-amber-700 border-amber-200';
+                                $indicatorColor = 'bg-amber-500';
+                                $statusLabel = 'Unpublish Req.';
+                                $btnIcon = 'fa-desktop';
+                                $btnTooltip = 'Manage Material';
                             } elseif ($statusStr === 'pending') {
                                 $statusColor = 'bg-amber-50 text-amber-700 border-amber-200';
                                 $indicatorColor = 'bg-amber-400';
@@ -141,11 +147,9 @@
                                 <span class="bg-gray-100 text-gray-600 text-xs px-2 py-1 rounded-md font-bold border border-gray-200 material-count">
                                     {{ $material->lessons_count ?? 0 }}
                                 </span>
-                            </td>
-
-<td class="px-4 py-3 text-center" onclick="event.stopPropagation();">
+                            </td><td class="px-4 py-3 text-center" onclick="event.stopPropagation();">
                                 <div class="flex items-center justify-center gap-2">
-                                    @if($statusStr === 'published')
+                                    @if(in_array($statusStr, ['published', 'revert_requested']))
                                     <button onclick="loadPartial('{{ route('dashboard.materials.analytics', $material->id) }}', document.getElementById('nav-materials-btn'))"
                                         class="w-8 h-8 flex items-center justify-center text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition shadow-none"
                                         title="View Analytics">
@@ -173,10 +177,18 @@
                                     </button>
 
                                     {{-- Delete Button --}}
-                                    <button onclick="MaterialTableManager.confirmDelete({{ $material->id }}, '{{ route('dashboard.materials.destroy', $material->id) }}', this)" 
-                                        class="w-8 h-8 flex items-center justify-center text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition shadow-none" title="Delete">
-                                        <i class="fas fa-trash-alt text-sm"></i>
-                                    </button>
+                                    @if(in_array($statusStr, ['published', 'revert_requested']))
+                                        <button disabled
+                                            class="w-8 h-8 flex items-center justify-center text-gray-300 cursor-not-allowed rounded-lg transition shadow-none"
+                                            title="Cannot delete published module. Request unpublish first.">
+                                            <i class="fas fa-trash-alt text-sm"></i>
+                                        </button>
+                                    @else
+                                        <button onclick="MaterialTableManager.confirmDelete({{ $material->id }}, '{{ route('dashboard.materials.destroy', $material->id) }}', this)" 
+                                            class="w-8 h-8 flex items-center justify-center text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition shadow-none" title="Delete">
+                                            <i class="fas fa-trash-alt text-sm"></i>
+                                        </button>
+                                    @endif
                                 </div>
                             </td>
                         </tr>
