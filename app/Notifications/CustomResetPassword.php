@@ -11,12 +11,16 @@ class CustomResetPassword extends Notification
 {
     use Queueable;
 
+    // 1. We must declare the token variable here
+    public $token;
+
     /**
      * Create a new notification instance.
      */
-    public function __construct()
+    public function __construct($token)
     {
-        //
+        // 2. We must capture the token when the notification is created
+        $this->token = $token;
     }
 
     /**
@@ -34,10 +38,19 @@ class CustomResetPassword extends Notification
      */
     public function toMail(object $notifiable): MailMessage
     {
+        // 3. Generate the secure reset link using the token and the user's email
+        $url = url(route('password.reset', [
+            'token' => $this->token,
+            'email' => $notifiable->getEmailForPasswordReset(),
+        ], false));
+
+        // 4. Build the correct email message with the DepEd Zamboanga context
         return (new MailMessage)
-            ->line('The introduction to the notification.')
-            ->action('Notification Action', url('/'))
-            ->line('Thank you for using our application!');
+            ->subject('Reset Password Notification - DepEd Zamboanga')
+            ->line('You are receiving this email because we received a password reset request for your account.')
+            ->action('Reset Password', $url)
+            ->line('This password reset link will expire in 60 minutes.')
+            ->line('If you did not request a password reset, no further action is required.');
     }
 
     /**
