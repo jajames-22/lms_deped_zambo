@@ -914,17 +914,13 @@ class MaterialsController extends Controller
                     $categories = json_decode($categories, true);
                 }
 
-                $hasProcessedExam = false;
+                $examSortOrder = 1;
 
                 if (is_array($categories)) {
                     foreach ($categories as $index => $cat) {
                         $sectionType = $cat['section_type'] ?? ($cat['type'] ?? 'lesson');
 
                         if ($sectionType === 'exam') {
-                            if ($hasProcessedExam)
-                                continue;
-                            $hasProcessedExam = true;
-
                             foreach ($cat['questions'] ?? [] as $qIndex => $q) {
                                 $examId = (isset($q['id']) && is_numeric($q['id'])) ? $q['id'] : null;
 
@@ -935,7 +931,7 @@ class MaterialsController extends Controller
                                     'media_url' => $q['media_url'] ?? null,
                                     'media_name' => $q['media_name'] ?? null,
                                     'is_case_sensitive' => $q['is_case_sensitive'] ?? false,
-                                    'sort_order' => $qIndex + 1,
+                                    'sort_order' => $examSortOrder++,
                                     'updated_at' => now(),
                                 ];
 
@@ -1073,6 +1069,60 @@ class MaterialsController extends Controller
 
             // 4. Run the Excel Import
             Excel::import(new LessonImport($id), $request->file('module_file'));
+
+            // 5. Migrate mistakenly imported exams from 'lessons' to 'exams' table right away
+            // This ensures imported exams append directly into the Final Exam block instead of creating separated mock lessons
+            $importedExams = DB::table('lessons')
+                ->where('material_id', $id)
+                ->where('section_type', 'exam')
+                ->get();
+
+            if ($importedExams->isNotEmpty()) {
+                // Determine the highest existing sort order in the exams table so new questions append at the bottom
+                $maxSortOrder = DB::table('exams')->where('material_id', $id)->max('sort_order') ?? 0;
+
+                foreach ($importedExams as $importedExam) {
+                    $importedQuestions = DB::table('lesson_contents')
+                        ->where('lesson_id', $importedExam->id)
+                        ->orderBy('sort_order', 'asc')
+                        ->get();
+
+                    foreach ($importedQuestions as $q) {
+                        $maxSortOrder++;
+                        
+                        $examId = DB::table('exams')->insertGetId([
+                            'material_id' => $id,
+                            'type' => $q->type,
+                            'question_text' => $q->question_text,
+                            'media_url' => $q->media_url,
+                            'media_name' => $q->media_name,
+                            'is_case_sensitive' => $q->is_case_sensitive,
+                            'sort_order' => $maxSortOrder,
+                            'created_at' => now(),
+                            'updated_at' => now(),
+                        ]);
+
+                        $options = DB::table('quiz_options')->where('quiz_id', $q->id)->get();
+                        foreach ($options as $opt) {
+                            DB::table('exam_options')->insert([
+                                'exam_id' => $examId,
+                                'option_text' => $opt->option_text,
+                                'is_correct' => $opt->is_correct,
+                                'created_at' => now(),
+                                'updated_at' => now(),
+                            ]);
+                        }
+                    }
+
+                    // Cleanup the imported exam fragments from the lessons/quizzes tables
+                    $quizIds = $importedQuestions->pluck('id')->toArray();
+                    if (!empty($quizIds)) {
+                        DB::table('quiz_options')->whereIn('quiz_id', $quizIds)->delete();
+                        DB::table('lesson_contents')->whereIn('id', $quizIds)->delete();
+                    }
+                    DB::table('lessons')->where('id', $importedExam->id)->delete();
+                }
+            }
 
             DB::commit();
 
