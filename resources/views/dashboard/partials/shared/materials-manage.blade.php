@@ -836,23 +836,37 @@
 {{-- 4. Import Students Modal --}}
 <div id="importStudentModal"
     class="fixed inset-0 z-[9999] hidden opacity-0 transition-opacity duration-300 flex items-center justify-center p-4">
-    <div class="absolute inset-0 bg-gray-900/60" onclick="closeModal('importStudentModal', 'importStudentBox')"></div>
+    <div class="absolute inset-0 bg-gray-900/60 backdrop-blur-sm" onclick="closeModal('importStudentModal', 'importStudentBox')"></div>
     <div id="importStudentBox"
         class="bg-white rounded-3xl max-w-sm w-full p-8 shadow-2xl relative z-10 transform scale-95 transition-all duration-300">
         <div class="flex justify-between items-center mb-6">
-            <h3 class="text-xl font-black text-gray-900">Import List</h3>
+            <h3 class="text-xl font-black text-gray-900">Import Email List</h3>
             <button onclick="closeModal('importStudentModal', 'importStudentBox')"
                 class="text-gray-400 hover:text-gray-600 transition"><i class="fas fa-times"></i></button>
         </div>
-        <div class="mb-6 text-center">
-            <p class="text-sm text-gray-500 mb-4">Upload a CSV/Excel file containing a single column with the header
-                <strong>"email"</strong>.</p>
-            <input type="file" id="importFileInput" accept=".csv, .xlsx, .xls"
-                class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-bold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 transition">
+
+        <div class="mb-5 p-4 bg-gray-50 border border-gray-200 rounded-2xl text-sm text-gray-600 leading-relaxed space-y-2">
+            <p class="font-bold text-gray-800 flex items-center gap-2"><i class="fas fa-info-circle text-blue-500"></i> File Requirements</p>
+            <ul class="list-disc list-inside space-y-1 text-xs text-gray-500">
+                <li>Accepted formats: <strong>.csv</strong>, <strong>.xlsx</strong>, <strong>.xls</strong></li>
+                <li>File must contain a column with the header <strong class="font-mono text-gray-700">"email"</strong></li>
+                <li>Email values must be valid addresses</li>
+                <li>Other columns in the file will be ignored</li>
+            </ul>
         </div>
+
+        <div class="mb-6">
+            <label class="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-2">Select File</label>
+            <input type="file" id="importFileInput" accept=".csv, .xlsx, .xls"
+                class="block w-full text-sm text-gray-500
+                       file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0
+                       file:text-sm file:font-bold file:bg-blue-50 file:text-blue-700
+                       hover:file:bg-blue-100 transition cursor-pointer">
+        </div>
+
         <button id="submitImportBtn" onclick="submitImport()"
-            class="w-full py-3 bg-gray-900 text-white font-bold rounded-xl hover:bg-black transition flex justify-center items-center shadow-lg shadow-gray-900/20">
-            Upload & Import
+            class="w-full py-3 bg-gray-900 text-white font-bold rounded-xl hover:bg-black transition flex justify-center items-center gap-2 shadow-lg shadow-gray-900/20">
+            <i class="fas fa-upload"></i> Upload & Import
         </button>
     </div>
 </div>
@@ -916,21 +930,21 @@
 <div id="emailConflictModal" class="fixed inset-0 z-[9999] hidden flex items-center justify-center p-4">
     <div class="absolute inset-0 bg-gray-900/60 backdrop-blur-sm" onclick="closeMaterialConflictModal()"></div>
     <div id="emailConflictModalBox"
-        class="relative bg-white rounded-3xl shadow-2xl w-full max-w-2xl transform scale-95 opacity-0 transition-all duration-300 border border-gray-100 z-10 flex flex-col max-h-[92vh] overflow-hidden">
+        class="relative bg-white rounded-3xl shadow-2xl w-full max-w-3xl transform scale-95 opacity-0 transition-all duration-300 border border-gray-100 z-10 flex flex-col max-h-[92vh] overflow-hidden">
 
-        <div class="px-8 pt-7 pb-5 border-b border-gray-100 flex items-start gap-4">
+        <div class="px-8 pt-7 pb-5 border-b border-gray-100 flex items-start gap-4 shrink-0">
             <div class="w-14 h-14 bg-amber-100 text-amber-600 rounded-2xl flex items-center justify-center text-2xl shrink-0">
                 <i class="fas fa-exclamation-triangle"></i>
             </div>
             <div>
                 <h3 class="text-2xl font-black text-gray-900">Duplicate Emails Detected</h3>
-                <p class="text-sm text-gray-500 mt-1">The following emails already have access to this module. Choose how to handle them.</p>
+                <p class="text-sm text-gray-500 mt-1">We found students in your file who are already on the access list. What would you like to do with them?</p>
             </div>
         </div>
 
         <div class="flex flex-1 min-h-0">
-            <div class="w-2/3 border-r border-gray-100 flex flex-col">
-                <div class="px-6 py-4 border-b border-gray-100 bg-gray-50">
+            <div class="w-3/5 border-r border-gray-100 flex flex-col min-h-0">
+                <div class="px-6 py-4 border-b border-gray-100 bg-gray-50 shrink-0">
                     <p class="text-xs font-bold uppercase text-gray-500 tracking-wide">
                         Conflicting Emails (<span id="emailDuplicateCountLabel">0</span>)
                     </p>
@@ -938,43 +952,44 @@
                 <div id="emailDuplicateList" class="flex-1 min-h-0 overflow-y-auto px-6 py-4 space-y-4"></div>
             </div>
 
-            <div class="w-1/3 flex flex-col px-6 py-6">
-                <p class="text-sm font-semibold text-gray-700 mb-4">Choose Action</p>
-                <div class="space-y-4">
-                    <label class="flex gap-3 p-4 border rounded-xl cursor-pointer transition hover:bg-gray-50 has-[:checked]:border-blue-500 has-[:checked]:bg-blue-50">
-                        <input type="radio" name="email_conflict_strategy" value="skip" checked class="mt-1 w-5 h-5 text-blue-600 border-gray-300 focus:ring-blue-600 shrink-0">
+            <div class="w-2/5 flex flex-col px-6 py-6 overflow-y-auto">
+                <p class="text-sm font-semibold text-gray-700 mb-4 shrink-0">Choose Action</p>
+                <div class="space-y-4 shrink-0">
+                    <label class="flex gap-3 p-4 border rounded-xl cursor-pointer transition hover:bg-gray-50 has-[:checked]:border-emerald-500 has-[:checked]:bg-emerald-50">
+                        <input type="radio" name="email_conflict_strategy" value="skip" checked class="mt-1 w-5 h-5 text-emerald-600 border-gray-300 focus:ring-emerald-600 shrink-0">
                         <div>
                             <span class="font-bold text-gray-900 block">Skip Duplicates</span>
-                            <span class="text-xs text-gray-500">Only add new emails.</span>
+                            <span class="text-xs text-gray-500">Ignore these emails and only add brand-new students.</span>
                         </div>
                     </label>
-                    <label class="flex gap-3 p-4 border rounded-xl cursor-pointer transition hover:bg-gray-50 has-[:checked]:border-red-500 has-[:checked]:bg-red-50">
-                        <input type="radio" name="email_conflict_strategy" value="update" class="mt-1 w-5 h-5 text-red-600 border-gray-300 focus:ring-red-600 shrink-0">
+                    
+                    <label class="flex gap-3 p-4 border rounded-xl cursor-pointer transition hover:bg-gray-50 has-[:checked]:border-amber-500 has-[:checked]:bg-amber-50">
+                        <input type="radio" name="email_conflict_strategy" value="update" class="mt-1 w-5 h-5 text-amber-600 border-gray-300 focus:ring-amber-600 shrink-0">
                         <div>
-                            <span class="font-bold text-gray-900 block">Re-activate Access</span>
-                            <span class="text-xs text-gray-500">Reset their status to pending/enrolled.</span>
+                            <span class="font-bold text-gray-900 block">Update Access</span>
+                            <span class="text-xs text-gray-500">Update these students to active status.</span>
                         </div>
                     </label>
                 </div>
-                <div class="mt-auto pt-6">
-                    <div class="text-xs text-gray-400 bg-gray-50 border border-gray-200 rounded-lg p-3">
-                        Tip: Re-activating is useful for students whose access was dropped or expired.
+                
+                <div class="mt-auto pt-6 shrink-0">
+                    <div class="text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded-lg p-3">
+                        <strong>Tip:</strong> Updating is useful if the student's access was previously dropped or expired.
                     </div>
                 </div>
             </div>
         </div>
 
-        <div class="px-8 py-5 border-t border-gray-100 bg-white flex justify-end gap-3">
+        <div class="px-8 py-5 border-t border-gray-100 bg-white flex justify-end gap-3 shrink-0">
             <button type="button" onclick="closeMaterialConflictModal()"
                 class="px-5 py-2.5 bg-gray-100 text-gray-700 font-semibold rounded-xl hover:bg-gray-200 transition">Cancel</button>
             <button type="button" id="confirmEmailImportBtn" onclick="executeMaterialImport()"
-                class="px-5 py-2.5 bg-blue-600 text-white font-semibold rounded-xl shadow hover:bg-blue-700 transition flex items-center gap-2">
+                class="px-5 py-2.5 bg-emerald-600 text-white font-semibold rounded-xl shadow hover:bg-emerald-700 transition flex items-center gap-2">
                 <i class="fas fa-upload"></i> Continue Import
             </button>
         </div>
     </div>
 </div>
-
 
 <script>
     // Add this inside the script tags of materials-manage.blade.php
@@ -1153,6 +1168,9 @@
         if (type === 'success') {
             snackbar.classList.add('bg-white', 'text-gray-800', 'border-gray-100');
             icon.className = 'fas fa-check-circle text-green-500 text-xl';
+        } else if (type === 'info') {
+            snackbar.classList.add('bg-gray-800', 'text-white', 'border-gray-700');
+            icon.className = 'fas fa-info-circle text-blue-400 text-xl';
         } else {
             snackbar.classList.add('bg-red-600', 'text-white', 'border-red-700');
             icon.className = 'fas fa-exclamation-circle text-white text-xl';
@@ -1350,6 +1368,31 @@
     }
 
     // --- ACCESS MANAGEMENT ---
+
+    // Refreshes only the student access table body without reloading the full page
+    async function refreshTableOnly() {
+        try {
+            const baseUrl = '{{ url('/dashboard/materials/' . $material->id . '/manage') }}';
+            const fetchUrl = baseUrl + (baseUrl.includes('?') ? '&' : '?') + '_t=' + new Date().getTime();
+
+            const response = await fetch(fetchUrl, {
+                headers: { 'X-Requested-With': 'XMLHttpRequest' }
+            });
+            const htmlText = await response.text();
+
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(htmlText, 'text/html');
+
+            const newTbody = doc.querySelector('#student-list-body');
+            if (newTbody) {
+                document.getElementById('student-list-body').innerHTML = newTbody.innerHTML;
+            }
+        } catch (error) {
+            console.error('Failed to refresh table quietly: ', error);
+            showSnackbar('Table could not refresh automatically. Please reload if needed.', 'error');
+        }
+    }
+
     window.submitAddStudent = function () {
         const email = document.getElementById('newStudentEmail').value;
         const btn = document.getElementById('submitAddStudentBtn');
@@ -1357,7 +1400,7 @@
         if (!email) { showSnackbar('Please enter an email address.', 'error'); return; }
 
         btn.disabled = true;
-        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Adding...';
 
         fetch(`{{ url('/dashboard/materials/' . $material->id . '/access') }}`, {
             method: 'POST',
@@ -1368,18 +1411,34 @@
             },
             body: JSON.stringify({ email: email })
         })
-            .then(r => r.json())
-            .then(data => {
-                if (data.success) {
-                    showSnackbar(data.message, 'success');
-                    closeModal('addStudentModal', 'addStudentBox');
-                    setTimeout(() => loadPartial('{{ url('/dashboard/materials/' . $material->id . '/manage') }}'), 500);
-                } else {
-                    showCustomAlert('Error', data.message, 'error');
-                    btn.disabled = false;
-                    btn.innerHTML = 'Grant Access';
-                }
-            });
+        .then(async response => {
+            const data = await response.json().catch(() => null);
+            if (!response.ok) throw data || { message: 'Server error occurred.' };
+            return data;
+        })
+        .then(data => {
+            if (data.success) {
+                document.getElementById('newStudentEmail').value = '';
+                showSnackbar(data.message || 'Student added successfully!', 'success');
+                closeModal('addStudentModal', 'addStudentBox');
+                setTimeout(refreshTableOnly, 300);
+            } else {
+                throw { message: data.message || 'Failed to grant access.' };
+            }
+        })
+        .catch(error => {
+            let errorMsg = 'An error occurred while adding the student.';
+            if (error && error.errors) {
+                errorMsg = Object.values(error.errors)[0][0];
+            } else if (error && error.message) {
+                errorMsg = error.message;
+            }
+            showCustomAlert('Error', errorMsg, 'error');
+        })
+        .finally(() => {
+            btn.disabled = false;
+            btn.innerHTML = 'Grant Access';
+        });
     }
 
     let pendingMaterialImportFile = null;
@@ -1399,6 +1458,8 @@ window.submitImport = function() {
     formData.append('file', pendingMaterialImportFile);
     formData.append('check_only', 1);
 
+    showSnackbar('Scanning file...', 'info');
+
     fetch(`{{ url('/dashboard/materials/' . $material->id . '/import-access') }}`, {
         method: 'POST',
         headers: {
@@ -1407,11 +1468,14 @@ window.submitImport = function() {
         },
         body: formData
     })
-    .then(r => r.json())
-    .then(data => {
-        btn.disabled = false;
-        btn.innerHTML = 'Upload & Import';
+    .then(async response => {
+        const data = await response.json().catch(() => null);
 
+        // Surface Laravel validation errors (422) or server errors (500) to the catch block
+        if (!response.ok) throw data || { message: 'Server error occurred while scanning.' };
+        return data;
+    })
+    .then(data => {
         if (data.has_duplicates) {
             closeModal('importStudentModal', 'importStudentBox');
             renderMaterialEmailDuplicates(data.duplicates);
@@ -1423,13 +1487,27 @@ window.submitImport = function() {
                 box.classList.add('scale-100', 'opacity-100');
             }, 10);
         } else {
+            closeModal('importStudentModal', 'importStudentBox');
             executeMaterialImport(true);
         }
     })
-    .catch(() => {
+    .catch(error => {
+        // Extract exact Laravel validation errors (e.g., "The file must be a file of type: xlsx, csv")
+        // or custom backend messages (e.g., "No 'email' column found in the file.")
+        let errorMsg = 'Failed to scan the file. Please check your document and try again.';
+
+        if (error && error.errors) {
+            errorMsg = Object.values(error.errors)[0][0];
+        } else if (error && error.message) {
+            errorMsg = error.message;
+        }
+
+        showCustomAlert('Import Failed', errorMsg, 'error');
+        pendingMaterialImportFile = null;
+    })
+    .finally(() => {
         btn.disabled = false;
-        btn.innerHTML = 'Upload & Import';
-        showSnackbar('Failed to scan the file.', 'error');
+        btn.innerHTML = '<i class="fas fa-upload"></i> Upload & Import';
     });
 };
 
@@ -1459,17 +1537,27 @@ window.executeMaterialImport = function(autoRun = false) {
         },
         body: formData
     })
-    .then(r => r.json())
-    .then(data => {
-        if (data.success) {
-            if (!autoRun) closeMaterialConflictModal();
-            showSnackbar(data.message, 'success');
-            setTimeout(() => loadPartial('{{ url('/dashboard/materials/' . $material->id . '/manage') }}'), 500);
-        } else {
-            showCustomAlert('Error', data.message, 'error');
-        }
+    .then(async response => {
+        const data = await response.json().catch(() => null);
+        if (!response.ok) throw data || { message: 'Server error occurred while importing.' };
+        return data;
     })
-    .catch(() => showSnackbar('Import failed.', 'error'))
+    .then(data => {
+        if (!autoRun) closeMaterialConflictModal();
+        showSnackbar(data.message || 'Import successful!', 'success');
+        setTimeout(refreshTableOnly, 300);
+    })
+    .catch(error => {
+        if (!autoRun) closeMaterialConflictModal();
+
+        let errorMsg = 'An error occurred while importing.';
+        if (error && error.errors) {
+            errorMsg = Object.values(error.errors)[0][0];
+        } else if (error && error.message) {
+            errorMsg = error.message;
+        }
+        showCustomAlert('Import Failed', errorMsg, 'error');
+    })
     .finally(() => {
         pendingMaterialImportFile = null;
         if (confirmBtn) {
@@ -1775,4 +1863,4 @@ function renderMaterialEmailDuplicates(data) {
             btn.innerHTML = originalHtml;
         });
     }
-    </script>   
+    </script>
