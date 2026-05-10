@@ -1004,8 +1004,7 @@
 {{-- 4. Import Students Modal --}}
 <div id="importStudentModal"
     class="fixed inset-0 z-[9999] hidden opacity-0 transition-opacity duration-300 flex items-center justify-center p-4">
-    <div class="absolute inset-0 bg-gray-900/60 backdrop-blur-sm"
-        onclick="closeModal('importStudentModal', 'importStudentBox')"></div>
+    <div class="absolute inset-0 bg-gray-900/60 backdrop-blur-sm" onclick="closeModal('importStudentModal', 'importStudentBox')"></div>
     <div id="importStudentBox"
         class="bg-white rounded-3xl max-w-sm w-full p-8 shadow-2xl relative z-10 transform scale-95 transition-all duration-300">
         <div class="flex justify-between items-center mb-6">
@@ -1045,7 +1044,7 @@
 {{-- 5. Delete Module Modal --}}
 <div id="deleteConfirmModal"
     class="fixed inset-0 z-[9999] hidden opacity-0 transition-opacity duration-300 flex items-center justify-center p-4">
-    <div class="absolute inset-0 bg-gray-900/60" onclick="closeModal('deleteConfirmModal', 'deleteConfirmBox')"></div>
+    <div class="absolute inset-0 bg-gray-900/60 backdrop-blur-sm" onclick="closeModal('deleteConfirmModal', 'deleteConfirmBox')"></div>
     <div id="deleteConfirmBox"
         class="bg-white rounded-3xl max-w-md w-full p-8 text-center shadow-2xl relative z-10 transform scale-95 transition-all duration-300">
         <div
