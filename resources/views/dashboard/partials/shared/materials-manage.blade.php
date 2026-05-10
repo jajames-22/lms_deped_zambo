@@ -168,6 +168,7 @@
                     <i class="fas fa-lock"></i> Content Locked
                 </button>
             @endif
+            
             {{-- Status & Publish/Revert Actions --}}
             @if($material->status === 'draft')
                 <button onclick="attemptPublish()"
@@ -228,7 +229,7 @@
         {{-- LEFT COLUMN: Details, Tables & Analytics --}}
         <div class="lg:col-span-8 space-y-6">
 
-            {{-- NEW: ADMIN FEEDBACK / REVERT REASON BANNER --}}
+            {{-- ADMIN FEEDBACK / REVERT REASON BANNER --}}
             @if($material->status === 'draft' && !empty($material->revert_reason))
                 <div
                     class="bg-amber-50 rounded-3xl border border-amber-200 p-6 md:p-8 flex flex-col md:flex-row gap-6 relative overflow-hidden">
@@ -546,6 +547,41 @@
         {{-- RIGHT COLUMN: Configuration Sidebar --}}
         <div class="lg:col-span-4 space-y-6">
 
+            {{-- CREATOR / INSTRUCTOR PROFILE --}}
+            <div class="bg-white rounded-3xl shadow-sm border border-gray-100 p-6">
+                <h3 class="text-sm font-black text-gray-900 uppercase tracking-wider mb-4 flex items-center gap-2">
+                    <i class="fas fa-user-tie text-[#a52a2a]"></i> Creator Profile
+                </h3>
+                
+                <div class="flex items-center gap-4">
+                    <div class="w-12 h-12 rounded-full border-2 border-gray-200 bg-gray-50 flex items-center justify-center text-[#a52a2a] font-bold text-lg shrink-0">
+                        {{ strtoupper(substr($material->instructor->first_name ?? 'U', 0, 1)) }}{{ strtoupper(substr($material->instructor->last_name ?? '', 0, 1)) }}
+                    </div>
+                    <div class="min-w-0 flex-1">
+                        <p class="text-sm font-bold text-gray-900 truncate">
+                            {{ $material->instructor->first_name ?? 'Unknown' }} {{ $material->instructor->last_name ?? 'Instructor' }}
+                        </p>
+                        
+                        @if(!empty($material->instructor->emp_id))
+                            <p class="text-[10px] font-bold text-gray-500 uppercase tracking-wider mt-0.5">Emp ID: {{ $material->instructor->emp_id }}</p>
+                        @endif
+                        
+                        <div class="mt-1.5">
+                            @php
+                                $instStatus = $material->instructor->status ?? 'N/A';
+                                $statusStyle = 'bg-gray-100 text-gray-600 border-gray-200';
+                                if($instStatus === 'verified') $statusStyle = 'bg-green-50 text-green-700 border-green-200';
+                                elseif($instStatus === 'pending') $statusStyle = 'bg-amber-50 text-amber-700 border-amber-200';
+                                elseif($instStatus === 'suspended') $statusStyle = 'bg-red-50 text-red-700 border-red-200';
+                            @endphp
+                            <span class="inline-block px-2 py-0.5 text-[9px] font-black uppercase tracking-wider rounded border {{ $statusStyle }}">
+                                {{ $instStatus }}
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             {{-- VISIBILITY --}}
             <div class="bg-white rounded-3xl shadow-sm border border-gray-100 p-6">
                 <h3 class="text-sm font-black text-gray-900 uppercase tracking-wider mb-6 flex items-center gap-2"><i
@@ -564,14 +600,12 @@
                             <input type="checkbox" id="publicToggle" class="sr-only peer"
                                 onchange="toggleVisibility(this)" {{ $material->is_public ? 'checked' : '' }} {{ $isLocked ? 'disabled' : '' }}>
 
-                            <!-- Track -->
                             <div class="w-14 h-8 rounded-full border border-gray-200 transition-colors
                             peer-checked:bg-green-500 bg-gray-300
                             peer-disabled:bg-red-200 peer-disabled:opacity-50
                             peer-disabled:cursor-not-allowed">
                             </div>
 
-                            <!-- Handle -->
                             <div class="absolute left-1 top-1 w-6 h-6 bg-white rounded-full shadow-sm transition-transform
                                 peer-checked:translate-x-6
                                 peer-disabled:bg-gray-100">
@@ -684,6 +718,7 @@
                     </p>
                 @endif
             </div>
+            
             {{-- DANGER ZONE --}}
             <div class="bg-red-50 rounded-3xl border border-red-100 p-6 relative overflow-hidden">
                 <div class="absolute -right-4 -top-4 text-red-100 opacity-50 transform rotate-12 pointer-events-none">
