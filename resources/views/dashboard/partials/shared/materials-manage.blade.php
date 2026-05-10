@@ -27,8 +27,7 @@
             height: 12px;
             border-radius: 999px;
             outline: none;
-            background: #e5e7eb;
-            /* Fallback */
+            background-color: #e5e7eb; /* Fallback base color */
         }
 
         input[type=range].custom-slider::-webkit-slider-thumb {
@@ -38,7 +37,6 @@
             border-radius: 50%;
             background: #ffffff;
             border: 2px solid #9ca3af;
-            /* Default gray border */
             cursor: pointer;
             box-shadow: 0 2px 5px rgba(0, 0, 0, 0.15);
             transition: transform 0.1s;
@@ -58,8 +56,6 @@
         #weight-slider::-webkit-slider-thumb {
             border-color: #6b7280;
         }
-
-        /* Darker gray to pop against colors */
         #weight-slider::-moz-range-thumb {
             border-color: #6b7280;
         }
@@ -67,8 +63,6 @@
         #passing-slider::-webkit-slider-thumb {
             border-color: #22c55e;
         }
-
-        /* Green border */
         #passing-slider::-moz-range-thumb {
             border-color: #22c55e;
         }
@@ -345,7 +339,10 @@
                             <p class="text-xs text-gray-500 mb-6 mt-1">Adjust the impact of Quizzes vs. Final Exam.</p>
 
                             <input type="range" id="weight-slider" min="0" max="100" value="{{ $quizWeight }}"
-                                class="custom-slider {{ $isWeightDisabled ? 'opacity-50 cursor-not-allowed' : '' }}" {{ $isWeightDisabled ? 'disabled' : '' }} oninput="window.updateWeightUI()">
+                            class="custom-slider {{ $isWeightDisabled ? 'opacity-50 cursor-not-allowed' : '' }}" 
+                            {{ $isWeightDisabled ? 'disabled' : '' }} 
+                            oninput="window.updateWeightUI()"
+                            style="background-image: linear-gradient(to right, #fbbf24 {{ $quizWeight }}%, #ef4444 {{ $quizWeight }}%)">
 
                             <div class="flex justify-between mt-4 text-sm font-bold">
                                 <span id="quiz-weight-text" class="text-amber-500">Quizzes: {{ $quizWeight }}%</span>
@@ -365,7 +362,10 @@
                             </div>
 
                             <input type="range" id="passing-slider" min="0" max="100" value="{{ $savedPassingPercentage }}"
-                                class="custom-slider {{ $isPassingDisabled ? 'opacity-50 cursor-not-allowed' : '' }}" {{ $isPassingDisabled ? 'disabled' : '' }} oninput="window.updatePassingUI()">
+                            class="custom-slider {{ $isPassingDisabled ? 'opacity-50 cursor-not-allowed' : '' }}" 
+                            {{ $isPassingDisabled ? 'disabled' : '' }} 
+                            oninput="window.updatePassingUI()"
+                            style="background-image: linear-gradient(to right, #22c55e {{ $savedPassingPercentage }}%, #e5e7eb {{ $savedPassingPercentage }}%)">
 
                             <div id="zero-percent-warning"
                                 class="mt-4 p-3 bg-amber-50 border border-amber-200 rounded-xl items-start gap-2 transition-all duration-300 {{ $savedPassingPercentage == 0 ? 'flex' : 'hidden' }}">
@@ -871,7 +871,7 @@
 {{-- 4. Import Students Modal --}}
 <div id="importStudentModal"
     class="fixed inset-0 z-[9999] hidden opacity-0 transition-opacity duration-300 flex items-center justify-center p-4">
-    <div class="absolute inset-0 bg-gray-900/60 " onclick="closeModal('importStudentModal', 'importStudentBox')"></div>
+    <div class="absolute inset-0 bg-gray-900/60 backdrop-blur-sm" onclick="closeModal('importStudentModal', 'importStudentBox')"></div>
     <div id="importStudentBox"
         class="bg-white rounded-3xl max-w-sm w-full p-8 shadow-2xl relative z-10 transform scale-95 transition-all duration-300">
         <div class="flex justify-between items-center mb-6">
@@ -1027,38 +1027,29 @@
 </div>
 
 <script>
-    // Add this inside the script tags of materials-manage.blade.php
+    // Evaluate Criteria Redirect
     window.proceedToEvaluate = function() {
         const criteriaId = document.getElementById('selectedCriteriaId').value;
         if(!criteriaId) {
             showSnackbar('Please select an evaluation criteria.', 'error');
             return;
         }
-        // Redirect to evaluation page passing the chosen criteria ID
         window.location.href = `{{ url('/dashboard/materials/' . $material->hashid . '/evaluate') }}?criteria_id=${criteriaId}`;
     }
-</script>
 
-<script>
-    // Initialize Gradient Sliders on Load
-    document.addEventListener('DOMContentLoaded', () => {
-        if (document.getElementById('weight-slider')) {
-            window.updateWeightUI();
-            window.updatePassingUI();
-        }
-    });
-
-    // --- GRADING UI LOGIC (Matches Image Gradients) ---
+    // --- FIXED GRADING UI LOGIC ---
     window.updateWeightUI = function () {
         const slider = document.getElementById('weight-slider');
         if (!slider) return;
         const quizWeight = parseInt(slider.value);
 
-        // Dynamic Gradient: Amber (left) to Red (right)
-        slider.style.background = `linear-gradient(to right, #fbbf24 ${quizWeight}%, #ef4444 ${quizWeight}%)`;
+        // FIXED: Using backgroundImage prevents generic background-color classes from overriding the slider
+        slider.style.backgroundImage = `linear-gradient(to right, #fbbf24 ${quizWeight}%, #ef4444 ${quizWeight}%)`;
 
-        document.getElementById('quiz-weight-text').innerText = `Quizzes: ${quizWeight}%`;
-        document.getElementById('exam-weight-text').innerText = `Exam: ${100 - quizWeight}%`;
+        const quizText = document.getElementById('quiz-weight-text');
+        const examText = document.getElementById('exam-weight-text');
+        if (quizText) quizText.innerText = `Quizzes: ${quizWeight}%`;
+        if (examText) examText.innerText = `Exam: ${100 - quizWeight}%`;
     };
 
     window.updatePassingUI = function () {
@@ -1066,28 +1057,40 @@
         if (!slider) return;
         const val = parseInt(slider.value);
 
-        // Dynamic Gradient: Green (left) to Gray (right)
-        slider.style.background = `linear-gradient(to right, #22c55e ${val}%, #e5e7eb ${val}%)`;
+        // FIXED: Using backgroundImage 
+        slider.style.backgroundImage = `linear-gradient(to right, #22c55e ${val}%, #e5e7eb ${val}%)`;
 
-        document.getElementById('passing-percentage-text').innerText = `${val}%`;
+        const percentageText = document.getElementById('passing-percentage-text');
+        if (percentageText) percentageText.innerText = `${val}%`;
 
         const warning = document.getElementById('zero-percent-warning');
-        if (val === 0) {
-            warning.classList.remove('hidden'); warning.classList.add('flex');
-        } else {
-            warning.classList.remove('flex'); warning.classList.add('hidden');
+        if (warning) {
+            if (val === 0) {
+                warning.classList.remove('hidden'); warning.classList.add('flex');
+            } else {
+                warning.classList.remove('flex'); warning.classList.add('hidden');
+            }
         }
     };
 
-    // Initialize immediately when script runs (for AJAX loads)
-    setTimeout(() => {
-        if (document.getElementById('weight-slider')) {
-            window.updateWeightUI();
-        }
-        if (document.getElementById('passing-slider')) {
-            window.updatePassingUI();
-        }
-    }, 50);
+    // --- ROBUST INITIALIZATION (Handles SPA, Hard Refresh, and Browser Back Button) ---
+    window.initializeGradingSliders = function() {
+        if (document.getElementById('weight-slider')) window.updateWeightUI();
+        if (document.getElementById('passing-slider')) window.updatePassingUI();
+    };
+
+    // 1. Run immediately for the SPA loader
+    window.initializeGradingSliders();
+
+    // 2. Run with a slight delay to ensure the DOM is completely painted
+    setTimeout(window.initializeGradingSliders, 50);
+
+    // 3. Catch Hard Refreshes
+    document.addEventListener('DOMContentLoaded', window.initializeGradingSliders);
+
+    // 4. Catch the Browser's "Back" and "Forward" buttons (BFCache)
+    window.addEventListener('pageshow', window.initializeGradingSliders);
+    window.addEventListener('popstate', () => setTimeout(window.initializeGradingSliders, 50));
 
     window.saveGradingSettings = async function (btn = null) {
         const quizWeight = document.getElementById('weight-slider') ? parseInt(document.getElementById('weight-slider').value) : 0;
@@ -1359,7 +1362,6 @@
                 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
                 'Accept': 'application/json'
             },
-            // FIX: Send as revert_reason instead of admin_remarks
             body: JSON.stringify({ status: 'draft', revert_reason: reason }) 
         })
         .then(r => r.json())
@@ -1403,8 +1405,6 @@
     }
 
     // --- ACCESS MANAGEMENT ---
-
-    // Refreshes only the student access table body without reloading the full page
     async function refreshTableOnly() {
         try {
             const baseUrl = '{{ url('/dashboard/materials/' . $material->id . '/manage') }}';
@@ -1478,169 +1478,163 @@
 
     let pendingMaterialImportFile = null;
 
-window.submitImport = function() {
-    const fileInput = document.getElementById('importFileInput');
-    if (!fileInput.files.length) { showSnackbar('Please select a file to import.', 'error'); return; }
+    window.submitImport = function() {
+        const fileInput = document.getElementById('importFileInput');
+        if (!fileInput.files.length) { showSnackbar('Please select a file to import.', 'error'); return; }
 
-    pendingMaterialImportFile = fileInput.files[0];
-    fileInput.value = '';
+        pendingMaterialImportFile = fileInput.files[0];
+        fileInput.value = '';
 
-    const btn = document.getElementById('submitImportBtn');
-    btn.disabled = true;
-    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Scanning...';
+        const btn = document.getElementById('submitImportBtn');
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Scanning...';
 
-    const formData = new FormData();
-    formData.append('file', pendingMaterialImportFile);
-    formData.append('check_only', 1);
+        const formData = new FormData();
+        formData.append('file', pendingMaterialImportFile);
+        formData.append('check_only', 1);
 
-    showSnackbar('Scanning file...', 'info');
+        showSnackbar('Scanning file...', 'info');
 
-    fetch(`{{ url('/dashboard/materials/' . $material->id . '/import-access') }}`, {
-        method: 'POST',
-        headers: {
-            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
-            'Accept': 'application/json'
-        },
-        body: formData
-    })
-    .then(async response => {
-        const data = await response.json().catch(() => null);
+        fetch(`{{ url('/dashboard/materials/' . $material->id . '/import-access') }}`, {
+            method: 'POST',
+            headers: {
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+                'Accept': 'application/json'
+            },
+            body: formData
+        })
+        .then(async response => {
+            const data = await response.json().catch(() => null);
+            if (!response.ok) throw data || { message: 'Server error occurred while scanning.' };
+            return data;
+        })
+        .then(data => {
+            if (data.has_duplicates) {
+                closeModal('importStudentModal', 'importStudentBox');
+                renderMaterialEmailDuplicates(data.duplicates);
+                const modal = document.getElementById('emailConflictModal');
+                const box   = document.getElementById('emailConflictModalBox');
+                modal.classList.remove('hidden');
+                setTimeout(() => {
+                    box.classList.remove('scale-95', 'opacity-0');
+                    box.classList.add('scale-100', 'opacity-100');
+                }, 10);
+            } else {
+                closeModal('importStudentModal', 'importStudentBox');
+                executeMaterialImport(true);
+            }
+        })
+        .catch(error => {
+            let errorMsg = 'Failed to scan the file. Please check your document and try again.';
+            if (error && error.errors) {
+                errorMsg = Object.values(error.errors)[0][0];
+            } else if (error && error.message) {
+                errorMsg = error.message;
+            }
+            showCustomAlert('Import Failed', errorMsg, 'error');
+            pendingMaterialImportFile = null;
+        })
+        .finally(() => {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fas fa-upload"></i> Upload & Import';
+        });
+    };
 
-        // Surface Laravel validation errors (422) or server errors (500) to the catch block
-        if (!response.ok) throw data || { message: 'Server error occurred while scanning.' };
-        return data;
-    })
-    .then(data => {
-        if (data.has_duplicates) {
-            closeModal('importStudentModal', 'importStudentBox');
-            renderMaterialEmailDuplicates(data.duplicates);
-            const modal = document.getElementById('emailConflictModal');
-            const box   = document.getElementById('emailConflictModalBox');
-            modal.classList.remove('hidden');
-            setTimeout(() => {
-                box.classList.remove('scale-95', 'opacity-0');
-                box.classList.add('scale-100', 'opacity-100');
-            }, 10);
-        } else {
-            closeModal('importStudentModal', 'importStudentBox');
-            executeMaterialImport(true);
-        }
-    })
-    .catch(error => {
-        // Extract exact Laravel validation errors (e.g., "The file must be a file of type: xlsx, csv")
-        // or custom backend messages (e.g., "No 'email' column found in the file.")
-        let errorMsg = 'Failed to scan the file. Please check your document and try again.';
+    window.executeMaterialImport = function(autoRun = false) {
+        if (!pendingMaterialImportFile) return;
 
-        if (error && error.errors) {
-            errorMsg = Object.values(error.errors)[0][0];
-        } else if (error && error.message) {
-            errorMsg = error.message;
-        }
+        const strategy = autoRun
+            ? 'skip'
+            : document.querySelector('input[name="email_conflict_strategy"]:checked').value;
 
-        showCustomAlert('Import Failed', errorMsg, 'error');
-        pendingMaterialImportFile = null;
-    })
-    .finally(() => {
-        btn.disabled = false;
-        btn.innerHTML = '<i class="fas fa-upload"></i> Upload & Import';
-    });
-};
-
-window.executeMaterialImport = function(autoRun = false) {
-    if (!pendingMaterialImportFile) return;
-
-    const strategy = autoRun
-        ? 'skip'
-        : document.querySelector('input[name="email_conflict_strategy"]:checked').value;
-
-    const confirmBtn = document.getElementById('confirmEmailImportBtn');
-    if (confirmBtn) {
-        confirmBtn.disabled = true;
-        confirmBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processing...';
-    }
-
-    const formData = new FormData();
-    formData.append('file', pendingMaterialImportFile);
-    formData.append('strategy', strategy);
-    formData.append('check_only', 0);
-
-    fetch(`{{ url('/dashboard/materials/' . $material->id . '/import-access') }}`, {
-        method: 'POST',
-        headers: {
-            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
-            'Accept': 'application/json'
-        },
-        body: formData
-    })
-    .then(async response => {
-        const data = await response.json().catch(() => null);
-        if (!response.ok) throw data || { message: 'Server error occurred while importing.' };
-        return data;
-    })
-    .then(data => {
-        if (!autoRun) closeMaterialConflictModal();
-        showSnackbar(data.message || 'Import successful!', 'success');
-        setTimeout(refreshTableOnly, 300);
-    })
-    .catch(error => {
-        if (!autoRun) closeMaterialConflictModal();
-
-        let errorMsg = 'An error occurred while importing.';
-        if (error && error.errors) {
-            errorMsg = Object.values(error.errors)[0][0];
-        } else if (error && error.message) {
-            errorMsg = error.message;
-        }
-        showCustomAlert('Import Failed', errorMsg, 'error');
-    })
-    .finally(() => {
-        pendingMaterialImportFile = null;
+        const confirmBtn = document.getElementById('confirmEmailImportBtn');
         if (confirmBtn) {
-            confirmBtn.disabled = false;
-            confirmBtn.innerHTML = '<i class="fas fa-upload"></i> Continue Import';
+            confirmBtn.disabled = true;
+            confirmBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processing...';
         }
-    });
-};
 
-window.closeMaterialConflictModal = function() {
-    const modal = document.getElementById('emailConflictModal');
-    const box   = document.getElementById('emailConflictModalBox');
-    box.classList.remove('scale-100', 'opacity-100');
-    box.classList.add('scale-95', 'opacity-0');
-    setTimeout(() => {
-        modal.classList.add('hidden');
-        pendingMaterialImportFile = null;
-    }, 300);
-};
+        const formData = new FormData();
+        formData.append('file', pendingMaterialImportFile);
+        formData.append('strategy', strategy);
+        formData.append('check_only', 0);
 
-function renderMaterialEmailDuplicates(data) {
-    const list  = document.getElementById('emailDuplicateList');
-    const count = document.getElementById('emailDuplicateCountLabel');
-    list.innerHTML = '';
-    count.textContent = data.length;
+        fetch(`{{ url('/dashboard/materials/' . $material->id . '/import-access') }}`, {
+            method: 'POST',
+            headers: {
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+                'Accept': 'application/json'
+            },
+            body: formData
+        })
+        .then(async response => {
+            const data = await response.json().catch(() => null);
+            if (!response.ok) throw data || { message: 'Server error occurred while importing.' };
+            return data;
+        })
+        .then(data => {
+            if (!autoRun) closeMaterialConflictModal();
+            showSnackbar(data.message || 'Import successful!', 'success');
+            setTimeout(refreshTableOnly, 300);
+        })
+        .catch(error => {
+            if (!autoRun) closeMaterialConflictModal();
 
-    data.forEach(item => {
-        const div = document.createElement('div');
-        div.className = 'border border-gray-200 rounded-xl overflow-hidden bg-white shadow-sm';
-        div.innerHTML = `
-            <div class="px-4 py-2 bg-gray-50 border-b border-gray-200 text-xs font-bold text-gray-700 truncate">
-                Email: <span class="text-blue-600">${item.email}</span>
-            </div>
-            <div class="grid grid-cols-2 text-xs">
-                <div class="p-3 border-r border-gray-200 bg-blue-50/30 space-y-1.5">
-                    <p class="font-black text-blue-800 mb-2 border-b border-blue-100 pb-1">Already Has Access</p>
-                    <p class="flex justify-between"><strong>Status:</strong>
-                        <span class="bg-red-100 text-red-700 px-1.5 py-0.5 rounded border border-red-200 font-bold capitalize">${item.existing.status}</span>
-                    </p>
+            let errorMsg = 'An error occurred while importing.';
+            if (error && error.errors) {
+                errorMsg = Object.values(error.errors)[0][0];
+            } else if (error && error.message) {
+                errorMsg = error.message;
+            }
+            showCustomAlert('Import Failed', errorMsg, 'error');
+        })
+        .finally(() => {
+            pendingMaterialImportFile = null;
+            if (confirmBtn) {
+                confirmBtn.disabled = false;
+                confirmBtn.innerHTML = '<i class="fas fa-upload"></i> Continue Import';
+            }
+        });
+    };
+
+    window.closeMaterialConflictModal = function() {
+        const modal = document.getElementById('emailConflictModal');
+        const box   = document.getElementById('emailConflictModalBox');
+        box.classList.remove('scale-100', 'opacity-100');
+        box.classList.add('scale-95', 'opacity-0');
+        setTimeout(() => {
+            modal.classList.add('hidden');
+            pendingMaterialImportFile = null;
+        }, 300);
+    };
+
+    function renderMaterialEmailDuplicates(data) {
+        const list  = document.getElementById('emailDuplicateList');
+        const count = document.getElementById('emailDuplicateCountLabel');
+        list.innerHTML = '';
+        count.textContent = data.length;
+
+        data.forEach(item => {
+            const div = document.createElement('div');
+            div.className = 'border border-gray-200 rounded-xl overflow-hidden bg-white shadow-sm';
+            div.innerHTML = `
+                <div class="px-4 py-2 bg-gray-50 border-b border-gray-200 text-xs font-bold text-gray-700 truncate">
+                    Email: <span class="text-blue-600">${item.email}</span>
                 </div>
-                <div class="p-3 bg-green-50/30 space-y-1.5">
-                    <p class="font-black text-green-800 mb-2 border-b border-green-100 pb-1">Incoming Action</p>
-                    <p class="flex justify-between"><strong>Status:</strong> <span>${item.incoming.status}</span></p>
-                </div>
-            </div>`;
-        list.appendChild(div);
-    });
-}
+                <div class="grid grid-cols-2 text-xs">
+                    <div class="p-3 border-r border-gray-200 bg-blue-50/30 space-y-1.5">
+                        <p class="font-black text-blue-800 mb-2 border-b border-blue-100 pb-1">Already Has Access</p>
+                        <p class="flex justify-between"><strong>Status:</strong>
+                            <span class="bg-red-100 text-red-700 px-1.5 py-0.5 rounded border border-red-200 font-bold capitalize">${item.existing.status}</span>
+                        </p>
+                    </div>
+                    <div class="p-3 bg-green-50/30 space-y-1.5">
+                        <p class="font-black text-green-800 mb-2 border-b border-green-100 pb-1">Incoming Action</p>
+                        <p class="flex justify-between"><strong>Status:</strong> <span>${item.incoming.status}</span></p>
+                    </div>
+                </div>`;
+            list.appendChild(div);
+        });
+    }
 
     window.revokeAccess = function (accessId, btnElement) {
         showCustomAlert('Remove Student', 'Are you sure you want to remove this student? Their progress will be permanently lost.', 'error', () => {
@@ -1898,4 +1892,4 @@ function renderMaterialEmailDuplicates(data) {
             btn.innerHTML = originalHtml;
         });
     }
-    </script>
+</script>
