@@ -126,7 +126,8 @@
             </button>
             <div>
                 <h1 id="header-title-display" class="text-2xl font-black text-gray-900 tracking-tight leading-tight">
-                    {{ $material->title }}</h1>
+                    {{ $material->title }}
+                </h1>
                 <p class="text-sm text-gray-500 font-medium">Manage module settings, tags, and access</p>
             </div>
         </div>
@@ -157,7 +158,7 @@
 
             {{-- Edit Content Button (LOCKED IF NOT DRAFT) --}}
             @if(!$isLocked)
-                <button onclick="loadPartial('{{ url('/dashboard/materials/' .$material->id. '/edit') }}')"
+                <button onclick="loadPartial('{{ url('/dashboard/materials/' . $material->id . '/edit') }}')"
                     class="px-4 py-2.5 bg-gray-100 text-gray-700 font-bold rounded-xl hover:bg-gray-200 transition flex items-center justify-center gap-2 text-sm">
                     <i class="fas fa-edit"></i> Content
                 </button>
@@ -167,45 +168,53 @@
                     <i class="fas fa-lock"></i> Content Locked
                 </button>
             @endif
-{{-- Status & Publish/Revert Actions --}}
+            {{-- Status & Publish/Revert Actions --}}
             @if($material->status === 'draft')
-                <button onclick="attemptPublish()" class="px-5 py-2.5 bg-[#a52a2a] text-white font-bold rounded-xl shadow-md shadow-[#a52a2a]/20 hover:bg-red-800 transition flex items-center justify-center gap-2 text-sm">
+                <button onclick="attemptPublish()"
+                    class="px-5 py-2.5 bg-[#a52a2a] text-white font-bold rounded-xl shadow-md shadow-[#a52a2a]/20 hover:bg-red-800 transition flex items-center justify-center gap-2 text-sm">
                     <i class="fas fa-paper-plane"></i> Submit for Review
                 </button>
             @elseif($material->status === 'published')
-                
+
                 {{-- CHECK FOR PENDING UNPUBLISH REQUEST --}}
                 @if(!empty($material->revert_reason))
-                    <div class="px-4 py-2.5 bg-amber-50 border border-amber-200 text-amber-700 font-bold rounded-xl flex items-center justify-center gap-2 cursor-default text-sm">
+                    <div
+                        class="px-4 py-2.5 bg-amber-50 border border-amber-200 text-amber-700 font-bold rounded-xl flex items-center justify-center gap-2 cursor-default text-sm">
                         <i class="fas fa-clock"></i> Unpublish Requested
                     </div>
                     @if($isAdminOrCid)
-                        <button onclick="openModal('reviewUnpublishModal', 'reviewUnpublishBox')" class="px-5 py-2.5 bg-blue-600 text-white font-bold rounded-xl shadow-md hover:bg-blue-700 transition flex items-center justify-center gap-2 text-sm">
+                        <button onclick="openModal('reviewUnpublishModal', 'reviewUnpublishBox')"
+                            class="px-5 py-2.5 bg-blue-600 text-white font-bold rounded-xl shadow-md hover:bg-blue-700 transition flex items-center justify-center gap-2 text-sm">
                             <i class="fas fa-clipboard-check"></i> Review Request
                         </button>
                     @endif
                 @else
                     @if($isAdminOrCid)
-                        <button onclick="revertToDraft()" class="px-4 py-2.5 bg-amber-50 border border-amber-200 text-amber-700 font-bold rounded-xl hover:bg-amber-100 transition flex items-center justify-center gap-2 text-sm">
+                        <button onclick="revertToDraft()"
+                            class="px-4 py-2.5 bg-amber-50 border border-amber-200 text-amber-700 font-bold rounded-xl hover:bg-amber-100 transition flex items-center justify-center gap-2 text-sm">
                             <i class="fas fa-undo"></i> Force Revert to Draft
                         </button>
                     @else
-                        <button onclick="openModal('requestUnpublishModal', 'requestUnpublishBox')" class="px-4 py-2.5 bg-amber-50 border border-amber-200 text-amber-700 font-bold rounded-xl hover:bg-amber-100 transition flex items-center justify-center gap-2 text-sm">
+                        <button onclick="openModal('requestUnpublishModal', 'requestUnpublishBox')"
+                            class="px-4 py-2.5 bg-amber-50 border border-amber-200 text-amber-700 font-bold rounded-xl hover:bg-amber-100 transition flex items-center justify-center gap-2 text-sm">
                             <i class="fas fa-arrow-circle-down"></i> Request Unpublish
                         </button>
                     @endif
-                    <div class="px-4 py-2.5 bg-green-50 border border-green-200 text-green-700 font-bold rounded-xl flex items-center justify-center gap-2 cursor-default text-sm">
+                    <div
+                        class="px-4 py-2.5 bg-green-50 border border-green-200 text-green-700 font-bold rounded-xl flex items-center justify-center gap-2 cursor-default text-sm">
                         <i class="fas fa-check-circle"></i> Published
                     </div>
                 @endif
-                
+
             @elseif($material->status === 'pending')
                 @if($isAdminOrCid)
-                    <button onclick="openModal('evaluateCriteriaModal', 'evaluateCriteriaBox')" class="px-5 py-2.5 bg-blue-600 text-white font-bold rounded-xl shadow-md hover:bg-blue-700 transition flex items-center justify-center gap-2 text-sm">
+                    <button onclick="openModal('evaluateCriteriaModal', 'evaluateCriteriaBox')"
+                        class="px-5 py-2.5 bg-blue-600 text-white font-bold rounded-xl shadow-md hover:bg-blue-700 transition flex items-center justify-center gap-2 text-sm">
                         <i class="fas fa-clipboard-list"></i> Evaluate to Publish
                     </button>
                 @else
-                    <div class="px-4 py-2.5 bg-gray-50 border border-gray-200 text-gray-600 font-bold rounded-xl flex items-center justify-center gap-2 cursor-default text-sm">
+                    <div
+                        class="px-4 py-2.5 bg-gray-50 border border-gray-200 text-gray-600 font-bold rounded-xl flex items-center justify-center gap-2 cursor-default text-sm">
                         <i class="fas fa-clock"></i> Pending Review
                     </div>
                 @endif
@@ -219,21 +228,26 @@
         {{-- LEFT COLUMN: Details, Tables & Analytics --}}
         <div class="lg:col-span-8 space-y-6">
 
-        {{-- NEW: ADMIN FEEDBACK / REVERT REASON BANNER --}}
+            {{-- NEW: ADMIN FEEDBACK / REVERT REASON BANNER --}}
             @if($material->status === 'draft' && !empty($material->revert_reason))
-                <div class="bg-amber-50 rounded-3xl border border-amber-200 p-6 md:p-8 flex flex-col md:flex-row gap-6 relative overflow-hidden">
+                <div
+                    class="bg-amber-50 rounded-3xl border border-amber-200 p-6 md:p-8 flex flex-col md:flex-row gap-6 relative overflow-hidden">
                     <div class="absolute -right-6 -top-6 text-amber-500/10 transform rotate-12 pointer-events-none z-0">
                         <i class="fas fa-exclamation-circle text-9xl"></i>
                     </div>
                     <div class="relative z-10 flex items-start gap-4">
-                        <div class="w-12 h-12 bg-amber-100 text-amber-600 rounded-full flex items-center justify-center text-xl shrink-0 shadow-sm border border-amber-200">
+                        <div
+                            class="w-12 h-12 bg-amber-100 text-amber-600 rounded-full flex items-center justify-center text-xl shrink-0 shadow-sm border border-amber-200">
                             <i class="fas fa-undo"></i>
                         </div>
                         <div>
                             <h3 class="text-lg font-black text-amber-900 mb-1">Module Returned to Draft</h3>
-                            <p class="text-sm text-amber-700 mb-4 leading-relaxed">An administrator has forced this module back to draft mode. Please review their feedback below, make the necessary changes, and submit it for review again.</p>
+                            <p class="text-sm text-amber-700 mb-4 leading-relaxed">An administrator has forced this module
+                                back to draft mode. Please review their feedback below, make the necessary changes, and
+                                submit it for review again.</p>
                             <div class="bg-white/80 p-4 rounded-xl border border-amber-200/60 shadow-sm">
-                                <p class="text-[10px] font-black text-amber-800 uppercase tracking-wider mb-1">Administrator's Reason:</p>
+                                <p class="text-[10px] font-black text-amber-800 uppercase tracking-wider mb-1">
+                                    Administrator's Reason:</p>
                                 <p class="text-sm text-amber-900 font-medium italic">"{{ $material->revert_reason }}"</p>
                             </div>
                         </div>
@@ -428,10 +442,12 @@
                                             <div>
                                                 <p
                                                     class="text-sm font-bold text-gray-900 truncate max-w-[150px] sm:max-w-xs">
-                                                    {{ $access->email }}</p>
+                                                    {{ $access->email }}
+                                                </p>
                                                 @if($access->student)
                                                     <p class="text-[10px] text-gray-500 uppercase tracking-wider">
-                                                        {{ $access->student->first_name }} {{ $access->student->last_name }}</p>
+                                                        {{ $access->student->first_name }} {{ $access->student->last_name }}
+                                                    </p>
                                                 @endif
                                             </div>
                                         </div>
@@ -507,7 +523,8 @@
                     <div class="bg-gray-50 p-4 rounded-2xl border border-gray-100">
                         <p class="text-[10px] text-gray-400 font-bold uppercase tracking-wider mb-1">Total Enrolled</p>
                         <h3 class="text-2xl font-black text-gray-900">
-                            {{ $whitelistedStudents->where('status', 'enrolled')->count() }}</h3>
+                            {{ $whitelistedStudents->where('status', 'enrolled')->count() }}
+                        </h3>
                     </div>
                     <div class="bg-gray-50 p-4 rounded-2xl border border-gray-100">
                         <p class="text-[10px] text-gray-400 font-bold uppercase tracking-wider mb-1">Total Lessons</p>
@@ -652,7 +669,7 @@
 
                             <button type="button" onclick="removeTag('{{ $tag->name }}')" {{ $isLocked ? 'disabled' : '' }}
                                 class="text-[#a52a2a]/60 hover:text-[#a52a2a] hover:bg-[#a52a2a]/10 rounded-full h-4 w-4 flex items-center justify-center transition-colors
-                        disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent disabled:hover:text-[#a52a2a]/60">
+                            disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent disabled:hover:text-[#a52a2a]/60">
                                 <i class="fas fa-times text-[10px]"></i>
                             </button>
 
@@ -673,19 +690,25 @@
                     <i class="fas fa-exclamation-triangle text-8xl"></i>
                 </div>
                 <h3 class="text-sm font-black text-red-800 uppercase tracking-wider mb-2 relative z-10">Danger Zone</h3>
-                <p class="text-xs text-red-600/80 mb-5 relative z-10 leading-relaxed">Permanently delete this module and wipe all student progress.</p>
-                
+                <p class="text-xs text-red-600/80 mb-5 relative z-10 leading-relaxed">Permanently delete this module and
+                    wipe all student progress.</p>
+
                 @if($material->status === 'published')
-                    <button disabled class="w-full py-3 bg-red-100 text-red-400 font-bold rounded-xl cursor-not-allowed transition relative z-10">
+                    <button disabled
+                        class="w-full py-3 bg-red-100 text-red-400 font-bold rounded-xl cursor-not-allowed transition relative z-10">
                         Cannot Delete Live Module
                     </button>
                     @if(empty($material->revert_reason))
-                        <p class="text-[10px] text-red-500 mt-2 text-center relative z-10">You must request to unpublish this module first.</p>
+                        <p class="text-[10px] text-red-500 mt-2 text-center relative z-10">You must request to unpublish this
+                            module first.</p>
                     @else
-                        <p class="text-[10px] text-red-500 mt-2 text-center relative z-10"><i class="fas fa-spinner fa-spin mr-1"></i> Waiting for admin to approve your unpublish request.</p>
+                        <p class="text-[10px] text-red-500 mt-2 text-center relative z-10"><i
+                                class="fas fa-spinner fa-spin mr-1"></i> Waiting for admin to approve your unpublish request.
+                        </p>
                     @endif
                 @else
-                    <button onclick="openModal('deleteConfirmModal', 'deleteConfirmBox')" class="w-full py-3 bg-white text-red-600 border border-red-200 font-bold rounded-xl shadow-sm hover:bg-red-600 hover:text-white transition relative z-10">
+                    <button onclick="openModal('deleteConfirmModal', 'deleteConfirmBox')"
+                        class="w-full py-3 bg-white text-red-600 border border-red-200 font-bold rounded-xl shadow-sm hover:bg-red-600 hover:text-white transition relative z-10">
                         Delete Module
                     </button>
                 @endif
@@ -697,6 +720,90 @@
 {{-- ========================================== --}}
 {{-- MODALS & OVERLAYS --}}
 {{-- ========================================== --}}
+
+
+{{-- Pending Account Restriction Modal --}}
+<div id="pendingAccountModal"
+    class="fixed inset-0 z-[9999] hidden opacity-0 transition-opacity duration-300 flex items-center justify-center p-4">
+    <div class="absolute inset-0 bg-gray-900/60 backdrop-blur-sm"
+        onclick="closeModal('pendingAccountModal', 'pendingAccountBox')"></div>
+    <div id="pendingAccountBox"
+        class="bg-white rounded-3xl max-w-md w-full p-8 shadow-2xl relative z-10 transform scale-95 transition-all duration-300">
+        {{-- Icon --}}
+        <div class="flex flex-col items-center text-center mb-6">
+            <div
+                class="w-16 h-16 bg-amber-50 border border-amber-200 text-amber-500 rounded-full flex items-center justify-center mb-4 text-2xl shadow-sm">
+                <i class="fas fa-user-shield"></i>
+            </div>
+            <h3 class="text-xl font-black text-gray-900 mb-1">Verification Required</h3>
+            <p class="text-sm text-gray-500 leading-relaxed">
+                Your account hasn't been verified by an administrator yet. You can continue creating and editing
+                materials, but you won't be able to submit for review until your identity as a teacher is confirmed.
+            </p>
+        </div>
+
+        {{-- What's missing --}}
+        <div class="bg-amber-50 border border-amber-200 rounded-2xl p-4 mb-6 space-y-2">
+            <p class="text-xs font-black text-amber-800 uppercase tracking-wider mb-2">Pending Verification Steps</p>
+            @php $user = auth()->user(); @endphp
+
+            {{-- Step 1: Email verification --}}
+            <div class="flex items-center gap-3">
+                @if($user->email_verified_at)
+                    <div class="w-6 h-6 rounded-full bg-green-100 text-green-600 flex items-center justify-center shrink-0">
+                        <i class="fas fa-check text-[10px]"></i>
+                    </div>
+                    <span class="text-xs text-gray-700 font-medium">Email address verified</span>
+                @else
+                    <div class="w-6 h-6 rounded-full bg-amber-100 text-amber-600 flex items-center justify-center shrink-0">
+                        <i class="fas fa-clock text-[10px]"></i>
+                    </div>
+                    <span class="text-xs text-gray-700 font-medium">Email address not yet verified</span>
+                @endif
+            </div>
+
+            {{-- Step 2: Employee ID / Admin approval --}}
+            <div class="flex items-center gap-3">
+                @if(!empty($user->employee_id) && $user->status === 'verified')
+                    <div class="w-6 h-6 rounded-full bg-green-100 text-green-600 flex items-center justify-center shrink-0">
+                        <i class="fas fa-check text-[10px]"></i>
+                    </div>
+                    <span class="text-xs text-gray-700 font-medium">Employee ID confirmed by admin</span>
+                @else
+                    <div class="w-6 h-6 rounded-full bg-amber-100 text-amber-600 flex items-center justify-center shrink-0">
+                        <i class="fas fa-clock text-[10px]"></i>
+                    </div>
+                    <span class="text-xs text-gray-700 font-medium">
+                        @if(empty($user->employee_id))
+                            Employee ID not yet assigned — awaiting admin approval
+                        @else
+                            Account pending administrator approval
+                        @endif
+                    </span>
+                @endif
+            </div>
+        </div>
+
+        {{-- Info note --}}
+        <p class="text-xs text-gray-400 text-center leading-relaxed mb-6">
+            Once an administrator verifies your account and assigns your Employee ID, you'll be able to submit materials
+            for review automatically.
+        </p>
+
+        {{-- Actions --}}
+        <div class="flex flex-col sm:flex-row gap-3">
+            <button type="button" onclick="closeModal('pendingAccountModal', 'pendingAccountBox')"
+                class="flex-1 py-3 bg-gray-100 text-gray-700 font-bold rounded-xl hover:bg-gray-200 transition text-sm">
+                Got it
+            </button>
+            <button type="button"
+                onclick="closeModal('pendingAccountModal', 'pendingAccountBox'); loadPartial('{{ url('/dashboard/profile') }}?support=true', document.getElementById('nav-profile-btn'));"
+                class="flex-1 py-3 bg-[#a52a2a] text-white font-bold rounded-xl shadow-md shadow-[#a52a2a]/20 hover:bg-red-800 transition text-sm flex items-center justify-center gap-2">
+                <i class="fas fa-headset"></i> Contact Support
+            </button>
+        </div>
+    </div>
+</div>
 
 {{-- Custom Alert Modal (Smooth transitions, no native alerts, NO blur) --}}
 <div id="customAlertModal"
@@ -725,41 +832,58 @@
 </div>
 
 {{-- Request Unpublish Modal (For Teachers) --}}
-<div id="requestUnpublishModal" class="fixed inset-0 z-[9999] hidden opacity-0 transition-opacity duration-300 flex items-center justify-center p-4">
-    <div class="absolute inset-0 bg-gray-900/60" onclick="closeModal('requestUnpublishModal', 'requestUnpublishBox')"></div>
-    <div id="requestUnpublishBox" class="bg-white rounded-3xl max-w-md w-full p-8 text-center shadow-2xl relative z-10 transform scale-95 transition-all duration-300">
-        <div class="w-16 h-16 bg-amber-50 text-amber-500 rounded-full flex items-center justify-center mx-auto mb-4 text-3xl">
+<div id="requestUnpublishModal"
+    class="fixed inset-0 z-[9999] hidden opacity-0 transition-opacity duration-300 flex items-center justify-center p-4">
+    <div class="absolute inset-0 bg-gray-900/60" onclick="closeModal('requestUnpublishModal', 'requestUnpublishBox')">
+    </div>
+    <div id="requestUnpublishBox"
+        class="bg-white rounded-3xl max-w-md w-full p-8 text-center shadow-2xl relative z-10 transform scale-95 transition-all duration-300">
+        <div
+            class="w-16 h-16 bg-amber-50 text-amber-500 rounded-full flex items-center justify-center mx-auto mb-4 text-3xl">
             <i class="fas fa-arrow-circle-down"></i>
         </div>
         <h3 class="text-xl font-black text-gray-900 mb-2">Request to Unpublish</h3>
-        <p class="text-gray-500 mb-4 text-sm leading-relaxed">Please provide a reason for unpublishing this module. Administrators will review your request.</p>
-        
-        <textarea id="unpublishReasonInput" rows="3" placeholder="I need to fix critical errors in the material..." class="w-full mb-5 px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 outline-none transition-all text-sm"></textarea>
-        
+        <p class="text-gray-500 mb-4 text-sm leading-relaxed">Please provide a reason for unpublishing this module.
+            Administrators will review your request.</p>
+
+        <textarea id="unpublishReasonInput" rows="3" placeholder="I need to fix critical errors in the material..."
+            class="w-full mb-5 px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 outline-none transition-all text-sm"></textarea>
+
         <div class="flex gap-3">
-            <button type="button" onclick="closeModal('requestUnpublishModal', 'requestUnpublishBox')" class="flex-1 py-3 bg-gray-100 text-gray-700 font-bold rounded-xl hover:bg-gray-200 transition">Cancel</button>
-            <button type="button" onclick="submitUnpublishRequest()" id="submitUnpublishBtn" class="flex-1 py-3 bg-amber-500 text-white font-bold rounded-xl shadow-lg shadow-amber-500/20 hover:bg-amber-600 transition flex justify-center items-center">Send Request</button>
+            <button type="button" onclick="closeModal('requestUnpublishModal', 'requestUnpublishBox')"
+                class="flex-1 py-3 bg-gray-100 text-gray-700 font-bold rounded-xl hover:bg-gray-200 transition">Cancel</button>
+            <button type="button" onclick="submitUnpublishRequest()" id="submitUnpublishBtn"
+                class="flex-1 py-3 bg-amber-500 text-white font-bold rounded-xl shadow-lg shadow-amber-500/20 hover:bg-amber-600 transition flex justify-center items-center">Send
+                Request</button>
         </div>
     </div>
 </div>
 
 {{-- Review Unpublish Request Modal (For Admins) --}}
-<div id="reviewUnpublishModal" class="fixed inset-0 z-[9999] hidden opacity-0 transition-opacity duration-300 flex items-center justify-center p-4">
-    <div class="absolute inset-0 bg-gray-900/60" onclick="closeModal('reviewUnpublishModal', 'reviewUnpublishBox')"></div>
-    <div id="reviewUnpublishBox" class="bg-white rounded-3xl max-w-md w-full p-8 shadow-2xl relative z-10 transform scale-95 transition-all duration-300">
+<div id="reviewUnpublishModal"
+    class="fixed inset-0 z-[9999] hidden opacity-0 transition-opacity duration-300 flex items-center justify-center p-4">
+    <div class="absolute inset-0 bg-gray-900/60" onclick="closeModal('reviewUnpublishModal', 'reviewUnpublishBox')">
+    </div>
+    <div id="reviewUnpublishBox"
+        class="bg-white rounded-3xl max-w-md w-full p-8 shadow-2xl relative z-10 transform scale-95 transition-all duration-300">
         <div class="flex justify-between items-center mb-6">
             <h3 class="text-xl font-black text-gray-900">Review Unpublish Request</h3>
-            <button onclick="closeModal('reviewUnpublishModal', 'reviewUnpublishBox')" class="text-gray-400 hover:text-gray-600 transition"><i class="fas fa-times"></i></button>
+            <button onclick="closeModal('reviewUnpublishModal', 'reviewUnpublishBox')"
+                class="text-gray-400 hover:text-gray-600 transition"><i class="fas fa-times"></i></button>
         </div>
-        
+
         <div class="p-4 bg-gray-50 border border-gray-200 rounded-xl mb-6">
             <p class="text-[10px] text-gray-400 font-bold uppercase tracking-wider mb-2">Teacher's Reason:</p>
-            <p class="text-sm text-gray-700 font-medium italic">"{{ $material->revert_reason ?? 'No reason provided.' }}"</p>
+            <p class="text-sm text-gray-700 font-medium italic">
+                "{{ $material->revert_reason ?? 'No reason provided.' }}"</p>
         </div>
-        
+
         <div class="flex gap-3">
-            <button type="button" onclick="resolveUnpublishRequest('published', this)" class="flex-1 py-3 bg-white text-gray-600 border border-gray-200 font-bold rounded-xl hover:bg-gray-50 hover:text-red-600 transition">Decline</button>
-            <button type="button" onclick="resolveUnpublishRequest('draft', this)" class="flex-1 py-3 bg-amber-500 text-white font-bold rounded-xl shadow-lg shadow-amber-500/20 hover:bg-amber-600 transition flex justify-center items-center">Approve to Draft</button>
+            <button type="button" onclick="resolveUnpublishRequest('published', this)"
+                class="flex-1 py-3 bg-white text-gray-600 border border-gray-200 font-bold rounded-xl hover:bg-gray-50 hover:text-red-600 transition">Decline</button>
+            <button type="button" onclick="resolveUnpublishRequest('draft', this)"
+                class="flex-1 py-3 bg-amber-500 text-white font-bold rounded-xl shadow-lg shadow-amber-500/20 hover:bg-amber-600 transition flex justify-center items-center">Approve
+                to Draft</button>
         </div>
     </div>
 </div>
@@ -788,20 +912,29 @@
 </div>
 
 {{-- 2. Revert to Draft Confirmation Modal --}}
-<div id="revertConfirmModal" class="fixed inset-0 z-[9999] hidden opacity-0 transition-opacity duration-300 flex items-center justify-center p-4">
+<div id="revertConfirmModal"
+    class="fixed inset-0 z-[9999] hidden opacity-0 transition-opacity duration-300 flex items-center justify-center p-4">
     <div class="absolute inset-0 bg-gray-900/60" onclick="closeModal('revertConfirmModal', 'revertConfirmBox')"></div>
-    <div id="revertConfirmBox" class="bg-white rounded-3xl max-w-md w-full p-8 text-center shadow-2xl relative z-10 transform scale-95 transition-all duration-300">
-        <div class="w-16 h-16 bg-amber-50 text-amber-500 rounded-full flex items-center justify-center mx-auto mb-4 text-3xl">
+    <div id="revertConfirmBox"
+        class="bg-white rounded-3xl max-w-md w-full p-8 text-center shadow-2xl relative z-10 transform scale-95 transition-all duration-300">
+        <div
+            class="w-16 h-16 bg-amber-50 text-amber-500 rounded-full flex items-center justify-center mx-auto mb-4 text-3xl">
             <i class="fas fa-undo"></i>
         </div>
         <h3 class="text-2xl font-black text-gray-900 mb-2">Revert to Draft?</h3>
-        <p class="text-gray-500 mb-4 text-sm leading-relaxed">Are you sure you want to revert this module to draft? It will be hidden from the public explore page and students.</p>
-        
-        <textarea id="forceRevertReasonInput" rows="3" placeholder="Provide a reason for forcing this revert (Required)..." class="w-full mb-5 px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 outline-none transition-all text-sm"></textarea>
+        <p class="text-gray-500 mb-4 text-sm leading-relaxed">Are you sure you want to revert this module to draft? It
+            will be hidden from the public explore page and students.</p>
+
+        <textarea id="forceRevertReasonInput" rows="3"
+            placeholder="Provide a reason for forcing this revert (Required)..."
+            class="w-full mb-5 px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 outline-none transition-all text-sm"></textarea>
 
         <div class="flex gap-3">
-            <button type="button" onclick="closeModal('revertConfirmModal', 'revertConfirmBox')" class="flex-1 py-3 bg-gray-100 text-gray-700 font-bold rounded-xl hover:bg-gray-200 transition">Cancel</button>
-            <button type="button" onclick="executeRevertToDraft()" id="executeRevertBtn" class="flex-1 py-3 bg-amber-500 text-white font-bold rounded-xl shadow-lg shadow-amber-500/20 hover:bg-amber-600 transition flex justify-center items-center">Yes, Revert</button>
+            <button type="button" onclick="closeModal('revertConfirmModal', 'revertConfirmBox')"
+                class="flex-1 py-3 bg-gray-100 text-gray-700 font-bold rounded-xl hover:bg-gray-200 transition">Cancel</button>
+            <button type="button" onclick="executeRevertToDraft()" id="executeRevertBtn"
+                class="flex-1 py-3 bg-amber-500 text-white font-bold rounded-xl shadow-lg shadow-amber-500/20 hover:bg-amber-600 transition flex justify-center items-center">Yes,
+                Revert</button>
         </div>
     </div>
 </div>
@@ -836,7 +969,8 @@
 {{-- 4. Import Students Modal --}}
 <div id="importStudentModal"
     class="fixed inset-0 z-[9999] hidden opacity-0 transition-opacity duration-300 flex items-center justify-center p-4">
-    <div class="absolute inset-0 bg-gray-900/60 backdrop-blur-sm" onclick="closeModal('importStudentModal', 'importStudentBox')"></div>
+    <div class="absolute inset-0 bg-gray-900/60 backdrop-blur-sm"
+        onclick="closeModal('importStudentModal', 'importStudentBox')"></div>
     <div id="importStudentBox"
         class="bg-white rounded-3xl max-w-sm w-full p-8 shadow-2xl relative z-10 transform scale-95 transition-all duration-300">
         <div class="flex justify-between items-center mb-6">
@@ -845,11 +979,14 @@
                 class="text-gray-400 hover:text-gray-600 transition"><i class="fas fa-times"></i></button>
         </div>
 
-        <div class="mb-5 p-4 bg-gray-50 border border-gray-200 rounded-2xl text-sm text-gray-600 leading-relaxed space-y-2">
-            <p class="font-bold text-gray-800 flex items-center gap-2"><i class="fas fa-info-circle text-blue-500"></i> File Requirements</p>
+        <div
+            class="mb-5 p-4 bg-gray-50 border border-gray-200 rounded-2xl text-sm text-gray-600 leading-relaxed space-y-2">
+            <p class="font-bold text-gray-800 flex items-center gap-2"><i class="fas fa-info-circle text-blue-500"></i>
+                File Requirements</p>
             <ul class="list-disc list-inside space-y-1 text-xs text-gray-500">
                 <li>Accepted formats: <strong>.csv</strong>, <strong>.xlsx</strong>, <strong>.xls</strong></li>
-                <li>File must contain a column with the header <strong class="font-mono text-gray-700">"email"</strong></li>
+                <li>File must contain a column with the header <strong class="font-mono text-gray-700">"email"</strong>
+                </li>
                 <li>Email values must be valid addresses</li>
                 <li>Other columns in the file will be ignored</li>
             </ul>
@@ -857,8 +994,7 @@
 
         <div class="mb-6">
             <label class="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-2">Select File</label>
-            <input type="file" id="importFileInput" accept=".csv, .xlsx, .xls"
-                class="block w-full text-sm text-gray-500
+            <input type="file" id="importFileInput" accept=".csv, .xlsx, .xls" class="block w-full text-sm text-gray-500
                        file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0
                        file:text-sm file:font-bold file:bg-blue-50 file:text-blue-700
                        hover:file:bg-blue-100 transition cursor-pointer">
@@ -897,31 +1033,38 @@
 {{-- Evaluate Criteria Selection Modal --}}
 <div id="evaluateCriteriaModal"
     class="fixed inset-0 z-[9999] hidden opacity-0 transition-opacity duration-300 flex items-center justify-center p-4">
-    <div class="absolute inset-0 bg-gray-900/60" onclick="closeModal('evaluateCriteriaModal', 'evaluateCriteriaBox')"></div>
+    <div class="absolute inset-0 bg-gray-900/60" onclick="closeModal('evaluateCriteriaModal', 'evaluateCriteriaBox')">
+    </div>
     <div id="evaluateCriteriaBox"
         class="bg-white rounded-3xl max-w-md w-full p-8 shadow-2xl relative z-10 transform scale-95 transition-all duration-300">
         <div class="flex justify-between items-center mb-6">
             <h3 class="text-xl font-black text-gray-900">Select Criteria</h3>
-            <button onclick="closeModal('evaluateCriteriaModal', 'evaluateCriteriaBox')" class="text-gray-400 hover:text-gray-600 transition"><i class="fas fa-times"></i></button>
+            <button onclick="closeModal('evaluateCriteriaModal', 'evaluateCriteriaBox')"
+                class="text-gray-400 hover:text-gray-600 transition"><i class="fas fa-times"></i></button>
         </div>
-        
+
         <div class="mb-6">
             <label class="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-2">Evaluation Rubric</label>
-            <p class="text-sm text-gray-500 mb-4">Choose the appropriate criteria template to evaluate this material against.</p>
-            
+            <p class="text-sm text-gray-500 mb-4">Choose the appropriate criteria template to evaluate this material
+                against.</p>
+
             <div class="relative">
                 <i class="fas fa-list-check absolute left-4 top-1/2 -translate-y-1/2 text-gray-400"></i>
-                <select id="selectedCriteriaId" class="w-full pl-10 pr-10 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all text-sm font-bold text-gray-800 appearance-none">
+                <select id="selectedCriteriaId"
+                    class="w-full pl-10 pr-10 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all text-sm font-bold text-gray-800 appearance-none">
                     <option value="" disabled selected>-- Select a Criteria --</option>
                     @foreach($availableCriterias ?? [] as $criteria)
-                        <option value="{{ $criteria->id }}">{{ $criteria->title }} ({{ $criteria->passing_rate }}% Pass)</option>
+                        <option value="{{ $criteria->id }}">{{ $criteria->title }} ({{ $criteria->passing_rate }}% Pass)
+                        </option>
                     @endforeach
                 </select>
-                <i class="fas fa-chevron-down absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none text-xs"></i>
+                <i
+                    class="fas fa-chevron-down absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none text-xs"></i>
             </div>
         </div>
-        
-        <button onclick="proceedToEvaluate()" class="w-full py-3 bg-blue-600 text-white font-bold rounded-xl shadow-lg shadow-blue-600/20 hover:bg-blue-700 transition flex items-center justify-center gap-2">
+
+        <button onclick="proceedToEvaluate()"
+            class="w-full py-3 bg-blue-600 text-white font-bold rounded-xl shadow-lg shadow-blue-600/20 hover:bg-blue-700 transition flex items-center justify-center gap-2">
             Proceed to Evaluation <i class="fas fa-arrow-right ml-1"></i>
         </button>
     </div>
@@ -933,12 +1076,14 @@
         class="relative bg-white rounded-3xl shadow-2xl w-full max-w-3xl transform scale-95 opacity-0 transition-all duration-300 border border-gray-100 z-10 flex flex-col max-h-[92vh] overflow-hidden">
 
         <div class="px-8 pt-7 pb-5 border-b border-gray-100 flex items-start gap-4 shrink-0">
-            <div class="w-14 h-14 bg-amber-100 text-amber-600 rounded-2xl flex items-center justify-center text-2xl shrink-0">
+            <div
+                class="w-14 h-14 bg-amber-100 text-amber-600 rounded-2xl flex items-center justify-center text-2xl shrink-0">
                 <i class="fas fa-exclamation-triangle"></i>
             </div>
             <div>
                 <h3 class="text-2xl font-black text-gray-900">Duplicate Emails Detected</h3>
-                <p class="text-sm text-gray-500 mt-1">We found students in your file who are already on the access list. What would you like to do with them?</p>
+                <p class="text-sm text-gray-500 mt-1">We found students in your file who are already on the access list.
+                    What would you like to do with them?</p>
             </div>
         </div>
 
@@ -955,26 +1100,32 @@
             <div class="w-2/5 flex flex-col px-6 py-6 overflow-y-auto">
                 <p class="text-sm font-semibold text-gray-700 mb-4 shrink-0">Choose Action</p>
                 <div class="space-y-4 shrink-0">
-                    <label class="flex gap-3 p-4 border rounded-xl cursor-pointer transition hover:bg-gray-50 has-[:checked]:border-emerald-500 has-[:checked]:bg-emerald-50">
-                        <input type="radio" name="email_conflict_strategy" value="skip" checked class="mt-1 w-5 h-5 text-emerald-600 border-gray-300 focus:ring-emerald-600 shrink-0">
+                    <label
+                        class="flex gap-3 p-4 border rounded-xl cursor-pointer transition hover:bg-gray-50 has-[:checked]:border-emerald-500 has-[:checked]:bg-emerald-50">
+                        <input type="radio" name="email_conflict_strategy" value="skip" checked
+                            class="mt-1 w-5 h-5 text-emerald-600 border-gray-300 focus:ring-emerald-600 shrink-0">
                         <div>
                             <span class="font-bold text-gray-900 block">Skip Duplicates</span>
-                            <span class="text-xs text-gray-500">Ignore these emails and only add brand-new students.</span>
+                            <span class="text-xs text-gray-500">Ignore these emails and only add brand-new
+                                students.</span>
                         </div>
                     </label>
-                    
-                    <label class="flex gap-3 p-4 border rounded-xl cursor-pointer transition hover:bg-gray-50 has-[:checked]:border-amber-500 has-[:checked]:bg-amber-50">
-                        <input type="radio" name="email_conflict_strategy" value="update" class="mt-1 w-5 h-5 text-amber-600 border-gray-300 focus:ring-amber-600 shrink-0">
+
+                    <label
+                        class="flex gap-3 p-4 border rounded-xl cursor-pointer transition hover:bg-gray-50 has-[:checked]:border-amber-500 has-[:checked]:bg-amber-50">
+                        <input type="radio" name="email_conflict_strategy" value="update"
+                            class="mt-1 w-5 h-5 text-amber-600 border-gray-300 focus:ring-amber-600 shrink-0">
                         <div>
                             <span class="font-bold text-gray-900 block">Update Access</span>
                             <span class="text-xs text-gray-500">Update these students to active status.</span>
                         </div>
                     </label>
                 </div>
-                
+
                 <div class="mt-auto pt-6 shrink-0">
                     <div class="text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded-lg p-3">
-                        <strong>Tip:</strong> Updating is useful if the student's access was previously dropped or expired.
+                        <strong>Tip:</strong> Updating is useful if the student's access was previously dropped or
+                        expired.
                     </div>
                 </div>
             </div>
@@ -993,9 +1144,9 @@
 
 <script>
     // Add this inside the script tags of materials-manage.blade.php
-    window.proceedToEvaluate = function() {
+    window.proceedToEvaluate = function () {
         const criteriaId = document.getElementById('selectedCriteriaId').value;
-        if(!criteriaId) {
+        if (!criteriaId) {
             showSnackbar('Please select an evaluation criteria.', 'error');
             return;
         }
@@ -1245,6 +1396,13 @@
 
     // --- STATUS UPDATES (PUBLISH & REVERT) ---
     window.attemptPublish = function () {
+        // UPDATED: Block the user if their status is anything other than 'verified' OR if their email is not verified
+        const isPendingTeacher = {{ (auth()->user()->role === 'teacher' && (auth()->user()->status !== 'verified' || empty(auth()->user()->email_verified_at))) ? 'true' : 'false' }};
+
+        if (isPendingTeacher) {
+            openModal('pendingAccountModal', 'pendingAccountBox');
+            return; // Stop the function here
+        }
         const tags = window.getActiveTags().map(t => t.toUpperCase());
 
         const gradeRegex = /^(KINDERGARTEN|GRADE\s*([1-9]|1[0-2]))$/;
@@ -1325,25 +1483,25 @@
                 'Accept': 'application/json'
             },
             // FIX: Send as revert_reason instead of admin_remarks
-            body: JSON.stringify({ status: 'draft', revert_reason: reason }) 
+            body: JSON.stringify({ status: 'draft', revert_reason: reason })
         })
-        .then(r => r.json())
-        .then(data => {
-            if (data.success) {
-                closeModal('revertConfirmModal', 'revertConfirmBox');
-                showSnackbar('Module reverted to draft.', 'success');
-                setTimeout(() => loadPartial('{{ url('/dashboard/materials') }}', document.getElementById('nav-materials-btn')), 500);
-            } else {
-                showCustomAlert('Error', data.message || 'Failed to revert to draft.', 'error');
+            .then(r => r.json())
+            .then(data => {
+                if (data.success) {
+                    closeModal('revertConfirmModal', 'revertConfirmBox');
+                    showSnackbar('Module reverted to draft.', 'success');
+                    setTimeout(() => loadPartial('{{ url('/dashboard/materials') }}', document.getElementById('nav-materials-btn')), 500);
+                } else {
+                    showCustomAlert('Error', data.message || 'Failed to revert to draft.', 'error');
+                    btn.disabled = false;
+                    btn.innerHTML = originalHtml;
+                }
+            })
+            .catch(error => {
+                showCustomAlert('Error', 'An error occurred.', 'error');
                 btn.disabled = false;
                 btn.innerHTML = originalHtml;
-            }
-        })
-        .catch(error => {
-            showCustomAlert('Error', 'An error occurred.', 'error');
-            btn.disabled = false;
-            btn.innerHTML = originalHtml;
-        });
+            });
     }
 
     // --- TOGGLE VISIBILITY ---
@@ -1411,183 +1569,183 @@
             },
             body: JSON.stringify({ email: email })
         })
-        .then(async response => {
-            const data = await response.json().catch(() => null);
-            if (!response.ok) throw data || { message: 'Server error occurred.' };
-            return data;
-        })
-        .then(data => {
-            if (data.success) {
-                document.getElementById('newStudentEmail').value = '';
-                showSnackbar(data.message || 'Student added successfully!', 'success');
-                closeModal('addStudentModal', 'addStudentBox');
-                setTimeout(refreshTableOnly, 300);
-            } else {
-                throw { message: data.message || 'Failed to grant access.' };
-            }
-        })
-        .catch(error => {
-            let errorMsg = 'An error occurred while adding the student.';
-            if (error && error.errors) {
-                errorMsg = Object.values(error.errors)[0][0];
-            } else if (error && error.message) {
-                errorMsg = error.message;
-            }
-            showCustomAlert('Error', errorMsg, 'error');
-        })
-        .finally(() => {
-            btn.disabled = false;
-            btn.innerHTML = 'Grant Access';
-        });
+            .then(async response => {
+                const data = await response.json().catch(() => null);
+                if (!response.ok) throw data || { message: 'Server error occurred.' };
+                return data;
+            })
+            .then(data => {
+                if (data.success) {
+                    document.getElementById('newStudentEmail').value = '';
+                    showSnackbar(data.message || 'Student added successfully!', 'success');
+                    closeModal('addStudentModal', 'addStudentBox');
+                    setTimeout(refreshTableOnly, 300);
+                } else {
+                    throw { message: data.message || 'Failed to grant access.' };
+                }
+            })
+            .catch(error => {
+                let errorMsg = 'An error occurred while adding the student.';
+                if (error && error.errors) {
+                    errorMsg = Object.values(error.errors)[0][0];
+                } else if (error && error.message) {
+                    errorMsg = error.message;
+                }
+                showCustomAlert('Error', errorMsg, 'error');
+            })
+            .finally(() => {
+                btn.disabled = false;
+                btn.innerHTML = 'Grant Access';
+            });
     }
 
     let pendingMaterialImportFile = null;
 
-window.submitImport = function() {
-    const fileInput = document.getElementById('importFileInput');
-    if (!fileInput.files.length) { showSnackbar('Please select a file to import.', 'error'); return; }
+    window.submitImport = function () {
+        const fileInput = document.getElementById('importFileInput');
+        if (!fileInput.files.length) { showSnackbar('Please select a file to import.', 'error'); return; }
 
-    pendingMaterialImportFile = fileInput.files[0];
-    fileInput.value = '';
+        pendingMaterialImportFile = fileInput.files[0];
+        fileInput.value = '';
 
-    const btn = document.getElementById('submitImportBtn');
-    btn.disabled = true;
-    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Scanning...';
+        const btn = document.getElementById('submitImportBtn');
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Scanning...';
 
-    const formData = new FormData();
-    formData.append('file', pendingMaterialImportFile);
-    formData.append('check_only', 1);
+        const formData = new FormData();
+        formData.append('file', pendingMaterialImportFile);
+        formData.append('check_only', 1);
 
-    showSnackbar('Scanning file...', 'info');
+        showSnackbar('Scanning file...', 'info');
 
-    fetch(`{{ url('/dashboard/materials/' . $material->id . '/import-access') }}`, {
-        method: 'POST',
-        headers: {
-            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
-            'Accept': 'application/json'
-        },
-        body: formData
-    })
-    .then(async response => {
-        const data = await response.json().catch(() => null);
+        fetch(`{{ url('/dashboard/materials/' . $material->id . '/import-access') }}`, {
+            method: 'POST',
+            headers: {
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+                'Accept': 'application/json'
+            },
+            body: formData
+        })
+            .then(async response => {
+                const data = await response.json().catch(() => null);
 
-        // Surface Laravel validation errors (422) or server errors (500) to the catch block
-        if (!response.ok) throw data || { message: 'Server error occurred while scanning.' };
-        return data;
-    })
-    .then(data => {
-        if (data.has_duplicates) {
-            closeModal('importStudentModal', 'importStudentBox');
-            renderMaterialEmailDuplicates(data.duplicates);
-            const modal = document.getElementById('emailConflictModal');
-            const box   = document.getElementById('emailConflictModalBox');
-            modal.classList.remove('hidden');
-            setTimeout(() => {
-                box.classList.remove('scale-95', 'opacity-0');
-                box.classList.add('scale-100', 'opacity-100');
-            }, 10);
-        } else {
-            closeModal('importStudentModal', 'importStudentBox');
-            executeMaterialImport(true);
-        }
-    })
-    .catch(error => {
-        // Extract exact Laravel validation errors (e.g., "The file must be a file of type: xlsx, csv")
-        // or custom backend messages (e.g., "No 'email' column found in the file.")
-        let errorMsg = 'Failed to scan the file. Please check your document and try again.';
+                // Surface Laravel validation errors (422) or server errors (500) to the catch block
+                if (!response.ok) throw data || { message: 'Server error occurred while scanning.' };
+                return data;
+            })
+            .then(data => {
+                if (data.has_duplicates) {
+                    closeModal('importStudentModal', 'importStudentBox');
+                    renderMaterialEmailDuplicates(data.duplicates);
+                    const modal = document.getElementById('emailConflictModal');
+                    const box = document.getElementById('emailConflictModalBox');
+                    modal.classList.remove('hidden');
+                    setTimeout(() => {
+                        box.classList.remove('scale-95', 'opacity-0');
+                        box.classList.add('scale-100', 'opacity-100');
+                    }, 10);
+                } else {
+                    closeModal('importStudentModal', 'importStudentBox');
+                    executeMaterialImport(true);
+                }
+            })
+            .catch(error => {
+                // Extract exact Laravel validation errors (e.g., "The file must be a file of type: xlsx, csv")
+                // or custom backend messages (e.g., "No 'email' column found in the file.")
+                let errorMsg = 'Failed to scan the file. Please check your document and try again.';
 
-        if (error && error.errors) {
-            errorMsg = Object.values(error.errors)[0][0];
-        } else if (error && error.message) {
-            errorMsg = error.message;
-        }
+                if (error && error.errors) {
+                    errorMsg = Object.values(error.errors)[0][0];
+                } else if (error && error.message) {
+                    errorMsg = error.message;
+                }
 
-        showCustomAlert('Import Failed', errorMsg, 'error');
-        pendingMaterialImportFile = null;
-    })
-    .finally(() => {
-        btn.disabled = false;
-        btn.innerHTML = '<i class="fas fa-upload"></i> Upload & Import';
-    });
-};
+                showCustomAlert('Import Failed', errorMsg, 'error');
+                pendingMaterialImportFile = null;
+            })
+            .finally(() => {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fas fa-upload"></i> Upload & Import';
+            });
+    };
 
-window.executeMaterialImport = function(autoRun = false) {
-    if (!pendingMaterialImportFile) return;
+    window.executeMaterialImport = function (autoRun = false) {
+        if (!pendingMaterialImportFile) return;
 
-    const strategy = autoRun
-        ? 'skip'
-        : document.querySelector('input[name="email_conflict_strategy"]:checked').value;
+        const strategy = autoRun
+            ? 'skip'
+            : document.querySelector('input[name="email_conflict_strategy"]:checked').value;
 
-    const confirmBtn = document.getElementById('confirmEmailImportBtn');
-    if (confirmBtn) {
-        confirmBtn.disabled = true;
-        confirmBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processing...';
-    }
-
-    const formData = new FormData();
-    formData.append('file', pendingMaterialImportFile);
-    formData.append('strategy', strategy);
-    formData.append('check_only', 0);
-
-    fetch(`{{ url('/dashboard/materials/' . $material->id . '/import-access') }}`, {
-        method: 'POST',
-        headers: {
-            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
-            'Accept': 'application/json'
-        },
-        body: formData
-    })
-    .then(async response => {
-        const data = await response.json().catch(() => null);
-        if (!response.ok) throw data || { message: 'Server error occurred while importing.' };
-        return data;
-    })
-    .then(data => {
-        if (!autoRun) closeMaterialConflictModal();
-        showSnackbar(data.message || 'Import successful!', 'success');
-        setTimeout(refreshTableOnly, 300);
-    })
-    .catch(error => {
-        if (!autoRun) closeMaterialConflictModal();
-
-        let errorMsg = 'An error occurred while importing.';
-        if (error && error.errors) {
-            errorMsg = Object.values(error.errors)[0][0];
-        } else if (error && error.message) {
-            errorMsg = error.message;
-        }
-        showCustomAlert('Import Failed', errorMsg, 'error');
-    })
-    .finally(() => {
-        pendingMaterialImportFile = null;
+        const confirmBtn = document.getElementById('confirmEmailImportBtn');
         if (confirmBtn) {
-            confirmBtn.disabled = false;
-            confirmBtn.innerHTML = '<i class="fas fa-upload"></i> Continue Import';
+            confirmBtn.disabled = true;
+            confirmBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processing...';
         }
-    });
-};
 
-window.closeMaterialConflictModal = function() {
-    const modal = document.getElementById('emailConflictModal');
-    const box   = document.getElementById('emailConflictModalBox');
-    box.classList.remove('scale-100', 'opacity-100');
-    box.classList.add('scale-95', 'opacity-0');
-    setTimeout(() => {
-        modal.classList.add('hidden');
-        pendingMaterialImportFile = null;
-    }, 300);
-};
+        const formData = new FormData();
+        formData.append('file', pendingMaterialImportFile);
+        formData.append('strategy', strategy);
+        formData.append('check_only', 0);
 
-function renderMaterialEmailDuplicates(data) {
-    const list  = document.getElementById('emailDuplicateList');
-    const count = document.getElementById('emailDuplicateCountLabel');
-    list.innerHTML = '';
-    count.textContent = data.length;
+        fetch(`{{ url('/dashboard/materials/' . $material->id . '/import-access') }}`, {
+            method: 'POST',
+            headers: {
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+                'Accept': 'application/json'
+            },
+            body: formData
+        })
+            .then(async response => {
+                const data = await response.json().catch(() => null);
+                if (!response.ok) throw data || { message: 'Server error occurred while importing.' };
+                return data;
+            })
+            .then(data => {
+                if (!autoRun) closeMaterialConflictModal();
+                showSnackbar(data.message || 'Import successful!', 'success');
+                setTimeout(refreshTableOnly, 300);
+            })
+            .catch(error => {
+                if (!autoRun) closeMaterialConflictModal();
 
-    data.forEach(item => {
-        const div = document.createElement('div');
-        div.className = 'border border-gray-200 rounded-xl overflow-hidden bg-white shadow-sm';
-        div.innerHTML = `
+                let errorMsg = 'An error occurred while importing.';
+                if (error && error.errors) {
+                    errorMsg = Object.values(error.errors)[0][0];
+                } else if (error && error.message) {
+                    errorMsg = error.message;
+                }
+                showCustomAlert('Import Failed', errorMsg, 'error');
+            })
+            .finally(() => {
+                pendingMaterialImportFile = null;
+                if (confirmBtn) {
+                    confirmBtn.disabled = false;
+                    confirmBtn.innerHTML = '<i class="fas fa-upload"></i> Continue Import';
+                }
+            });
+    };
+
+    window.closeMaterialConflictModal = function () {
+        const modal = document.getElementById('emailConflictModal');
+        const box = document.getElementById('emailConflictModalBox');
+        box.classList.remove('scale-100', 'opacity-100');
+        box.classList.add('scale-95', 'opacity-0');
+        setTimeout(() => {
+            modal.classList.add('hidden');
+            pendingMaterialImportFile = null;
+        }, 300);
+    };
+
+    function renderMaterialEmailDuplicates(data) {
+        const list = document.getElementById('emailDuplicateList');
+        const count = document.getElementById('emailDuplicateCountLabel');
+        list.innerHTML = '';
+        count.textContent = data.length;
+
+        data.forEach(item => {
+            const div = document.createElement('div');
+            div.className = 'border border-gray-200 rounded-xl overflow-hidden bg-white shadow-sm';
+            div.innerHTML = `
             <div class="px-4 py-2 bg-gray-50 border-b border-gray-200 text-xs font-bold text-gray-700 truncate">
                 Email: <span class="text-blue-600">${item.email}</span>
             </div>
@@ -1603,9 +1761,9 @@ function renderMaterialEmailDuplicates(data) {
                     <p class="flex justify-between"><strong>Status:</strong> <span>${item.incoming.status}</span></p>
                 </div>
             </div>`;
-        list.appendChild(div);
-    });
-}
+            list.appendChild(div);
+        });
+    }
 
     window.revokeAccess = function (accessId, btnElement) {
         showCustomAlert('Remove Student', 'Are you sure you want to remove this student? Their progress will be permanently lost.', 'error', () => {
@@ -1786,9 +1944,9 @@ function renderMaterialEmailDuplicates(data) {
     }
 
     // --- Unpublish Actions ---
-    window.submitUnpublishRequest = function() {
+    window.submitUnpublishRequest = function () {
         const reason = document.getElementById('unpublishReasonInput').value.trim();
-        if(!reason) {
+        if (!reason) {
             showSnackbar('Please provide a reason for the request.', 'error');
             return;
         }
@@ -1807,21 +1965,21 @@ function renderMaterialEmailDuplicates(data) {
             },
             body: JSON.stringify({ status: 'revert_requested', revert_reason: reason })
         })
-        .then(r => r.json())
-        .then(data => {
-            if (data.success) {
-                closeModal('requestUnpublishModal', 'requestUnpublishBox');
-                showSnackbar('Unpublish request sent to admin.', 'success');
-                setTimeout(() => loadPartial('{{ url('/dashboard/materials') }}', document.getElementById('nav-materials-btn')), 500);
-            } else {
-                showCustomAlert('Error', data.message || 'Failed to send request.', 'error');
-                btn.disabled = false;
-                btn.innerHTML = originalHtml;
-            }
-        });
+            .then(r => r.json())
+            .then(data => {
+                if (data.success) {
+                    closeModal('requestUnpublishModal', 'requestUnpublishBox');
+                    showSnackbar('Unpublish request sent to admin.', 'success');
+                    setTimeout(() => loadPartial('{{ url('/dashboard/materials') }}', document.getElementById('nav-materials-btn')), 500);
+                } else {
+                    showCustomAlert('Error', data.message || 'Failed to send request.', 'error');
+                    btn.disabled = false;
+                    btn.innerHTML = originalHtml;
+                }
+            });
     }
 
-    window.resolveUnpublishRequest = function(actionStatus, btn) {
+    window.resolveUnpublishRequest = function (actionStatus, btn) {
         const originalHtml = btn.innerHTML;
         btn.disabled = true;
         btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Processing...';
@@ -1835,32 +1993,32 @@ function renderMaterialEmailDuplicates(data) {
             },
             body: JSON.stringify({ status: actionStatus })
         })
-        .then(r => r.json())
-        .then(data => {
-            if (data.success) {
-                closeModal('reviewUnpublishModal', 'reviewUnpublishBox');
-                
-                if (actionStatus === 'draft') {
-                    // Admin approved the request
-                    showCustomAlert('Response Sent', 'The unpublish request was approved. The module is now in Draft mode and you will be redirected.', 'success', () => {
-                        loadPartial('{{ url('/dashboard/materials') }}', document.getElementById('nav-materials-btn'));
-                    });
+            .then(r => r.json())
+            .then(data => {
+                if (data.success) {
+                    closeModal('reviewUnpublishModal', 'reviewUnpublishBox');
+
+                    if (actionStatus === 'draft') {
+                        // Admin approved the request
+                        showCustomAlert('Response Sent', 'The unpublish request was approved. The module is now in Draft mode and you will be redirected.', 'success', () => {
+                            loadPartial('{{ url('/dashboard/materials') }}', document.getElementById('nav-materials-btn'));
+                        });
+                    } else {
+                        // Admin declined the request
+                        showCustomAlert('Response Sent', 'The unpublish request was declined. The module remains published.', 'success', () => {
+                            loadPartial('{{ url('/dashboard/materials/' . $material->id . '/manage') }}');
+                        });
+                    }
                 } else {
-                    // Admin declined the request
-                    showCustomAlert('Response Sent', 'The unpublish request was declined. The module remains published.', 'success', () => {
-                        loadPartial('{{ url('/dashboard/materials/' . $material->id . '/manage') }}');
-                    });
+                    showCustomAlert('Error', data.message || 'Action failed.', 'error');
+                    btn.disabled = false;
+                    btn.innerHTML = originalHtml;
                 }
-            } else {
-                showCustomAlert('Error', data.message || 'Action failed.', 'error');
+            })
+            .catch(error => {
+                showCustomAlert('Error', 'An error occurred while processing the request.', 'error');
                 btn.disabled = false;
                 btn.innerHTML = originalHtml;
-            }
-        })
-        .catch(error => {
-            showCustomAlert('Error', 'An error occurred while processing the request.', 'error');
-            btn.disabled = false;
-            btn.innerHTML = originalHtml;
-        });
+            });
     }
-    </script>
+</script>

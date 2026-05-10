@@ -87,26 +87,33 @@
             {{-- Elevated Header to z-50 to absolutely guarantee it covers all dashboard content --}}
             <header
                 class="bg-white border-b border-gray-200 h-16 flex items-center justify-between px-4 md:px-8 shrink-0 z-50 relative gap-2 sm:gap-4">
-                
+
                 <div class="flex items-center gap-2 sm:gap-4 flex-1 min-w-0">
-                    <button onclick="toggleSidebar()" class="md:hidden p-2 -ml-2 rounded-lg text-gray-600 hover:bg-gray-100 shrink-0">
+                    <button onclick="toggleSidebar()"
+                        class="md:hidden p-2 -ml-2 rounded-lg text-gray-600 hover:bg-gray-100 shrink-0">
                         <i class="fas fa-bars text-xl" style="margin-top: 1px;"></i>
                     </button>
-                    
+
                     <div class="relative w-full max-w-md z-[100] min-w-0" id="globalSearchContainer">
-                        <div class="flex items-center bg-gray-100 px-3 py-1.5 md:py-2 rounded-lg border border-transparent focus-within:border-[#a52a2a]/30 focus-within:bg-white focus-within:shadow-sm transition-all">
-                            <button onclick="submitGlobalSearch()" class="focus:outline-none hover:text-[#a52a2a] transition-colors shrink-0">
+                        <div
+                            class="flex items-center bg-gray-100 px-3 py-1.5 md:py-2 rounded-lg border border-transparent focus-within:border-[#a52a2a]/30 focus-within:bg-white focus-within:shadow-sm transition-all">
+                            <button onclick="submitGlobalSearch()"
+                                class="focus:outline-none hover:text-[#a52a2a] transition-colors shrink-0">
                                 <i class="fas fa-search text-gray-400 mr-2 text-sm md:text-base"></i>
                             </button>
-                            <input type="text" id="globalSearchInput" placeholder="Search for modules, tags, or users (Press Enter)" autocomplete="off"
+                            <input type="text" id="globalSearchInput"
+                                placeholder="Search for modules, tags, or users (Press Enter)" autocomplete="off"
                                 class="bg-transparent border-none outline-none text-sm w-full focus:ring-0 p-0 min-w-0 placeholder-gray-400">
-                            <i id="globalSearchSpinner" class="fas fa-spinner fa-spin text-[#a52a2a] ml-2 shrink-0" style="display: none;"></i>
+                            <i id="globalSearchSpinner" class="fas fa-spinner fa-spin text-[#a52a2a] ml-2 shrink-0"
+                                style="display: none;"></i>
                         </div>
 
-                        <div id="globalSearchDropdown" class="absolute top-full left-0 mt-2 w-[280px] sm:w-full right-0 bg-white rounded-xl shadow-2xl border border-gray-100 overflow-hidden hidden transform transition-all flex flex-col max-h-96">
+                        <div id="globalSearchDropdown"
+                            class="absolute top-full left-0 mt-2 w-[280px] sm:w-full right-0 bg-white rounded-xl shadow-2xl border border-gray-100 overflow-hidden hidden transform transition-all flex flex-col max-h-96">
                             <div id="globalSearchResults" class="overflow-y-auto sidebar-scroll pb-2"></div>
                             <div id="viewAllResultsBtn" class="hidden border-t border-gray-50 p-2">
-                                <button onclick="submitGlobalSearch()" class="w-full py-2 text-xs font-bold text-[#a52a2a] bg-red-50 hover:bg-[#a52a2a] hover:text-white rounded-lg transition-colors">
+                                <button onclick="submitGlobalSearch()"
+                                    class="w-full py-2 text-xs font-bold text-[#a52a2a] bg-red-50 hover:bg-[#a52a2a] hover:text-white rounded-lg transition-colors">
                                     View Full Results
                                 </button>
                             </div>
@@ -115,35 +122,45 @@
                 </div>
 
                 <div class="flex items-center space-x-2 sm:space-x-4 relative shrink-0">
-                    
+
                     <div class="relative" id="notificationContainer">
-                        <button onclick="toggleNotifications()" class="relative text-gray-600 hover:bg-gray-100 p-2 z-[1000] rounded-full focus:outline-none transition-colors flex items-center justify-center h-10 w-10 shrink-0">
+                        <button onclick="toggleNotifications()"
+                            class="relative text-gray-600 hover:bg-gray-100 p-2 z-[1000] rounded-full focus:outline-none transition-colors flex items-center justify-center h-10 w-10 shrink-0">
                             <i class="fas fa-bell text-xl"></i>
-                            <span id="notificationBadge" class="hidden absolute top-0 right-0 h-3 w-3 bg-red-600 rounded-full border-2 border-white shadow-sm"></span>
+                            <span id="notificationBadge"
+                                class="hidden absolute top-0 right-0 h-3 w-3 bg-red-600 rounded-full border-2 border-white shadow-sm"></span>
                         </button>
 
-                        <div id="notif-backdrop" class="fixed inset-0 z-[998] hidden sm:hidden" onclick="toggleNotifications(); event.stopPropagation();"></div>
+                        <div id="notif-backdrop" class="fixed inset-0 z-[998] hidden sm:hidden"
+                            onclick="toggleNotifications(); event.stopPropagation();"></div>
 
-                        <div id="notificationDropdown" class="hidden fixed inset-0 m-4 sm:m-0 sm:absolute sm:inset-auto sm:right-0 sm:top-full sm:mt-2 sm:w-[380px] bg-white rounded-2xl shadow-2xl border border-gray-100 flex flex-col z-[999] transform opacity-0 sm:scale-95 transition-all duration-200 origin-top-right sm:max-h-[85vh] overflow-hidden">
-        
-                            <div class="px-4 py-3 border-b border-gray-100 flex justify-between items-center shrink-0 bg-white shadow-sm z-10 relative">
+                        <div id="notificationDropdown"
+                            class="hidden fixed inset-0 m-4 sm:m-0 sm:absolute sm:inset-auto sm:right-0 sm:top-full sm:mt-2 sm:w-[380px] bg-white rounded-2xl shadow-2xl border border-gray-100 flex flex-col z-[999] transform opacity-0 sm:scale-95 transition-all duration-200 origin-top-right sm:max-h-[85vh] overflow-hidden">
+
+                            <div
+                                class="px-4 py-3 border-b border-gray-100 flex justify-between items-center shrink-0 bg-white shadow-sm z-10 relative">
                                 <div class="flex items-center gap-2">
                                     <h3 class="font-black text-gray-900 text-2xl tracking-tight">Notifications</h3>
-                                    <span id="notificationCountText" class="text-xs font-bold text-red-600 bg-red-50 px-2 py-0.5 rounded-md hidden">0 New</span>
+                                    <span id="notificationCountText"
+                                        class="text-xs font-bold text-red-600 bg-red-50 px-2 py-0.5 rounded-md hidden">0
+                                        New</span>
                                 </div>
-                                <button onclick="toggleNotifications()" class="w-9 h-9 rounded-full bg-gray-100 text-gray-600 hover:bg-gray-200 flex items-center justify-center transition-colors focus:outline-none text-lg">
+                                <button onclick="toggleNotifications()"
+                                    class="w-9 h-9 rounded-full bg-gray-100 text-gray-600 hover:bg-gray-200 flex items-center justify-center transition-colors focus:outline-none text-lg">
                                     <i class="fas fa-times"></i>
                                 </button>
                             </div>
-                            
-                            <div id="notificationList" class="flex-1 overflow-y-auto bg-gray-50/50 sidebar-scroll pb-4 relative z-0">
+
+                            <div id="notificationList"
+                                class="flex-1 overflow-y-auto bg-gray-50/50 sidebar-scroll pb-4 relative z-0">
                                 <div class="flex justify-center items-center py-8">
                                     <i class="fas fa-circle-notch mt-1 fa-spin text-2xl text-gray-300"></i>
                                 </div>
                             </div>
 
                             <div class="w-full flex items-center p-4 shrink-0">
-                                <p class="text-xs text-center text-gray-500 w-full">Notifications that are more than 30 days will automatically be deleted</p>
+                                <p class="text-xs text-center text-gray-500 w-full">Notifications that are more than 30
+                                    days will automatically be deleted</p>
                             </div>
                         </div>
                     </div>
@@ -158,13 +175,29 @@
                             <p class="text-sm font-semibold">{{ auth()->user()->first_name }}
                                 {{ auth()->user()->last_name }}
                             </p>
-                            <p class="text-[10px] text-gray-500 uppercase">
-                                {{ ucfirst(auth()->user()->role ?? 'Student') }}
-                            </p>
+                            <div
+                                class="flex items-center justify-end gap-1.5 text-[10px] text-gray-500 uppercase mt-0.5">
+
+
+                                @if(auth()->user()->role === 'teacher')
+                                    @if(auth()->user()->status === 'verified')
+                                        <span onclick="openVerificationModal(); event.stopPropagation();"
+                                            class="inline-flex items-center px-1.5 py-[2px] rounded text-[8px] font-black bg-green-100 text-green-700 border border-green-200 cursor-pointer hover:bg-green-200 transition-colors"
+                                            title="Verified Teacher">
+                                            <i class="fas fa-check-circle mr-1"></i> VERIFIED
+                                        </span>
+                                    @else
+                                        <span onclick="openVerificationModal(); event.stopPropagation();"
+                                            class="inline-flex items-center px-1.5 py-[2px] rounded text-[8px] font-black bg-amber-100 text-amber-700 border border-amber-200 cursor-pointer hover:bg-amber-200 transition-colors shadow-sm"
+                                            title="Unverified Teacher">
+                                            <i class="fas fa-user-shield mr-1"></i> UNVERIFIED
+                                        </span>
+                                    @endif
+                                @endif
+
+                                <span>{{ ucfirst(auth()->user()->role ?? 'Student') }}</span>
+                            </div>
                         </div>
-                        <img class="h-9 w-9 rounded-full border-2 border-[#a52a2a]/20"
-                            src="https://ui-avatars.com/api/?name={{ urlencode(auth()->user()->first_name . '+' . auth()->user()->last_name) }}&background=a52a2a&color=fff"
-                            alt="Profile">
                     </div>
                 </div>
             </header>
@@ -172,6 +205,86 @@
             <div id="content-area" class="flex-1 overflow-y-auto bg-gray-50 p-4 sm:p-5 md:p-8"></div>
         </main>
     </div>
+
+    {{-- TEACHER VERIFICATION MODAL --}}
+    @if(auth()->user()->role === 'teacher')
+        <div id="teacherVerificationModal"
+            class="fixed inset-0 z-[130] hidden opacity-0 transition-opacity duration-300 flex items-center justify-center p-4">
+            <div class="absolute inset-0 bg-gray-900/60 backdrop-blur-sm" onclick="closeVerificationModal()"></div>
+            <div id="teacherVerificationBox"
+                class="bg-white rounded-3xl max-w-md w-full p-8 shadow-2xl relative z-10 transform scale-95 transition-all duration-300">
+
+                {{-- Icon --}}
+                <div class="flex flex-col items-center text-center mb-6">
+                    <div
+                        class="w-16 h-16 rounded-full flex items-center justify-center mb-4 text-2xl shadow-sm border
+                        {{ auth()->user()->status === 'verified' ? 'bg-green-50 border-green-200 text-green-500' : 'bg-amber-50 border-amber-200 text-amber-500' }}">
+                        <i
+                            class="fas {{ auth()->user()->status === 'verified' ? 'fa-check-circle' : 'fa-user-shield' }}"></i>
+                    </div>
+                    <h3 class="text-xl font-black text-gray-900 mb-1">
+                        {{ auth()->user()->status === 'verified' ? 'Verified Account' : 'Verification Required' }}
+                    </h3>
+                    <p class="text-sm text-gray-500 leading-relaxed">
+                        @if(auth()->user()->status === 'verified')
+                            Your account has been verified by an administrator. You have full privileges to submit learning
+                            materials for review and publication.
+                        @else
+                            Your account hasn't been verified by an administrator yet. You can create materials, but you won't
+                            be able to submit them for review until your identity is confirmed.
+                        @endif
+                    </p>
+                </div>
+
+                {{-- What's missing (Only show if Unverified) --}}
+                @if(auth()->user()->status !== 'verified')
+                    <div class="bg-amber-50 border border-amber-200 rounded-2xl p-4 mb-6 space-y-2">
+                        <p class="text-xs font-black text-amber-800 uppercase tracking-wider mb-2">Pending Verification Steps
+                        </p>
+
+                        {{-- Email verification --}}
+                        <div class="flex items-center gap-3">
+                            @if(auth()->user()->email_verified_at)
+                                <div
+                                    class="w-6 h-6 rounded-full bg-green-100 text-green-600 flex items-center justify-center shrink-0">
+                                    <i class="fas fa-check text-[10px]"></i>
+                                </div>
+                                <span class="text-xs text-gray-700 font-medium">Email address verified</span>
+                            @else
+                                <div
+                                    class="w-6 h-6 rounded-full bg-amber-100 text-amber-600 flex items-center justify-center shrink-0">
+                                    <i class="fas fa-clock text-[10px]"></i>
+                                </div>
+                                <span class="text-xs text-gray-700 font-medium">Email address not yet verified</span>
+                            @endif
+                        </div>
+
+                        {{-- Admin approval --}}
+                        <div class="flex items-center gap-3">
+                            <div
+                                class="w-6 h-6 rounded-full bg-amber-100 text-amber-600 flex items-center justify-center shrink-0">
+                                <i class="fas fa-clock text-[10px]"></i>
+                            </div>
+                            <span class="text-xs text-gray-700 font-medium">Awaiting administrator approval</span>
+                        </div>
+                    </div>
+                @endif
+
+                {{-- Actions --}}
+                <div class="flex flex-col sm:flex-row gap-3">
+                    <button type="button" onclick="closeVerificationModal()"
+                        class="flex-1 py-3 bg-gray-100 text-gray-700 font-bold rounded-xl hover:bg-gray-200 transition text-sm">
+                        Close
+                    </button>
+                    <button type="button"
+                        onclick="closeVerificationModal(); loadPartial('{{ url('/dashboard/profile') }}?support=true', document.getElementById('nav-profile-btn'));"
+                        class="flex-1 py-3 bg-[#a52a2a] text-white font-bold rounded-xl shadow-md shadow-[#a52a2a]/20 hover:bg-red-800 transition text-sm flex items-center justify-center gap-2">
+                        <i class="fas fa-headset"></i> Contact Support
+                    </button>
+                </div>
+            </div>
+        </div>
+    @endif
 
     {{-- LOGOUT MODAL --}}
     <div id="logoutModal" class="fixed inset-0 z-[110] opacity-0 pointer-events-none transition-opacity duration-300">
@@ -208,15 +321,19 @@
     <div id="fullSearchModal" class="fixed inset-0 z-[120] hidden opacity-0 transition-opacity duration-300">
         <div class="absolute inset-0 bg-gray-900/60" onclick="closeFullSearchModal()"></div>
         <div class="relative flex items-start justify-center min-h-screen p-4 pt-10 md:pt-16">
-            <div id="fullSearchModalBox" class="bg-gray-50 rounded-3xl shadow-2xl max-w-5xl w-full flex flex-col transform scale-95 transition-all duration-300 max-h-[85vh] overflow-hidden border border-gray-100">
-                
+            <div id="fullSearchModalBox"
+                class="bg-gray-50 rounded-3xl shadow-2xl max-w-5xl w-full flex flex-col transform scale-95 transition-all duration-300 max-h-[85vh] overflow-hidden border border-gray-100">
+
                 {{-- Modal Header --}}
-                <div class="p-6 md:px-8 border-b border-gray-200 flex justify-between items-center bg-white shadow-sm z-10">
+                <div
+                    class="p-6 md:px-8 border-b border-gray-200 flex justify-between items-center bg-white shadow-sm z-10">
                     <div>
                         <h2 class="text-2xl font-black text-gray-900 tracking-tight">Search Results</h2>
-                        <p class="text-sm text-gray-500 mt-1 font-medium">Showing full results for "<span id="fullSearchQueryDisplay" class="font-bold text-[#a52a2a]"></span>"</p>
+                        <p class="text-sm text-gray-500 mt-1 font-medium">Showing full results for "<span
+                                id="fullSearchQueryDisplay" class="font-bold text-[#a52a2a]"></span>"</p>
                     </div>
-                    <button onclick="closeFullSearchModal()" class="w-10 h-10 rounded-full bg-gray-50 border border-gray-200 text-gray-500 hover:text-gray-800 hover:bg-gray-200 flex items-center justify-center transition-colors focus:outline-none">
+                    <button onclick="closeFullSearchModal()"
+                        class="w-10 h-10 rounded-full bg-gray-50 border border-gray-200 text-gray-500 hover:text-gray-800 hover:bg-gray-200 flex items-center justify-center transition-colors focus:outline-none">
                         <i class="fas fa-times text-lg"></i>
                     </button>
                 </div>
@@ -227,7 +344,7 @@
                         <i class="fas fa-circle-notch fa-spin text-4xl text-[#a52a2a]"></i>
                     </div>
                     <div id="fullSearchResultsContainer" class="space-y-8 hidden">
-                        </div>
+                    </div>
                 </div>
 
             </div>
@@ -283,63 +400,63 @@
             fetch(url, {
                 headers: { 'X-Requested-With': 'XMLHttpRequest' }
             })
-            .then(async response => {
-                if (!response.ok) {
-                    contentArea.innerHTML = `<div class="p-6 bg-red-50 text-red-700"><b>Error ${response.status}:</b> Check your browser console or Laravel logs.</div>`;
-                    throw new Error('Server returned an error');
-                }
-                return response.text();
-            })
-            .then(html => {
-                contentArea.innerHTML = html;
-                contentArea.scrollTop = 0;
-                contentArea.classList.add('animate-float-in');
+                .then(async response => {
+                    if (!response.ok) {
+                        contentArea.innerHTML = `<div class="p-6 bg-red-50 text-red-700"><b>Error ${response.status}:</b> Check your browser console or Laravel logs.</div>`;
+                        throw new Error('Server returned an error');
+                    }
+                    return response.text();
+                })
+                .then(html => {
+                    contentArea.innerHTML = html;
+                    contentArea.scrollTop = 0;
+                    contentArea.classList.add('animate-float-in');
 
-                contentArea.addEventListener('animationend', function handler() {
-                    contentArea.classList.remove('animate-float-in');
-                    contentArea.removeEventListener('animationend', handler); 
-                });
-                
-                const scripts = contentArea.querySelectorAll('script');
-                scripts.forEach(oldScript => {
-                    const newScript = document.createElement('script');
-                    Array.from(oldScript.attributes).forEach(attr => newScript.setAttribute(attr.name, attr.value));
-                    newScript.appendChild(document.createTextNode(oldScript.innerHTML));
-                    oldScript.parentNode.replaceChild(newScript, oldScript);
-                });
+                    contentArea.addEventListener('animationend', function handler() {
+                        contentArea.classList.remove('animate-float-in');
+                        contentArea.removeEventListener('animationend', handler);
+                    });
 
-                document.querySelectorAll('.nav-btn').forEach(btn => {
-                    btn.classList.remove('bg-[#a52a2a]/10', 'text-[#a52a2a]', 'font-bold', 'border-r-4', 'border-[#a52a2a]');
-                    btn.classList.add('text-gray-600', 'hover:bg-gray-100');
-                });
+                    const scripts = contentArea.querySelectorAll('script');
+                    scripts.forEach(oldScript => {
+                        const newScript = document.createElement('script');
+                        Array.from(oldScript.attributes).forEach(attr => newScript.setAttribute(attr.name, attr.value));
+                        newScript.appendChild(document.createTextNode(oldScript.innerHTML));
+                        oldScript.parentNode.replaceChild(newScript, oldScript);
+                    });
 
-                let targetBtn = element;
-                if (!targetBtn || !targetBtn.classList) {
-                    if (url.includes('/profile')) targetBtn = document.getElementById('nav-profile-btn');
-                    else if (url.includes('/analytics')) targetBtn = document.getElementById('nav-analytics-btn');
-                    else if (url.includes('/certificates')) targetBtn = document.getElementById('nav-certificates-btn');
-                    else if (url.includes('/materials') || url.includes('/explore')) targetBtn = document.getElementById('nav-explore-btn') || document.getElementById('nav-materials-btn');
-                    else if (url.includes('/enrolled')) targetBtn = document.getElementById('nav-enrolled-btn');
-                    else if (url.includes('/assessment')) targetBtn = document.getElementById('nav-assessment-btn');
-                    else if (url.includes('/explore-layout')) targetBtn = document.getElementById('nav-explore-layout-btn');
-                    else if (url.includes('/schools')) targetBtn = document.getElementById('nav-schools-btn');
-                    else if (url.includes('/feedback')) targetBtn = document.getElementById('nav-feedback-btn');
-                    else if (url.includes('/teachers')) targetBtn = document.getElementById('nav-teachers-btn');
-                    else if (url.includes('/students')) targetBtn = document.getElementById('nav-students-btn');
-                    else if (url.includes('/home')) targetBtn = document.getElementById('nav-home-btn') || document.querySelector('.nav-btn');
-                    else if (url.includes('/criteria')) targetBtn = document.getElementById('nav-criteria-btn');
-                }
+                    document.querySelectorAll('.nav-btn').forEach(btn => {
+                        btn.classList.remove('bg-[#a52a2a]/10', 'text-[#a52a2a]', 'font-bold', 'border-r-4', 'border-[#a52a2a]');
+                        btn.classList.add('text-gray-600', 'hover:bg-gray-100');
+                    });
 
-                if (targetBtn) {
-                    targetBtn.classList.add('bg-[#a52a2a]/10', 'text-[#a52a2a]', 'font-bold', 'border-r-4', 'border-[#a52a2a]');
-                    targetBtn.classList.remove('text-gray-600', 'hover:bg-gray-100');
-                }
+                    let targetBtn = element;
+                    if (!targetBtn || !targetBtn.classList) {
+                        if (url.includes('/profile')) targetBtn = document.getElementById('nav-profile-btn');
+                        else if (url.includes('/analytics')) targetBtn = document.getElementById('nav-analytics-btn');
+                        else if (url.includes('/certificates')) targetBtn = document.getElementById('nav-certificates-btn');
+                        else if (url.includes('/materials') || url.includes('/explore')) targetBtn = document.getElementById('nav-explore-btn') || document.getElementById('nav-materials-btn');
+                        else if (url.includes('/enrolled')) targetBtn = document.getElementById('nav-enrolled-btn');
+                        else if (url.includes('/assessment')) targetBtn = document.getElementById('nav-assessment-btn');
+                        else if (url.includes('/explore-layout')) targetBtn = document.getElementById('nav-explore-layout-btn');
+                        else if (url.includes('/schools')) targetBtn = document.getElementById('nav-schools-btn');
+                        else if (url.includes('/feedback')) targetBtn = document.getElementById('nav-feedback-btn');
+                        else if (url.includes('/teachers')) targetBtn = document.getElementById('nav-teachers-btn');
+                        else if (url.includes('/students')) targetBtn = document.getElementById('nav-students-btn');
+                        else if (url.includes('/home')) targetBtn = document.getElementById('nav-home-btn') || document.querySelector('.nav-btn');
+                        else if (url.includes('/criteria')) targetBtn = document.getElementById('nav-criteria-btn');
+                    }
 
-                if (window.innerWidth < 768 && !sidebar.classList.contains('-translate-x-full')) {
-                    toggleSidebar();
-                }
-            })
-            .catch(err => console.error("Fetch failed entirely:", err));
+                    if (targetBtn) {
+                        targetBtn.classList.add('bg-[#a52a2a]/10', 'text-[#a52a2a]', 'font-bold', 'border-r-4', 'border-[#a52a2a]');
+                        targetBtn.classList.remove('text-gray-600', 'hover:bg-gray-100');
+                    }
+
+                    if (window.innerWidth < 768 && !sidebar.classList.contains('-translate-x-full')) {
+                        toggleSidebar();
+                    }
+                })
+                .catch(err => console.error("Fetch failed entirely:", err));
         }
 
         // --- INITIALIZATION ---
@@ -354,7 +471,7 @@
                 const dashboardBtn = document.querySelector('.nav-btn');
                 loadPartial('{{ url("/dashboard/home") }}', dashboardBtn);
             }
-            
+
             fetchNotifications();
         };
 
@@ -375,7 +492,7 @@
                     notificationDropdown.classList.remove('opacity-0', 'sm:scale-95');
                     notificationDropdown.classList.add('opacity-100', 'sm:scale-100');
                 }, 10);
-                fetchNotifications(); 
+                fetchNotifications();
             } else {
                 notificationDropdown.classList.remove('opacity-100', 'sm:scale-100');
                 notificationDropdown.classList.add('opacity-0', 'sm:scale-95');
@@ -410,13 +527,13 @@
                             'Accept': 'application/json'
                         }
                     });
-                } catch (error) {}
+                } catch (error) { }
             }
-            toggleNotifications(); 
-            
+            toggleNotifications();
+
             const requiresFullReload = ['/show', '/study', '/result', '/certificate', '/lobby', '/exam'].some(kw => targetUrl.includes(kw));
             if (requiresFullReload) window.location.href = targetUrl;
-            else loadPartial(targetUrl, null); 
+            else loadPartial(targetUrl, null);
         }
 
         function renderNotifications(notifications, unreadCount) {
@@ -478,27 +595,27 @@
         const globalSearchResults = document.getElementById('globalSearchResults');
         const globalSearchSpinner = document.getElementById('globalSearchSpinner');
         const viewAllResultsBtn = document.getElementById('viewAllResultsBtn');
-        
+
         // Full Search Modal Elements
         const fullSearchModal = document.getElementById('fullSearchModal');
         const fullSearchModalBox = document.getElementById('fullSearchModalBox');
         const fullSearchQueryDisplay = document.getElementById('fullSearchQueryDisplay');
         const fullSearchResultsContainer = document.getElementById('fullSearchResultsContainer');
         const fullSearchSpinner = document.getElementById('fullSearchSpinner');
-        
+
         let globalSearchTimeout = null;
-        let globalSearchReqId = 0; 
+        let globalSearchReqId = 0;
         let lastSearchData = null; // Cache to avoid re-fetching for modal
         const userRole = '{{ auth()->user()->role ?? "student" }}';
 
         // 1. Dropdown Logic on Typing
         if (globalSearchInput) {
-            globalSearchInput.addEventListener('input', function() {
+            globalSearchInput.addEventListener('input', function () {
                 clearTimeout(globalSearchTimeout);
                 const query = this.value.trim();
 
                 if (query.length < 2) {
-                    globalSearchReqId++; 
+                    globalSearchReqId++;
                     if (globalSearchDropdown) globalSearchDropdown.classList.add('hidden');
                     if (globalSearchSpinner) globalSearchSpinner.style.display = 'none';
                     lastSearchData = null;
@@ -506,19 +623,19 @@
                 }
 
                 globalSearchTimeout = setTimeout(async () => {
-                    const currentReqId = ++globalSearchReqId; 
+                    const currentReqId = ++globalSearchReqId;
                     if (globalSearchSpinner) globalSearchSpinner.style.display = 'inline-block';
-                    
+
                     try {
                         const response = await fetch(`{{ url('/dashboard/search') }}?q=${encodeURIComponent(query)}`, {
                             headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' }
                         });
-                        
+
                         if (currentReqId !== globalSearchReqId) return;
 
                         lastSearchData = await response.json();
                         renderDropdownResults(lastSearchData, query);
-                        
+
                     } catch (error) {
                         if (currentReqId === globalSearchReqId) console.error("Search error:", error);
                     } finally {
@@ -526,11 +643,11 @@
                             globalSearchSpinner.style.display = 'none';
                         }
                     }
-                }, 400); 
+                }, 400);
             });
 
             // 2. Submit on Enter Key
-            globalSearchInput.addEventListener('keydown', function(e) {
+            globalSearchInput.addEventListener('keydown', function (e) {
                 if (e.key === 'Enter') {
                     e.preventDefault();
                     submitGlobalSearch();
@@ -541,7 +658,7 @@
         // Render the small dropdown overlay
         function renderDropdownResults(data, query) {
             globalSearchResults.innerHTML = '';
-            
+
             const hasDirect = data.direct_materials && data.direct_materials.length > 0;
             const hasRelated = data.related_materials && data.related_materials.length > 0;
             const hasTeachers = data.teachers && data.teachers.length > 0;
@@ -559,7 +676,7 @@
                     globalSearchResults.innerHTML += '<div class="px-4 py-2 mt-2 text-[10px] font-black text-gray-400 uppercase tracking-widest">Matched Tags</div>';
                     const tagsContainer = document.createElement('div');
                     tagsContainer.className = 'px-4 pb-2 flex flex-wrap gap-2';
-                    data.tags.slice(0, 5).forEach(tag => { 
+                    data.tags.slice(0, 5).forEach(tag => {
                         tagsContainer.innerHTML += `
                             <span class="cursor-default inline-flex items-center px-2.5 py-1 rounded-md text-xs font-bold bg-[#a52a2a]/10 text-[#a52a2a] border border-[#a52a2a]/20 shadow-sm">
                                 <i class="fas fa-hashtag mr-1 opacity-50"></i> ${tag.name}
@@ -570,12 +687,12 @@
 
                 const buildMaterialHtml = (mat) => {
                     const instructorName = mat.instructor ? `${mat.instructor.first_name} ${mat.instructor.last_name}` : 'Unknown';
-                    const thumbnailHtml = mat.thumbnail 
+                    const thumbnailHtml = mat.thumbnail
                         ? `<img src="/storage/${mat.thumbnail}" class="w-8 h-8 rounded-lg object-cover shrink-0 border border-gray-200">`
                         : `<div class="w-8 h-8 rounded-lg bg-red-50 text-[#a52a2a] flex items-center justify-center shrink-0 border border-red-100"><i class="fas fa-book text-xs"></i></div>`;
 
-                    let linkAction = (userRole === 'admin' || userRole === 'teacher') 
-                        ? `href="javascript:void(0)" onclick="closeGlobalSearch(); loadPartial('/dashboard/materials/${mat.hashid || mat.id}/manage', document.getElementById('nav-materials-btn'))"` 
+                    let linkAction = (userRole === 'admin' || userRole === 'teacher')
+                        ? `href="javascript:void(0)" onclick="closeGlobalSearch(); loadPartial('/dashboard/materials/${mat.hashid || mat.id}/manage', document.getElementById('nav-materials-btn'))"`
                         : `href="/dashboard/materials/${mat.hashid || mat.id}/show"`;
 
                     return `
@@ -607,7 +724,7 @@
                 // Render Teachers
                 if (hasTeachers) {
                     globalSearchResults.innerHTML += '<div class="px-4 py-2 mt-2 border-t border-gray-50 text-[10px] font-black text-gray-400 uppercase tracking-widest">Teachers & CID</div>';
-                    data.teachers.slice(0, 2).forEach(user => { 
+                    data.teachers.slice(0, 2).forEach(user => {
                         globalSearchResults.innerHTML += `
                             <a href="javascript:void(0)" onclick="closeGlobalSearch(); loadPartial('/dashboard/teachers', document.getElementById('nav-teachers-btn'))" class="flex items-center gap-3 p-3 hover:bg-gray-50 transition cursor-pointer">
                                 <div class="w-8 h-8 rounded-full bg-purple-50 text-purple-600 flex items-center justify-center shrink-0 border border-purple-100"><i class="fas fa-user-tie text-xs"></i></div>
@@ -622,7 +739,7 @@
                 // Render Students
                 if (hasStudents) {
                     globalSearchResults.innerHTML += '<div class="px-4 py-2 mt-2 border-t border-gray-50 text-[10px] font-black text-gray-400 uppercase tracking-widest">Students</div>';
-                    data.students.slice(0, 2).forEach(user => { 
+                    data.students.slice(0, 2).forEach(user => {
                         globalSearchResults.innerHTML += `
                             <a href="javascript:void(0)" onclick="closeGlobalSearch(); loadPartial('/dashboard/students', document.getElementById('nav-students-btn'))" class="flex items-center gap-3 p-3 hover:bg-gray-50 transition cursor-pointer">
                                 <div class="w-8 h-8 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center shrink-0 border border-blue-100"><i class="fas fa-user-graduate text-xs"></i></div>
@@ -669,14 +786,14 @@
                             <i class="fas fa-tags text-[#a52a2a]"></i> Matched Tags
                         </h3>
                         <div class="flex flex-wrap gap-2">`;
-                
+
                 data.tags.forEach(tag => {
                     tagsHtml += `
                         <span class="cursor-default px-4 py-2 bg-gray-100 text-[#a52a2a] font-bold rounded-xl text-sm border border-gray-200 shadow-sm">
                             <i class="fas fa-hashtag opacity-50 mr-1"></i> ${tag.name}
                         </span>`;
                 });
-                
+
                 tagsHtml += `</div></div>`;
                 fullSearchResultsContainer.innerHTML += tagsHtml;
             }
@@ -684,9 +801,9 @@
             const buildMaterialCard = (mat) => {
                 const instructorName = mat.instructor ? `${mat.instructor.first_name} ${mat.instructor.last_name}` : 'Unknown Instructor';
                 const thumbnailSrc = mat.thumbnail ? `/storage/${mat.thumbnail}` : 'https://images.unsplash.com/photo-1517694712202-14dd9538aa97?q=80&w=800';
-                
-                let linkAction = (userRole === 'admin' || userRole === 'teacher') 
-                    ? `onclick="closeFullSearchModal(); loadPartial('/dashboard/materials/${mat.hashid || mat.id}/manage', document.getElementById('nav-materials-btn'))"` 
+
+                let linkAction = (userRole === 'admin' || userRole === 'teacher')
+                    ? `onclick="closeFullSearchModal(); loadPartial('/dashboard/materials/${mat.hashid || mat.id}/manage', document.getElementById('nav-materials-btn'))"`
                     : `href="/dashboard/materials/${mat.hashid || mat.id}/show"`;
 
                 return `
@@ -776,42 +893,42 @@
 
             // Close dropdown
             if (globalSearchDropdown) globalSearchDropdown.classList.add('hidden');
-            
+
             // Open Modal UI
             fullSearchQueryDisplay.textContent = query;
-            
+
             // Step 1: Remove 'hidden' so the element is in the DOM
             fullSearchModal.classList.remove('hidden');
-            
+
             // Step 2: Add a tiny delay to allow the browser to register the element before animating
             setTimeout(() => {
                 fullSearchModal.classList.remove('opacity-0');
                 fullSearchModal.classList.add('opacity-100'); // Explicitly add full opacity
-                
+
                 fullSearchModalBox.classList.remove('scale-95');
                 fullSearchModalBox.classList.add('scale-100');
             }, 10);
 
             // Either reuse the data if we just fetched it, or fetch again
             if (lastSearchData) {
-                renderFullSearchResults(lastSearchData, query); 
+                renderFullSearchResults(lastSearchData, query);
             } else {
                 fullSearchResultsContainer.classList.add('hidden');
                 fullSearchSpinner.classList.remove('hidden');
-                
+
                 fetch(`{{ url('/dashboard/search') }}?q=${encodeURIComponent(query)}`, {
                     headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' }
                 })
-                .then(res => res.json())
-                .then(data => {
-                    lastSearchData = data;
-                    renderFullSearchResults(data, query); 
-                })
-                .catch(err => {
-                    fullSearchSpinner.classList.add('hidden');
-                    fullSearchResultsContainer.classList.remove('hidden');
-                    fullSearchResultsContainer.innerHTML = '<div class="p-6 text-center text-red-500 font-bold">Failed to load search results.</div>';
-                });
+                    .then(res => res.json())
+                    .then(data => {
+                        lastSearchData = data;
+                        renderFullSearchResults(data, query);
+                    })
+                    .catch(err => {
+                        fullSearchSpinner.classList.add('hidden');
+                        fullSearchResultsContainer.classList.remove('hidden');
+                        fullSearchResultsContainer.innerHTML = '<div class="p-6 text-center text-red-500 font-bold">Failed to load search results.</div>';
+                    });
             }
         }
 
@@ -825,7 +942,7 @@
             // Step 1: Trigger the animations immediately
             fullSearchModalBox.classList.remove('scale-100');
             fullSearchModalBox.classList.add('scale-95');
-            
+
             fullSearchModal.classList.remove('opacity-100');
             fullSearchModal.classList.add('opacity-0'); // Add this BEFORE the timeout so it fades out
 
@@ -838,9 +955,39 @@
 
         document.addEventListener('click', (e) => {
             if (!e.target.closest('#globalSearchContainer')) {
-                if(globalSearchDropdown) globalSearchDropdown.classList.add('hidden');
+                if (globalSearchDropdown) globalSearchDropdown.classList.add('hidden');
             }
         });
+
+        function openVerificationModal() {
+            const modal = document.getElementById('teacherVerificationModal');
+            const box = document.getElementById('teacherVerificationBox');
+            if (!modal) return;
+
+            modal.classList.remove('hidden');
+            setTimeout(() => {
+                modal.classList.remove('opacity-0');
+                modal.classList.add('opacity-100');
+                box.classList.remove('scale-95');
+                box.classList.add('scale-100');
+            }, 10);
+        }
+
+        function closeVerificationModal() {
+            const modal = document.getElementById('teacherVerificationModal');
+            const box = document.getElementById('teacherVerificationBox');
+            if (!modal) return;
+
+            modal.classList.remove('opacity-100');
+            modal.classList.add('opacity-0');
+            box.classList.remove('scale-100');
+            box.classList.add('scale-95');
+            setTimeout(() => {
+                modal.classList.add('hidden');
+            }, 300);
+        }
+
+
     </script>
 </body>
 

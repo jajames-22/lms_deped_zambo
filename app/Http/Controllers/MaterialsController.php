@@ -397,6 +397,19 @@ class MaterialsController extends Controller
             $targetStatus = $request->status;
             $currentUser = auth()->user();
 
+            // ==========================================
+            // NEW: Prevent Pending Teachers from Submitting
+            // ==========================================
+            if ($currentUser->role === 'teacher' && $currentUser->status === 'pending' && in_array($targetStatus, ['pending', 'published'])) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Your account is currently pending verification. You cannot submit modules for review until an administrator verifies your account.'
+                ], 403);
+            }
+
+            // Fetch the material BEFORE updating so we can check ownership and titles
+            $material =
+
             // Fetch the material BEFORE updating so we can check ownership and titles
             $material = \App\Models\Material::with('instructor')->findOrFail($id);
 

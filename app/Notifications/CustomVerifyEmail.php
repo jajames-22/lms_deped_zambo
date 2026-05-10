@@ -18,7 +18,7 @@ class CustomVerifyEmail extends VerifyEmail
         return (new MailMessage)
             ->subject('Verify Your Account - LMS Zamboanga')
             ->greeting('Hello ' . $notifiable->first_name . '!')
-            ->line('Welcome to our platform. Please click the button below to verify your email address.')
+            ->line('Welcome to our platform. Please click the button below to verify your email address. Once you click the button, your account will immediately be verified and is ready for log in.')
             ->action('Verify Email Address', $verificationUrl)
             ->line('If you did not create an account, no further action is required.')
             ->salutation('Best regards, The DepEd Zamboanga Team');

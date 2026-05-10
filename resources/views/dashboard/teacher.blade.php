@@ -1,4 +1,4 @@
-t@extends('dashboard.layout')
+@extends('dashboard.layout')
 
 @section('sidebar_nav')
 

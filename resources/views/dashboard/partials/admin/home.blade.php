@@ -115,7 +115,7 @@
         @else
         <div class="bg-green-50/50 rounded-2xl border border-green-100 p-6 shadow-sm text-center">
             <div class="w-12 h-12 bg-green-100 text-green-600 rounded-full flex items-center justify-center mx-auto mb-3 text-lg">
-                <i class="fas fa-shield-check"></i>
+                <i class="fas fa-shield"></i>
             </div>
             <h4 class="text-sm font-bold text-green-900 mb-1">System Organized</h4>
             <p class="text-xs text-green-600">No pending approvals or unassigned users.</p>
