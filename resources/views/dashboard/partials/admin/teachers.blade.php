@@ -18,9 +18,8 @@
                 <i class="fas fa-download"></i>
                 <span class="hidden sm:inline">Template</span>
             </a>
-            <input type="file" id="studentImportInput" class="hidden" accept=".xlsx,.xls,.csv"
-                onchange="handleTeacherImport(this)">
-            <button id="importTeacherBtn" onclick="document.getElementById('studentImportInput').click()"
+            
+            <button id="importTeacherBtn" onclick="openTeacherImportModal()"
                 class="flex items-center justify-center gap-2 px-6 py-3 bg-white border border-gray-200 text-gray-700 font-bold rounded-xl shadow-sm hover:bg-gray-50 transition-all text-sm">
                 <i class="fas fa-file-import"></i>
                 <span>Import</span>
@@ -50,7 +49,7 @@
             <p id="total-teachers-label" class="text-gray-400 text-[10px] font-bold uppercase tracking-widest">Total {{ $label }}</p>
 <h3 class="text-2xl font-black text-gray-900" id="total-teachers-count">{{ $teachers->count() }}</h3>
             </div>
-            <div class="w-10 h-10 bg-blue-50 text-blue-600 rounded-lg flex items-center justify-center">
+            <div class="w-10 h-10 bg-orange-50 text-orange-600 rounded-lg flex items-center justify-center">
                 <i class="fas fa-users-cog text-lg"></i>
             </div>
         </div>
@@ -67,32 +66,29 @@
 
    <div class="flex flex-wrap items-center justify-between gap-4">
 
-    <!-- LEFT: TABS -->
     <div class="flex flex-wrap items-center gap-3">
 
-        <!-- ROLE TABS -->
         <div class="flex items-center bg-gray-200/50 p-1 rounded-xl">
-            <button class="role-tab px-4 py-2 text-sm font-bold rounded-lg bg-white text-[#a52a2a] shadow-sm pointer-events-none">
+            <button class="role-tab px-4 py-2 text-sm font-bold rounded-lg bg-white text-[#a52a2a] shadow-sm pointer-events-none" data-role="all">
                 All Roles
             </button>
-            <button class="role-tab px-4 py-2 text-sm font-bold rounded-lg text-gray-500 hover:text-gray-700">
+            <button class="role-tab px-4 py-2 text-sm font-bold rounded-lg text-gray-500 hover:text-gray-700" data-role="teacher">
                 Teachers
             </button>
-            <button class="role-tab px-4 py-2 text-sm font-bold rounded-lg text-gray-500 hover:text-gray-700">
+            <button class="role-tab px-4 py-2 text-sm font-bold rounded-lg text-gray-500 hover:text-gray-700" data-role="cid">
                 CID
             </button>
         </div>
 
-        <!-- STATUS TABS -->
         <div class="flex items-center bg-gray-200/50 p-1 rounded-xl">
-            <button class="status-tab px-4 py-2 text-sm font-bold rounded-lg bg-white text-[#a52a2a] shadow-sm pointer-events-none">
+            <button class="status-tab px-4 py-2 text-sm font-bold rounded-lg bg-white text-[#a52a2a] shadow-sm pointer-events-none" data-status="all">
                 All Status
             </button>
-            <button class="status-tab px-4 py-2 text-sm font-bold rounded-lg text-gray-500 hover:text-gray-700">
+            <button class="status-tab px-4 py-2 text-sm font-bold rounded-lg text-gray-500 hover:text-gray-700" data-status="verified">
                 Verified
             </button>
 
-            <button class="status-tab flex items-center gap-1 px-4 py-2 text-sm font-bold rounded-lg text-gray-500 hover:text-gray-700">
+            <button class="status-tab flex items-center gap-1 px-4 py-2 text-sm font-bold rounded-lg text-gray-500 hover:text-gray-700" data-status="pending">
                 <span>Pending</span>
 
                 @php 
@@ -106,14 +102,13 @@
                 @endif
             </button>
 
-            <button class="status-tab px-4 py-2 text-sm font-bold rounded-lg text-gray-500 hover:text-gray-700">
+            <button class="status-tab px-4 py-2 text-sm font-bold rounded-lg text-gray-500 hover:text-gray-700" data-status="suspended">
                 Suspended
             </button>
         </div>
 
     </div>
 
-    <!-- RIGHT: BUTTON -->
     <button onclick="toggleExportModal()"
         class="flex items-center gap-2 px-5 py-2.5 bg-gray-800 text-white font-bold rounded-xl shadow-sm hover:bg-gray-900 transition text-sm shrink-0">
         <i class="fas fa-file-export"></i>
@@ -154,7 +149,7 @@
                                     class="teacher-checkbox rounded border-gray-300 text-[#a52a2a] focus:ring-[#a52a2a] cursor-pointer">
                             </td>
                             <td class="px-4 py-2.5">
-                                <div class="w-10 h-10 mx-auto rounded-full {{ $teacher->role === 'cid' ? 'bg-purple-50 border-purple-100 text-purple-600' : 'bg-blue-50 border-blue-100 text-blue-600' }} border overflow-hidden flex items-center justify-center shadow-sm font-bold text-xs">
+                                <div class="w-10 h-10 mx-auto rounded-full {{ $teacher->role === 'cid' ? 'bg-purple-50 border-purple-100 text-purple-600' : 'bg-orange-50 border-orange-100 text-orange-600' }} border overflow-hidden flex items-center justify-center shadow-sm font-bold text-xs">
                                     @if(isset($teacher->avatar) && $teacher->avatar)
                                         <img src="{{ asset('storage/' . $teacher->avatar) }}"
                                             class="w-full h-full object-cover">
@@ -176,7 +171,7 @@
                                         @if($teacher->role === 'cid')
                                             <span class="bg-purple-100 text-purple-700 text-[9px] px-1.5 py-0.5 rounded font-bold uppercase tracking-widest border border-purple-200">CID</span>
                                         @else
-                                            <span class="bg-blue-100 text-blue-700 text-[9px] px-1.5 py-0.5 rounded font-bold uppercase tracking-widest border border-blue-200">Teacher</span>
+                                            <span class="bg-orange-100 text-orange-700 text-[9px] px-1.5 py-0.5 rounded font-bold uppercase tracking-widest border border-orange-200">Teacher</span>
                                         @endif
                                     </div>
                                     <div class="flex items-center gap-2 mt-0.5">
@@ -223,7 +218,7 @@
                                 <div class="flex items-center justify-center gap-1">
                                     <button
                                         onclick="loadPartial('{{ route('teachers.edit', $teacher->id) }}', document.getElementById('nav-teachers-btn'))"
-                                        class="w-7 h-7 flex items-center justify-center text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition shadow-none"
+                                        class="w-7 h-7 flex items-center justify-center text-gray-400 hover:text-orange-600 hover:bg-orange-50 rounded-lg transition shadow-none"
                                         title="Edit">
                                         <i class="fas fa-edit text-xs"></i>
                                     </button>
@@ -265,6 +260,42 @@
     </div>
 </div>
 
+{{-- IMPORT TEACHER MODAL --}}
+<div id="importTeacherModal"
+    class="fixed inset-0 z-[9999] hidden opacity-0 transition-opacity duration-300 flex items-center justify-center p-4">
+    <div class="absolute inset-0 bg-gray-900/60 backdrop-blur-sm" onclick="closeTeacherImportModal()"></div>
+    <div id="importTeacherBox"
+        class="bg-white rounded-3xl max-w-sm w-full p-8 shadow-2xl relative z-10 transform scale-95 transition-all duration-300">
+        <div class="flex justify-between items-center mb-6">
+            <h3 class="text-xl font-black text-gray-900">Import Personnel List</h3>
+            <button onclick="closeTeacherImportModal()"
+                class="text-gray-400 hover:text-gray-600 transition"><i class="fas fa-times"></i></button>
+        </div>
+
+        <div class="mb-5 p-4 bg-gray-50 border border-gray-200 rounded-2xl text-sm text-gray-600 leading-relaxed space-y-2">
+            <p class="font-bold text-gray-800 flex items-center gap-2"><i class="fas fa-info-circle text-[#a52a2a]"></i> File Requirements</p>
+            <ul class="list-disc list-inside space-y-1 text-xs text-gray-500">
+                <li>Accepted formats: <strong>.csv</strong>, <strong>.xlsx</strong>, <strong>.xls</strong></li>
+                <li>Please use the official template</li>
+                <li>Ensure Employee IDs are correct</li>
+            </ul>
+        </div>
+
+        <div class="mb-6">
+            <label class="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-2">Select File</label>
+            <input type="file" id="teacher-file-input" accept=".csv, .xlsx, .xls"
+                class="block w-full text-sm text-gray-500
+                       file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0
+                       file:text-sm file:font-bold file:bg-[#a52a2a]/10 file:text-[#a52a2a]
+                       hover:file:bg-[#a52a2a]/20 transition cursor-pointer">
+        </div>
+
+        <button id="submitTeacherImportBtn" onclick="submitTeacherImport()"
+            class="w-full py-3 bg-gray-900 text-white font-bold rounded-xl hover:bg-black transition flex justify-center items-center gap-2 shadow-lg shadow-gray-900/20">
+            <i class="fas fa-upload"></i> Upload & Import
+        </button>
+    </div>
+</div>
 
 <div id="teacherImportConflictModal" class="fixed inset-0 z-[9999] hidden flex items-center justify-center p-4">
     <div class="absolute inset-0 bg-gray-900/60 backdrop-blur-sm" onclick="closeTeacherConflictModal()"></div>
@@ -294,8 +325,8 @@
             <div class="w-1/3 flex flex-col px-6 py-6">
                 <p class="text-sm font-semibold text-gray-700 mb-4">Choose Action</p>
                 <div class="space-y-4">
-                    <label class="flex gap-3 p-4 border rounded-xl cursor-pointer transition hover:bg-gray-50 has-[:checked]:border-blue-500 has-[:checked]:bg-blue-50">
-                        <input type="radio" name="teacher_conflict_strategy" value="skip" checked class="mt-1 w-5 h-5 text-blue-600 border-gray-300 focus:ring-blue-600 shrink-0">
+                    <label class="flex gap-3 p-4 border rounded-xl cursor-pointer transition hover:bg-gray-50 has-[:checked]:border-orange-500 has-[:checked]:bg-orange-50">
+                        <input type="radio" name="teacher_conflict_strategy" value="skip" checked class="mt-1 w-5 h-5 text-orange-600 border-gray-300 focus:ring-orange-600 shrink-0">
                         <div>
                             <span class="font-bold text-gray-900 block">Skip Duplicates</span>
                             <span class="text-xs text-gray-500">Only import new personnel.</span>
@@ -321,7 +352,7 @@
             <button type="button" onclick="closeTeacherConflictModal()"
                 class="px-5 py-2.5 bg-gray-100 text-gray-700 font-semibold rounded-xl hover:bg-gray-200 transition">Cancel</button>
             <button type="button" id="confirmTeacherImportBtn" onclick="executeTeacherImport()"
-                class="px-5 py-2.5 bg-blue-600 text-white font-semibold rounded-xl shadow hover:bg-blue-700 transition flex items-center gap-2">
+                class="px-5 py-2.5 bg-orange-600 text-white font-semibold rounded-xl shadow hover:bg-orange-700 transition flex items-center gap-2">
                 <i class="fas fa-upload"></i> Continue Import
             </button>
         </div>
@@ -397,10 +428,10 @@
                             <span class="text-gray-700 text-sm font-bold">All Roles</span>
                         </label>
                         <label
-                            class="flex items-center gap-3 p-2.5 border border-gray-200 rounded-xl cursor-pointer hover:bg-blue-50 transition-colors">
+                            class="flex items-center gap-3 p-2.5 border border-gray-200 rounded-xl cursor-pointer hover:bg-orange-50 transition-colors">
                             <input type="checkbox" name="roles[]" value="teacher"
-                                class="export-role-cb w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-600">
-                            <span class="text-blue-700 text-sm font-bold">Teachers</span>
+                                class="export-role-cb w-4 h-4 text-orange-600 rounded border-gray-300 focus:ring-orange-600">
+                            <span class="text-orange-700 text-sm font-bold">Teachers</span>
                         </label>
                         <label
                             class="flex items-center gap-3 p-2.5 border border-gray-200 rounded-xl cursor-pointer hover:bg-purple-50 transition-colors">
@@ -451,7 +482,7 @@
                     class="flex-1 bg-gray-800 hover:bg-gray-900 text-white py-3 rounded-xl font-bold border-0 transition-colors flex items-center justify-center gap-2"><i
                         class="fas fa-print"></i> Print</button>
                 <button type="submit" name="action" value="download" onclick="setTimeout(toggleExportModal, 500)"
-                    class="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-3 rounded-xl font-bold border-0 transition-colors flex items-center justify-center gap-2"><i
+                    class="flex-1 bg-orange-600 hover:bg-orange-700 text-white py-3 rounded-xl font-bold border-0 transition-colors flex items-center justify-center gap-2"><i
                         class="fas fa-file-pdf"></i> PDF</button>
             </div>
         </form>
@@ -655,7 +686,7 @@
     var allTeacherRows = [];
     var currentFilteredRows = [];
     
-    // NEW: Manage both Role and Status filters
+    // Manage both Role and Status filters
     var currentRoleFilter = 'all';
     var currentStatusFilter = 'all';
     var currentSearchFilter = '';
@@ -665,44 +696,45 @@
         currentFilteredRows = [...allTeacherRows];
         applyFilters();
     }, 50);
-function applyFilters() {
-    currentFilteredRows = allTeacherRows.filter(function (row) {
-        var text = row.textContent.toLowerCase();
-        var rowStatus = row.getAttribute('data-status');
-        var rowRole = row.getAttribute('data-role');
-        
-        var matchesSearch = text.includes(currentSearchFilter);
-        var matchesStatus = (currentStatusFilter === 'all') || (rowStatus === currentStatusFilter);
-        var matchesRole = (currentRoleFilter === 'all') || (rowRole === currentRoleFilter);
-        
-        return matchesSearch && matchesStatus && matchesRole;
-    });
 
-    // Update the count number
-    var counterElement = document.getElementById('total-teachers-count');
-    if (counterElement) counterElement.textContent = currentFilteredRows.length;
+    function applyFilters() {
+        currentFilteredRows = allTeacherRows.filter(function (row) {
+            var text = row.textContent.toLowerCase();
+            var rowStatus = row.getAttribute('data-status');
+            var rowRole = row.getAttribute('data-role');
+            
+            var matchesSearch = text.includes(currentSearchFilter);
+            var matchesStatus = (currentStatusFilter === 'all') || (rowStatus === currentStatusFilter);
+            var matchesRole = (currentRoleFilter === 'all') || (rowRole === currentRoleFilter);
+            
+            return matchesSearch && matchesStatus && matchesRole;
+        });
 
-    // NEW: Update the label text dynamically
-    var labelElement = document.getElementById('total-teachers-label');
-    if (labelElement) {
-        var statusText = currentStatusFilter !== 'all' 
-            ? currentStatusFilter.charAt(0).toUpperCase() + currentStatusFilter.slice(1) + " " 
-            : "";
-            
-        var roleText = currentRoleFilter === 'teacher' 
-            ? 'Teachers' 
-            : (currentRoleFilter === 'cid' ? 'CID Personnel' : 'Personnel');
-            
-        labelElement.textContent = "Total " + statusText + roleText;
+        // Update the count number
+        var counterElement = document.getElementById('total-teachers-count');
+        if (counterElement) counterElement.textContent = currentFilteredRows.length;
+
+        // Update the label text dynamically
+        var labelElement = document.getElementById('total-teachers-label');
+        if (labelElement) {
+            var statusText = currentStatusFilter !== 'all' 
+                ? currentStatusFilter.charAt(0).toUpperCase() + currentStatusFilter.slice(1) + " " 
+                : "";
+                
+            var roleText = currentRoleFilter === 'teacher' 
+                ? 'Teachers' 
+                : (currentRoleFilter === 'cid' ? 'CID Personnel' : 'Personnel');
+                
+            labelElement.textContent = "Total " + statusText + roleText;
+        }
+
+        currentPage = 1;
+        applyPagination();
+
+        if (selectAllCheckbox) selectAllCheckbox.checked = false;
+        document.querySelectorAll('.teacher-checkbox').forEach(cb => cb.checked = false);
+        updateBulkActionUI();
     }
-
-    currentPage = 1;
-    applyPagination();
-
-    if (selectAllCheckbox) selectAllCheckbox.checked = false;
-    document.querySelectorAll('.teacher-checkbox').forEach(cb => cb.checked = false);
-    updateBulkActionUI();
-}
 
     function applyPagination() {
         var tbody = document.querySelector('#teachersTable tbody');
@@ -933,159 +965,221 @@ function applyFilters() {
             }
         }, 300);
     }
- let pendingTeacherImportFile = null;
 
-function handleTeacherImport(input) {
-    if (!input.files || !input.files[0]) return;
-    pendingTeacherImportFile = input.files[0];
+    let pendingTeacherImportFile = null;
 
-    const importBtn = document.getElementById('importTeacherBtn');
-    const originalContent = importBtn.innerHTML;
-    importBtn.disabled = true;
-    importBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Scanning...';
+    window.openTeacherImportModal = function() {
+        const modal = document.getElementById('importTeacherModal');
+        const box   = document.getElementById('importTeacherBox');
+        document.getElementById('teacher-file-input').value = '';
+        modal.classList.remove('hidden');
+        setTimeout(() => {
+            modal.classList.remove('opacity-0');
+            modal.classList.add('opacity-100');
+            box.classList.remove('scale-95');
+            box.classList.add('scale-100');
+        }, 10);
+    };
 
-    const formData = new FormData();
-    formData.append('file', pendingTeacherImportFile);
-    formData.append('check_only', 1);
+    window.closeTeacherImportModal = function() {
+        const modal = document.getElementById('importTeacherModal');
+        const box   = document.getElementById('importTeacherBox');
+        modal.classList.remove('opacity-100');
+        modal.classList.add('opacity-0');
+        box.classList.remove('scale-100');
+        box.classList.add('scale-95');
+        setTimeout(() => {
+            modal.classList.add('hidden');
+        }, 300);
+    };
 
-    fetch('{{ route("teachers.import") }}', {
-        method: 'POST',
-        body: formData,
-        headers: {
-            'X-Requested-With': 'XMLHttpRequest',
-            'X-CSRF-TOKEN': '{{ csrf_token() }}',
-            'Accept': 'application/json'
+    window.submitTeacherImport = function() {
+        const fileInput = document.getElementById('teacher-file-input');
+        if (!fileInput.files || fileInput.files.length === 0) {
+            showImportModal('No File Selected', 'Please select a CSV or Excel file to import.', 'error');
+            return;
         }
-    })
-    .then(async response => {
-        const data = await response.json();
-        if (!response.ok) throw data;
 
-        if (data.has_duplicates) {
-            renderTeacherDuplicates(data.duplicates);
-            // Show the conflict modal
-            const modal = document.getElementById('teacherImportConflictModal');
-            const box   = document.getElementById('teacherImportConflictModalBox');
-            modal.classList.remove('hidden');
-            setTimeout(() => {
-                box.classList.remove('scale-95', 'opacity-0');
-                box.classList.add('scale-100', 'opacity-100');
-            }, 10);
-        } else {
-            executeTeacherImport(true);
+        pendingTeacherImportFile = fileInput.files[0];
+        fileInput.value = '';
+
+        const btn = document.getElementById('submitTeacherImportBtn');
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Scanning...';
+
+        const formData = new FormData();
+        formData.append('file', pendingTeacherImportFile);
+        formData.append('check_only', 1);
+
+        fetch('{{ route("teachers.import") }}', {
+            method: 'POST',
+            body: formData,
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest',
+                'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                'Accept': 'application/json'
+            }
+        })
+        .then(async response => {
+            const data = await response.json().catch(() => null);
+            if (!response.ok) throw data || { message: 'Server error occurred while scanning.' };
+
+            if (data.has_duplicates) {
+                closeTeacherImportModal();
+                renderTeacherDuplicates(data.duplicates);
+                // Show the conflict modal
+                const modal = document.getElementById('teacherImportConflictModal');
+                const box   = document.getElementById('teacherImportConflictModalBox');
+                modal.classList.remove('hidden');
+                setTimeout(() => {
+                    box.classList.remove('scale-95', 'opacity-0');
+                    box.classList.add('scale-100', 'opacity-100');
+                }, 10);
+            } else {
+                closeTeacherImportModal();
+                executeTeacherImport(true);
+            }
+        })
+        .catch(error => {
+            console.error("Check error:", error);
+            
+            let errorMsg = 'Failed to scan the file. Please check your document and try again.';
+            
+            if (error && error.errors) {
+                errorMsg = Object.values(error.errors)[0][0]; 
+            } else if (error && error.message) {
+                errorMsg = error.message; 
+            }
+            
+            showImportModal('Import Failed', errorMsg, 'error');
+            pendingTeacherImportFile = null;
+        })
+        .finally(() => {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fas fa-upload"></i> Upload & Import';
+        });
+    };
+
+    window.executeTeacherImport = function(autoRun = false) {
+        if (!pendingTeacherImportFile) return;
+
+        const strategy = autoRun
+            ? 'skip'
+            : document.querySelector('input[name="teacher_conflict_strategy"]:checked').value;
+
+        const formData = new FormData();
+        formData.append('file', pendingTeacherImportFile);
+        formData.append('strategy', strategy);
+        formData.append('check_only', 0);
+
+        const confirmBtn = document.getElementById('confirmTeacherImportBtn');
+        const importBtn = document.getElementById('importTeacherBtn');
+        
+        if (confirmBtn) {
+            confirmBtn.disabled = true;
+            confirmBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processing...';
+        } else if (autoRun && importBtn) {
+            importBtn.disabled = true;
+            importBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> <span>Importing...</span>';
         }
-    })
-    .catch(error => {
-        showImportModal('Error', error.message || 'Failed to scan the file.', 'error');
-    })
-    .finally(() => {
-        importBtn.disabled = false;
-        importBtn.innerHTML = originalContent;
-        document.getElementById('teacherImportInput').value = '';
-    });
-}
 
-
-function executeTeacherImport(autoRun = false) {
-    if (!pendingTeacherImportFile) return;
-
-    const strategy = autoRun
-        ? 'skip'
-        : document.querySelector('input[name="teacher_conflict_strategy"]:checked').value;
-
-    const formData = new FormData();
-    formData.append('file', pendingTeacherImportFile);
-    formData.append('strategy', strategy);
-    formData.append('check_only', 0);
-
-    const confirmBtn = document.getElementById('confirmTeacherImportBtn');
-    if (confirmBtn) {
-        confirmBtn.disabled = true;
-        confirmBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processing...';
-    }
-
-    fetch('{{ route("teachers.import") }}', {
-        method: 'POST',
-        body: formData,
-        headers: {
-            'X-Requested-With': 'XMLHttpRequest',
-            'X-CSRF-TOKEN': '{{ csrf_token() }}',
-            'Accept': 'application/json'
-        }
-    })
-    .then(async response => {
-        const data = await response.json();
-        if (response.ok) {
+        fetch('{{ route("teachers.import") }}', {
+            method: 'POST',
+            body: formData,
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest',
+                'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                'Accept': 'application/json'
+            }
+        })
+        .then(async response => {
+            const data = await response.json();
+            if (response.ok) {
+                if (!autoRun) closeTeacherConflictModal();
+                showImportModal('Import Complete!', data.message, 'success', () => {
+                    loadPartial("{{ route('dashboard.teachers') }}", document.getElementById('nav-teachers-btn'));
+                });
+            } else {
+                throw data;
+            }
+        })
+        .catch(error => {
+            console.error("Import error:", error);
             if (!autoRun) closeTeacherConflictModal();
-            showImportModal('Import Complete!', data.message, 'success', () => {
-                loadPartial("{{ route('dashboard.teachers') }}", document.getElementById('nav-teachers-btn'));
-            });
-        } else {
-            throw data;
-        }
-    })
-    .catch(error => {
-        if (!autoRun) closeTeacherConflictModal();
-        setTimeout(() => showImportModal('Import Failed', error.message || 'An error occurred.', 'error'), 350);
-    })
-    .finally(() => {
-        document.getElementById('teacherImportInput').value = '';
-        pendingTeacherImportFile = null;
-    });
-}
+            
+            let errorMsg = 'An error occurred during import.';
+            if (error && error.errors) {
+                errorMsg = Object.values(error.errors)[0][0];
+            } else if (error && error.message) {
+                errorMsg = error.message;
+            }
 
-function closeTeacherConflictModal() {
-    const modal = document.getElementById('teacherImportConflictModal');
-    const box   = document.getElementById('teacherImportConflictModalBox');
-    box.classList.remove('scale-100', 'opacity-100');
-    box.classList.add('scale-95', 'opacity-0');
-    setTimeout(() => {
-        modal.classList.add('hidden');
-        document.getElementById('teacherImportInput').value = '';
-        pendingTeacherImportFile = null;
-    }, 300);
-}
+            setTimeout(() => showImportModal('Import Failed', errorMsg, 'error'), 350);
+        })
+        .finally(() => {
+            pendingTeacherImportFile = null;
+            if (confirmBtn) {
+                confirmBtn.disabled = false;
+                confirmBtn.innerHTML = '<i class="fas fa-upload"></i> Continue Import';
+            }
+            if (autoRun && importBtn) {
+                importBtn.disabled = false;
+                importBtn.innerHTML = '<i class="fas fa-file-import"></i> <span>Import</span>';
+            }
+        });
+    };
 
-function renderTeacherDuplicates(data) {
-    const list  = document.getElementById('teacherDuplicateList');
-    const count = document.getElementById('teacherDuplicateCountLabel');
-    list.innerHTML = '';
-    count.textContent = data.length;
+    window.closeTeacherConflictModal = function() {
+        const modal = document.getElementById('teacherImportConflictModal');
+        const box   = document.getElementById('teacherImportConflictModalBox');
+        box.classList.remove('scale-100', 'opacity-100');
+        box.classList.add('scale-95', 'opacity-0');
+        setTimeout(() => {
+            modal.classList.add('hidden');
+            pendingTeacherImportFile = null;
+        }, 300);
+    };
 
-    data.forEach(item => {
-        const checkDiff = (key, type) => {
-            const existVal = String(item.existing[key] || 'N/A').trim();
-            const incVal   = String(item.incoming[key] || 'N/A').trim();
-            const isDiff   = existVal.toLowerCase() !== incVal.toLowerCase();
-            const val      = type === 'existing' ? existVal : incVal;
-            return isDiff
-                ? `<span class="bg-red-100 text-red-700 px-1.5 py-0.5 rounded border border-red-200 font-bold">${val}</span>`
-                : val;
-        };
+    window.renderTeacherDuplicates = function(data) {
+        const list  = document.getElementById('teacherDuplicateList');
+        const count = document.getElementById('teacherDuplicateCountLabel');
+        list.innerHTML = '';
+        count.textContent = data.length;
 
-        const div = document.createElement('div');
-        div.className = 'border border-gray-200 rounded-xl overflow-hidden bg-white shadow-sm';
-        div.innerHTML = `
-            <div class="px-4 py-2 bg-gray-50 border-b border-gray-200 text-xs font-bold text-gray-700">
-                Employee ID: <span class="text-blue-600">${item.employee_id}</span>
-            </div>
-            <div class="grid grid-cols-2 text-xs">
-                <div class="p-3 border-r border-gray-200 bg-blue-50/30 space-y-1.5">
-                    <p class="font-black text-blue-800 mb-2 border-b border-blue-100 pb-1">Existing in System</p>
-                    <p class="flex justify-between"><strong>Name:</strong> <span>${checkDiff('name', 'existing')}</span></p>
-                    <p class="flex justify-between"><strong>Grade:</strong> <span>${checkDiff('grade', 'existing')}</span></p>
-                    <p class="flex justify-between"><strong>Section:</strong> <span>${checkDiff('section', 'existing')}</span></p>
-                    <p class="flex justify-between"><strong>Gender:</strong> <span>${checkDiff('gender', 'existing')}</span></p>
+        data.forEach(item => {
+            const checkDiff = (key, type) => {
+                const existVal = String(item.existing[key] || 'N/A').trim();
+                const incVal   = String(item.incoming[key] || 'N/A').trim();
+                const isDiff   = existVal.toLowerCase() !== incVal.toLowerCase();
+                const val      = type === 'existing' ? existVal : incVal;
+                return isDiff
+                    ? `<span class="bg-red-100 text-red-700 px-1.5 py-0.5 rounded border border-red-200 font-bold">${val}</span>`
+                    : val;
+            };
+
+            const div = document.createElement('div');
+            div.className = 'border border-gray-200 rounded-xl overflow-hidden bg-white shadow-sm';
+            div.innerHTML = `
+                <div class="px-4 py-2 bg-gray-50 border-b border-gray-200 text-xs font-bold text-gray-700">
+                    Employee ID: <span class="text-orange-600">${item.employee_id}</span>
                 </div>
-                <div class="p-3 bg-green-50/30 space-y-1.5">
-                    <p class="font-black text-green-800 mb-2 border-b border-green-100 pb-1">Incoming Data</p>
-                    <p class="flex justify-between"><strong>Name:</strong> <span>${checkDiff('name', 'incoming')}</span></p>
-                    <p class="flex justify-between"><strong>Grade:</strong> <span>${checkDiff('grade', 'incoming')}</span></p>
-                    <p class="flex justify-between"><strong>Section:</strong> <span>${checkDiff('section', 'incoming')}</span></p>
-                    <p class="flex justify-between"><strong>Gender:</strong> <span>${checkDiff('gender', 'incoming')}</span></p>
-                </div>
-            </div>`;
-        list.appendChild(div);
-    });
-}
+                <div class="grid grid-cols-2 text-xs">
+                    <div class="p-3 border-r border-gray-200 bg-orange-50/30 space-y-1.5">
+                        <p class="font-black text-orange-800 mb-2 border-b border-orange-100 pb-1">Existing in System</p>
+                        <p class="flex justify-between"><strong>Name:</strong> <span>${checkDiff('name', 'existing')}</span></p>
+                        <p class="flex justify-between"><strong>Role:</strong> <span>${checkDiff('role', 'existing')}</span></p>
+                        <p class="flex justify-between"><strong>School:</strong> <span>${checkDiff('school', 'existing')}</span></p>
+                        <p class="flex justify-between"><strong>Gender:</strong> <span>${checkDiff('gender', 'existing')}</span></p>
+                    </div>
+                    <div class="p-3 bg-green-50/30 space-y-1.5">
+                        <p class="font-black text-green-800 mb-2 border-b border-green-100 pb-1">Incoming Data</p>
+                        <p class="flex justify-between"><strong>Name:</strong> <span>${checkDiff('name', 'incoming')}</span></p>
+                        <p class="flex justify-between"><strong>Role:</strong> <span>${checkDiff('role', 'incoming')}</span></p>
+                        <p class="flex justify-between"><strong>School:</strong> <span>${checkDiff('school', 'incoming')}</span></p>
+                        <p class="flex justify-between"><strong>Gender:</strong> <span>${checkDiff('gender', 'incoming')}</span></p>
+                    </div>
+                </div>`;
+            list.appendChild(div);
+        });
+    };
 </script>

@@ -160,8 +160,7 @@
                     <i class="fas fa-plus"></i> Add
                 </button>
 
-                <input type="file" id="lrn-file-input" class="hidden" accept=".csv, .xlsx, .xls" onchange="importLrnList(this)">
-                <button type="button" onclick="document.getElementById('lrn-file-input').click()" 
+                <button type="button" onclick="openLrnImportModal()"
                     class="px-5 py-2.5 bg-white border border-gray-300 text-gray-700 text-sm font-bold rounded-xl hover:bg-gray-50 transition-all shadow-sm flex items-center gap-2 whitespace-nowrap">
                     <i class="fas fa-file-import"></i> Import List
                 </button>
@@ -374,24 +373,43 @@
     </div>
 </div>
 
+{{-- Custom Alert Modal (replaces window.alert for errors and confirmations) --}}
+<div id="customAlertModal"
+    class="fixed inset-0 z-[10000] hidden opacity-0 transition-opacity duration-300 flex items-center justify-center p-4">
+    <div class="absolute inset-0 bg-gray-900/60 backdrop-blur-sm" onclick="closeCustomAlert()"></div>
+    <div id="customAlertBox"
+        class="bg-white rounded-3xl w-full max-w-sm shadow-2xl overflow-hidden transform scale-95 transition-all duration-300 text-center p-6 relative z-10">
+        <div id="customAlertIconContainer"
+            class="w-16 h-16 rounded-full mx-auto mb-4 flex items-center justify-center text-3xl">
+            <i id="customAlertIcon" class="fas fa-info"></i>
+        </div>
+        <h3 id="customAlertTitle" class="text-xl font-black text-gray-900 mb-2">Notice</h3>
+        <p id="customAlertMessage" class="text-sm text-gray-500 mb-6"></p>
+        <button type="button" id="customAlertBtn" onclick="closeCustomAlert()"
+            class="w-full px-4 py-3 bg-gray-100 text-gray-700 font-bold rounded-xl hover:bg-gray-200 transition">
+            Okay
+        </button>
+    </div>
+</div>
+
 <div id="lrnConflictModal" class="fixed inset-0 z-[9999] hidden flex items-center justify-center p-4">
     <div class="absolute inset-0 bg-gray-900/60 backdrop-blur-sm" onclick="closeLrnConflictModal()"></div>
     <div id="lrnConflictModalBox"
-        class="relative bg-white rounded-3xl shadow-2xl w-full max-w-2xl transform scale-95 opacity-0 transition-all duration-300 border border-gray-100 z-10 flex flex-col max-h-[92vh] overflow-hidden">
+        class="relative bg-white rounded-3xl shadow-2xl w-full max-w-3xl transform scale-95 opacity-0 transition-all duration-300 border border-gray-100 z-10 flex flex-col max-h-[92vh] overflow-hidden">
 
-        <div class="px-8 pt-7 pb-5 border-b border-gray-100 flex items-start gap-4">
+        <div class="px-8 pt-7 pb-5 border-b border-gray-100 flex items-start gap-4 shrink-0">
             <div class="w-14 h-14 bg-amber-100 text-amber-600 rounded-2xl flex items-center justify-center text-2xl shrink-0">
                 <i class="fas fa-exclamation-triangle"></i>
             </div>
             <div>
                 <h3 class="text-2xl font-black text-gray-900">Duplicate LRNs Detected</h3>
-                <p class="text-sm text-gray-500 mt-1">The following LRNs are already in the whitelist. Choose how to handle them.</p>
+                <p class="text-sm text-gray-500 mt-1">We found students in your file who are already on the access list. What would you like to do with them?</p>
             </div>
         </div>
 
         <div class="flex flex-1 min-h-0">
-            <div class="w-2/3 border-r border-gray-100 flex flex-col">
-                <div class="px-6 py-4 border-b border-gray-100 bg-gray-50">
+            <div class="w-3/5 border-r border-gray-100 flex flex-col min-h-0">
+                <div class="px-6 py-4 border-b border-gray-100 bg-gray-50 shrink-0">
                     <p class="text-xs font-bold uppercase text-gray-500 tracking-wide">
                         Conflicting LRNs (<span id="lrnDuplicateCountLabel">0</span>)
                     </p>
@@ -399,33 +417,33 @@
                 <div id="lrnDuplicateList" class="flex-1 min-h-0 overflow-y-auto px-6 py-4 space-y-4"></div>
             </div>
 
-            <div class="w-1/3 flex flex-col px-6 py-6">
-                <p class="text-sm font-semibold text-gray-700 mb-4">Choose Action</p>
-                <div class="space-y-4">
+            <div class="w-2/5 flex flex-col px-6 py-6 overflow-y-auto">
+                <p class="text-sm font-semibold text-gray-700 mb-4 shrink-0">Choose Action</p>
+                <div class="space-y-4 shrink-0">
                     <label class="flex gap-3 p-4 border rounded-xl cursor-pointer transition hover:bg-gray-50 has-[:checked]:border-blue-500 has-[:checked]:bg-blue-50">
                         <input type="radio" name="lrn_conflict_strategy" value="skip" checked class="mt-1 w-5 h-5 text-blue-600 border-gray-300 focus:ring-blue-600 shrink-0">
                         <div>
                             <span class="font-bold text-gray-900 block">Skip Duplicates</span>
-                            <span class="text-xs text-gray-500">Only add new LRNs.</span>
+                            <span class="text-xs text-gray-500">Ignore these LRNs and only add brand-new students.</span>
                         </div>
                     </label>
-                    <label class="flex gap-3 p-4 border rounded-xl cursor-pointer transition hover:bg-gray-50 has-[:checked]:border-red-500 has-[:checked]:bg-red-50">
-                        <input type="radio" name="lrn_conflict_strategy" value="update" class="mt-1 w-5 h-5 text-red-600 border-gray-300 focus:ring-red-600 shrink-0">
+                    <label class="flex gap-3 p-4 border rounded-xl cursor-pointer transition hover:bg-gray-50 has-[:checked]:border-amber-500 has-[:checked]:bg-amber-50">
+                        <input type="radio" name="lrn_conflict_strategy" value="update" class="mt-1 w-5 h-5 text-amber-600 border-gray-300 focus:ring-amber-600 shrink-0">
                         <div>
-                            <span class="font-bold text-gray-900 block">Reset Existing</span>
-                            <span class="text-xs text-gray-500">Reset their status back to offline.</span>
+                            <span class="font-bold text-gray-900 block">Update Access</span>
+                            <span class="text-xs text-gray-500">Update these students to offline status so they can retake the exam.</span>
                         </div>
                     </label>
                 </div>
-                <div class="mt-auto pt-6">
-                    <div class="text-xs text-gray-400 bg-gray-50 border border-gray-200 rounded-lg p-3">
-                        Tip: Resetting is useful if a student needs to retake the exam.
+                <div class="mt-auto pt-6 shrink-0">
+                    <div class="text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded-lg p-3">
+                        <strong>Tip:</strong> Updating is useful if a student needs to retake the exam.
                     </div>
                 </div>
             </div>
         </div>
 
-        <div class="px-8 py-5 border-t border-gray-100 bg-white flex justify-end gap-3">
+        <div class="px-8 py-5 border-t border-gray-100 bg-white flex justify-end gap-3 shrink-0">
             <button type="button" onclick="closeLrnConflictModal()"
                 class="px-5 py-2.5 bg-gray-100 text-gray-700 font-semibold rounded-xl hover:bg-gray-200 transition">Cancel</button>
             <button type="button" id="confirmLrnImportBtn" onclick="executeLrnImport()"
@@ -435,12 +453,50 @@
         </div>
     </div>
 </div>
+{{-- Import LRN Modal --}}
+<div id="importLrnModal"
+    class="fixed inset-0 z-[9999] hidden opacity-0 transition-opacity duration-300 flex items-center justify-center p-4">
+    <div class="absolute inset-0 bg-gray-900/60 backdrop-blur-sm" onclick="closeLrnImportModal()"></div>
+    <div id="importLrnBox"
+        class="bg-white rounded-3xl max-w-sm w-full p-8 shadow-2xl relative z-10 transform scale-95 transition-all duration-300">
+        <div class="flex justify-between items-center mb-6">
+            <h3 class="text-xl font-black text-gray-900">Import LRN List</h3>
+            <button onclick="closeLrnImportModal()"
+                class="text-gray-400 hover:text-gray-600 transition"><i class="fas fa-times"></i></button>
+        </div>
+
+        <div class="mb-5 p-4 bg-gray-50 border border-gray-200 rounded-2xl text-sm text-gray-600 leading-relaxed space-y-2">
+            <p class="font-bold text-gray-800 flex items-center gap-2"><i class="fas fa-info-circle text-[#a52a2a]"></i> File Requirements</p>
+            <ul class="list-disc list-inside space-y-1 text-xs text-gray-500">
+                <li>Accepted formats: <strong>.csv</strong>, <strong>.xlsx</strong>, <strong>.xls</strong></li>
+                <li>File must contain a column with the header <strong class="font-mono text-gray-700">"lrn"</strong></li>
+                <li>LRN values must be numeric</li>
+                <li>Other columns in the file will be ignored</li>
+            </ul>
+        </div>
+
+        <div class="mb-6">
+            <label class="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-2">Select File</label>
+            <input type="file" id="lrn-file-input" accept=".csv, .xlsx, .xls"
+                class="block w-full text-sm text-gray-500
+                       file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0
+                       file:text-sm file:font-bold file:bg-[#a52a2a]/10 file:text-[#a52a2a]
+                       hover:file:bg-[#a52a2a]/20 transition cursor-pointer">
+        </div>
+
+        <button id="submitLrnImportBtn" onclick="submitLrnImport()"
+            class="w-full py-3 bg-gray-900 text-white font-bold rounded-xl hover:bg-black transition flex justify-center items-center gap-2 shadow-lg shadow-gray-900/20">
+            <i class="fas fa-upload"></i> Upload & Import
+        </button>
+    </div>
+</div>
+
 <script>
     // ==========================================
     // DOM PREPARATION (Fixes Modal & Snackbar Trapping)
     // ==========================================
     setTimeout(() => {
-        ['assessment-delete-modal', 'student-delete-modal', 'custom-snackbar'].forEach(id => {
+        ['assessment-delete-modal', 'student-delete-modal', 'custom-snackbar', 'customAlertModal', 'lrnConflictModal', 'importLrnModal'].forEach(id => {
             const newEl = document.getElementById(id);
             if (newEl && newEl.parentElement !== document.body) {
                 // Clean up any orphan elements from previous visits to prevent duplicates
@@ -614,6 +670,53 @@
 
     window.closeSnackbar = function() {
         document.getElementById('custom-snackbar').classList.add('translate-y-24', 'opacity-0');
+    };
+
+    // --- Custom Alert Modal (replaces window.alert) ---
+    window.showCustomAlert = function(title, message, type = 'error', callback = null) {
+        const modal = document.getElementById('customAlertModal');
+        const box = document.getElementById('customAlertBox');
+        const iconContainer = document.getElementById('customAlertIconContainer');
+        const icon = document.getElementById('customAlertIcon');
+
+        document.getElementById('customAlertTitle').innerText = title;
+        document.getElementById('customAlertMessage').innerText = message;
+        document.getElementById('customAlertBtn').innerText = 'Okay';
+
+        window.customAlertCallback = callback;
+
+        if (type === 'success') {
+            iconContainer.className = 'w-16 h-16 rounded-full mx-auto mb-4 flex items-center justify-center text-3xl bg-green-100 text-green-500';
+            icon.className = 'fas fa-check-circle';
+        } else if (type === 'warning') {
+            iconContainer.className = 'w-16 h-16 rounded-full mx-auto mb-4 flex items-center justify-center text-3xl bg-amber-100 text-amber-500';
+            icon.className = 'fas fa-exclamation-triangle';
+        } else {
+            iconContainer.className = 'w-16 h-16 rounded-full mx-auto mb-4 flex items-center justify-center text-3xl bg-red-100 text-red-500';
+            icon.className = 'fas fa-exclamation-circle';
+        }
+
+        modal.classList.remove('hidden');
+        setTimeout(() => {
+            modal.classList.remove('opacity-0');
+            modal.classList.add('opacity-100');
+            box.classList.remove('scale-95');
+            box.classList.add('scale-100');
+        }, 10);
+    };
+
+    window.closeCustomAlert = function() {
+        const modal = document.getElementById('customAlertModal');
+        const box = document.getElementById('customAlertBox');
+        box.classList.remove('scale-100');
+        box.classList.add('scale-95');
+        modal.classList.remove('opacity-100');
+        modal.classList.add('opacity-0');
+        setTimeout(() => {
+            modal.classList.add('hidden');
+            if (window.customAlertCallback) window.customAlertCallback();
+            window.customAlertCallback = null;
+        }, 300);
     };
 
     // --- State and Pagination Management ---
@@ -842,11 +945,11 @@
     // --- API Calls ---
     window.submitLrn = async function(btn) {
         const lrnInput = document.getElementById('student-lrn-input');
-        const lrnValue = lrnInput.value;
+        const lrnValue = lrnInput.value.trim();
         const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || '{{ csrf_token() }}';
 
         if (!lrnValue || isNaN(lrnValue)) {
-            showSnackbar('Please enter a valid numeric LRN.', 'error');
+            showCustomAlert('Invalid LRN', 'Please enter a valid numeric LRN.', 'error');
             return;
         }
 
@@ -864,19 +967,26 @@
                 },
                 body: JSON.stringify({ lrn: lrnValue })
             });
-            const data = await response.json();
 
-            if (response.ok && data.success) {
-                lrnInput.value = ''; 
+            const data = await response.json().catch(() => null);
+
+            if (!response.ok) throw data || { message: 'Server error occurred.' };
+
+            if (data.success) {
+                lrnInput.value = '';
                 showSnackbar('Student added successfully!', 'success');
                 setTimeout(refreshTableOnly, 200);
-            } else if (response.status === 422) {
-                showSnackbar("Validation Error: " + data.errors.lrn[0], 'error');
             } else {
-                showSnackbar(data.message || 'Failed to add LRN.', 'error');
+                throw { message: data.message || 'Failed to add LRN.' };
             }
         } catch (error) {
-            showSnackbar('A network error occurred.', 'error');
+            let errorMsg = 'An error occurred while adding the student.';
+            if (error && error.errors) {
+                errorMsg = Object.values(error.errors)[0][0];
+            } else if (error && error.message) {
+                errorMsg = error.message;
+            }
+            showCustomAlert('Add Failed', errorMsg, 'error');
         } finally {
             btn.innerHTML = originalHtml;
             btn.disabled = false;
@@ -922,6 +1032,7 @@
 
         try {
             let successCount = 0;
+            let firstError = null;
 
             for (const id of targetsToDelete) {
                 let deleteUrl = '{{ route("dashboard.assessments.access.remove", ":id") }}'.replace(':id', id);
@@ -935,24 +1046,28 @@
                     }
                 });
 
-                const data = await response.json();
-                
-                if (response.ok && data.success) {
+                const data = await response.json().catch(() => null);
+
+                if (response.ok && data && data.success) {
                     successCount++;
-                } else {
-                    showSnackbar("Error: " + (data.message || "Unknown error"), 'error');
+                } else if (!firstError) {
+                    firstError = (data && data.message) ? data.message : 'An unknown error occurred.';
                 }
             }
 
             window.closeDeleteModal();
-            
+
             if (successCount > 0) {
                 showSnackbar(`Successfully removed ${successCount} student(s).`, 'success');
                 setTimeout(refreshTableOnly, 200);
             }
-            
+
+            if (firstError) {
+                showCustomAlert('Delete Error', firstError, 'error');
+            }
+
         } catch (error) {
-            showSnackbar('A network error occurred.', 'error');
+            showCustomAlert('Network Error', 'A network error occurred while deleting. Please try again.', 'error');
             console.error(error);
         } finally {
             if (btn) {
@@ -961,8 +1076,100 @@
             }
         }
     };
+let pendingLrnImportFile = null;
 
-    let pendingLrnImportFile = null;
+    // --- LRN Import Modal Helpers ---
+    window.openLrnImportModal = function() {
+        const modal = document.getElementById('importLrnModal');
+        const box   = document.getElementById('importLrnBox');
+        document.getElementById('lrn-file-input').value = '';
+        modal.classList.remove('hidden');
+        setTimeout(() => {
+            modal.classList.remove('opacity-0');
+            modal.classList.add('opacity-100');
+            box.classList.remove('scale-95');
+            box.classList.add('scale-100');
+        }, 10);
+    };
+
+    window.closeLrnImportModal = function() {
+        const modal = document.getElementById('importLrnModal');
+        const box   = document.getElementById('importLrnBox');
+        modal.classList.remove('opacity-100');
+        modal.classList.add('opacity-0');
+        box.classList.remove('scale-100');
+        box.classList.add('scale-95');
+        setTimeout(() => {
+            modal.classList.add('hidden');
+        }, 300);
+    };
+
+    // Called by the Upload & Import button inside the modal
+    window.submitLrnImport = function() {
+        const fileInput = document.getElementById('lrn-file-input');
+        if (!fileInput.files || fileInput.files.length === 0) {
+            showCustomAlert('No File Selected', 'Please select a CSV or Excel file to import.', 'error');
+            return;
+        }
+
+        pendingLrnImportFile = fileInput.files[0];
+        fileInput.value = '';
+
+        const btn = document.getElementById('submitLrnImportBtn');
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Scanning...';
+
+        showSnackbar('Scanning file...', 'info');
+
+        const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || '{{ csrf_token() }}';
+        const formData = new FormData();
+        formData.append('file', pendingLrnImportFile);
+        formData.append('check_only', 1);
+
+        fetch('{{ route("dashboard.assessments.access.import", $assessment->id) }}', {
+            method: 'POST',
+            headers: {
+                'X-CSRF-TOKEN': csrfToken,
+                'Accept': 'application/json'
+            },
+            body: formData
+        })
+        .then(async response => {
+            const data = await response.json().catch(() => null);
+            if (!response.ok) throw data || { message: 'Server error occurred while scanning.' };
+            return data;
+        })
+        .then(data => {
+            if (data.has_duplicates) {
+                closeLrnImportModal();
+                renderLrnDuplicates(data.duplicates);
+                const modal = document.getElementById('lrnConflictModal');
+                const box   = document.getElementById('lrnConflictModalBox');
+                modal.classList.remove('hidden');
+                setTimeout(() => {
+                    box.classList.remove('scale-95', 'opacity-0');
+                    box.classList.add('scale-100', 'opacity-100');
+                }, 10);
+            } else {
+                closeLrnImportModal();
+                executeLrnImport(true);
+            }
+        })
+        .catch(error => {
+            let errorMsg = 'Failed to scan the file. Please check your document and try again.';
+            if (error && error.errors) {
+                errorMsg = Object.values(error.errors)[0][0];
+            } else if (error && error.message) {
+                errorMsg = error.message;
+            }
+            showCustomAlert('Import Failed', errorMsg, 'error');
+            pendingLrnImportFile = null;
+        })
+        .finally(() => {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fas fa-upload"></i> Upload & Import';
+        });
+    };
 
 window.importLrnList = function(input) {
     if (!input.files || input.files.length === 0) return;
@@ -974,16 +1181,22 @@ window.importLrnList = function(input) {
     formData.append('file', pendingLrnImportFile);
     formData.append('check_only', 1);
 
-    showSnackbar('Scanning for duplicates...', 'info');
+    showSnackbar('Scanning file...', 'info');
 
     fetch('{{ route("dashboard.assessments.access.import", $assessment->id) }}', {
         method: 'POST',
-        headers: { 'X-CSRF-TOKEN': csrfToken },
+        headers: { 
+            'X-CSRF-TOKEN': csrfToken,
+            // CRITICAL: This tells Laravel to return the specific validation text instead of an HTML page
+            'Accept': 'application/json' 
+        },
         body: formData
     })
     .then(async response => {
-        const data = await response.json();
-        if (!response.ok) throw data;
+        const data = await response.json().catch(() => null);
+        
+        // If it's a 422 Validation Error or 500 Server Error, throw the data down to the catch block
+        if (!response.ok) throw data || { message: 'Server error occurred while scanning.' };
 
         if (data.has_duplicates) {
             renderLrnDuplicates(data.duplicates);
@@ -998,9 +1211,23 @@ window.importLrnList = function(input) {
             executeLrnImport(true);
         }
     })
-    .catch(() => showSnackbar('Failed to scan the file.', 'error'));
+    .catch(error => {
+        let errorMsg = 'Failed to scan the file. Please check your document and try again.';
+        
+        // Extract exact Laravel Validation Errors (e.g., "The file must be a file of type: xlsx, csv")
+        if (error && error.errors) {
+            // This grabs the very first validation error string Laravel generated
+            errorMsg = Object.values(error.errors)[0][0]; 
+        } else if (error && error.message) {
+            // This catches custom backend error messages (e.g., "No 'lrn' column found")
+            errorMsg = error.message; 
+        }
+        
+        // Trigger your custom big modal instead of the tiny snackbar
+        showCustomAlert('Import Failed', errorMsg, 'error');
+        pendingLrnImportFile = null;
+    });
 };
-
 
 window.executeLrnImport = function(autoRun = false) {
     if (!pendingLrnImportFile) return;
@@ -1023,22 +1250,34 @@ window.executeLrnImport = function(autoRun = false) {
 
     fetch('{{ route("dashboard.assessments.access.import", $assessment->id) }}', {
         method: 'POST',
-        headers: { 'X-CSRF-TOKEN': csrfToken },
+        headers: { 
+            'X-CSRF-TOKEN': csrfToken,
+            'Accept': 'application/json' 
+        },
         body: formData
     })
     .then(async response => {
-        const data = await response.json();
-        if (response.ok && data.success) {
-            if (!autoRun) closeLrnConflictModal();
-            showSnackbar(data.message, 'success');
-            setTimeout(refreshTableOnly, 200);
-        } else {
-            throw data;
-        }
+        const data = await response.json().catch(() => null);
+        
+        if (!response.ok) throw data || { message: 'Server error occurred while importing.' };
+        
+        if (!autoRun) closeLrnConflictModal();
+        showSnackbar(data.message || 'Import successful!', 'success');
+        setTimeout(refreshTableOnly, 200);
     })
     .catch(error => {
         if (!autoRun) closeLrnConflictModal();
-        showSnackbar(error.message || 'Import failed.', 'error');
+        
+        let errorMsg = 'An error occurred while saving the students.';
+        
+        // Same robust error extraction here just in case it fails during execution
+        if (error && error.errors) {
+            errorMsg = Object.values(error.errors)[0][0];
+        } else if (error && error.message) {
+            errorMsg = error.message;
+        }
+        
+        showCustomAlert('Import Failed', errorMsg, 'error');
     })
     .finally(() => {
         pendingLrnImportFile = null;

@@ -18,9 +18,8 @@
                 <i class="fas fa-download"></i>
                 <span class="hidden sm:inline">Template</span>
             </a>
-            <input type="file" id="studentImportInput" class="hidden" accept=".xlsx,.xls,.csv"
-                onchange="handleStudentImport(this)">
-            <button id="importStudentBtn" onclick="document.getElementById('studentImportInput').click()"
+            
+            <button id="importStudentBtn" onclick="openStudentImportModal()"
                 class="flex items-center justify-center gap-2 px-6 py-3 bg-white border border-gray-200 text-gray-700 font-bold rounded-xl shadow-sm hover:bg-gray-50 transition-all text-sm">
                 <i class="fas fa-file-import"></i>
                 <span>Import</span>
@@ -231,19 +230,54 @@
 
     </div>
 </div>
+
+{{-- IMPORT STUDENT MODAL --}}
+<div id="importStudentModal"
+    class="fixed inset-0 z-[9999] hidden opacity-0 transition-opacity duration-300 flex items-center justify-center p-4">
+    <div class="absolute inset-0 bg-gray-900/60 backdrop-blur-sm" onclick="closeStudentImportModal()"></div>
+    <div id="importStudentBox"
+        class="bg-white rounded-3xl max-w-sm w-full p-8 shadow-2xl relative z-10 transform scale-95 transition-all duration-300">
+        <div class="flex justify-between items-center mb-6">
+            <h3 class="text-xl font-black text-gray-900">Import Student List</h3>
+            <button onclick="closeStudentImportModal()"
+                class="text-gray-400 hover:text-gray-600 transition"><i class="fas fa-times"></i></button>
+        </div>
+
+        <div class="mb-5 p-4 bg-gray-50 border border-gray-200 rounded-2xl text-sm text-gray-600 leading-relaxed space-y-2">
+            <p class="font-bold text-gray-800 flex items-center gap-2"><i class="fas fa-info-circle text-[#a52a2a]"></i> File Requirements</p>
+            <ul class="list-disc list-inside space-y-1 text-xs text-gray-500">
+                <li>Accepted formats: <strong>.csv</strong>, <strong>.xlsx</strong>, <strong>.xls</strong></li>
+                <li>Please use the official template</li>
+                <li>Ensure LRNs are exactly 12 numeric digits</li>
+            </ul>
+        </div>
+
+        <div class="mb-6">
+            <label class="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-2">Select File</label>
+            <input type="file" id="student-file-input" accept=".csv, .xlsx, .xls"
+                class="block w-full text-sm text-gray-500
+                       file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0
+                       file:text-sm file:font-bold file:bg-[#a52a2a]/10 file:text-[#a52a2a]
+                       hover:file:bg-[#a52a2a]/20 transition cursor-pointer">
+        </div>
+
+        <button id="submitStudentImportBtn" onclick="submitStudentImport()"
+            class="w-full py-3 bg-gray-900 text-white font-bold rounded-xl hover:bg-black transition flex justify-center items-center gap-2 shadow-lg shadow-gray-900/20">
+            <i class="fas fa-upload"></i> Upload & Import
+        </button>
+    </div>
+</div>
+
 {{-- IMPORT CONFLICT RESOLUTION MODAL --}}
 <div id="importConflictModal" class="fixed inset-0 z-[9999] hidden flex items-center justify-center p-4">
     
-    <!-- Backdrop -->
     <div class="absolute inset-0 bg-gray-900/60 backdrop-blur-sm" onclick="closeConflictModal()"></div>
     
-    <!-- Modal -->
     <div id="importConflictModalBox"
         class="relative bg-white rounded-3xl shadow-2xl w-full max-w-3xl
         transform scale-95 opacity-0 transition-all duration-300
         border border-gray-100 z-10 flex flex-col max-h-[92vh] overflow-hidden">
 
-        <!-- Header -->
         <div class="px-8 pt-7 pb-5 border-b border-gray-100 flex items-start gap-4">
             <div class="w-14 h-14 bg-amber-100 text-amber-600 rounded-2xl flex items-center justify-center text-2xl shrink-0">
                 <i class="fas fa-exclamation-triangle"></i>
@@ -256,35 +290,27 @@
             </div>
         </div>
 
-        <!-- Content -->
         <div class="flex flex-1 min-h-0">
 
-            <!-- LEFT: Duplicate List with Comparison -->
             <div class="w-2/3 border-r border-gray-100 flex flex-col">
 
-                <!-- List Header -->
                 <div class="px-6 py-4 border-b border-gray-100 bg-gray-50">
                     <p class="text-xs font-bold uppercase text-gray-500 tracking-wide">
                         Conflicting Records (<span id="duplicateCountLabel">0</span>)
                     </p>
                 </div>
 
-                <!-- List -->
                 <div id="duplicateList"
                     class="flex-1 min-h-0 overflow-y-auto px-6 py-4 space-y-4">
 
-                    <!-- JS WILL INJECT ITEMS HERE -->
-
-                </div>
+                    </div>
             </div>
 
-            <!-- RIGHT: Options -->
             <div class="w-1/3 flex flex-col px-6 py-6">
                 <p class="text-sm font-semibold text-gray-700 mb-4">Choose Action</p>
 
                 <div class="space-y-4">
                     
-                    <!-- Skip -->
                     <label class="flex gap-3 p-4 border rounded-xl cursor-pointer transition hover:bg-gray-50
                         has-[:checked]:border-blue-500 has-[:checked]:bg-blue-50">
                         <input type="radio" name="conflict_strategy" value="skip" checked
@@ -297,7 +323,6 @@
                         </div>
                     </label>
 
-                    <!-- Update -->
                     <label class="flex gap-3 p-4 border rounded-xl cursor-pointer transition hover:bg-gray-50
                         has-[:checked]:border-red-500 has-[:checked]:bg-red-50">
                         <input type="radio" name="conflict_strategy" value="update"
@@ -311,7 +336,6 @@
                     </label>
                 </div>
 
-                <!-- Note -->
                 <div class="mt-auto pt-6">
                     <div class="text-xs text-gray-400 bg-gray-50 border border-gray-200 rounded-lg p-3">
                         Tip: Updating will permanently replace existing student information.
@@ -321,7 +345,6 @@
 
         </div>
 
-        <!-- Footer -->
         <div class="px-8 py-5 border-t border-gray-100 bg-white flex justify-end gap-3">
             <button type="button"
                 onclick="closeConflictModal()"
@@ -836,18 +859,45 @@
 
     let pendingImportFile = null;
 
-    function handleStudentImport(input) {
-        if (!input.files || !input.files[0]) return;
-        pendingImportFile = input.files[0];
-        
-        var importBtn = document.getElementById('importStudentBtn');
-        var originalContent = importBtn.innerHTML;
+    window.openStudentImportModal = function() {
+        var modal = document.getElementById('importStudentModal');
+        var box   = document.getElementById('importStudentBox');
+        document.getElementById('student-file-input').value = '';
+        modal.classList.remove('hidden');
+        setTimeout(() => {
+            modal.classList.remove('opacity-0');
+            modal.classList.add('opacity-100');
+            box.classList.remove('scale-95');
+            box.classList.add('scale-100');
+        }, 10);
+    };
 
-        // Change button to show it's scanning
-        importBtn.disabled = true;
-        importBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> <span>Scanning...</span>';
+    window.closeStudentImportModal = function() {
+        var modal = document.getElementById('importStudentModal');
+        var box   = document.getElementById('importStudentBox');
+        modal.classList.remove('opacity-100');
+        modal.classList.add('opacity-0');
+        box.classList.remove('scale-100');
+        box.classList.add('scale-95');
+        setTimeout(() => {
+            modal.classList.add('hidden');
+        }, 300);
+    };
 
-        // 1. Run the Pre-Check
+    window.submitStudentImport = function() {
+        const fileInput = document.getElementById('student-file-input');
+        if (!fileInput.files || fileInput.files.length === 0) {
+            showImportModal('No File Selected', 'Please select a CSV or Excel file to import.', 'error');
+            return;
+        }
+
+        pendingImportFile = fileInput.files[0];
+        fileInput.value = '';
+
+        const btn = document.getElementById('submitStudentImportBtn');
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Scanning...';
+
         var formData = new FormData();
         formData.append('file', pendingImportFile);
         formData.append('check_only', 1);
@@ -862,14 +912,11 @@
             }
         })
         .then(async response => {
-            var data = await response.json();
-            if (!response.ok) throw data;
-
-            importBtn.disabled = false;
-            importBtn.innerHTML = originalContent;
+            var data = await response.json().catch(() => null);
+            if (!response.ok) throw data || { message: 'Server error occurred while scanning.' };
 
             if (data.has_duplicates) {
-                // 2A. Duplicates Found! Use your existing function to render the comparison view.
+                closeStudentImportModal();
                 renderDuplicates(data.duplicates);
                 
                 var modal = document.getElementById('importConflictModal');
@@ -880,20 +927,30 @@
                     box.classList.add('scale-100', 'opacity-100');
                 }, 10);
             } else {
-                // 2B. No Duplicates Found! Execute the import immediately.
+                closeStudentImportModal();
                 executeStudentImport(true); 
             }
         })
         .catch(error => {
             console.error("Check error:", error);
-            importBtn.disabled = false;
-            importBtn.innerHTML = originalContent;
-            document.getElementById('studentImportInput').value = ''; 
+            
+            let errorMsg = 'Failed to scan the file. Please check your document and try again.';
+            
+            // Extract exact Laravel Validation Errors (e.g. format issues)
+            if (error && error.errors) {
+                errorMsg = Object.values(error.errors)[0][0]; 
+            } else if (error && error.message) {
+                errorMsg = error.message; 
+            }
+            
+            showImportModal('Import Failed', errorMsg, 'error');
             pendingImportFile = null;
-            showImportModal('Error', error.message || "Failed to scan the file.", 'error');
+        })
+        .finally(() => {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fas fa-upload"></i> Upload & Import';
         });
-    }
-    
+    };
     
     function executeStudentImport(autoRun = false) {
         if (!pendingImportFile) return;
@@ -906,7 +963,7 @@
         var formData = new FormData();
         formData.append('file', pendingImportFile);
         formData.append('strategy', strategy); 
-        formData.append('check_only', 0); // 👈 CHANGED to 0 (Laravel accepts this as false)
+        formData.append('check_only', 0); 
 
         var confirmBtn = document.getElementById('confirmImportBtn');
         var importBtn = document.getElementById('importStudentBtn'); 
@@ -914,9 +971,9 @@
         if(confirmBtn) {
             confirmBtn.disabled = true;
             confirmBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processing...';
-        } else if (autoRun) {
+        } else if (autoRun && importBtn) {
             importBtn.disabled = true;
-            importBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Importing...';
+            importBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> <span>Importing...</span>';
         }
 
         fetch('{{ route("students.import") }}', {
@@ -942,16 +999,28 @@
         .catch(error => {
             console.error("Import error:", error);
             if(!autoRun) closeConflictModal();
+            
+            let errorMsg = 'An error occurred during import.';
+            if (error && error.errors) {
+                errorMsg = Object.values(error.errors)[0][0];
+            } else if (error && error.message) {
+                errorMsg = error.message;
+            }
+
             setTimeout(() => {
-                showImportModal('Import Failed', error.message || "An error occurred during import.", 'error');
+                showImportModal('Import Failed', errorMsg, 'error');
             }, 350);
         })
         .finally(() => {
-            document.getElementById('studentImportInput').value = ''; 
             pendingImportFile = null;
+            
+            if(confirmBtn) {
+                confirmBtn.disabled = false;
+                confirmBtn.innerHTML = '<i class="fas fa-upload"></i> Continue Import';
+            }
             if (autoRun && importBtn) {
                 importBtn.disabled = false;
-                importBtn.innerHTML = '<i class="fas fa-file-import"></i><span>Import</span>';
+                importBtn.innerHTML = '<i class="fas fa-file-import"></i> <span>Import</span>';
             }
         });
     }
@@ -965,7 +1034,6 @@
         
         setTimeout(() => {
             modal.classList.add('hidden');
-            document.getElementById('studentImportInput').value = ''; 
             pendingImportFile = null;
         }, 300);
     }
@@ -1006,7 +1074,6 @@
 
                 <div class="grid grid-cols-2 text-xs">
 
-                    <!-- EXISTING -->
                     <div class="p-3 border-r border-gray-200 bg-blue-50/30 space-y-1.5">
                         <p class="font-black text-blue-800 mb-2 border-b border-blue-100 pb-1">Existing in System</p>
                         <p class="flex justify-between"><strong>Name:</strong> <span>${checkDiff('name', 'existing')}</span></p>
@@ -1015,7 +1082,6 @@
                         <p class="flex justify-between"><strong>Gender:</strong> <span>${checkDiff('gender', 'existing')}</span></p>
                     </div>
 
-                    <!-- NEW -->
                     <div class="p-3 bg-green-50/30 space-y-1.5">
                         <p class="font-black text-green-800 mb-2 border-b border-green-100 pb-1">Incoming Data</p>
                         <p class="flex justify-between"><strong>Name:</strong> <span>${checkDiff('name', 'incoming')}</span></p>
