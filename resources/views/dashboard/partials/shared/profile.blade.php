@@ -727,4 +727,35 @@
             btn.disabled = false;
         });
     }
+
+    (function() {
+        // Grab the exact URL the SPA just loaded
+        const activeUrl = sessionStorage.getItem('lastActiveTab') || window.location.href;
+        const urlObj = new URL(activeUrl, window.location.origin);
+        const ticketId = urlObj.searchParams.get('ticket');
+        const openSupport = urlObj.searchParams.get('support'); // <-- NEW: Check for support flag
+
+        if (ticketId) {
+            openSupportModal();
+            setTimeout(() => {
+                openTicketView(ticketId);
+                
+                // Erase the ticket parameter from session storage so it doesn't loop
+                urlObj.searchParams.delete('ticket');
+                sessionStorage.setItem('lastActiveTab', urlObj.toString());
+                
+            }, 350); 
+        } 
+        // <-- NEW: Trigger to open the support modal directly
+        else if (openSupport === 'true') { 
+            openSupportModal();
+            setTimeout(() => {
+                switchSupportTab('send'); // Ensure it opens to the "Send Report" tab
+                
+                // Erase the parameter from session storage so it doesn't loop on refresh
+                urlObj.searchParams.delete('support');
+                sessionStorage.setItem('lastActiveTab', urlObj.toString());
+            }, 50);
+        }
+    })();
 </script>
