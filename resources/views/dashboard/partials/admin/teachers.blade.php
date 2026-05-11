@@ -966,7 +966,7 @@
         }, 300);
     }
 
-    let pendingTeacherImportFile = null;
+    var pendingTeacherImportFile = null;
 
     window.openTeacherImportModal = function() {
         const modal = document.getElementById('importTeacherModal');
