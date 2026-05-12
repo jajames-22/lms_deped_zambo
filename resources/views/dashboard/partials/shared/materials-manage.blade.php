@@ -27,8 +27,7 @@
             height: 12px;
             border-radius: 999px;
             outline: none;
-            background: #e5e7eb;
-            /* Fallback */
+            background-color: #e5e7eb; /* Fallback base color */
         }
 
         input[type=range].custom-slider::-webkit-slider-thumb {
@@ -38,7 +37,6 @@
             border-radius: 50%;
             background: #ffffff;
             border: 2px solid #9ca3af;
-            /* Default gray border */
             cursor: pointer;
             box-shadow: 0 2px 5px rgba(0, 0, 0, 0.15);
             transition: transform 0.1s;
@@ -58,8 +56,6 @@
         #weight-slider::-webkit-slider-thumb {
             border-color: #6b7280;
         }
-
-        /* Darker gray to pop against colors */
         #weight-slider::-moz-range-thumb {
             border-color: #6b7280;
         }
@@ -67,8 +63,6 @@
         #passing-slider::-webkit-slider-thumb {
             border-color: #22c55e;
         }
-
-        /* Green border */
         #passing-slider::-moz-range-thumb {
             border-color: #22c55e;
         }
@@ -359,7 +353,10 @@
                             <p class="text-xs text-gray-500 mb-6 mt-1">Adjust the impact of Quizzes vs. Final Exam.</p>
 
                             <input type="range" id="weight-slider" min="0" max="100" value="{{ $quizWeight }}"
-                                class="custom-slider {{ $isWeightDisabled ? 'opacity-50 cursor-not-allowed' : '' }}" {{ $isWeightDisabled ? 'disabled' : '' }} oninput="window.updateWeightUI()">
+                            class="custom-slider {{ $isWeightDisabled ? 'opacity-50 cursor-not-allowed' : '' }}" 
+                            {{ $isWeightDisabled ? 'disabled' : '' }} 
+                            oninput="window.updateWeightUI()"
+                            style="background-image: linear-gradient(to right, #fbbf24 {{ $quizWeight }}%, #ef4444 {{ $quizWeight }}%)">
 
                             <div class="flex justify-between mt-4 text-sm font-bold">
                                 <span id="quiz-weight-text" class="text-amber-500">Quizzes: {{ $quizWeight }}%</span>
@@ -379,7 +376,10 @@
                             </div>
 
                             <input type="range" id="passing-slider" min="0" max="100" value="{{ $savedPassingPercentage }}"
-                                class="custom-slider {{ $isPassingDisabled ? 'opacity-50 cursor-not-allowed' : '' }}" {{ $isPassingDisabled ? 'disabled' : '' }} oninput="window.updatePassingUI()">
+                            class="custom-slider {{ $isPassingDisabled ? 'opacity-50 cursor-not-allowed' : '' }}" 
+                            {{ $isPassingDisabled ? 'disabled' : '' }} 
+                            oninput="window.updatePassingUI()"
+                            style="background-image: linear-gradient(to right, #22c55e {{ $savedPassingPercentage }}%, #e5e7eb {{ $savedPassingPercentage }}%)">
 
                             <div id="zero-percent-warning"
                                 class="mt-4 p-3 bg-amber-50 border border-amber-200 rounded-xl items-start gap-2 transition-all duration-300 {{ $savedPassingPercentage == 0 ? 'flex' : 'hidden' }}">
@@ -1270,31 +1270,22 @@
             showSnackbar('Please select an evaluation criteria.', 'error');
             return;
         }
-        // Redirect to evaluation page passing the chosen criteria ID
         window.location.href = `{{ url('/dashboard/materials/' . $material->hashid . '/evaluate') }}?criteria_id=${criteriaId}`;
     }
-</script>
 
-<script>
-    // Initialize Gradient Sliders on Load
-    document.addEventListener('DOMContentLoaded', () => {
-        if (document.getElementById('weight-slider')) {
-            window.updateWeightUI();
-            window.updatePassingUI();
-        }
-    });
-
-    // --- GRADING UI LOGIC (Matches Image Gradients) ---
+    // --- FIXED GRADING UI LOGIC ---
     window.updateWeightUI = function () {
         const slider = document.getElementById('weight-slider');
         if (!slider) return;
         const quizWeight = parseInt(slider.value);
 
-        // Dynamic Gradient: Amber (left) to Red (right)
-        slider.style.background = `linear-gradient(to right, #fbbf24 ${quizWeight}%, #ef4444 ${quizWeight}%)`;
+        // FIXED: Using backgroundImage prevents generic background-color classes from overriding the slider
+        slider.style.backgroundImage = `linear-gradient(to right, #fbbf24 ${quizWeight}%, #ef4444 ${quizWeight}%)`;
 
-        document.getElementById('quiz-weight-text').innerText = `Quizzes: ${quizWeight}%`;
-        document.getElementById('exam-weight-text').innerText = `Exam: ${100 - quizWeight}%`;
+        const quizText = document.getElementById('quiz-weight-text');
+        const examText = document.getElementById('exam-weight-text');
+        if (quizText) quizText.innerText = `Quizzes: ${quizWeight}%`;
+        if (examText) examText.innerText = `Exam: ${100 - quizWeight}%`;
     };
 
     window.updatePassingUI = function () {
@@ -1302,28 +1293,40 @@
         if (!slider) return;
         const val = parseInt(slider.value);
 
-        // Dynamic Gradient: Green (left) to Gray (right)
-        slider.style.background = `linear-gradient(to right, #22c55e ${val}%, #e5e7eb ${val}%)`;
+        // FIXED: Using backgroundImage 
+        slider.style.backgroundImage = `linear-gradient(to right, #22c55e ${val}%, #e5e7eb ${val}%)`;
 
-        document.getElementById('passing-percentage-text').innerText = `${val}%`;
+        const percentageText = document.getElementById('passing-percentage-text');
+        if (percentageText) percentageText.innerText = `${val}%`;
 
         const warning = document.getElementById('zero-percent-warning');
-        if (val === 0) {
-            warning.classList.remove('hidden'); warning.classList.add('flex');
-        } else {
-            warning.classList.remove('flex'); warning.classList.add('hidden');
+        if (warning) {
+            if (val === 0) {
+                warning.classList.remove('hidden'); warning.classList.add('flex');
+            } else {
+                warning.classList.remove('flex'); warning.classList.add('hidden');
+            }
         }
     };
 
-    // Initialize immediately when script runs (for AJAX loads)
-    setTimeout(() => {
-        if (document.getElementById('weight-slider')) {
-            window.updateWeightUI();
-        }
-        if (document.getElementById('passing-slider')) {
-            window.updatePassingUI();
-        }
-    }, 50);
+    // --- ROBUST INITIALIZATION (Handles SPA, Hard Refresh, and Browser Back Button) ---
+    window.initializeGradingSliders = function() {
+        if (document.getElementById('weight-slider')) window.updateWeightUI();
+        if (document.getElementById('passing-slider')) window.updatePassingUI();
+    };
+
+    // 1. Run immediately for the SPA loader
+    window.initializeGradingSliders();
+
+    // 2. Run with a slight delay to ensure the DOM is completely painted
+    setTimeout(window.initializeGradingSliders, 50);
+
+    // 3. Catch Hard Refreshes
+    document.addEventListener('DOMContentLoaded', window.initializeGradingSliders);
+
+    // 4. Catch the Browser's "Back" and "Forward" buttons (BFCache)
+    window.addEventListener('pageshow', window.initializeGradingSliders);
+    window.addEventListener('popstate', () => setTimeout(window.initializeGradingSliders, 50));
 
     window.saveGradingSettings = async function (btn = null) {
         const quizWeight = document.getElementById('weight-slider') ? parseInt(document.getElementById('weight-slider').value) : 0;
@@ -1646,8 +1649,6 @@
     }
 
     // --- ACCESS MANAGEMENT ---
-
-    // Refreshes only the student access table body without reloading the full page
     async function refreshTableOnly() {
         try {
             const baseUrl = '{{ url('/dashboard/materials/' . $material->id . '/manage') }}';

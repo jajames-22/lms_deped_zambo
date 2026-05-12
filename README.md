@@ -1,59 +1,275 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# DepEd Zamboanga City Division - Learning Management System (LMS)
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+A centralized, full-stack Learning Management System designed to facilitate the distribution, management, and tracking of educational materials and examinations for the Department of Education (DepEd) Zamboanga City Division.
 
-## About Laravel
+Created by **Graziella Marife S. Saavedra & James Benedict A. Rojas** (WMSU - College of Computing Studies) in collaboration with the DepEd Zamboanga Information Technology team.
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+---
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+## 🚀 Tech Stack
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+* **Backend:** [Laravel](https://laravel.com/) (PHP)
+* **Frontend:** Blade Templating, [Tailwind CSS v4](https://tailwindcss.com/), Vanilla JavaScript
+* **Database:** MySQL
+* **File Processing:** [Laravel Excel (Maatwebsite)](https://docs.laravel-excel.com/) for CSV/XLSX imports
+* **QR Code Generation:** [SimpleSoftwareIO Simple QrCode](https://github.com/SimpleSoftwareIO/simple-qrcode) for generating QR codes
+* **ID Obfuscation:** [Vinkla Hashids](https://github.com/vinkla/hashids) for encoding/obfuscating numeric IDs in URLs
+* **Asset Bundling:** Vite
+* **Interactive Document Viewing:** PDF.js
 
-## Learning Laravel
+---
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework. You can also check out [Laravel Learn](https://laravel.com/learn), where you will be guided through building a modern Laravel application.
+## 📋 Core Features
 
-If you don't feel like reading, [Laracasts](https://laracasts.com) can help. Laracasts contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+* **Role-Based Access Control:** Secure dashboards for Administrators, CID Personnel, Teachers, and Students.
+* **Module Management:** Create and publish rich learning materials containing text, video, and integrated PDF viewing.
+* **Interactive Study Mode:** Students can navigate a timeline-based curriculum that tracks their progress, saves states automatically, and issues completion metrics.
+* **Dynamic Examinations:** Built-in interactive quizzes (Multiple Choice, Checkbox, True/False, Text/Essay) integrated directly into the study flow.
+* **Grading & Certification:** Dynamic sliders to set examination weights and passing score percentages.
+* **Bulk User Management:** Mass import and registration of Students and Personnel using `.csv` and `.xlsx` templates with automated conflict resolution and username generation.
 
-## Laravel Sponsors
+---
 
-We would like to extend our thanks to the following sponsors for funding Laravel development. If you are interested in becoming a sponsor, please visit the [Laravel Partners program](https://partners.laravel.com).
+## ⚙️ Prerequisites
 
-### Premium Partners
+Before you begin, ensure you have the following installed on your local machine or server:
 
-- **[Vehikl](https://vehikl.com)**
-- **[Tighten Co.](https://tighten.co)**
-- **[Kirschbaum Development Group](https://kirschbaumdevelopment.com)**
-- **[64 Robots](https://64robots.com)**
-- **[Curotec](https://www.curotec.com/services/technologies/laravel)**
-- **[DevSquad](https://devsquad.com/hire-laravel-developers)**
-- **[Redberry](https://redberry.international/laravel-development)**
-- **[Active Logic](https://activelogic.com)**
+* PHP >= 8.1
+* Composer
+* Node.js & NPM
+* MySQL or MariaDB
 
-## Contributing
+---
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+## 📦 Key PHP Packages
 
-## Code of Conduct
+| Package | Version | Purpose |
+|---|---|---|
+| `maatwebsite/excel` | * | CSV/XLSX import and export for bulk user management |
+| `simplesoftwareio/simple-qrcode` | * | QR code generation (e.g., student/module identifiers) |
+| `vinkla/hashids` | * | Obfuscates numeric database IDs in URLs for security |
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+These are all declared in `composer.json` and installed automatically via `composer install`.
 
-## Security Vulnerabilities
+---
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+## 🛠️ Local Installation & Setup
 
-## License
+Follow these steps to get the project running in your local development environment:
 
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+**1. Clone the repository**
+```bash
+git clone <your-repository-url>
+cd deped-zamboanga-lms
+```
+
+**2. Install PHP Dependencies**
+```bash
+composer install
+```
+
+**3. Install Required Composer Packages**
+```bash
+composer require maatwebsite/excel
+composer require simplesoftwareio/simple-qrcode
+composer require vinkla/hashids
+```
+
+**4. Install Frontend Dependencies**
+```bash
+npm install
+```
+
+**5. Configure Environment Variables**
+
+Copy the example environment file and update it with your local settings:
+```bash
+cp .env.example .env
+```
+
+Open `.env` and update the following values:
+```env
+APP_NAME="DepEd Zamboanga LMS"
+APP_URL=http://localhost
+
+DB_CONNECTION=mysql
+DB_HOST=127.0.0.1
+DB_PORT=3306
+DB_DATABASE=deped_zamboanga_lms
+DB_USERNAME=your_db_username
+DB_PASSWORD=your_db_password
+```
+
+**6. Generate Application Key**
+```bash
+php artisan key:generate
+```
+
+**7. Create the Database**
+
+Create a new MySQL database matching the `DB_DATABASE` value you set in `.env`:
+```sql
+CREATE DATABASE deped_zamboanga_lms;
+```
+
+**8. Run Database Migrations**
+```bash
+php artisan migrate
+```
+
+**9. Seed the Database**
+
+Populate the database with default roles and an initial administrator account:
+```bash
+php artisan db:seed
+```
+
+**10. Create Storage Symlink**
+
+This allows uploaded files (modules, PDFs, etc.) to be publicly accessible:
+```bash
+php artisan storage:link
+```
+
+**11. Build Frontend Assets**
+
+For development (with hot reloading):
+```bash
+npm run dev
+```
+
+For production:
+```bash
+npm run build
+```
+
+**12. Start the Local Development Server**
+```bash
+php artisan serve
+```
+
+The application will be available at `http://localhost:8000`.
+
+---
+
+## 👥 User Roles
+
+The system supports four distinct roles, each with a dedicated dashboard and permissions:
+
+| Role | Description |
+|---|---|
+| **Administrator** | Full system access. Manages all users, schools, modules, and system settings. |
+| **CID Personnel** | Curriculum and Instruction Division staff. Creates and publishes learning modules and examinations. |
+| **Teacher** | Monitors student progress and examination results within their assigned classes. |
+| **Student** | Accesses assigned modules, completes interactive study sessions, and takes examinations. |
+
+### Default Administrator Credentials
+
+After seeding, log in with the default admin account:
+
+```
+Email:    admin@deped-zamboanga.edu.ph
+Password: password
+```
+
+> ⚠️ **Change these credentials immediately** after your first login in a production environment.
+
+---
+
+## 📁 Bulk User Import
+
+The system supports mass registration of users via `.csv` or `.xlsx` file uploads.
+
+1. Download the provided import template from the Admin dashboard under **User Management > Import Users**.
+2. Fill in the required fields (name, email, role, school, etc.).
+3. Upload the completed file. The system will automatically:
+   - Generate unique usernames.
+   - Resolve duplicate conflicts.
+   - Send credentials to newly created accounts (if mail is configured).
+
+---
+
+## ✉️ Mail Configuration (Optional)
+
+To enable email notifications (e.g., account credentials on bulk import), configure your mail driver in `.env`:
+
+```env
+MAIL_MAILER=smtp
+MAIL_HOST=smtp.your-provider.com
+MAIL_PORT=587
+MAIL_USERNAME=your_email@example.com
+MAIL_PASSWORD=your_email_password
+MAIL_ENCRYPTION=tls
+MAIL_FROM_ADDRESS=no-reply@deped-zamboanga.edu.ph
+MAIL_FROM_NAME="DepEd Zamboanga LMS"
+```
+
+---
+
+## 🚢 Production Deployment
+
+When deploying to a production server, run the following commands after pulling the latest changes:
+
+```bash
+composer install --optimize-autoloader --no-dev
+php artisan migrate --force
+php artisan config:cache
+php artisan route:cache
+php artisan view:cache
+npm run build
+```
+
+Ensure your web server (Apache/Nginx) points its document root to the `/public` directory of the project.
+
+### Sample Nginx Configuration
+
+```nginx
+server {
+    listen 80;
+    server_name yourdomain.com;
+    root /var/www/deped-zamboanga-lms/public;
+
+    add_header X-Frame-Options "SAMEORIGIN";
+    add_header X-Content-Type-Options "nosniff";
+
+    index index.php;
+
+    location / {
+        try_files $uri $uri/ /index.php?$query_string;
+    }
+
+    location ~ \.php$ {
+        fastcgi_pass unix:/var/run/php/php8.1-fpm.sock;
+        fastcgi_param SCRIPT_FILENAME $realpath_root$fastcgi_script_name;
+        include fastcgi_params;
+    }
+
+    location ~ /\.(?!well-known).* {
+        deny all;
+    }
+}
+```
+
+---
+
+## 🧪 Running Tests
+
+```bash
+php artisan test
+```
+
+---
+
+## 🤝 Contributing
+
+This project was developed as a capstone collaboration between WMSU - College of Computing Studies and the DepEd Zamboanga City Division IT team. For bug reports or feature suggestions, please open an issue or contact the development team directly.
+
+---
+
+## 📄 License
+
+This project is proprietary software developed for the **Department of Education – Zamboanga City Division**. Unauthorized distribution or commercial use is prohibited without express written consent from the authors and DepEd Zamboanga City Division.
+
+---
+
+*Developed with ❤️ by Graziella Marife S. Saavedra & James Benedict A. Rojas — WMSU College of Computing Studies*

@@ -30,7 +30,7 @@ class ProfileController extends Controller
         // 1. Fetch a totally fresh instance from the database
         $user = \App\Models\User::find(auth()->id());
 
-        // --- BACKEND 30-DAY SECURITY CHECK (Simplified Logic) ---
+        // --- BACKEND 30-DAY SECURITY CHECK ---
         $hoursSinceUpdate = $user->updated_at->diffInHours(now());
         $requiredHours = 30 * 24; // 720 hours
 
@@ -93,6 +93,19 @@ class ProfileController extends Controller
      */
     public function updatePassword(Request $request)
     {
+        $user = $request->user();
+
+        // --- BACKEND 30-DAY SECURITY CHECK ---
+        $hoursSinceUpdate = $user->updated_at->diffInHours(now());
+        $requiredHours = 30 * 24; // 720 hours
+
+        if ($hoursSinceUpdate < $requiredHours) {
+            $daysLeft = ceil(($requiredHours - $hoursSinceUpdate) / 24);
+            return response()->json([
+                'message' => "Update Restricted. You cannot change your password for another {$daysLeft} day(s)."
+            ], 422);
+        }
+
         $validated = $request->validate([
             'current_password' => ['required', 'current_password'], // Built-in Laravel rule!
             'password' => [
@@ -102,7 +115,8 @@ class ProfileController extends Controller
             ],
         ]);
 
-        $request->user()->update([
+        // This automatically updates the updated_at column
+        $user->update([
             'password' => Hash::make($validated['password']),
         ]);
 
@@ -131,6 +145,10 @@ class ProfileController extends Controller
         // Store the new image in the 'avatars' folder inside storage/app/public
         $path = $request->file('avatar')->store('avatars', 'public');
 
+        // Prevent updating the `updated_at` timestamp so changing an avatar
+        // doesn't accidentally trigger the 30-day profile/password lock!
+        $user->timestamps = false;
+        
         $user->update([
             'avatar' => $path,
         ]);
@@ -197,12 +215,6 @@ class ProfileController extends Controller
     /**
      * Handle Admin Reply to Feedback
      */
-    /**
-     * Handle Admin Reply to Feedback
-     */
-    /**
-     * Handle Admin Reply to Feedback
-     */
     public function replyToFeedback(\Illuminate\Http\Request $request, $id)
     {
         $request->validate([
@@ -265,6 +277,7 @@ class ProfileController extends Controller
 
         return response()->json(['success' => true, 'message' => 'Response sent successfully.']);
     }
+
     /**
      * Handle User Reply to Feedback
      */
@@ -293,5 +306,4 @@ class ProfileController extends Controller
 
         return response()->json(['success' => true, 'message' => 'Reply sent successfully.']);
     }
-    
 }

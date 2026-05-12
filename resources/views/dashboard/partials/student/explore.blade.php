@@ -297,7 +297,7 @@
                     
                     return `
                         <div class="group bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-all cursor-pointer flex flex-col"
-                             onclick="window.location.href = '/dashboard/materials/${material.hashid}/show';">ha
+                             onclick="window.location.href = '/dashboard/materials/${material.hashid}/show';">
                             <div class="relative aspect-[4/3] overflow-hidden w-full">
                                 <img src="${imgUrl}" class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500">
                                 <div class="absolute inset-0 bg-black/20 group-hover:bg-black/40 transition-colors duration-500"></div>

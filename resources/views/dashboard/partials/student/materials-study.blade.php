@@ -562,8 +562,7 @@
                                                     <div
                                                         class="bg-white rounded-3xl p-4 sm:p-6 shadow-sm border border-[#a52a2a]/20 relative overflow-hidden shrink-0">
                                                         <div class="absolute top-0 left-0 w-1.5 h-full bg-[#a52a2a]"></div>
-                                                        <h3 class="whitespace-break-spaces text-xl font-bold text-gray-900 mb-6">
-                                                            {{ $block->question_text }}</h3>
+                                                        <h3 class="text-xl font-bold text-gray-900 mb-6">{!! nl2br(e($block->question_text)) !!}</h3>
                                                         <div class="space-y-3">
                                                             @foreach($block->options as $option)
                                                                 @php

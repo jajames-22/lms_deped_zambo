@@ -857,7 +857,7 @@
         }, 300);
     }
 
-    let pendingImportFile = null;
+    var pendingImportFile = null;
 
     window.openStudentImportModal = function() {
         var modal = document.getElementById('importStudentModal');
