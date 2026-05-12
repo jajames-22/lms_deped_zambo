@@ -11,7 +11,7 @@
         .subtitle { font-size: 11px; color: #666; margin-top: 5px; }
         
         /* Section & Table Formatting */
-        .section-title { font-size: 14px; font-weight: bold; color: #a52a2a; padding-bottom: 5px; margin-top: 25px; margin-bottom: 15px; text-transform: uppercase; letter-spacing: 1px; page-break-after: avoid; }
+        .section-title { font-size: 14px; font-weight: bold; color: #a52a2a; padding-bottom: 5px; margin-top: 25px; margin-bottom: 15px; text-transform: uppercase; letter-spacing: 1px; page-break-after: avoid; border-bottom: 1px solid #ddd; }
         .data-table { width: 100%; border-collapse: collapse; margin-bottom: 20px; page-break-inside: avoid; }
         .data-table th, .data-table td { padding: 10px; border-bottom: 1px solid #eee; text-align: left; font-size: 13px; }
         .data-table th { width: 60%; font-weight: bold; color: #444; }
@@ -25,8 +25,9 @@
         .font-bold { font-weight: bold; }
         .text-red { color: #dc2626; }
         .text-green { color: #16a34a; }
-        .text-blue { color: #3b82f6; }
+        .text-blue { color: #2563eb; }
         .text-amber { color: #d97706; }
+        .text-orange { color: #f97316; }
 
         .difficulty-badge { font-size: 10px; text-transform: uppercase; font-weight: bold; }
 
@@ -97,11 +98,11 @@
             </tr>
             <tr>
                 <th>In Progress Modules</th>
-                <td class="text-right font-bold text-blue">{{ number_format($inProgressCount) }}</td>
+                <td class="text-right font-bold text-amber">{{ number_format($inProgressCount) }}</td>
             </tr>
             <tr>
-                <th>Overall Class Average Score</th>
-                <td class="text-right font-bold">{{ $hasQuizzes || $hasExams ? $overallAverage . '%' : 'N/A' }}</td>
+                <th>Passing Rate</th>
+                <td class="text-right font-bold">{{ isset($passRate) ? $passRate . '%' : 'N/A' }}</td>
             </tr>
         </table>
         @endif
@@ -121,12 +122,19 @@
                 <tr>
                     <td>{{ $cat->title }}</td>
                     @if($cat->has_quiz)
-                        <td class="text-center font-bold {{ $cat->mps >= 75 ? 'text-green' : ($cat->mps <= 40 ? 'text-red' : 'text-amber') }}">{{ $cat->mps }}%</td>
-                        <td class="text-center">
-                            @if($cat->mps >= 75) Mastered
-                            @elseif($cat->mps >= 50) Review
-                            @else Needs Focus @endif
-                        </td>
+                        @if(($cat->total_answers ?? 0) == 0)
+                            <td class="text-center font-bold" style="color: #999;">--</td>
+                            <td class="text-center" style="font-size: 10px; color: #999; text-transform: uppercase;">No Data</td>
+                        @else
+                            <td class="text-center font-bold {{ $cat->mps >= 75 ? 'text-green' : ($cat->mps <= 40 ? 'text-red' : 'text-amber') }}">{{ $cat->mps }}%</td>
+                            <td class="text-center">
+                                @if($cat->mps >= 90) <span class="text-green font-bold">Advanced</span>
+                                @elseif($cat->mps >= 75) <span class="text-green font-bold">Upper Intermediate</span>
+                                @elseif($cat->mps >= 60) <span class="text-blue font-bold">Intermediate</span>
+                                @elseif($cat->mps >= 40) <span class="text-amber font-bold">Basic</span>
+                                @else <span class="text-red font-bold">Beginner</span> @endif
+                            </td>
+                        @endif
                     @else
                         <td colspan="2" class="text-center" style="color:#999; font-style:italic;">No quiz items</td>
                     @endif
@@ -137,8 +145,19 @@
             </tbody>
         </table>
 
-        <div class="section-title" style="margin-top: 20px;">Top Performing Students</div>
-        <table class="sub-table">
+        <div class="section-title" style="margin-top: 25px; padding-bottom: 0; border: none;">
+            <table style="width: 100%; border: none; margin: 0; padding: 0;">
+                <tr>
+                    <td style="text-align: left; font-weight: bold; color: #a52a2a; font-size: 14px; text-transform: uppercase; border: none; padding: 0; padding-bottom: 5px; border-bottom: 1px solid #ddd;">
+                        Top Performing Students
+                    </td>
+                    <td style="text-align: right; font-size: 11px; color: #555; text-transform: none; font-weight: normal; border: none; padding: 0; padding-bottom: 5px; border-bottom: 1px solid #ddd;">
+                        Overall Student Average: <strong style="color: #111;">{{ $hasQuizzes || $hasExams ? $overallAverage . '%' : 'N/A' }}</strong>
+                    </td>
+                </tr>
+            </table>
+        </div>
+        <table class="sub-table" style="margin-top: 5px;">
             <thead>
                 <tr>
                     <th style="width: 10%; text-align: center;">Rank</th>
@@ -185,7 +204,7 @@
                         @if(($item->difficulty_index ?? 0) >= 81) <span class="text-blue">Very Easy</span>
                         @elseif(($item->difficulty_index ?? 0) >= 61) <span class="text-green">Easy</span>
                         @elseif(($item->difficulty_index ?? 0) >= 41) <span class="text-amber">Average</span>
-                        @elseif(($item->difficulty_index ?? 0) >= 21) <span style="color: #f97316;">Difficult</span>
+                        @elseif(($item->difficulty_index ?? 0) >= 21) <span class="text-orange">Difficult</span>
                         @else <span class="text-red">Very Difficult</span> @endif
                     </td>
                 </tr>
@@ -215,7 +234,7 @@
                         @if(($item->difficulty_index ?? 0) >= 81) <span class="text-blue">Very Easy</span>
                         @elseif(($item->difficulty_index ?? 0) >= 61) <span class="text-green">Easy</span>
                         @elseif(($item->difficulty_index ?? 0) >= 41) <span class="text-amber">Average</span>
-                        @elseif(($item->difficulty_index ?? 0) >= 21) <span style="color: #f97316;">Difficult</span>
+                        @elseif(($item->difficulty_index ?? 0) >= 21) <span class="text-orange">Difficult</span>
                         @else <span class="text-red">Very Difficult</span> @endif
                     </td>
                 </tr>

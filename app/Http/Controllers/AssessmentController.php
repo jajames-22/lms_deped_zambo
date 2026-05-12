@@ -592,16 +592,26 @@ class AssessmentController extends Controller
         }
     }
 
-    public function analytics(\App\Models\Assessment $assessment)
+    public function analytics($id)
     {
+        $assessment = \App\Models\Assessment::findOrFail($id);
+
         try {
             // 1. Cohort Participation & Pacing Stats
             $totalStudents = \Illuminate\Support\Facades\DB::table('assessment_accesses')->where('assessment_id', $assessment->id)->count();
             $completedCount = \Illuminate\Support\Facades\DB::table('assessment_accesses')->where('assessment_id', $assessment->id)->where('status', 'finished')->count();
             $completionRate = $totalStudents > 0 ? round(($completedCount / $totalStudents) * 100) : 0;
 
+            // STRICT FILTER: Only grab users who actually submitted the test!
+            $completedUserIds = \Illuminate\Support\Facades\DB::table('assessment_sessions')
+                ->where('assessment_id', $assessment->id)
+                ->where('is_completed', 1)
+                ->pluck('user_id')
+                ->toArray();
+
             $userTimesRaw = \Illuminate\Support\Facades\DB::table('assessment_sessions')
-                ->where('assessment_id', $assessment->id)->where('is_completed', 1)
+                ->where('assessment_id', $assessment->id)
+                ->where('is_completed', 1)
                 ->select('user_id', \Illuminate\Support\Facades\DB::raw('SUM(TIMESTAMPDIFF(SECOND, created_at, updated_at)) as total_time'))
                 ->groupBy('user_id')->pluck('total_time', 'user_id');
 
@@ -616,422 +626,9 @@ class AssessmentController extends Controller
                 ->where('assessment_categories.assessment_id', $assessment->id)
                 ->where('assessment_questions.type', '!=', 'instruction')
                 ->select(
-                    'assessment_questions.id',
-                    'assessment_questions.type',
-                    'assessment_questions.question_text',
-                    'assessment_questions.is_case_sensitive',
-                    'assessment_categories.id as category_id',
-                    'assessment_categories.title as category_title',
-                    'assessment_categories.sort_order as cat_sort',
-                    'assessment_questions.sort_order as q_sort'
-                )
-                ->orderBy('cat_sort')->orderBy('q_sort')
-                ->get();
-
-            $totalQuestions = $questionsData->count();
-
-            // 3. Pre-process Questions & Options for Strict Grading Rules
-            $optionsData = \Illuminate\Support\Facades\DB::table('assessment_options')
-                ->whereIn('question_id', $questionsData->pluck('id'))
-                ->get();
-
-            $qMap = [];
-            $catScoresMap = [];
-
-            foreach ($questionsData as $q) {
-                if (!isset($catScoresMap[$q->category_id])) {
-                    $catScoresMap[$q->category_id] = [
-                        'title' => $q->category_title,
-                        'total_answers' => 0,
-                        'correct_answers' => 0
-                    ];
-                }
-
-                $opts = $optionsData->where('question_id', $q->id);
-                $correctOptionIds = [];
-                $correctTexts = [];
-                $originalCorrectTexts = [];
-                $distractorMap = [];
-
-                foreach ($opts as $opt) {
-                    $distractorMap[$opt->id] = (object) [
-                        'id' => $opt->id,
-                        'text' => $opt->option_text,
-                        'is_correct' => $opt->is_correct,
-                        'count' => 0
-                    ];
-                    if ($opt->is_correct) {
-                        $correctOptionIds[] = (string) $opt->id;
-                        $correctTexts[] = $q->is_case_sensitive ? trim($opt->option_text) : strtolower(trim($opt->option_text));
-                        $originalCorrectTexts[] = trim($opt->option_text);
-                    }
-                }
-
-                $qMap[$q->id] = [
-                    'q' => $q,
-                    'correct_option_ids' => $correctOptionIds,
-                    'correct_texts' => $correctTexts,
-                    'original_correct_texts' => $originalCorrectTexts,
-                    'options' => $distractorMap,
-                    'text_responses' => [],
-                    'stats' => ['correct' => 0, 'wrong' => 0]
-                ];
-            }
-
-            // 4. Grade Student Answers strictly per Question Type
-            $answers = \Illuminate\Support\Facades\DB::table('student_answers')
-                ->join('assessment_questions', 'student_answers.question_id', '=', 'assessment_questions.id')
-                ->join('assessment_categories', 'assessment_questions.category_id', '=', 'assessment_categories.id')
-                ->where('assessment_categories.assessment_id', $assessment->id)
-                ->where('assessment_questions.type', '!=', 'instruction')
-                ->select('student_answers.user_id', 'student_answers.question_id', 'student_answers.selected_options')
-                ->get();
-
-            $userScoresMap = [];
-
-            foreach ($answers as $ans) {
-                if (!isset($qMap[$ans->question_id]))
-                    continue;
-
-                $qInfo = &$qMap[$ans->question_id];
-                $type = $qInfo['q']->type;
-                $isCaseSens = $qInfo['q']->is_case_sensitive;
-                $catId = $qInfo['q']->category_id;
-
-                $selected = json_decode($ans->selected_options, true) ?? [];
-                if (!is_array($selected))
-                    $selected = [$selected];
-
-                $isCorrect = false;
-
-                if ($type === 'checkbox') {
-                    $selectedStr = array_map('strval', $selected);
-                    $correctStr = $qInfo['correct_option_ids'];
-                    if (count($selectedStr) === count($correctStr) && empty(array_diff($selectedStr, $correctStr)) && empty(array_diff($correctStr, $selectedStr))) {
-                        $isCorrect = true;
-                    }
-                    foreach ($selectedStr as $sId) {
-                        if (isset($qInfo['options'][$sId]))
-                            $qInfo['options'][$sId]->count++;
-                    }
-
-                } elseif ($type === 'text') {
-                    $ansText = $selected[0] ?? '';
-                    $ansTextClean = trim((string) $ansText);
-                    $displayStr = $ansTextClean === '' ? '(Blank)' : $ansTextClean;
-                    $ansTextCmp = $isCaseSens ? $ansTextClean : strtolower($ansTextClean);
-
-                    if (in_array($ansTextCmp, $qInfo['correct_texts'])) {
-                        $isCorrect = true;
-                    }
-
-                    if (!isset($qInfo['text_responses'][$ansTextCmp])) {
-                        $qInfo['text_responses'][$ansTextCmp] = [
-                            'display' => $displayStr,
-                            'count' => 0,
-                            'is_correct' => $isCorrect
-                        ];
-                    }
-                    $qInfo['text_responses'][$ansTextCmp]['count']++;
-
-                } else {
-                    $selectedStr = array_map('strval', $selected);
-                    foreach ($selectedStr as $sId) {
-                        if (in_array($sId, $qInfo['correct_option_ids'])) {
-                            $isCorrect = true;
-                        }
-                        if (isset($qInfo['options'][$sId]))
-                            $qInfo['options'][$sId]->count++;
-                    }
-                }
-
-                if (!isset($userScoresMap[$ans->user_id]))
-                    $userScoresMap[$ans->user_id] = 0;
-
-                if ($isCorrect) {
-                    $userScoresMap[$ans->user_id]++;
-                    $qInfo['stats']['correct']++;
-                    $catScoresMap[$catId]['correct_answers']++;
-                } else {
-                    $qInfo['stats']['wrong']++;
-                }
-
-                $catScoresMap[$catId]['total_answers']++;
-            }
-
-            // 5. Build Individual Scores & Proficiency Levels array
-            $highestScoreRaw = 0;
-            $scoresArray = [];
-            $totalPercentageSum = 0;
-            $proficiencyLevels = [
-                'Highly Proficient (90-100%)' => 0,
-                'Proficient (75-89%)' => 0,
-                'Nearly Proficient (50-74%)' => 0,
-                'Low Proficient (25-49%)' => 0,
-                'Not Proficient (0-24%)' => 0,
-            ];
-            
-            // Calculate precise raw score bounds for each bucket
-            $rawBounds = [
-                0 => ['min' => null, 'max' => null],
-                1 => ['min' => null, 'max' => null],
-                2 => ['min' => null, 'max' => null],
-                3 => ['min' => null, 'max' => null],
-                4 => ['min' => null, 'max' => null],
-            ];
-            
-            if ($totalQuestions > 0) {
-                for ($i = 0; $i <= $totalQuestions; $i++) {
-                    $pct = round(($i / $totalQuestions) * 100, 2);
-                    $b = 0;
-                    if ($pct >= 90) $b = 4;
-                    elseif ($pct >= 75) $b = 3;
-                    elseif ($pct >= 50) $b = 2;
-                    elseif ($pct >= 25) $b = 1;
-                    else $b = 0;
-
-                    if ($rawBounds[$b]['min'] === null) $rawBounds[$b]['min'] = $i;
-                    $rawBounds[$b]['max'] = $i;
-                }
-            }
-
-            // Formatter for the raw score label
-            $getRawLabel = function($b) use ($rawBounds, $totalQuestions) {
-                if ($totalQuestions == 0) return '0';
-                $min = $rawBounds[$b]['min'];
-                $max = $rawBounds[$b]['max'];
-                if ($min === null) return 'N/A'; // Occurs if a bucket is mathematically impossible
-                return $min === $max ? (string)$min : "{$min}-{$max}";
-            };
-
-            $combinedDistribution = [
-                ['range' => '0-24%', 'level' => 'Not Proficient', 'count' => 0, 'color' => '#ef4444', 'raw' => $getRawLabel(0)],
-                ['range' => '25-49%', 'level' => 'Low Proficient', 'count' => 0, 'color' => '#f97316', 'raw' => $getRawLabel(1)],
-                ['range' => '50-74%', 'level' => 'Nearly Proficient', 'count' => 0, 'color' => '#f59e0b', 'raw' => $getRawLabel(2)],
-                ['range' => '75-89%', 'level' => 'Proficient', 'count' => 0, 'color' => '#3b82f6', 'raw' => $getRawLabel(3)],
-                ['range' => '90-100%', 'level' => 'Highly Proficient', 'count' => 0, 'color' => '#10b981', 'raw' => $getRawLabel(4)],
-            ];
-
-            foreach ($userScoresMap as $userId => $rawScore) {
-                $pct = $totalQuestions > 0 ? round(($rawScore / $totalQuestions) * 100, 2) : 0;
-
-                $scoresArray[] = $pct;
-                $totalPercentageSum += $pct;
-
-                if ($rawScore > $highestScoreRaw)
-                    $highestScoreRaw = $rawScore;
-
-                // Track standard proficiency levels & Build combined distribution array simultaneously
-                if ($pct >= 90) { $proficiencyLevels['Highly Proficient (90-100%)']++; $combinedDistribution[4]['count']++; }
-                elseif ($pct >= 75) { $proficiencyLevels['Proficient (75-89%)']++; $combinedDistribution[3]['count']++; }
-                elseif ($pct >= 50) { $proficiencyLevels['Nearly Proficient (50-74%)']++; $combinedDistribution[2]['count']++; }
-                elseif ($pct >= 25) { $proficiencyLevels['Low Proficient (25-49%)']++; $combinedDistribution[1]['count']++; }
-                else { $proficiencyLevels['Not Proficient (0-24%)']++; $combinedDistribution[0]['count']++; }
-            }
-            
-            $scoresCount = count($scoresArray);
-            $overallMPS = $scoresCount > 0 ? round($totalPercentageSum / $scoresCount, 2) : 0;
-
-            // --- NEW: Calculate Overall Descriptive Level ---
-            $overallMasteryLevel = 'Not Proficient';
-            $masteryColor = 'text-red-600';
-            if ($overallMPS >= 90) {
-                $overallMasteryLevel = 'Highly Proficient';
-                $masteryColor = 'text-green-600';
-            } elseif ($overallMPS >= 75) {
-                $overallMasteryLevel = 'Proficient';
-                $masteryColor = 'text-blue-600';
-            } elseif ($overallMPS >= 50) {
-                $overallMasteryLevel = 'Nearly Proficient';
-                $masteryColor = 'text-amber-600';
-            } elseif ($overallMPS >= 25) {
-                $overallMasteryLevel = 'Low Proficient';
-                $masteryColor = 'text-orange-600';
-            }
-
-            $proficientCount = $proficiencyLevels['Highly Proficient (90-100%)'] + $proficiencyLevels['Proficient (75-89%)'];
-            $proficiencyRate = $scoresCount > 0 ? round(($proficientCount / $scoresCount) * 100, 1) : 0;
-
-            // 6. School Benchmarking
-            $userIds = array_keys($userScoresMap);
-            $users = \App\Models\User::with('school')->whereIn('id', $userIds)->get()->keyBy('id');
-            $schoolScores = [];
-
-            foreach ($userScoresMap as $userId => $rawScore) {
-                $user = $users->get($userId);
-                $schoolName = ($user && $user->school) ? $user->school->name : 'Independent / Unassigned';
-
-                if (!isset($schoolScores[$schoolName])) {
-                    $schoolScores[$schoolName] = ['total_score' => 0, 'student_count' => 0];
-                }
-                $schoolScores[$schoolName]['total_score'] += $rawScore;
-                $schoolScores[$schoolName]['student_count']++;
-            }
-
-            $schoolLeaderboard = collect($schoolScores)->map(function ($data, $name) use ($totalQuestions) {
-                $mps = $data['student_count'] > 0 && $totalQuestions > 0 ? round(($data['total_score'] / ($data['student_count'] * $totalQuestions)) * 100, 2) : 0;
-                return (object) ['name' => $name, 'mps' => $mps, 'student_count' => $data['student_count']];
-            })->sortByDesc('mps')->values();
-
-            // 7. Full Competency Breakdown (With LMC & MMC extraction)
-            $competencies = collect([]);
-            foreach ($catScoresMap as $catId => $data) {
-                $totalAns = $data['total_answers'];
-                $correctAns = $data['correct_answers'];
-                $mps = $totalAns > 0 ? round(($correctAns / $totalAns) * 100, 2) : 0;
-
-                $competencies->push((object) [
-                    'title' => $data['title'],
-                    'mps' => $mps,
-                    'total_answers' => $totalAns
-                ]);
-            }
-
-            // --- NEW: Extract Most and Least Mastered Competencies ---
-            $mostMastered = $competencies->isNotEmpty() ? $competencies->sortByDesc('mps')->first() : null;
-            $leastMastered = $competencies->isNotEmpty() ? $competencies->sortBy('mps')->first() : null;
-
-            // 8. Psychometric Item Analysis & Top Misconceptions
-            $itemAnalysis = collect([]);
-            $allDistractors = collect([]);
-
-            foreach ($qMap as $qId => $data) {
-                $total = $data['stats']['correct'] + $data['stats']['wrong'];
-                $diffIndex = $total > 0 ? round(($data['stats']['correct'] / $total) * 100) : 0;
-                $distractorStats = [];
-
-                if ($data['q']->type === 'text') {
-                    foreach ($data['text_responses'] as $resp) {
-                        $pct = $total > 0 ? round(($resp['count'] / $total) * 100) : 0;
-                        $distractorStats[] = (object) ['text' => $resp['display'], 'pct' => $pct, 'is_correct' => $resp['is_correct']];
-                        if (!$resp['is_correct'] && $pct > 0) {
-                            $allDistractors->push((object) ['question_text' => $data['q']->question_text, 'category_name' => $data['q']->category_title, 'distractor_text' => $resp['display'], 'pct' => $pct]);
-                        }
-                    }
-                    foreach ($data['original_correct_texts'] as $correctText) {
-                        $cmpKey = $data['q']->is_case_sensitive ? trim($correctText) : strtolower(trim($correctText));
-                        if (!isset($data['text_responses'][$cmpKey])) {
-                            $distractorStats[] = (object) ['text' => $correctText, 'pct' => 0, 'is_correct' => true];
-                        }
-                    }
-                    usort($distractorStats, fn($a, $b) => $b->pct <=> $a->pct);
-                } else {
-                    foreach ($data['options'] as $opt) {
-                        $pct = $total > 0 ? round(($opt->count / $total) * 100) : 0;
-                        $distractorStats[] = (object) ['text' => $opt->text, 'pct' => $pct, 'is_correct' => $opt->is_correct];
-                        if (!$opt->is_correct && $pct > 0) {
-                            $allDistractors->push((object) ['question_text' => $data['q']->question_text, 'category_name' => $data['q']->category_title, 'distractor_text' => $opt->text, 'pct' => $pct]);
-                        }
-                    }
-                }
-
-                $itemAnalysis->push((object) [
-                    'id' => $qId,
-                    'question_text' => $data['q']->question_text,
-                    'category_name' => $data['q']->category_title,
-                    'correct_count' => $data['stats']['correct'],
-                    'wrong_count' => $data['stats']['wrong'],
-                    'difficulty_index' => $diffIndex,
-                    'distractor_stats' => $distractorStats
-                ]);
-            }
-
-            $topMisconceptions = $allDistractors->sortByDesc('pct')->take(3)->values();
-
-            return view('dashboard.partials.admin.assessments-analytics', compact(
-                'assessment',
-                'totalQuestions',
-                'totalStudents',
-                'completedCount',
-                'completionRate',
-                'overallMPS',
-                'overallMasteryLevel',
-                'masteryColor',
-                'mostMastered',
-                'leastMastered',
-                'proficiencyRate',
-                'avgTimeFormat',
-                'schoolLeaderboard',
-                'proficiencyLevels',
-                'competencies',
-                'topMisconceptions',
-                'itemAnalysis',
-                'combinedDistribution',
-                'avgTimeMins'
-            ));
-
-        } catch (\Exception $e) {
-            \Illuminate\Support\Facades\Log::error('Analytics Load Error: ' . $e->getMessage());
-            $totalStudents = $completedCount = $completionRate = $totalQuestions = $overallMPS = $proficiencyRate = $avgTimeMins = 0;
-            $overallMasteryLevel = 'N/A';
-            $masteryColor = 'text-gray-500';
-            $mostMastered = null;
-            $leastMastered = null;
-            $proficiencyLevels = ['Highly Proficient (90-100%)' => 0, 'Proficient (75-89%)' => 0, 'Nearly Proficient (50-74%)' => 0, 'Low Proficient (25-49%)' => 0, 'Not Proficient (0-24%)' => 0];
-            $competencies = $schoolLeaderboard = $topMisconceptions = collect([]);
-            $itemAnalysis = [];
-            $avgTimeFormat = 'N/A';
-            $combinedDistribution = [];
-
-            return view('dashboard.partials.admin.assessments-analytics', compact(
-                'assessment',
-                'totalQuestions',
-                'totalStudents',
-                'completedCount',
-                'completionRate',
-                'overallMPS',
-                'overallMasteryLevel',
-                'masteryColor',
-                'mostMastered',
-                'leastMastered',
-                'proficiencyRate',
-                'avgTimeFormat',
-                'schoolLeaderboard',
-                'proficiencyLevels',
-                'competencies',
-                'topMisconceptions',
-                'itemAnalysis',
-                'combinedDistribution',
-                'avgTimeMins'
-            ));
-        }
-    }
-
-
-    public function exportReport(Request $request, \App\Models\Assessment $assessment)
-    {
-        try {
-            // 1. Cohort Participation & Pacing
-            $totalStudents = \Illuminate\Support\Facades\DB::table('assessment_accesses')->where('assessment_id', $assessment->id)->count();
-            $completedCount = \Illuminate\Support\Facades\DB::table('assessment_accesses')->where('assessment_id', $assessment->id)->where('status', 'finished')->count();
-            $completionRate = $totalStudents > 0 ? round(($completedCount / $totalStudents) * 100) : 0;
-
-            $notTakenStudents = \Illuminate\Support\Facades\DB::table('assessment_accesses')
-                ->where('assessment_id', $assessment->id)->where('status', 'offline')->select('lrn')->get();
-
-            $userTimesRaw = \Illuminate\Support\Facades\DB::table('assessment_sessions')
-                ->where('assessment_id', $assessment->id)->where('is_completed', 1)
-                ->select('user_id', \Illuminate\Support\Facades\DB::raw('SUM(TIMESTAMPDIFF(SECOND, created_at, updated_at)) as total_time'))
-                ->groupBy('user_id')->pluck('total_time', 'user_id');
-
-            $timesArray = $userTimesRaw->values()->filter(fn($t) => $t > 0)->toArray();
-            $avgTimeSecs = count($timesArray) > 0 ? array_sum($timesArray) / count($timesArray) : 0;
-            $avgTimeFormat = $avgTimeSecs > 0 ? floor($avgTimeSecs / 60) . 'm ' . round($avgTimeSecs % 60) . 's' : 'N/A';
-
-            // 2. Pre-process Questions & Options
-            $questionsData = \Illuminate\Support\Facades\DB::table('assessment_questions')
-                ->join('assessment_categories', 'assessment_questions.category_id', '=', 'assessment_categories.id')
-                ->where('assessment_categories.assessment_id', $assessment->id)
-                ->where('assessment_questions.type', '!=', 'instruction')
-                ->select(
-                    'assessment_questions.id',
-                    'assessment_questions.type',
-                    'assessment_questions.question_text',
-                    'assessment_questions.is_case_sensitive',
-                    'assessment_categories.id as category_id',
-                    'assessment_categories.title as category_title',
-                    'assessment_categories.sort_order as cat_sort',
-                    'assessment_questions.sort_order as q_sort'
+                    'assessment_questions.id', 'assessment_questions.type', 'assessment_questions.question_text', 'assessment_questions.is_case_sensitive',
+                    'assessment_categories.id as category_id', 'assessment_categories.title as category_title',
+                    'assessment_categories.sort_order as cat_sort', 'assessment_questions.sort_order as q_sort'
                 )->orderBy('cat_sort')->orderBy('q_sort')->get();
 
             $totalQuestions = $questionsData->count();
@@ -1058,13 +655,269 @@ class AssessmentController extends Controller
                     }
                 }
                 $qMap[$q->id] = [
-                    'q' => $q,
-                    'correct_option_ids' => $correctOptionIds,
-                    'correct_texts' => $correctTexts,
-                    'original_correct_texts' => $originalCorrectTexts,
-                    'options' => $distractorMap,
-                    'text_responses' => [],
-                    'stats' => ['correct' => 0, 'wrong' => 0]
+                    'q' => $q, 'correct_option_ids' => $correctOptionIds, 'correct_texts' => $correctTexts, 'original_correct_texts' => $originalCorrectTexts,
+                    'options' => $distractorMap, 'text_responses' => [], 'stats' => ['correct' => 0, 'wrong' => 0]
+                ];
+            }
+
+            // 4. Grade Student Answers strictly per Question Type (ONLY COMPLETED USERS)
+            $answers = \Illuminate\Support\Facades\DB::table('student_answers')
+                ->join('assessment_questions', 'student_answers.question_id', '=', 'assessment_questions.id')
+                ->join('assessment_categories', 'assessment_questions.category_id', '=', 'assessment_categories.id')
+                ->where('assessment_categories.assessment_id', $assessment->id)
+                ->where('assessment_questions.type', '!=', 'instruction')
+                ->whereIn('student_answers.user_id', $completedUserIds) // <-- FILTER APPLIED
+                ->select('student_answers.user_id', 'student_answers.question_id', 'student_answers.selected_options')
+                ->get();
+
+            // Initialize scores map for completed users to ensure zeros are counted
+            $userScoresMap = empty($completedUserIds) ? [] : array_fill_keys($completedUserIds, 0);
+
+            foreach ($answers as $ans) {
+                if (!isset($qMap[$ans->question_id])) continue;
+
+                $qInfo = &$qMap[$ans->question_id];
+                $type = $qInfo['q']->type;
+                $isCaseSens = $qInfo['q']->is_case_sensitive;
+                $catId = $qInfo['q']->category_id;
+
+                $selected = json_decode($ans->selected_options, true) ?? [];
+                if (!is_array($selected)) $selected = [$selected];
+                $isCorrect = false;
+
+                if ($type === 'checkbox') {
+                    $selectedStr = array_map('strval', $selected);
+                    $correctStr = $qInfo['correct_option_ids'];
+                    if (count($selectedStr) === count($correctStr) && empty(array_diff($selectedStr, $correctStr)) && empty(array_diff($correctStr, $selectedStr))) $isCorrect = true;
+                    foreach ($selectedStr as $sId) {
+                        if (isset($qInfo['options'][$sId])) $qInfo['options'][$sId]->count++;
+                    }
+                } elseif ($type === 'text') {
+                    $ansText = $selected[0] ?? '';
+                    $ansTextClean = trim((string) $ansText);
+                    $displayStr = $ansTextClean === '' ? '(Blank)' : $ansTextClean;
+                    $ansTextCmp = $isCaseSens ? $ansTextClean : strtolower($ansTextClean);
+                    if (in_array($ansTextCmp, $qInfo['correct_texts'])) $isCorrect = true;
+                    if (!isset($qInfo['text_responses'][$ansTextCmp])) {
+                        $qInfo['text_responses'][$ansTextCmp] = ['display' => $displayStr, 'count' => 0, 'is_correct' => $isCorrect];
+                    }
+                    $qInfo['text_responses'][$ansTextCmp]['count']++;
+                } else {
+                    $selectedStr = array_map('strval', $selected);
+                    foreach ($selectedStr as $sId) {
+                        if (in_array($sId, $qInfo['correct_option_ids'])) $isCorrect = true;
+                        if (isset($qInfo['options'][$sId])) $qInfo['options'][$sId]->count++;
+                    }
+                }
+
+                if ($isCorrect) {
+                    $userScoresMap[$ans->user_id]++;
+                    $qInfo['stats']['correct']++;
+                    $catScoresMap[$catId]['correct_answers']++;
+                } else {
+                    $qInfo['stats']['wrong']++;
+                }
+                $catScoresMap[$catId]['total_answers']++;
+            }
+
+            // 5. Build KPIs
+            $highestScoreRaw = 0;
+            $scoresArray = [];
+            $totalPercentageSum = 0;
+            $proficiencyLevels = ['Highly Proficient (90-100%)' => 0, 'Proficient (75-89%)' => 0, 'Nearly Proficient (50-74%)' => 0, 'Low Proficient (25-49%)' => 0, 'Not Proficient (0-24%)' => 0];
+            
+            $rawBounds = [0 => ['min' => null, 'max' => null], 1 => ['min' => null, 'max' => null], 2 => ['min' => null, 'max' => null], 3 => ['min' => null, 'max' => null], 4 => ['min' => null, 'max' => null]];
+            if ($totalQuestions > 0) {
+                for ($i = 0; $i <= $totalQuestions; $i++) {
+                    $pct = round(($i / $totalQuestions) * 100, 2);
+                    $b = 0;
+                    if ($pct >= 90) $b = 4; elseif ($pct >= 75) $b = 3; elseif ($pct >= 50) $b = 2; elseif ($pct >= 25) $b = 1; else $b = 0;
+                    if ($rawBounds[$b]['min'] === null) $rawBounds[$b]['min'] = $i;
+                    $rawBounds[$b]['max'] = $i;
+                }
+            }
+
+            $getRawLabel = function($b) use ($rawBounds, $totalQuestions) {
+                if ($totalQuestions == 0) return '0';
+                $min = $rawBounds[$b]['min']; $max = $rawBounds[$b]['max'];
+                if ($min === null) return 'N/A';
+                return $min === $max ? (string)$min : "{$min}-{$max}";
+            };
+
+            $combinedDistribution = [
+                ['range' => '0-24%', 'level' => 'Not Proficient', 'count' => 0, 'color' => '#ef4444', 'raw' => $getRawLabel(0)],
+                ['range' => '25-49%', 'level' => 'Low Proficient', 'count' => 0, 'color' => '#f97316', 'raw' => $getRawLabel(1)],
+                ['range' => '50-74%', 'level' => 'Nearly Proficient', 'count' => 0, 'color' => '#f59e0b', 'raw' => $getRawLabel(2)],
+                ['range' => '75-89%', 'level' => 'Proficient', 'count' => 0, 'color' => '#3b82f6', 'raw' => $getRawLabel(3)],
+                ['range' => '90-100%', 'level' => 'Highly Proficient', 'count' => 0, 'color' => '#10b981', 'raw' => $getRawLabel(4)],
+            ];
+
+            foreach ($userScoresMap as $userId => $rawScore) {
+                $pct = $totalQuestions > 0 ? round(($rawScore / $totalQuestions) * 100, 2) : 0;
+                $scoresArray[] = $pct;
+                $totalPercentageSum += $pct;
+                if ($rawScore > $highestScoreRaw) $highestScoreRaw = $rawScore;
+
+                if ($pct >= 90) { $proficiencyLevels['Highly Proficient (90-100%)']++; $combinedDistribution[4]['count']++; }
+                elseif ($pct >= 75) { $proficiencyLevels['Proficient (75-89%)']++; $combinedDistribution[3]['count']++; }
+                elseif ($pct >= 50) { $proficiencyLevels['Nearly Proficient (50-74%)']++; $combinedDistribution[2]['count']++; }
+                elseif ($pct >= 25) { $proficiencyLevels['Low Proficient (25-49%)']++; $combinedDistribution[1]['count']++; }
+                else { $proficiencyLevels['Not Proficient (0-24%)']++; $combinedDistribution[0]['count']++; }
+            }
+            
+            $scoresCount = count($scoresArray); // This is effectively the completedCount from active sessions
+            $overallMPS = $scoresCount > 0 ? round($totalPercentageSum / $scoresCount, 2) : 0;
+
+            $overallMasteryLevel = 'Not Proficient';
+            $masteryColor = 'text-red-600';
+            if ($overallMPS >= 90) { $overallMasteryLevel = 'Highly Proficient'; $masteryColor = 'text-green-600'; } 
+            elseif ($overallMPS >= 75) { $overallMasteryLevel = 'Proficient'; $masteryColor = 'text-blue-600'; } 
+            elseif ($overallMPS >= 50) { $overallMasteryLevel = 'Nearly Proficient'; $masteryColor = 'text-amber-600'; } 
+            elseif ($overallMPS >= 25) { $overallMasteryLevel = 'Low Proficient'; $masteryColor = 'text-orange-600'; }
+
+            $proficientCount = $proficiencyLevels['Highly Proficient (90-100%)'] + $proficiencyLevels['Proficient (75-89%)'];
+            $proficiencyRate = $scoresCount > 0 ? round(($proficientCount / $scoresCount) * 100, 1) : 0;
+
+            // 6. School Benchmarking
+            $users = \App\Models\User::with('school')->whereIn('id', $completedUserIds)->get()->keyBy('id');
+            $schoolScores = [];
+
+            foreach ($userScoresMap as $userId => $rawScore) {
+                $user = $users->get($userId);
+                $schoolName = ($user && $user->school) ? $user->school->name : 'Independent / Unassigned';
+                if (!isset($schoolScores[$schoolName])) $schoolScores[$schoolName] = ['total_score' => 0, 'student_count' => 0];
+                $schoolScores[$schoolName]['total_score'] += $rawScore;
+                $schoolScores[$schoolName]['student_count']++;
+            }
+
+            $schoolLeaderboard = collect($schoolScores)->map(function ($data, $name) use ($totalQuestions) {
+                $mps = $data['student_count'] > 0 && $totalQuestions > 0 ? round(($data['total_score'] / ($data['student_count'] * $totalQuestions)) * 100, 2) : 0;
+                return (object) ['name' => $name, 'mps' => $mps, 'student_count' => $data['student_count']];
+            })->sortByDesc('mps')->values();
+
+            // 7. Full Competency Breakdown
+            $competencies = collect([]);
+            foreach ($catScoresMap as $catId => $data) {
+                $totalAns = $data['total_answers'];
+                $correctAns = $data['correct_answers'];
+                $mps = $totalAns > 0 ? round(($correctAns / $totalAns) * 100, 2) : 0;
+                $competencies->push((object) ['title' => $data['title'], 'mps' => $mps, 'total_answers' => $totalAns]);
+            }
+
+            $mostMastered = $competencies->isNotEmpty() ? $competencies->sortByDesc('mps')->first() : null;
+            $leastMastered = $competencies->isNotEmpty() ? $competencies->sortBy('mps')->first() : null;
+
+            // 8. Psychometric Item Analysis
+            $itemAnalysis = collect([]);
+            foreach ($qMap as $qId => $data) {
+                $total = $data['stats']['correct'] + $data['stats']['wrong'];
+                $diffIndex = $total > 0 ? round(($data['stats']['correct'] / $total) * 100) : 0;
+                $distractorStats = [];
+
+                if ($data['q']->type === 'text') {
+                    foreach ($data['text_responses'] as $resp) {
+                        $pct = $total > 0 ? round(($resp['count'] / $total) * 100) : 0;
+                        $distractorStats[] = (object) ['text' => $resp['display'], 'pct' => $pct, 'is_correct' => $resp['is_correct']];
+                    }
+                    foreach ($data['original_correct_texts'] as $correctText) {
+                        $cmpKey = $data['q']->is_case_sensitive ? trim($correctText) : strtolower(trim($correctText));
+                        if (!isset($data['text_responses'][$cmpKey])) $distractorStats[] = (object) ['text' => $correctText, 'pct' => 0, 'is_correct' => true];
+                    }
+                    usort($distractorStats, fn($a, $b) => $b->pct <=> $a->pct);
+                } else {
+                    foreach ($data['options'] as $opt) {
+                        $pct = $total > 0 ? round(($opt->count / $total) * 100) : 0;
+                        $distractorStats[] = (object) ['text' => $opt->text, 'pct' => $pct, 'is_correct' => $opt->is_correct];
+                    }
+                }
+
+                $itemAnalysis->push((object) [
+                    'id' => $qId, 'question_text' => $data['q']->question_text, 'category_name' => $data['q']->category_title,
+                    'correct_count' => $data['stats']['correct'], 'wrong_count' => $data['stats']['wrong'],
+                    'difficulty_index' => $diffIndex, 'distractor_stats' => $distractorStats
+                ]);
+            }
+
+            return view('dashboard.partials.admin.assessments-analytics', compact(
+                'assessment', 'totalQuestions', 'totalStudents', 'completedCount', 'completionRate',
+                'overallMPS', 'overallMasteryLevel', 'masteryColor', 'mostMastered', 'leastMastered',
+                'proficiencyRate', 'avgTimeFormat', 'schoolLeaderboard', 'proficiencyLevels',
+                'competencies', 'itemAnalysis', 'combinedDistribution', 'avgTimeMins'
+            ));
+
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error('Analytics Load Error: ' . $e->getMessage());
+            $totalStudents = $completedCount = $completionRate = $totalQuestions = $overallMPS = $proficiencyRate = $avgTimeMins = 0;
+            $overallMasteryLevel = 'N/A';
+            $masteryColor = 'text-gray-500';
+            $mostMastered = $leastMastered = null;
+            $proficiencyLevels = ['Highly Proficient (90-100%)' => 0, 'Proficient (75-89%)' => 0, 'Nearly Proficient (50-74%)' => 0, 'Low Proficient (25-49%)' => 0, 'Not Proficient (0-24%)' => 0];
+            $competencies = $schoolLeaderboard = collect([]);
+            $itemAnalysis = [];
+            $avgTimeFormat = 'N/A';
+            $combinedDistribution = [];
+
+            return view('dashboard.partials.admin.assessments-analytics', compact(
+                'assessment', 'totalQuestions', 'totalStudents', 'completedCount', 'completionRate',
+                'overallMPS', 'overallMasteryLevel', 'masteryColor', 'mostMastered', 'leastMastered',
+                'proficiencyRate', 'avgTimeFormat', 'schoolLeaderboard', 'proficiencyLevels',
+                'competencies', 'itemAnalysis', 'combinedDistribution', 'avgTimeMins'
+            ));
+        }
+    }
+
+
+    public function exportReport(Request $request, $id)
+    {
+        $assessment = \App\Models\Assessment::findOrFail($id);
+
+        try {
+            // 1. Cohort Participation
+            $totalStudents = \Illuminate\Support\Facades\DB::table('assessment_accesses')->where('assessment_id', $assessment->id)->count();
+            $completedCount = \Illuminate\Support\Facades\DB::table('assessment_accesses')->where('assessment_id', $assessment->id)->where('status', 'finished')->count();
+            $completionRate = $totalStudents > 0 ? round(($completedCount / $totalStudents) * 100) : 0;
+
+            // STRICT FILTER
+            $completedUserIds = \Illuminate\Support\Facades\DB::table('assessment_sessions')
+                ->where('assessment_id', $assessment->id)
+                ->where('is_completed', 1)
+                ->pluck('user_id')
+                ->toArray();
+
+            // 2. Pre-process Questions & Options
+            $questionsData = \Illuminate\Support\Facades\DB::table('assessment_questions')
+                ->join('assessment_categories', 'assessment_questions.category_id', '=', 'assessment_categories.id')
+                ->where('assessment_categories.assessment_id', $assessment->id)
+                ->where('assessment_questions.type', '!=', 'instruction')
+                ->select(
+                    'assessment_questions.id', 'assessment_questions.type', 'assessment_questions.question_text', 'assessment_questions.is_case_sensitive',
+                    'assessment_categories.id as category_id', 'assessment_categories.title as category_title',
+                    'assessment_categories.sort_order as cat_sort', 'assessment_questions.sort_order as q_sort'
+                )->orderBy('cat_sort')->orderBy('q_sort')->get();
+
+            $totalQuestions = $questionsData->count();
+            $optionsData = \Illuminate\Support\Facades\DB::table('assessment_options')->whereIn('question_id', $questionsData->pluck('id'))->get();
+
+            $qMap = [];
+            $catScoresMap = [];
+            foreach ($questionsData as $q) {
+                if (!isset($catScoresMap[$q->category_id])) {
+                    $catScoresMap[$q->category_id] = ['title' => $q->category_title, 'total_answers' => 0, 'correct_answers' => 0];
+                }
+                $opts = $optionsData->where('question_id', $q->id);
+                $correctOptionIds = []; $correctTexts = []; $originalCorrectTexts = []; $distractorMap = [];
+
+                foreach ($opts as $opt) {
+                    $distractorMap[$opt->id] = (object) ['id' => $opt->id, 'text' => $opt->option_text, 'is_correct' => $opt->is_correct, 'count' => 0];
+                    if ($opt->is_correct) {
+                        $correctOptionIds[] = (string) $opt->id;
+                        $correctTexts[] = $q->is_case_sensitive ? trim($opt->option_text) : strtolower(trim($opt->option_text));
+                        $originalCorrectTexts[] = trim($opt->option_text);
+                    }
+                }
+                $qMap[$q->id] = [
+                    'q' => $q, 'correct_option_ids' => $correctOptionIds, 'correct_texts' => $correctTexts, 'original_correct_texts' => $originalCorrectTexts,
+                    'options' => $distractorMap, 'text_responses' => [], 'stats' => ['correct' => 0, 'wrong' => 0]
                 ];
             }
 
@@ -1073,55 +926,46 @@ class AssessmentController extends Controller
                 ->join('assessment_questions', 'student_answers.question_id', '=', 'assessment_questions.id')
                 ->join('assessment_categories', 'assessment_questions.category_id', '=', 'assessment_categories.id')
                 ->where('assessment_categories.assessment_id', $assessment->id)->where('assessment_questions.type', '!=', 'instruction')
+                ->whereIn('student_answers.user_id', $completedUserIds)
                 ->select('student_answers.user_id', 'student_answers.question_id', 'student_answers.selected_options')->get();
 
-            $userScoresMap = [];
+            $userScoresMap = empty($completedUserIds) ? [] : array_fill_keys($completedUserIds, 0);
+            
             foreach ($answers as $ans) {
-                if (!isset($qMap[$ans->question_id]))
-                    continue;
+                if (!isset($qMap[$ans->question_id])) continue;
                 $qInfo = &$qMap[$ans->question_id];
                 $type = $qInfo['q']->type;
                 $isCaseSens = $qInfo['q']->is_case_sensitive;
                 $catId = $qInfo['q']->category_id;
 
                 $selected = json_decode($ans->selected_options, true) ?? [];
-                if (!is_array($selected))
-                    $selected = [$selected];
+                if (!is_array($selected)) $selected = [$selected];
                 $isCorrect = false;
 
                 if ($type === 'checkbox') {
                     $selectedStr = array_map('strval', $selected);
                     $correctStr = $qInfo['correct_option_ids'];
-                    if (count($selectedStr) === count($correctStr) && empty(array_diff($selectedStr, $correctStr)) && empty(array_diff($correctStr, $selectedStr)))
-                        $isCorrect = true;
+                    if (count($selectedStr) === count($correctStr) && empty(array_diff($selectedStr, $correctStr)) && empty(array_diff($correctStr, $selectedStr))) $isCorrect = true;
                     foreach ($selectedStr as $sId) {
-                        if (isset($qInfo['options'][$sId]))
-                            $qInfo['options'][$sId]->count++;
+                        if (isset($qInfo['options'][$sId])) $qInfo['options'][$sId]->count++;
                     }
                 } elseif ($type === 'text') {
                     $ansText = $selected[0] ?? '';
                     $ansTextClean = trim((string) $ansText);
-                    $displayStr = $ansTextClean === '' ? '(Blank)' : $ansTextClean;
                     $ansTextCmp = $isCaseSens ? $ansTextClean : strtolower($ansTextClean);
-                    if (in_array($ansTextCmp, $qInfo['correct_texts']))
-                        $isCorrect = true;
-
+                    if (in_array($ansTextCmp, $qInfo['correct_texts'])) $isCorrect = true;
                     if (!isset($qInfo['text_responses'][$ansTextCmp])) {
-                        $qInfo['text_responses'][$ansTextCmp] = ['display' => $displayStr, 'count' => 0, 'is_correct' => $isCorrect];
+                        $qInfo['text_responses'][$ansTextCmp] = ['display' => $ansTextClean === '' ? '(Blank)' : $ansTextClean, 'count' => 0, 'is_correct' => $isCorrect];
                     }
                     $qInfo['text_responses'][$ansTextCmp]['count']++;
                 } else {
                     $selectedStr = array_map('strval', $selected);
                     foreach ($selectedStr as $sId) {
-                        if (in_array($sId, $qInfo['correct_option_ids']))
-                            $isCorrect = true;
-                        if (isset($qInfo['options'][$sId]))
-                            $qInfo['options'][$sId]->count++;
+                        if (in_array($sId, $qInfo['correct_option_ids'])) $isCorrect = true;
+                        if (isset($qInfo['options'][$sId])) $qInfo['options'][$sId]->count++;
                     }
                 }
 
-                if (!isset($userScoresMap[$ans->user_id]))
-                    $userScoresMap[$ans->user_id] = 0;
                 if ($isCorrect) {
                     $userScoresMap[$ans->user_id]++;
                     $qInfo['stats']['correct']++;
@@ -1137,61 +981,82 @@ class AssessmentController extends Controller
             $totalPercentageSum = 0;
             $proficiencyLevels = ['Highly Proficient (90-100%)' => 0, 'Proficient (75-89%)' => 0, 'Nearly Proficient (50-74%)' => 0, 'Low Proficient (25-49%)' => 0, 'Not Proficient (0-24%)' => 0];
 
+            $rawBounds = [0 => ['min' => null, 'max' => null], 1 => ['min' => null, 'max' => null], 2 => ['min' => null, 'max' => null], 3 => ['min' => null, 'max' => null], 4 => ['min' => null, 'max' => null]];
+            if ($totalQuestions > 0) {
+                for ($i = 0; $i <= $totalQuestions; $i++) {
+                    $pct = round(($i / $totalQuestions) * 100, 2);
+                    $b = 0; if ($pct >= 90) $b = 4; elseif ($pct >= 75) $b = 3; elseif ($pct >= 50) $b = 2; elseif ($pct >= 25) $b = 1; else $b = 0;
+                    if ($rawBounds[$b]['min'] === null) $rawBounds[$b]['min'] = $i;
+                    $rawBounds[$b]['max'] = $i;
+                }
+            }
+
+            $getRawLabel = function($b) use ($rawBounds, $totalQuestions) {
+                if ($totalQuestions == 0) return '0';
+                $min = $rawBounds[$b]['min']; $max = $rawBounds[$b]['max'];
+                return $min === null ? 'N/A' : ($min === $max ? (string)$min : "{$min}-{$max}");
+            };
+
+            $combinedDistribution = [
+                ['range' => '0-24%', 'level' => 'Not Proficient', 'count' => 0, 'color' => '#ef4444', 'raw' => $getRawLabel(0)],
+                ['range' => '25-49%', 'level' => 'Low Proficient', 'count' => 0, 'color' => '#f97316', 'raw' => $getRawLabel(1)],
+                ['range' => '50-74%', 'level' => 'Nearly Proficient', 'count' => 0, 'color' => '#f59e0b', 'raw' => $getRawLabel(2)],
+                ['range' => '75-89%', 'level' => 'Proficient', 'count' => 0, 'color' => '#3b82f6', 'raw' => $getRawLabel(3)],
+                ['range' => '90-100%', 'level' => 'Highly Proficient', 'count' => 0, 'color' => '#10b981', 'raw' => $getRawLabel(4)],
+            ];
+
             foreach ($userScoresMap as $userId => $rawScore) {
                 $pct = $totalQuestions > 0 ? round(($rawScore / $totalQuestions) * 100, 2) : 0;
                 $scoresArray[] = $pct;
                 $totalPercentageSum += $pct;
-                if ($pct >= 90)
-                    $proficiencyLevels['Highly Proficient (90-100%)']++;
-                elseif ($pct >= 75)
-                    $proficiencyLevels['Proficient (75-89%)']++;
-                elseif ($pct >= 50)
-                    $proficiencyLevels['Nearly Proficient (50-74%)']++;
-                elseif ($pct >= 25)
-                    $proficiencyLevels['Low Proficient (25-49%)']++;
-                else
-                    $proficiencyLevels['Not Proficient (0-24%)']++;
+                
+                if ($pct >= 90) { $proficiencyLevels['Highly Proficient (90-100%)']++; $combinedDistribution[4]['count']++; }
+                elseif ($pct >= 75) { $proficiencyLevels['Proficient (75-89%)']++; $combinedDistribution[3]['count']++; }
+                elseif ($pct >= 50) { $proficiencyLevels['Nearly Proficient (50-74%)']++; $combinedDistribution[2]['count']++; }
+                elseif ($pct >= 25) { $proficiencyLevels['Low Proficient (25-49%)']++; $combinedDistribution[1]['count']++; }
+                else { $proficiencyLevels['Not Proficient (0-24%)']++; $combinedDistribution[0]['count']++; }
             }
 
             $scoresCount = count($scoresArray);
             $overallMPS = $scoresCount > 0 ? round($totalPercentageSum / $scoresCount, 2) : 0;
 
-            // Hex colors for PDF compatibility
             $overallMasteryLevel = 'Not Proficient';
-            $masteryColor = '#dc2626'; // Red
-            if ($overallMPS >= 90) {
-                $overallMasteryLevel = 'Highly Proficient';
-                $masteryColor = '#16a34a';
-            } // Green
-            elseif ($overallMPS >= 75) {
-                $overallMasteryLevel = 'Proficient';
-                $masteryColor = '#2563eb';
-            } // Blue
-            elseif ($overallMPS >= 50) {
-                $overallMasteryLevel = 'Nearly Proficient';
-                $masteryColor = '#d97706';
-            } // Amber
-            elseif ($overallMPS >= 25) {
-                $overallMasteryLevel = 'Low Proficient';
-                $masteryColor = '#ea580c';
-            } // Orange
+            $masteryColor = '#dc2626'; // Hex for Red
+            if ($overallMPS >= 90) { $overallMasteryLevel = 'Highly Proficient'; $masteryColor = '#16a34a'; } // Green
+            elseif ($overallMPS >= 75) { $overallMasteryLevel = 'Proficient'; $masteryColor = '#2563eb'; } // Blue
+            elseif ($overallMPS >= 50) { $overallMasteryLevel = 'Nearly Proficient'; $masteryColor = '#d97706'; } // Amber
+            elseif ($overallMPS >= 25) { $overallMasteryLevel = 'Low Proficient'; $masteryColor = '#ea580c'; } // Orange
 
             $proficientCount = $proficiencyLevels['Highly Proficient (90-100%)'] + $proficiencyLevels['Proficient (75-89%)'];
             $proficiencyRate = $scoresCount > 0 ? round(($proficientCount / $scoresCount) * 100, 1) : 0;
 
-            // 5. Competencies & Item Analysis
+            // 5. School Benchmarking
+            $users = \App\Models\User::with('school')->whereIn('id', $completedUserIds)->get()->keyBy('id');
+            $schoolScores = [];
+            foreach ($userScoresMap as $userId => $rawScore) {
+                $user = $users->get($userId);
+                $schoolName = ($user && $user->school) ? $user->school->name : 'Independent / Unassigned';
+                if (!isset($schoolScores[$schoolName])) $schoolScores[$schoolName] = ['total_score' => 0, 'student_count' => 0];
+                $schoolScores[$schoolName]['total_score'] += $rawScore;
+                $schoolScores[$schoolName]['student_count']++;
+            }
+            $schoolLeaderboard = collect($schoolScores)->map(function ($data, $name) use ($totalQuestions) {
+                $mps = $data['student_count'] > 0 && $totalQuestions > 0 ? round(($data['total_score'] / ($data['student_count'] * $totalQuestions)) * 100, 2) : 0;
+                return (object) ['name' => $name, 'mps' => $mps, 'student_count' => $data['student_count']];
+            })->sortByDesc('mps')->values();
+
+            // 6. Competencies & Item Analysis
             $competencies = collect([]);
             foreach ($catScoresMap as $catId => $data) {
                 $totalAns = $data['total_answers'];
                 $correctAns = $data['correct_answers'];
                 $mps = $totalAns > 0 ? round(($correctAns / $totalAns) * 100, 2) : 0;
-                $competencies->push((object) ['title' => $data['title'], 'mps' => $mps]);
+                $competencies->push((object) ['title' => $data['title'], 'mps' => $mps, 'total_answers' => $totalAns]);
             }
             $mostMastered = $competencies->isNotEmpty() ? $competencies->sortByDesc('mps')->first() : null;
             $leastMastered = $competencies->isNotEmpty() ? $competencies->sortBy('mps')->first() : null;
 
             $itemAnalysis = collect([]);
-            $allDistractors = collect([]);
             foreach ($qMap as $qId => $data) {
                 $total = $data['stats']['correct'] + $data['stats']['wrong'];
                 $diffIndex = $total > 0 ? round(($data['stats']['correct'] / $total) * 100) : 0;
@@ -1201,80 +1066,53 @@ class AssessmentController extends Controller
                     foreach ($data['text_responses'] as $resp) {
                         $pct = $total > 0 ? round(($resp['count'] / $total) * 100) : 0;
                         $distractorStats[] = (object) ['text' => $resp['display'], 'pct' => $pct, 'is_correct' => $resp['is_correct']];
-                        if (!$resp['is_correct'] && $pct > 0)
-                            $allDistractors->push((object) ['question_text' => $data['q']->question_text, 'category_name' => $data['q']->category_title, 'distractor_text' => $resp['display'], 'pct' => $pct]);
                     }
                     foreach ($data['original_correct_texts'] as $correctText) {
                         $cmpKey = $data['q']->is_case_sensitive ? trim($correctText) : strtolower(trim($correctText));
-                        if (!isset($data['text_responses'][$cmpKey]))
-                            $distractorStats[] = (object) ['text' => $correctText, 'pct' => 0, 'is_correct' => true];
+                        if (!isset($data['text_responses'][$cmpKey])) $distractorStats[] = (object) ['text' => $correctText, 'pct' => 0, 'is_correct' => true];
                     }
                     usort($distractorStats, fn($a, $b) => $b->pct <=> $a->pct);
                 } else {
                     foreach ($data['options'] as $opt) {
                         $pct = $total > 0 ? round(($opt->count / $total) * 100) : 0;
                         $distractorStats[] = (object) ['text' => $opt->text, 'pct' => $pct, 'is_correct' => $opt->is_correct];
-                        if (!$opt->is_correct && $pct > 0)
-                            $allDistractors->push((object) ['question_text' => $data['q']->question_text, 'category_name' => $data['q']->category_title, 'distractor_text' => $opt->text, 'pct' => $pct]);
                     }
                 }
 
                 $itemAnalysis->push((object) [
-                    'id' => $qId,
-                    'question_text' => $data['q']->question_text,
-                    'category_name' => $data['q']->category_title,
-                    'correct_count' => $data['stats']['correct'],
-                    'wrong_count' => $data['stats']['wrong'],
-                    'difficulty_index' => $diffIndex,
-                    'distractor_stats' => $distractorStats
+                    'id' => $qId, 'question_text' => $data['q']->question_text, 'category_name' => $data['q']->category_title,
+                    'correct_count' => $data['stats']['correct'], 'wrong_count' => $data['stats']['wrong'],
+                    'difficulty_index' => $diffIndex, 'distractor_stats' => $distractorStats
                 ]);
             }
-
-            $topMisconceptions = $allDistractors->sortByDesc('pct')->take(3)->values();
 
         } catch (\Exception $e) {
             \Illuminate\Support\Facades\Log::error('Export Error: ' . $e->getMessage());
             $totalStudents = $completedCount = $completionRate = $totalQuestions = $overallMPS = $proficiencyRate = 0;
             $overallMasteryLevel = 'N/A';
             $masteryColor = '#666666';
-            $avgTimeFormat = 'N/A';
             $mostMastered = $leastMastered = null;
-            $notTakenStudents = collect([]);
             $proficiencyLevels = ['Highly Proficient (90-100%)' => 0, 'Proficient (75-89%)' => 0, 'Nearly Proficient (50-74%)' => 0, 'Low Proficient (25-49%)' => 0, 'Not Proficient (0-24%)' => 0];
-            $competencies = $itemAnalysis = $topMisconceptions = collect([]);
+            $competencies = $itemAnalysis = $schoolLeaderboard = collect([]);
+            $combinedDistribution = [];
         }
 
         $isPrint = $request->input('action') === 'print';
 
         $data = compact(
-            'assessment',
-            'totalQuestions',
-            'totalStudents',
-            'completedCount',
-            'completionRate',
-            'notTakenStudents',
-            'overallMPS',
-            'overallMasteryLevel',
-            'masteryColor',
-            'proficiencyRate',
-            'avgTimeFormat',
-            'proficiencyLevels',
-            'competencies',
-            'mostMastered',
-            'leastMastered',
-            'itemAnalysis',
-            'topMisconceptions',
-            'isPrint'
+            'assessment', 'totalQuestions', 'totalStudents', 'completedCount', 'completionRate',
+            'overallMPS', 'overallMasteryLevel', 'masteryColor', 'proficiencyRate',
+            'proficiencyLevels', 'competencies', 'mostMastered', 'leastMastered',
+            'schoolLeaderboard', 'itemAnalysis', 'combinedDistribution', 'isPrint'
         );
         $data['showOverview'] = $request->has('check_overview');
         $data['showCategory'] = $request->has('check_category');
         $data['showItemAnalysis'] = $request->has('check_item_analysis');
 
-        if ($isPrint)
-            return view('dashboard.partials.admin.assessments-report', $data);
+        if ($isPrint) return view('dashboard.partials.admin.assessments-report', $data);
 
         $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('dashboard.partials.admin.assessments-report', $data);
-        return $pdf->download('Assessment_Report_' . \Illuminate\Support\Str::slug($assessment->title) . '_' . now()->format('Y_m_d') . '.pdf');
+        return $pdf->download('Assessment_Analytics_' . \Illuminate\Support\Str::slug($assessment->title) . '_' . now()->format('Y_m_d') . '.pdf');
     }
 
     public function duplicate($id)

@@ -289,6 +289,80 @@ class MaterialsController extends Controller
             ->get()
             ->keyBy('user_id');
 
+        // ============================================================
+        // NEW: Calculate dynamic scores and Pass Rate based on passing grade
+        // ============================================================
+        $lessonIds = DB::table('lessons')->where('material_id', $material->id)->pluck('id');
+        $quizIds = DB::table('lesson_contents')->whereIn('lesson_id', $lessonIds)->where('type', '!=', 'content')->pluck('id');
+
+        $hasQuizzes = $quizIds->isNotEmpty();
+        $hasExams = $examIds->isNotEmpty();
+
+        $examWeight = $material->exam_weight ?? 60;
+        $passingScore = $material->passing_percentage ?? 80;
+
+        if ($hasExams && !$hasQuizzes) {
+            $examWeight = 100;
+        } elseif (!$hasExams && $hasQuizzes) {
+            $examWeight = 0;
+        } elseif (!$hasExams && !$hasQuizzes) {
+            $examWeight = 0;
+        }
+        $quizWeight = 100 - $examWeight;
+
+        // Optimized Answer Fetching (Prevents N+1 Query Problem)
+        $userIds = $enrollments->keys();
+
+        $quizAnswers = DB::table('quiz_answers')
+            ->whereIn('lesson_content_id', $quizIds)
+            ->whereIn('user_id', $userIds)
+            ->where('is_correct', 1)
+            ->select('user_id', DB::raw('count(*) as correct_count'))
+            ->groupBy('user_id')
+            ->pluck('correct_count', 'user_id');
+
+        $examAnswers = DB::table('exam_answers')
+            ->whereIn('exam_id', $examIds)
+            ->whereIn('user_id', $userIds)
+            ->where('is_correct', 1)
+            ->select('user_id', DB::raw('count(*) as correct_count'))
+            ->groupBy('user_id')
+            ->pluck('correct_count', 'user_id');
+
+        $quizTotal = $quizIds->count();
+        $examTotal = $examIds->count();
+
+        $passCount = 0;
+        $evaluatedCount = 0;
+
+        foreach ($enrollments as $enrollment) {
+            $quizCorrect = $quizAnswers->get($enrollment->user_id, 0);
+            $qScore = $quizTotal > 0 ? ($quizCorrect / $quizTotal) * 100 : 100;
+
+            $examCorrect = $examAnswers->get($enrollment->user_id, 0);
+            $eScore = $examTotal > 0 ? ($examCorrect / $examTotal) * 100 : 100;
+
+            if (!$hasExams && !$hasQuizzes) {
+                $totalScore = 100;
+            } else {
+                $totalScore = ($qScore * ($quizWeight / 100)) + ($eScore * ($examWeight / 100));
+            }
+
+            // Assign score so the Blade UI table displays their actual current score!
+            $enrollment->score = round($totalScore);
+
+            // Calculate Pass Rate only for students who have actually finished
+            if (in_array($enrollment->status, ['completed', 'failed'])) {
+                $evaluatedCount++;
+                if (round($totalScore, 2) >= $passingScore) {
+                    $passCount++;
+                }
+            }
+        }
+
+        $passRate = $evaluatedCount > 0 ? round(($passCount / $evaluatedCount) * 100) : null;
+        // ============================================================
+
         // 3. Attach the enrollment data to the access object
         foreach ($whitelistedStudents as $access) {
             $access->current_enrollment = null;
@@ -306,8 +380,10 @@ class MaterialsController extends Controller
             }
         }
 
-        return view('dashboard.partials.shared.materials-manage', compact('material', 'whitelistedStudents', 'availableCriterias'));
+        // Pass the new variable to the view
+        return view('dashboard.partials.shared.materials-manage', compact('material', 'whitelistedStudents', 'availableCriterias', 'passRate'));
     }
+    
 
     public function addAccess(Request $request, $id)
     {
@@ -386,7 +462,7 @@ class MaterialsController extends Controller
         }
     }
 
-   public function toggleStatus(Request $request, $id)
+    public function toggleStatus(Request $request, $id)
     {
         try {
             // 1. Validate the basic status
@@ -410,8 +486,8 @@ class MaterialsController extends Controller
             // Fetch the material BEFORE updating so we can check ownership and titles
             $material =
 
-            // Fetch the material BEFORE updating so we can check ownership and titles
-            $material = \App\Models\Material::with('instructor')->findOrFail($id);
+                // Fetch the material BEFORE updating so we can check ownership and titles
+                $material = \App\Models\Material::with('instructor')->findOrFail($id);
 
             // ==========================================
             // NEW: Handle Unpublish Request (Stays Published)
@@ -419,7 +495,7 @@ class MaterialsController extends Controller
             if ($targetStatus === 'revert_requested') {
                 \Illuminate\Support\Facades\DB::table('materials')->where('id', $id)->update([
                     // We DO NOT change 'status' here so it remains 'published'
-                    'revert_reason' => $request->revert_reason, 
+                    'revert_reason' => $request->revert_reason,
                     'updated_at' => now()
                 ]);
 
@@ -442,14 +518,22 @@ class MaterialsController extends Controller
             // NEW: Handle Admin Review of Unpublish Request
             // ==========================================
             // Check if there is an active request via the revert_reason column
+            // ==========================================
+            // NEW: Handle Admin Review of Unpublish Request
+            // ==========================================
             if (!empty($material->revert_reason) && in_array($currentUser->role, ['admin', 'cid'])) {
                 if ($targetStatus === 'draft') {
+
+                    // 🚨 NEW: Wipe progress and notify students!
+                    $this->wipeProgressAndNotifyStudents($material);
+
                     // Approved: Move to draft and clear reason
                     \Illuminate\Support\Facades\DB::table('materials')->where('id', $id)->update([
                         'status' => 'draft',
                         'revert_reason' => null,
                         'updated_at' => now()
                     ]);
+                    // ... (rest of the code remains the same)
                     if ($material->instructor) {
                         $material->instructor->notify(new \App\Notifications\LmsAlertNotification(
                             'Unpublish Request Approved',
@@ -489,6 +573,10 @@ class MaterialsController extends Controller
             if ($currentUser->role === 'teacher' && $targetStatus === 'published') {
                 $targetStatus = 'pending';
             }
+            // 🚨 NEW: Catch any other scenario where a published material is forced to draft
+            if ($targetStatus === 'draft' && $material->status === 'published') {
+                $this->wipeProgressAndNotifyStudents($material);
+            }
 
             // 2. Prepare the database update array for normal status toggles
             $updateData = [
@@ -499,9 +587,7 @@ class MaterialsController extends Controller
             // FIX: Catch the admin's force revert reason and put it in the dedicated column
             if ($request->has('revert_reason')) {
                 $updateData['revert_reason'] = $request->revert_reason;
-            }
-
-            elseif (in_array($targetStatus, ['pending', 'published'])) {
+            } elseif (in_array($targetStatus, ['pending', 'published'])) {
                 $updateData['revert_reason'] = null;
             }
 
@@ -557,12 +643,12 @@ class MaterialsController extends Controller
                     // This handles the manual "Force Revert" button
                     $notifTitle = 'Module Reverted to Draft';
                     $notifMessage = $evaluatorTitle . ' reverted your module "' . $material->title . '" to Draft mode.';
-                    
+
                     // FIX: Read from the correct request key for the notification
                     if ($request->has('revert_reason') && !empty($request->revert_reason)) {
                         $notifMessage .= ' Reason: "' . $request->revert_reason . '"';
                     }
-                    
+
                     $notifIcon = 'fas fa-archive';
                     $notifColor = 'text-amber-600';
                 }
@@ -577,10 +663,12 @@ class MaterialsController extends Controller
                     ));
                 }
             }
-            
+
             $statusText = 'in Draft Mode';
-            if ($targetStatus === 'published') $statusText = 'Published and Live';
-            if ($targetStatus === 'pending') $statusText = 'Submitted for Approval';
+            if ($targetStatus === 'published')
+                $statusText = 'Published and Live';
+            if ($targetStatus === 'pending')
+                $statusText = 'Submitted for Approval';
 
             return response()->json([
                 'success' => true,
@@ -616,69 +704,69 @@ class MaterialsController extends Controller
 
         return view('dashboard.partials.shared.evaluation-result', compact('material', 'evaluationData'));
     }
-public function importAccess(Request $request, $id)
-{
-    $request->validate([
-        'file'       => 'required|mimes:xlsx,xls,csv,txt|max:2048',
-        'strategy'   => 'nullable|in:skip,update',
-        'check_only' => 'nullable|boolean',
-    ]);
+    public function importAccess(Request $request, $id)
+    {
+        $request->validate([
+            'file' => 'required|mimes:xlsx,xls,csv,txt|max:2048',
+            'strategy' => 'nullable|in:skip,update',
+            'check_only' => 'nullable|boolean',
+        ]);
 
-    $checkOnly = filter_var($request->check_only, FILTER_VALIDATE_BOOLEAN);
-    $strategy  = $request->strategy ?? 'skip';
+        $checkOnly = filter_var($request->check_only, FILTER_VALIDATE_BOOLEAN);
+        $strategy = $request->strategy ?? 'skip';
 
-    try {
-        $import = new EmailMaterialsAccessImport($id, $strategy, $checkOnly);
-        \Maatwebsite\Excel\Facades\Excel::import($import, $request->file('file'));
+        try {
+            $import = new EmailMaterialsAccessImport($id, $strategy, $checkOnly);
+            \Maatwebsite\Excel\Facades\Excel::import($import, $request->file('file'));
 
-        if ($checkOnly) {
-            $formatted = collect($import->duplicates)->map(fn($dup) => [
-                'email'    => $dup['email'],
-                'existing' => ['status' => $dup['status']],
-                'incoming' => ['status' => 'pending / enrolled'],
-            ])->values()->toArray();
+            if ($checkOnly) {
+                $formatted = collect($import->duplicates)->map(fn($dup) => [
+                    'email' => $dup['email'],
+                    'existing' => ['status' => $dup['status']],
+                    'incoming' => ['status' => 'pending / enrolled'],
+                ])->values()->toArray();
 
-            return response()->json([
-                'has_duplicates' => count($formatted) > 0,
-                'duplicates'     => $formatted,
-            ]);
-        }
-
-        // Send notifications only for newly added emails
-        $material = \App\Models\Material::find($id);
-        $instructor = auth()->user();
-        $instructorName = trim(($instructor->first_name ?? '') . ' ' . ($instructor->last_name ?? '')) ?: 'An Instructor';
-
-        foreach ($import->newEmails as $email) {
-            $student = \App\Models\User::where('email', $email)->first();
-            if ($student && $material) {
-                $student->notify(new \App\Notifications\LmsAlertNotification(
-                    'New Module Access',
-                    $instructorName . ' granted you access to a private module: "' . $material->title . '".',
-                    route('dashboard.materials.show', $material->hashid),
-                    'fas fa-unlock-alt',
-                    'text-blue-600'
-                ));
+                return response()->json([
+                    'has_duplicates' => count($formatted) > 0,
+                    'duplicates' => $formatted,
+                ]);
             }
-        }
 
-        $message = "Successfully added {$import->importedCount} email(s).";
-        if ($strategy === 'update' && $import->updatedCount > 0) {
-            $message .= " Re-activated {$import->updatedCount} existing email(s).";
-        }
-        if ($import->skippedCount > 0) {
-            $message .= " Skipped {$import->skippedCount} duplicate or invalid rows.";
-        }
+            // Send notifications only for newly added emails
+            $material = \App\Models\Material::find($id);
+            $instructor = auth()->user();
+            $instructorName = trim(($instructor->first_name ?? '') . ' ' . ($instructor->last_name ?? '')) ?: 'An Instructor';
 
-        return response()->json(['success' => true, 'message' => $message]);
+            foreach ($import->newEmails as $email) {
+                $student = \App\Models\User::where('email', $email)->first();
+                if ($student && $material) {
+                    $student->notify(new \App\Notifications\LmsAlertNotification(
+                        'New Module Access',
+                        $instructorName . ' granted you access to a private module: "' . $material->title . '".',
+                        route('dashboard.materials.show', $material->hashid),
+                        'fas fa-unlock-alt',
+                        'text-blue-600'
+                    ));
+                }
+            }
 
-    } catch (\Exception $e) {
-        return response()->json([
-            'success' => false,
-            'message' => 'Import failed. Check if your file has an "email" header. Error: ' . $e->getMessage()
-        ], 500);
+            $message = "Successfully added {$import->importedCount} email(s).";
+            if ($strategy === 'update' && $import->updatedCount > 0) {
+                $message .= " Re-activated {$import->updatedCount} existing email(s).";
+            }
+            if ($import->skippedCount > 0) {
+                $message .= " Skipped {$import->skippedCount} duplicate or invalid rows.";
+            }
+
+            return response()->json(['success' => true, 'message' => $message]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Import failed. Check if your file has an "email" header. Error: ' . $e->getMessage()
+            ], 500);
+        }
     }
-}
 
     public function store(Request $request, $id)
     {
@@ -1210,7 +1298,7 @@ public function importAccess(Request $request, $id)
 
                     foreach ($importedQuestions as $q) {
                         $maxSortOrder++;
-                        
+
                         $examId = DB::table('exams')->insertGetId([
                             'material_id' => $id,
                             'type' => $q->type,
@@ -1310,15 +1398,24 @@ public function importAccess(Request $request, $id)
         }
     }
 
+
     public function sendIndividualInvite(Request $request, $accessId)
     {
         try {
             $access = MaterialAccess::with('material')->findOrFail($accessId);
 
-            // Send the Email
+            // 1. Pre-validate to avoid unnecessary SMTP connection crashes
+            if (!filter_var($access->email, FILTER_VALIDATE_EMAIL)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => "The email '{$access->email}' is invalid or does not exist. Please remove and re-add the correct email."
+                ], 422);
+            }
+
+            // 2. Send the Email
             Mail::to($access->email)->send(new MaterialInvitationMail($access->material, $access->email));
 
-            // Update the status to 'invited'
+            // 3. Update the status
             $access->update(['status' => 'invited']);
 
             return response()->json([
@@ -1327,9 +1424,18 @@ public function importAccess(Request $request, $id)
             ]);
 
         } catch (\Exception $e) {
+            $errorMessage = $e->getMessage();
+
+            // Intercept raw SMTP errors and replace them with user-friendly text
+            if (str_contains($errorMessage, '553') || str_contains($errorMessage, 'RFC 5321')) {
+                $friendlyMessage = "The email address is invalid or does not exist.";
+            } else {
+                $friendlyMessage = "Failed to send invite due to a mail server error.";
+            }
+
             return response()->json([
                 'success' => false,
-                'message' => 'Failed to send invite: ' . $e->getMessage()
+                'message' => $friendlyMessage
             ], 500);
         }
     }
@@ -1337,36 +1443,71 @@ public function importAccess(Request $request, $id)
     /**
      * Bulk send invitations to all pending/invited students.
      */
+    /**
+     * Bulk send invitations ONLY to pending students.
+     */
     public function notifyStudents(Request $request, $id)
     {
         try {
             $material = Material::findOrFail($id);
 
-            // Targeted students: those who are 'pending' or have already been 'invited'
+            // STRICT TARGETING: Only fetch students with 'pending' status
             $targets = MaterialAccess::where('material_id', $material->id)
-                ->whereIn('status', ['pending', 'invited'])
+                ->where('status', 'pending')
                 ->get();
 
             if ($targets->isEmpty()) {
-                return response()->json(['success' => false, 'message' => 'No students to invite.']);
+                return response()->json([
+                    'success' => false,
+                    'message' => 'There are no pending students to invite. Everyone has either been invited or is already enrolled.'
+                ]);
             }
 
-            foreach ($targets as $access) {
-                Mail::to($access->email)->send(new MaterialInvitationMail($material, $access->email));
+            $sentCount = 0;
+            $failedCount = 0;
 
-                // This ensures their status moves to 'invited', 
-                // which triggers the "Send Again" text in your Blade file.
-                $access->update(['status' => 'invited']);
+            foreach ($targets as $access) {
+                // 1. Skip strictly invalid emails (e.g. ones with commas instead of dots)
+                if (!filter_var($access->email, FILTER_VALIDATE_EMAIL)) {
+                    $failedCount++;
+                    continue;
+                }
+
+                // 2. Try-Catch inside the loop so one bad email doesn't break the whole list!
+                try {
+                    Mail::to($access->email)->send(new MaterialInvitationMail($material, $access->email));
+                    $access->update(['status' => 'invited']);
+                    $sentCount++;
+                } catch (\Exception $e) {
+                    // SMTP error for this specific email, count it as failed and move to the next
+                    $failedCount++;
+                }
+            }
+
+            // Prepare the summary message
+            if ($sentCount === 0 && $failedCount > 0) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Failed to send. The pending email addresses are invalid or do not exist.'
+                ], 422);
+            }
+
+            $message = "Successfully sent invitations to {$sentCount} pending student(s).";
+            if ($failedCount > 0) {
+                // If some emails worked but others failed, notify the teacher so they can check the list
+                $message .= " Failed to send to {$failedCount} invalid email(s).";
             }
 
             return response()->json([
                 'success' => true,
-                'message' => "Successfully sent invitations to {$targets->count()} student(s)."
+                'message' => $message
             ]);
+
         } catch (\Exception $e) {
-            return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
+            return response()->json(['success' => false, 'message' => 'An unexpected error occurred.'], 500);
         }
     }
+
 
     public function toggleFeatured(\App\Models\Material $material)
     {
@@ -2034,30 +2175,17 @@ public function importAccess(Request $request, $id)
     public function analytics($id)
     {
         $material = \App\Models\Material::findOrFail($id);
+        $passingScore = $material->passing_percentage ?? 80;
 
-        // 1. Enrollment KPIs
+        // 1. Enrollment KPIs (Keep these showing everyone)
         $totalLearners = \App\Models\Enrollment::where('material_id', $material->id)->count();
-
-        $pendingRequests = \App\Models\MaterialAccess::where('material_id', $material->id)
-            ->where('status', 'pending')
-            ->count();
-
-        $totalDropped = \App\Models\Enrollment::where('material_id', $material->id)
-            ->where('status', 'dropped')
-            ->count();
-
-        $activeLearners = \App\Models\Enrollment::where('material_id', $material->id)
-            ->where('updated_at', '>=', \Carbon\Carbon::now()->subDays(7))
-            ->count();
+        $pendingRequests = \App\Models\MaterialAccess::where('material_id', $material->id)->where('status', 'pending')->count();
+        $totalDropped = \App\Models\Enrollment::where('material_id', $material->id)->where('status', 'dropped')->count();
+        $activeLearners = \App\Models\Enrollment::where('material_id', $material->id)->where('updated_at', '>=', \Carbon\Carbon::now()->subDays(7))->count();
 
         // 2. Student Progress
-        $completedCount = \App\Models\Enrollment::where('material_id', $material->id)
-            ->where('status', 'completed')
-            ->count();
-
-        $inProgressCount = \App\Models\Enrollment::where('material_id', $material->id)
-            ->whereIn('status', ['in_progress', 'failed'])
-            ->count();
+        $completedCount = \App\Models\Enrollment::where('material_id', $material->id)->where('status', 'completed')->count();
+        $inProgressCount = \App\Models\Enrollment::where('material_id', $material->id)->whereIn('status', ['in_progress', 'failed'])->count();
 
         // 3. Assessment Fetching
         $examIds = \Illuminate\Support\Facades\DB::table('exams')->where('material_id', $material->id)->pluck('id');
@@ -2091,8 +2219,14 @@ public function importAccess(Request $request, $id)
             $activityTrend[] = $activityTrendData[$date] ?? 0;
         }
 
-        // 5. Competency Breakdown
-        // 5. Competency Breakdown
+        // ========================================================
+        // STRICT FILTER: Get ONLY students who have finished
+        // ========================================================
+        $completedUserIds = \App\Models\Enrollment::where('material_id', $material->id)
+            ->whereIn('status', ['completed', 'failed'])
+            ->pluck('user_id');
+
+        // 5. Competency Breakdown (Filtered)
         $competencies = [];
         $lessons = \Illuminate\Support\Facades\DB::table('lessons')->where('material_id', $material->id)->get();
 
@@ -2101,14 +2235,16 @@ public function importAccess(Request $request, $id)
             $hasQuiz = $lqIds->isNotEmpty();
 
             $mps = 0;
-            $totalAns = 0; // <--- ADD THIS
+            $totalAns = 0;
 
             if ($hasQuiz) {
+                // Apply the strict completed filter here
                 $answers = \Illuminate\Support\Facades\DB::table('quiz_answers')
-                    ->whereIn('lesson_content_id', $lqIds);
-
+                    ->whereIn('lesson_content_id', $lqIds)
+                    ->whereIn('user_id', $completedUserIds);
+                    
                 $correct = (clone $answers)->where('is_correct', 1)->count();
-                $totalAns = $answers->count(); // <--- USE IT HERE
+                $totalAns = $answers->count();
 
                 $mps = $totalAns > 0 ? round(($correct / $totalAns) * 100, 2) : 0;
             }
@@ -2117,12 +2253,11 @@ public function importAccess(Request $request, $id)
                 'title' => $lesson->title,
                 'has_quiz' => $hasQuiz,
                 'mps' => $mps,
-                'total_answers' => $totalAns // <--- PASS IT TO BLADE HERE
+                'total_answers' => $totalAns
             ];
         }
 
         if ($hasExams) {
-            // Exam average strictly for the competency row
             $examStats = \Illuminate\Support\Facades\DB::table('exam_answers')
                 ->select(
                     'user_id',
@@ -2130,6 +2265,7 @@ public function importAccess(Request $request, $id)
                     \Illuminate\Support\Facades\DB::raw('COUNT(*) as total')
                 )
                 ->whereIn('exam_id', $examIds)
+                ->whereIn('user_id', $completedUserIds) // Filter exams too
                 ->groupBy('user_id')
                 ->get();
 
@@ -2141,15 +2277,16 @@ public function importAccess(Request $request, $id)
                 'title' => 'Final Exam',
                 'has_quiz' => true,
                 'mps' => $avgExamScoreCompetency,
-                'total_answers' => $examStats->sum('total') // <--- PASS IT TO BLADE HERE
+                'total_answers' => $examStats->sum('total')
             ];
         }
-        // 6. LEADERBOARD & OVERALL AVERAGES
-        $studentLeaderboard = \App\Models\Enrollment::with('user')
+
+        // 6. LEADERBOARD & OVERALL AVERAGES (Filtered)
+        $allStudents = \App\Models\Enrollment::with('user')
             ->where('material_id', $material->id)
+            ->whereIn('status', ['completed', 'failed']) // ONLY Fetch completed students
             ->get()
             ->map(function ($enrollment) use ($examIds, $quizIds, $lessons) {
-
                 $quizAnswers = \Illuminate\Support\Facades\DB::table('quiz_answers')
                     ->where('user_id', $enrollment->user_id)
                     ->whereIn('lesson_content_id', $quizIds);
@@ -2171,46 +2308,39 @@ public function importAccess(Request $request, $id)
                 $examScore = $examTotal > 0 ? round(($examCorrect / $examTotal) * 100, 2) : 0;
                 $score = $totalAnswered > 0 ? round(($totalCorrect / $totalAnswered) * 100, 2) : 0;
 
-                // Progress FIX
-                $progData = json_decode($enrollment->progress_data);
-                $lessonCount = $lessons->count();
-
-                $prog = $enrollment->status === 'completed'
-                    ? 100
-                    : (isset($progData->highest_unlocked) && $lessonCount > 0
-                        ? min(99, round(($progData->highest_unlocked / ($lessonCount + 1)) * 100))
-                        : 0);
+                // Since we only fetch completed/failed, progress is effectively 100%
+                $prog = 100; 
 
                 return (object) [
-                    'name' => $enrollment->user
-                        ? $enrollment->user->first_name . ' ' . $enrollment->user->last_name
-                        : 'Unknown Student',
+                    'name' => $enrollment->user ? $enrollment->user->first_name . ' ' . $enrollment->user->last_name : 'Unknown Student',
                     'progress' => $prog,
                     'quiz_score' => $quizScore,
                     'exam_score' => $examScore,
                     'quiz_score_raw' => $quizTotal > 0 ? "{$quizCorrect}/{$quizTotal}" : "0/0",
                     'exam_score_raw' => $examTotal > 0 ? "{$examCorrect}/{$examTotal}" : "0/0",
-                    'score' => $score
+                    'score' => $score,
+                    'status' => $enrollment->status 
                 ];
-            })
-            ->sortByDesc('score')
-            ->take(10)
-            ->values();
+            });
 
-        // Calculate Overall Averages
-        $overallAverage = $studentLeaderboard->count() > 0 ? round($studentLeaderboard->avg('score'), 2) : 0;
+        // Pass Rate Calculation (Using the newly filtered collection)
+        $evaluatedCount = $allStudents->count();
+        $passCount = $allStudents->where('score', '>=', $passingScore)->count();
+        $passRate = $evaluatedCount > 0 ? round(($passCount / $evaluatedCount) * 100) : null;
 
-        $validQuizScores = $studentLeaderboard->filter(function ($s) {
-            return $s->quiz_score_raw !== "0/0";
-        });
+        // Overall Average
+        $overallAverage = $allStudents->count() > 0 ? round($allStudents->avg('score'), 2) : 0;
+
+        // Leaderboard
+        $studentLeaderboard = $allStudents->sortByDesc('score')->take(10)->values();
+
+        $validQuizScores = $studentLeaderboard->filter(fn($s) => $s->quiz_score_raw !== "0/0");
         $avgQuizScore = $validQuizScores->count() > 0 ? round($validQuizScores->avg('quiz_score'), 2) : 0;
 
-        $validExamScores = $studentLeaderboard->filter(function ($s) {
-            return $s->exam_score_raw !== "0/0";
-        });
+        $validExamScores = $studentLeaderboard->filter(fn($s) => $s->exam_score_raw !== "0/0");
         $avgExamScore = $validExamScores->count() > 0 ? round($validExamScores->avg('exam_score'), 2) : 0;
 
-        // 7. Item Analysis
+        // 7. Item Analysis (Filtered)
         $quizItemAnalysis = [];
         $examItemAnalysis = [];
 
@@ -2223,38 +2353,32 @@ public function importAccess(Request $request, $id)
                 ->get();
 
             foreach ($quizzes as $q) {
-                $answers = \Illuminate\Support\Facades\DB::table('quiz_answers')->where('lesson_content_id', $q->id)->get();
+                // Apply strict completed filter here
+                $answers = \Illuminate\Support\Facades\DB::table('quiz_answers')
+                    ->where('lesson_content_id', $q->id)
+                    ->whereIn('user_id', $completedUserIds)
+                    ->get();
+                    
                 $cCount = $answers->where('is_correct', 1)->count();
                 $wCount = $answers->where('is_correct', 0)->count();
                 $tCount = $cCount + $wCount;
 
                 $opts = [];
                 if ($q->type === 'text') {
-                    $responses = $answers->groupBy(function ($a) {
-                        return strtolower(trim($a->text_answer ?? ''));
-                    });
+                    $responses = $answers->groupBy(fn($a) => strtolower(trim($a->text_answer ?? '')));
                     foreach ($responses as $text => $group) {
-                        $count = $group->count();
-                        $isCorrect = $group->where('is_correct', 1)->isNotEmpty();
                         $opts[] = (object) [
                             'text' => $text === '' ? '(Blank)' : $text,
-                            'pct' => $tCount > 0 ? round(($count / $tCount) * 100) : 0,
-                            'is_correct' => $isCorrect
+                            'pct' => $tCount > 0 ? round(($group->count() / $tCount) * 100) : 0,
+                            'is_correct' => $group->where('is_correct', 1)->isNotEmpty()
                         ];
                     }
-                    usort($opts, function ($a, $b) {
-                        return $b->pct <=> $a->pct;
-                    });
+                    usort($opts, fn($a, $b) => $b->pct <=> $a->pct);
                 } else {
                     $options = \Illuminate\Support\Facades\DB::table('quiz_options')->where('quiz_id', $q->id)->get();
                     foreach ($options as $o) {
                         if ($q->type === 'checkbox') {
-                            $selCount = $answers->filter(function ($a) use ($o) {
-                                if (empty($a->text_answer))
-                                    return false;
-                                $ids = explode(',', $a->text_answer);
-                                return in_array((string) $o->id, $ids);
-                            })->count();
+                            $selCount = $answers->filter(fn($a) => !empty($a->text_answer) && in_array((string)$o->id, explode(',', $a->text_answer)))->count();
                         } else {
                             $selCount = $answers->where('quiz_option_id', $o->id)->count();
                         }
@@ -2281,38 +2405,32 @@ public function importAccess(Request $request, $id)
             $exams = \Illuminate\Support\Facades\DB::table('exams')->where('material_id', $material->id)->get();
 
             foreach ($exams as $e) {
-                $answers = \Illuminate\Support\Facades\DB::table('exam_answers')->where('exam_id', $e->id)->get();
+                // Apply strict completed filter here
+                $answers = \Illuminate\Support\Facades\DB::table('exam_answers')
+                    ->where('exam_id', $e->id)
+                    ->whereIn('user_id', $completedUserIds)
+                    ->get();
+                    
                 $cCount = $answers->where('is_correct', 1)->count();
                 $wCount = $answers->where('is_correct', 0)->count();
                 $tCount = $cCount + $wCount;
 
                 $opts = [];
                 if ($e->type === 'text') {
-                    $responses = $answers->groupBy(function ($a) {
-                        return strtolower(trim($a->text_answer ?? ''));
-                    });
+                    $responses = $answers->groupBy(fn($a) => strtolower(trim($a->text_answer ?? '')));
                     foreach ($responses as $text => $group) {
-                        $count = $group->count();
-                        $isCorrect = $group->where('is_correct', 1)->isNotEmpty();
                         $opts[] = (object) [
                             'text' => $text === '' ? '(Blank)' : $text,
-                            'pct' => $tCount > 0 ? round(($count / $tCount) * 100) : 0,
-                            'is_correct' => $isCorrect
+                            'pct' => $tCount > 0 ? round(($group->count() / $tCount) * 100) : 0,
+                            'is_correct' => $group->where('is_correct', 1)->isNotEmpty()
                         ];
                     }
-                    usort($opts, function ($a, $b) {
-                        return $b->pct <=> $a->pct;
-                    });
+                    usort($opts, fn($a, $b) => $b->pct <=> $a->pct);
                 } else {
                     $options = \Illuminate\Support\Facades\DB::table('exam_options')->where('exam_id', $e->id)->get();
                     foreach ($options as $o) {
                         if ($e->type === 'checkbox') {
-                            $selCount = $answers->filter(function ($a) use ($o) {
-                                if (empty($a->text_answer))
-                                    return false;
-                                $ids = explode(',', $a->text_answer);
-                                return in_array((string) $o->id, $ids);
-                            })->count();
+                            $selCount = $answers->filter(fn($a) => !empty($a->text_answer) && in_array((string)$o->id, explode(',', $a->text_answer)))->count();
                         } else {
                             $selCount = $answers->where('exam_option_id', $o->id)->count();
                         }
@@ -2336,65 +2454,34 @@ public function importAccess(Request $request, $id)
         }
 
         return view('dashboard.partials.shared.materials-analytics', compact(
-            'material',
-            'totalLearners',
-            'activeLearners',
-            'pendingRequests',
-            'totalDropped',
-            'overallAverage',
-            'avgQuizScore',
-            'avgExamScore',
-            'completedCount',
-            'inProgressCount',
-            'activityDates',
-            'activityTrend',
-            'competencies',
-            'studentLeaderboard',
-            'quizItemAnalysis',
-            'examItemAnalysis',
-            'hasQuizzes',
-            'hasExams',
-            'quizItemsCount',
-            'examItemsCount'
+            'material', 'totalLearners', 'activeLearners', 'pendingRequests', 'totalDropped',
+            'overallAverage', 'passRate', 'avgQuizScore', 'avgExamScore', 'completedCount', 
+            'inProgressCount', 'activityDates', 'activityTrend', 'competencies', 
+            'studentLeaderboard', 'quizItemAnalysis', 'examItemAnalysis', 'hasQuizzes', 
+            'hasExams', 'quizItemsCount', 'examItemsCount'
         ));
     }
 
+
     public function exportMaterialAnalyticsPdf(Request $request, $id)
     {
-        // 1. Fetch material & Authorization check
         $material = \App\Models\Material::with('instructor')->findOrFail($id);
 
         if (\Illuminate\Support\Facades\Auth::user()->role === 'teacher' && $material->instructor_id !== \Illuminate\Support\Facades\Auth::id()) {
             abort(403, 'Unauthorized action.');
         }
 
-        // ========================================================================
-        // 2. IMPORTANT: PASTE YOUR DATA FETCHING LOGIC HERE
-        //  $material = \App\Models\Material::findOrFail($id);
+        $passingScore = $material->passing_percentage ?? 80;
 
         // 1. Enrollment KPIs
         $totalLearners = \App\Models\Enrollment::where('material_id', $material->id)->count();
-
-        $pendingRequests = \App\Models\MaterialAccess::where('material_id', $material->id)
-            ->where('status', 'pending')
-            ->count();
-
-        $totalDropped = \App\Models\Enrollment::where('material_id', $material->id)
-            ->where('status', 'dropped')
-            ->count();
-
-        $activeLearners = \App\Models\Enrollment::where('material_id', $material->id)
-            ->where('updated_at', '>=', \Carbon\Carbon::now()->subDays(7))
-            ->count();
+        $pendingRequests = \App\Models\MaterialAccess::where('material_id', $material->id)->where('status', 'pending')->count();
+        $totalDropped = \App\Models\Enrollment::where('material_id', $material->id)->where('status', 'dropped')->count();
+        $activeLearners = \App\Models\Enrollment::where('material_id', $material->id)->where('updated_at', '>=', \Carbon\Carbon::now()->subDays(7))->count();
 
         // 2. Student Progress
-        $completedCount = \App\Models\Enrollment::where('material_id', $material->id)
-            ->where('status', 'completed')
-            ->count();
-
-        $inProgressCount = \App\Models\Enrollment::where('material_id', $material->id)
-            ->whereIn('status', ['in_progress', 'failed'])
-            ->count();
+        $completedCount = \App\Models\Enrollment::where('material_id', $material->id)->where('status', 'completed')->count();
+        $inProgressCount = \App\Models\Enrollment::where('material_id', $material->id)->whereIn('status', ['in_progress', 'failed'])->count();
 
         // 3. Assessment Fetching
         $examIds = \Illuminate\Support\Facades\DB::table('exams')->where('material_id', $material->id)->pluck('id');
@@ -2404,97 +2491,58 @@ public function importAccess(Request $request, $id)
         $hasQuizzes = $quizIds->isNotEmpty();
         $hasExams = $examIds->isNotEmpty();
 
-        $quizItemsCount = $quizIds->count();
-        $examItemsCount = $examIds->count();
+        // ========================================================
+        // STRICT FILTER: Get ONLY students who have finished
+        // ========================================================
+        $completedUserIds = \App\Models\Enrollment::where('material_id', $material->id)
+            ->whereIn('status', ['completed', 'failed'])
+            ->pluck('user_id');
 
-        // 4. Activity Trend
-        $activityTrendData = \App\Models\Enrollment::select(
-            \Illuminate\Support\Facades\DB::raw('DATE(created_at) as date'),
-            \Illuminate\Support\Facades\DB::raw('count(*) as count')
-        )
-            ->where('material_id', $material->id)
-            ->where('created_at', '>=', \Carbon\Carbon::now()->subDays(7))
-            ->groupBy('date')
-            ->orderBy('date', 'ASC')
-            ->pluck('count', 'date')
-            ->toArray();
-
-        $activityDates = [];
-        $activityTrend = [];
-
-        for ($i = 6; $i >= 0; $i--) {
-            $date = \Carbon\Carbon::now()->subDays($i)->format('Y-m-d');
-            $activityDates[] = \Carbon\Carbon::parse($date)->format('M d');
-            $activityTrend[] = $activityTrendData[$date] ?? 0;
-        }
-
-        // 5. Competency Breakdown
+        // 5. Competency Breakdown (Filtered)
         $competencies = [];
         $lessons = \Illuminate\Support\Facades\DB::table('lessons')->where('material_id', $material->id)->get();
 
         foreach ($lessons as $lesson) {
             $lqIds = \Illuminate\Support\Facades\DB::table('lesson_contents')->where('lesson_id', $lesson->id)->where('type', '!=', 'content')->pluck('id');
             $hasQuiz = $lqIds->isNotEmpty();
-
             $mps = 0;
+            $totalAns = 0;
 
             if ($hasQuiz) {
                 $answers = \Illuminate\Support\Facades\DB::table('quiz_answers')
-                    ->whereIn('lesson_content_id', $lqIds);
-
+                    ->whereIn('lesson_content_id', $lqIds)
+                    ->whereIn('user_id', $completedUserIds);
+                    
                 $correct = (clone $answers)->where('is_correct', 1)->count();
-                $total = $answers->count();
-
-                $mps = $total > 0 ? round(($correct / $total) * 100, 2) : 0;
+                $totalAns = $answers->count();
+                $mps = $totalAns > 0 ? round(($correct / $totalAns) * 100, 2) : 0;
             }
 
-            $competencies[] = (object) [
-                'title' => $lesson->title,
-                'has_quiz' => $hasQuiz,
-                'mps' => $mps
-            ];
+            $competencies[] = (object) ['title' => $lesson->title, 'has_quiz' => $hasQuiz, 'mps' => $mps, 'total_answers' => $totalAns];
         }
 
         if ($hasExams) {
-            // Exam average strictly for the competency row
             $examStats = \Illuminate\Support\Facades\DB::table('exam_answers')
-                ->select(
-                    'user_id',
-                    \Illuminate\Support\Facades\DB::raw('SUM(is_correct = 1) as correct'),
-                    \Illuminate\Support\Facades\DB::raw('COUNT(*) as total')
-                )
+                ->select('user_id', \Illuminate\Support\Facades\DB::raw('SUM(is_correct = 1) as correct'), \Illuminate\Support\Facades\DB::raw('COUNT(*) as total'))
                 ->whereIn('exam_id', $examIds)
-                ->groupBy('user_id')
-                ->get();
-
-            $avgExamScoreCompetency = $examStats->count() > 0
-                ? round($examStats->avg(fn($e) => $e->total > 0 ? ($e->correct / $e->total) * 100 : 0), 2)
-                : 0;
-
-            $competencies[] = (object) [
-                'title' => 'Final Exam',
-                'has_quiz' => true,
-                'mps' => $avgExamScoreCompetency
-            ];
+                ->whereIn('user_id', $completedUserIds)
+                ->groupBy('user_id')->get();
+                
+            $avgExamScoreCompetency = $examStats->count() > 0 ? round($examStats->avg(fn($e) => $e->total > 0 ? ($e->correct / $e->total) * 100 : 0), 2) : 0;
+            $competencies[] = (object) ['title' => 'Final Exam', 'has_quiz' => true, 'mps' => $avgExamScoreCompetency, 'total_answers' => $examStats->sum('total')];
         }
 
-        // 6. LEADERBOARD & OVERALL AVERAGES
-        $studentLeaderboard = \App\Models\Enrollment::with('user')
+        // 6. LEADERBOARD & OVERALL AVERAGES (Filtered)
+        $allStudents = \App\Models\Enrollment::with('user')
             ->where('material_id', $material->id)
+            ->whereIn('status', ['completed', 'failed']) // ONLY Fetch completed students
             ->get()
             ->map(function ($enrollment) use ($examIds, $quizIds, $lessons) {
-
-                $quizAnswers = \Illuminate\Support\Facades\DB::table('quiz_answers')
-                    ->where('user_id', $enrollment->user_id)
-                    ->whereIn('lesson_content_id', $quizIds);
-
+                $quizAnswers = \Illuminate\Support\Facades\DB::table('quiz_answers')->where('user_id', $enrollment->user_id)->whereIn('lesson_content_id', $quizIds);
                 $quizCorrect = (clone $quizAnswers)->where('is_correct', 1)->count();
                 $quizTotal = $quizAnswers->count();
 
-                $examAnswers = \Illuminate\Support\Facades\DB::table('exam_answers')
-                    ->where('user_id', $enrollment->user_id)
-                    ->whereIn('exam_id', $examIds);
-
+                $examAnswers = \Illuminate\Support\Facades\DB::table('exam_answers')->where('user_id', $enrollment->user_id)->whereIn('exam_id', $examIds);
                 $examCorrect = (clone $examAnswers)->where('is_correct', 1)->count();
                 $examTotal = $examAnswers->count();
 
@@ -2505,46 +2553,28 @@ public function importAccess(Request $request, $id)
                 $examScore = $examTotal > 0 ? round(($examCorrect / $examTotal) * 100, 2) : 0;
                 $score = $totalAnswered > 0 ? round(($totalCorrect / $totalAnswered) * 100, 2) : 0;
 
-                // Progress FIX
-                $progData = json_decode($enrollment->progress_data);
-                $lessonCount = $lessons->count();
-
-                $prog = $enrollment->status === 'completed'
-                    ? 100
-                    : (isset($progData->highest_unlocked) && $lessonCount > 0
-                        ? min(99, round(($progData->highest_unlocked / ($lessonCount + 1)) * 100))
-                        : 0);
-
                 return (object) [
-                    'name' => $enrollment->user
-                        ? $enrollment->user->first_name . ' ' . $enrollment->user->last_name
-                        : 'Unknown Student',
-                    'progress' => $prog,
-                    'quiz_score' => $quizScore,
-                    'exam_score' => $examScore,
+                    'name' => $enrollment->user ? $enrollment->user->first_name . ' ' . $enrollment->user->last_name : 'Unknown Student',
+                    'progress' => 100, 'quiz_score' => $quizScore, 'exam_score' => $examScore,
                     'quiz_score_raw' => $quizTotal > 0 ? "{$quizCorrect}/{$quizTotal}" : "0/0",
                     'exam_score_raw' => $examTotal > 0 ? "{$examCorrect}/{$examTotal}" : "0/0",
-                    'score' => $score
+                    'score' => $score, 'status' => $enrollment->status
                 ];
-            })
-            ->sortByDesc('score')
-            ->take(10)
-            ->values();
+            });
 
-        // Calculate Overall Averages
-        $overallAverage = $studentLeaderboard->count() > 0 ? round($studentLeaderboard->avg('score'), 2) : 0;
+        $evaluatedCount = $allStudents->count();
+        $passCount = $allStudents->where('score', '>=', $passingScore)->count();
+        $passRate = $evaluatedCount > 0 ? round(($passCount / $evaluatedCount) * 100) : null;
 
-        $validQuizScores = $studentLeaderboard->filter(function ($s) {
-            return $s->quiz_score_raw !== "0/0";
-        });
+        $overallAverage = $allStudents->count() > 0 ? round($allStudents->avg('score'), 2) : 0;
+        $studentLeaderboard = $allStudents->sortByDesc('score')->take(10)->values();
+
+        $validQuizScores = $studentLeaderboard->filter(fn($s) => $s->quiz_score_raw !== "0/0");
         $avgQuizScore = $validQuizScores->count() > 0 ? round($validQuizScores->avg('quiz_score'), 2) : 0;
-
-        $validExamScores = $studentLeaderboard->filter(function ($s) {
-            return $s->exam_score_raw !== "0/0";
-        });
+        $validExamScores = $studentLeaderboard->filter(fn($s) => $s->exam_score_raw !== "0/0");
         $avgExamScore = $validExamScores->count() > 0 ? round($validExamScores->avg('exam_score'), 2) : 0;
 
-        // 7. Item Analysis
+        // 7. Item Analysis (Filtered)
         $quizItemAnalysis = [];
         $examItemAnalysis = [];
 
@@ -2552,173 +2582,70 @@ public function importAccess(Request $request, $id)
             $quizzes = \Illuminate\Support\Facades\DB::table('lesson_contents')
                 ->join('lessons', 'lesson_contents.lesson_id', '=', 'lessons.id')
                 ->select('lesson_contents.id', 'lesson_contents.type', 'lesson_contents.question_text', 'lessons.title as category_name')
-                ->where('lessons.material_id', $material->id)
-                ->where('lesson_contents.type', '!=', 'content')
-                ->get();
+                ->where('lessons.material_id', $material->id)->where('lesson_contents.type', '!=', 'content')->get();
 
             foreach ($quizzes as $q) {
-                $answers = \Illuminate\Support\Facades\DB::table('quiz_answers')->where('lesson_content_id', $q->id)->get();
+                $answers = \Illuminate\Support\Facades\DB::table('quiz_answers')
+                    ->where('lesson_content_id', $q->id)
+                    ->whereIn('user_id', $completedUserIds)
+                    ->get();
+                    
                 $cCount = $answers->where('is_correct', 1)->count();
                 $wCount = $answers->where('is_correct', 0)->count();
                 $tCount = $cCount + $wCount;
 
-                $opts = [];
-                if ($q->type === 'text') {
-                    $responses = $answers->groupBy(function ($a) {
-                        return strtolower(trim($a->text_answer ?? ''));
-                    });
-                    foreach ($responses as $text => $group) {
-                        $count = $group->count();
-                        $isCorrect = $group->where('is_correct', 1)->isNotEmpty();
-                        $opts[] = (object) [
-                            'text' => $text === '' ? '(Blank)' : $text,
-                            'pct' => $tCount > 0 ? round(($count / $tCount) * 100) : 0,
-                            'is_correct' => $isCorrect
-                        ];
-                    }
-                    usort($opts, function ($a, $b) {
-                        return $b->pct <=> $a->pct;
-                    });
-                } else {
-                    $options = \Illuminate\Support\Facades\DB::table('quiz_options')->where('quiz_id', $q->id)->get();
-                    foreach ($options as $o) {
-                        if ($q->type === 'checkbox') {
-                            $selCount = $answers->filter(function ($a) use ($o) {
-                                if (empty($a->text_answer))
-                                    return false;
-                                $ids = explode(',', $a->text_answer);
-                                return in_array((string) $o->id, $ids);
-                            })->count();
-                        } else {
-                            $selCount = $answers->where('quiz_option_id', $o->id)->count();
-                        }
-                        $opts[] = (object) [
-                            'text' => $o->option_text,
-                            'pct' => $tCount > 0 ? round(($selCount / $tCount) * 100) : 0,
-                            'is_correct' => $o->is_correct
-                        ];
-                    }
-                }
-
-                $quizItemAnalysis[] = (object) [
-                    'question_text' => $q->question_text,
-                    'category_name' => $q->category_name,
-                    'correct_count' => $cCount,
-                    'wrong_count' => $wCount,
-                    'difficulty_index' => $tCount > 0 ? round(($cCount / $tCount) * 100) : 0,
-                    'distractor_stats' => $opts
-                ];
+                $quizItemAnalysis[] = (object) ['question_text' => $q->question_text, 'category_name' => $q->category_name, 'difficulty_index' => $tCount > 0 ? round(($cCount / $tCount) * 100) : 0];
             }
         }
 
         if ($hasExams) {
             $exams = \Illuminate\Support\Facades\DB::table('exams')->where('material_id', $material->id)->get();
-
             foreach ($exams as $e) {
-                $answers = \Illuminate\Support\Facades\DB::table('exam_answers')->where('exam_id', $e->id)->get();
+                $answers = \Illuminate\Support\Facades\DB::table('exam_answers')
+                    ->where('exam_id', $e->id)
+                    ->whereIn('user_id', $completedUserIds)
+                    ->get();
+                    
                 $cCount = $answers->where('is_correct', 1)->count();
                 $wCount = $answers->where('is_correct', 0)->count();
                 $tCount = $cCount + $wCount;
 
-                $opts = [];
-                if ($e->type === 'text') {
-                    $responses = $answers->groupBy(function ($a) {
-                        return strtolower(trim($a->text_answer ?? ''));
-                    });
-                    foreach ($responses as $text => $group) {
-                        $count = $group->count();
-                        $isCorrect = $group->where('is_correct', 1)->isNotEmpty();
-                        $opts[] = (object) [
-                            'text' => $text === '' ? '(Blank)' : $text,
-                            'pct' => $tCount > 0 ? round(($count / $tCount) * 100) : 0,
-                            'is_correct' => $isCorrect
-                        ];
-                    }
-                    usort($opts, function ($a, $b) {
-                        return $b->pct <=> $a->pct;
-                    });
-                } else {
-                    $options = \Illuminate\Support\Facades\DB::table('exam_options')->where('exam_id', $e->id)->get();
-                    foreach ($options as $o) {
-                        if ($e->type === 'checkbox') {
-                            $selCount = $answers->filter(function ($a) use ($o) {
-                                if (empty($a->text_answer))
-                                    return false;
-                                $ids = explode(',', $a->text_answer);
-                                return in_array((string) $o->id, $ids);
-                            })->count();
-                        } else {
-                            $selCount = $answers->where('exam_option_id', $o->id)->count();
-                        }
-                        $opts[] = (object) [
-                            'text' => $o->option_text,
-                            'pct' => $tCount > 0 ? round(($selCount / $tCount) * 100) : 0,
-                            'is_correct' => $o->is_correct
-                        ];
-                    }
-                }
-
-                $examItemAnalysis[] = (object) [
-                    'question_text' => $e->question_text,
-                    'category_name' => 'Final Exam',
-                    'correct_count' => $cCount,
-                    'wrong_count' => $wCount,
-                    'difficulty_index' => $tCount > 0 ? round(($cCount / $tCount) * 100) : 0,
-                    'distractor_stats' => $opts
-                ];
+                $examItemAnalysis[] = (object) ['question_text' => $e->question_text, 'category_name' => 'Final Exam', 'difficulty_index' => $tCount > 0 ? round(($cCount / $tCount) * 100) : 0];
             }
         }
 
-        // ========================================================================
-        // ========================================================================
-
-        // 3. Setup Export Data
-        $isPrint = $request->input('action') === 'print';
-        // 3. Setup Export Data
         $isPrint = $request->input('action') === 'print';
 
         $data = [
             'material' => $material,
-
-            // Pass your calculated variables here (using ?? fallbacks for safety)
             'totalLearners' => $totalLearners ?? 0,
             'pendingRequests' => $pendingRequests ?? 0,
             'totalDropped' => $totalDropped ?? 0,
             'overallAverage' => $overallAverage ?? 0,
+            'passRate' => $passRate,
             'completedCount' => $completedCount ?? 0,
             'inProgressCount' => $inProgressCount ?? 0,
-
             'competencies' => $competencies ?? [],
             'studentLeaderboard' => $studentLeaderboard ?? [],
-
             'hasQuizzes' => $hasQuizzes ?? false,
             'hasExams' => $hasExams ?? false,
             'quizItemAnalysis' => $quizItemAnalysis ?? [],
             'examItemAnalysis' => $examItemAnalysis ?? [],
             'avgQuizScore' => $avgQuizScore ?? 0,
             'avgExamScore' => $avgExamScore ?? 0,
-
-            // Checkboxes from the modal form
             'showMetrics' => $request->has('check_metrics'),
             'showCompetency' => $request->has('check_competency'),
             'showItemAnalysis' => $request->has('check_item_analysis'),
-
             'isPrint' => $isPrint,
         ];
 
-        // 4. Return Print View or Download PDF
-        if ($isPrint) {
-            return view('dashboard.partials.shared.materials-report', $data);
-        }
-        // 4. Return Print View or Download PDF
         if ($isPrint) {
             return view('dashboard.partials.shared.materials-report', $data);
         }
 
-        $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('dashboard.partials.teacher.materials-report', $data);
+        $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('dashboard.partials.shared.materials-report', $data);
         return $pdf->download('Material_Analytics_' . \Illuminate\Support\Str::slug($material->title) . '_' . now()->format('Y_m_d') . '.pdf');
     }
-
     public function updateGrading(Request $request, $id)
     {
         $request->validate([
@@ -2919,4 +2846,100 @@ public function importAccess(Request $request, $id)
             ], 500);
         }
     }
+
+    public function generateAccessCode($id)
+    {
+        $material = \App\Models\Material::findOrFail($id);
+
+        // 1. Authorization: Only the owner or admins can do this
+        if (auth()->id() !== $material->instructor_id && !in_array(auth()->user()->role, ['admin', 'cid'])) {
+            return response()->json(['success' => false, 'message' => 'Unauthorized action.'], 403);
+        }
+
+        // 2. Enforce the 3-hour lock
+        // Replace your current 3-hour lock check with this:
+        if ($material->access_code && $material->access_code_expires_at && now()->lessThan($material->access_code_expires_at)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'The current access code is still active. Please wait for it to expire.'
+            ], 422);
+        }
+        // 3. Generate new code and expiration time
+        $newCode = strtoupper(\Illuminate\Support\Str::random(6));
+        $expiresAt = now()->addHours(3);
+
+        // 4. Update the database
+        $material->access_code = $newCode;
+        $material->access_code_expires_at = $expiresAt;
+        $material->updated_at = now();
+        $material->save();
+
+        return response()->json([
+            'success' => true,
+            'code' => $newCode,
+            'expires_at' => $expiresAt->toIso8601String(), // Send standard format for JS to read
+            'message' => 'New 3-hour access key generated successfully!'
+        ]);
+    }
+
+    /**
+     * Wipes student progress and notifies them when a module is reverted to draft.
+     */
+    /**
+     * Wipes student enrollment/progress and notifies them when a module is reverted to draft.
+     */
+    private function wipeProgressAndNotifyStudents($material)
+    {
+        // 1. Find all exam and quiz IDs
+        $examIds = \Illuminate\Support\Facades\DB::table('exams')->where('material_id', $material->id)->pluck('id');
+        $quizIds = \Illuminate\Support\Facades\DB::table('lesson_contents')
+            ->join('lessons', 'lesson_contents.lesson_id', '=', 'lessons.id')
+            ->where('lessons.material_id', $material->id)
+            ->pluck('lesson_contents.id');
+
+        // 2. Identify enrolled students BEFORE we delete their records so we can notify them
+        $enrolledStudentIds = \Illuminate\Support\Facades\DB::table('enrollments')
+            ->where('material_id', $material->id)
+            ->pluck('user_id');
+
+        // 3. Delete all submitted student answers (Matches removeAccess logic)
+        if ($examIds->isNotEmpty()) {
+            \Illuminate\Support\Facades\DB::table('exam_answers')->whereIn('exam_id', $examIds)->delete();
+        }
+        if ($quizIds->isNotEmpty()) {
+            \Illuminate\Support\Facades\DB::table('quiz_answers')->whereIn('lesson_content_id', $quizIds)->delete();
+        }
+
+        // 4. Delete the Enrollments entirely (Matches removeAccess logic)
+        \Illuminate\Support\Facades\DB::table('enrollments')->where('material_id', $material->id)->delete();
+
+        // 5. Reset Access List statuses to 'pending' instead of deleting them!
+        // This preserves the teacher's roster so they don't have to re-invite everyone later.
+        \Illuminate\Support\Facades\DB::table('material_accesses')
+            ->where('material_id', $material->id)
+            ->update([
+                'status' => 'pending',
+                'student_id' => null // Clear the account link until they re-enroll
+            ]);
+
+        // 6. Notify the students who were enrolled
+        if ($enrolledStudentIds->isNotEmpty()) {
+            $studentsToNotify = \App\Models\User::whereIn('id', $enrolledStudentIds)->get();
+
+            foreach ($studentsToNotify as $student) {
+                $student->notify(new \App\Notifications\LmsAlertNotification(
+                    'Module Under Revision',
+                    'The module "' . $material->title . '" has been reverted to draft for revisions. Your enrollment and progress have been reset.',
+                    '#', // No link, as it's draft and they can't access it anymore
+                    'fas fa-tools',
+                    'text-amber-600'
+                ));
+            }
+        }
+    }
+
+    /**
+     * Bulk send invitations ONLY to pending students.
+     */
+
 }

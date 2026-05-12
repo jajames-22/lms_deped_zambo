@@ -168,7 +168,7 @@
                     <i class="fas fa-lock"></i> Content Locked
                 </button>
             @endif
-            
+
             {{-- Status & Publish/Revert Actions --}}
             @if($material->status === 'draft')
                 <button onclick="attemptPublish()"
@@ -408,17 +408,25 @@
                         <h2 class="text-xl font-black text-gray-900">Access Management</h2>
                         <p class="text-sm text-gray-500 mt-1">Manage who can view and enroll in this material</p>
                     </div>
-                    <div class="flex items-center gap-2">
+
+                    {{-- UPDATED: Added flex-wrap and the new Bulk Invite Button --}}
+                    <div class="flex flex-wrap items-center gap-2">
                         <button onclick="openModal('importStudentModal', 'importStudentBox')"
-                            class="h-10 px-4 bg-white border border-gray-200 text-gray-600 rounded-xl hover:bg-gray-50 transition text-sm font-bold shadow-sm">
+                            class="h-10 px-4 bg-white border border-gray-200 text-gray-600 rounded-xl hover:bg-gray-50 transition text-sm font-bold shadow-sm flex items-center justify-center">
                             <i class="fas fa-file-import mr-1.5"></i> Import CSV
                         </button>
+
                         <button onclick="openModal('addStudentModal', 'addStudentBox')"
-                            class="h-10 px-4 bg-blue-50 text-blue-600 border border-blue-100 rounded-xl hover:bg-blue-100 transition text-sm font-bold shadow-sm">
+                            class="h-10 px-4 bg-blue-50 text-blue-600 border border-blue-100 rounded-xl hover:bg-blue-100 transition text-sm font-bold shadow-sm flex items-center justify-center">
                             <i class="fas fa-user-plus mr-1.5"></i> Add Student
                         </button>
                     </div>
                 </div>
+
+                <button id="bulkInviteBtn" onclick="bulkSendInvites()"
+                    class="h-10 w-45 px-4 text-amber-600 hover:text-amber-800 transition text-sm font-bold flex items-center justify-center">
+                    <i class="fas fa-paper-plane mr-1.5"></i> Invite Pending
+                </button>
 
                 <div class="overflow-x-auto">
                     <table class="w-full text-left border-collapse">
@@ -445,7 +453,7 @@
                                                     class="text-sm font-bold text-gray-900 truncate max-w-[150px] sm:max-w-xs">
                                                     {{ $access->email }}
                                                 </p>
-                                                @if($access->student)
+                                                @if($access->student && $access->current_enrollment)
                                                     <p class="text-[10px] text-gray-500 uppercase tracking-wider">
                                                         {{ $access->student->first_name }} {{ $access->student->last_name }}
                                                     </p>
@@ -538,7 +546,10 @@
                     </div>
                     <div class="bg-gray-50 p-4 rounded-2xl border border-gray-100">
                         <p class="text-[10px] text-gray-400 font-bold uppercase tracking-wider mb-1">Pass Rate</p>
-                        <h3 class="text-2xl font-black text-green-600">--%</h3>
+                        <h3
+                            class="text-2xl font-black {{ isset($passRate) && $passRate >= 50 ? 'text-green-600' : (isset($passRate) ? 'text-amber-500' : 'text-gray-400') }}">
+                            {{ isset($passRate) ? $passRate . '%' : '--%' }}
+                        </h3>
                     </div>
                 </div>
             </div>
@@ -552,29 +563,37 @@
                 <h3 class="text-sm font-black text-gray-900 uppercase tracking-wider mb-4 flex items-center gap-2">
                     <i class="fas fa-user-tie text-[#a52a2a]"></i> Creator Profile
                 </h3>
-                
+
                 <div class="flex items-center gap-4">
-                    <div class="w-12 h-12 rounded-full border-2 border-gray-200 bg-gray-50 flex items-center justify-center text-[#a52a2a] font-bold text-lg shrink-0">
+                    <div
+                        class="w-12 h-12 rounded-full border-2 border-gray-200 bg-gray-50 flex items-center justify-center text-[#a52a2a] font-bold text-lg shrink-0">
                         {{ strtoupper(substr($material->instructor->first_name ?? 'U', 0, 1)) }}{{ strtoupper(substr($material->instructor->last_name ?? '', 0, 1)) }}
                     </div>
                     <div class="min-w-0 flex-1">
                         <p class="text-sm font-bold text-gray-900 truncate">
-                            {{ $material->instructor->first_name ?? 'Unknown' }} {{ $material->instructor->last_name ?? 'Instructor' }}
+                            {{ $material->instructor->first_name ?? 'Unknown' }}
+                            {{ $material->instructor->last_name ?? 'Instructor' }}
                         </p>
-                        
+
                         @if(!empty($material->instructor->emp_id))
-                            <p class="text-[10px] font-bold text-gray-500 uppercase tracking-wider mt-0.5">Emp ID: {{ $material->instructor->emp_id }}</p>
+                            <p class="text-[10px] font-bold text-gray-500 uppercase tracking-wider mt-0.5">Emp ID:
+                                {{ $material->instructor->emp_id }}
+                            </p>
                         @endif
-                        
+
                         <div class="mt-1.5">
                             @php
                                 $instStatus = $material->instructor->status ?? 'N/A';
                                 $statusStyle = 'bg-gray-100 text-gray-600 border-gray-200';
-                                if($instStatus === 'verified') $statusStyle = 'bg-green-50 text-green-700 border-green-200';
-                                elseif($instStatus === 'pending') $statusStyle = 'bg-amber-50 text-amber-700 border-amber-200';
-                                elseif($instStatus === 'suspended') $statusStyle = 'bg-red-50 text-red-700 border-red-200';
+                                if ($instStatus === 'verified')
+                                    $statusStyle = 'bg-green-50 text-green-700 border-green-200';
+                                elseif ($instStatus === 'pending')
+                                    $statusStyle = 'bg-amber-50 text-amber-700 border-amber-200';
+                                elseif ($instStatus === 'suspended')
+                                    $statusStyle = 'bg-red-50 text-red-700 border-red-200';
                             @endphp
-                            <span class="inline-block px-2 py-0.5 text-[9px] font-black uppercase tracking-wider rounded border {{ $statusStyle }}">
+                            <span
+                                class="inline-block px-2 py-0.5 text-[9px] font-black uppercase tracking-wider rounded border {{ $statusStyle }}">
                                 {{ $instStatus }}
                             </span>
                         </div>
@@ -614,17 +633,52 @@
                     </label>
                 </div>
 
+                @php
+                    // Calculate if the code is currently active
+                    $isCodeActive = $material->access_code && $material->access_code_expires_at && \Carbon\Carbon::parse($material->access_code_expires_at)->isFuture();
+                @endphp
+
                 <div class="pt-4 border-t border-gray-100">
-                    <p class="text-xs text-gray-500 font-bold uppercase tracking-wider mb-2">Direct Access Code</p>
-                    <div class="flex items-center gap-2 bg-gray-50 p-1.5 rounded-xl border border-gray-200">
-                        <code
-                            class="flex-1 text-center font-black text-gray-700 tracking-widest text-lg">{{ $material->access_code ?? 'N/A' }}</code>
-                        <button onclick="copyAccessCode('{{ $material->access_code }}')"
-                            class="h-10 w-10 bg-white rounded-lg border border-gray-200 text-gray-500 hover:text-[#a52a2a] shadow-sm flex items-center justify-center transition"
-                            title="Copy Code">
+                    <div class="flex items-center justify-between mb-2">
+                        <p class="text-xs text-gray-500 font-bold uppercase tracking-wider">Dynamic Access Code</p>
+
+                        {{-- Status Indicator --}}
+                        <span id="code-status-badge"
+                            class="px-2 py-0.5 text-[10px] font-black uppercase tracking-wider rounded border {{ $isCodeActive ? 'bg-green-50 text-green-700 border-green-200' : 'bg-gray-100 text-gray-500 border-gray-200' }}">
+                            {{ $isCodeActive ? 'Active' : 'Expired' }}
+                        </span>
+                    </div>
+
+                    {{-- The Code Display --}}
+                    <div class="flex items-center gap-2 bg-gray-50 p-1.5 rounded-xl border border-gray-200 mb-3">
+                        <code id="access-code-display"
+                            class="flex-1 text-center font-black {{ $isCodeActive ? 'text-gray-700' : 'text-gray-400 line-through' }} tracking-widest text-lg">
+            {{ $isCodeActive ? $material->access_code : '------' }}
+        </code>
+                        <button id="copy-code-btn"
+                            onclick="copyAccessCode(document.getElementById('access-code-display').innerText.trim())"
+                            class="h-10 w-10 bg-white rounded-lg border border-gray-200 text-gray-500 hover:text-[#a52a2a] shadow-sm flex items-center justify-center transition disabled:opacity-50 disabled:cursor-not-allowed"
+                            title="Copy Code" {{ $isCodeActive ? '' : 'disabled' }}>
                             <i class="fas fa-copy"></i>
                         </button>
                     </div>
+
+                    {{-- Generate Button & Timer --}}
+                    <button id="generate-code-btn" onclick="generateNewAccessCode()"
+                        class="w-full py-2.5 bg-blue-50 text-blue-700 border border-blue-200 font-bold rounded-xl hover:bg-blue-100 transition shadow-sm text-sm disabled:opacity-50 disabled:cursor-not-allowed disabled:bg-gray-50 disabled:text-gray-400 disabled:border-gray-200"
+                        {{ $isCodeActive ? 'disabled' : '' }}>
+                        <i class="fas fa-sync-alt mr-1"></i> Generate 3-Hour Key
+                    </button>
+
+                    <p id="code-timer-text"
+                        class="text-[10px] text-center mt-2 font-medium {{ $isCodeActive ? 'text-amber-600' : 'text-gray-400' }}">
+                        @if($isCodeActive)
+                            Expires: <span class="font-bold time-remaining"
+                                data-expires="{{ \Carbon\Carbon::parse($material->access_code_expires_at)->toIso8601String() }}">Calculating...</span>
+                        @else
+                            Generate a code to grant 3-hour access.
+                        @endif
+                    </p>
                 </div>
             </div>
 
@@ -703,7 +757,7 @@
 
                             <button type="button" onclick="removeTag('{{ $tag->name }}')" {{ $isLocked ? 'disabled' : '' }}
                                 class="text-[#a52a2a]/60 hover:text-[#a52a2a] hover:bg-[#a52a2a]/10 rounded-full h-4 w-4 flex items-center justify-center transition-colors
-                            disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent disabled:hover:text-[#a52a2a]/60">
+                                                        disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent disabled:hover:text-[#a52a2a]/60">
                                 <i class="fas fa-times text-[10px]"></i>
                             </button>
 
@@ -718,7 +772,7 @@
                     </p>
                 @endif
             </div>
-            
+
             {{-- DANGER ZONE --}}
             <div class="bg-red-50 rounded-3xl border border-red-100 p-6 relative overflow-hidden">
                 <div class="absolute -right-4 -top-4 text-red-100 opacity-50 transform rotate-12 pointer-events-none">
@@ -878,8 +932,18 @@
             <i class="fas fa-arrow-circle-down"></i>
         </div>
         <h3 class="text-xl font-black text-gray-900 mb-2">Request to Unpublish</h3>
-        <p class="text-gray-500 mb-4 text-sm leading-relaxed">Please provide a reason for unpublishing this module.
+        <p class="text-gray-500 mb-2 text-sm leading-relaxed">Please provide a reason for unpublishing this module.
             Administrators will review your request.</p>
+
+        {{-- NEW WARNING BANNER --}}
+        <div class="mb-5 p-3 bg-red-50 border border-red-200 rounded-xl flex items-start gap-3 text-left">
+            <i class="fas fa-exclamation-triangle text-red-500 mt-0.5"></i>
+            <div>
+                <p class="text-xs font-black text-red-800 uppercase tracking-wider">Warning: Data Loss</p>
+                <p class="text-xs text-red-600 mt-1">If approved, this will <b>permanently delete all student
+                        progress</b> and reset their scores. Enrolled students will be notified.</p>
+            </div>
+        </div>
 
         <textarea id="unpublishReasonInput" rows="3" placeholder="I need to fix critical errors in the material..."
             class="w-full mb-5 px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 outline-none transition-all text-sm"></textarea>
@@ -907,10 +971,20 @@
                 class="text-gray-400 hover:text-gray-600 transition"><i class="fas fa-times"></i></button>
         </div>
 
-        <div class="p-4 bg-gray-50 border border-gray-200 rounded-xl mb-6">
+        <div class="p-4 bg-gray-50 border border-gray-200 rounded-xl mb-4">
             <p class="text-[10px] text-gray-400 font-bold uppercase tracking-wider mb-2">Teacher's Reason:</p>
             <p class="text-sm text-gray-700 font-medium italic">
                 "{{ $material->revert_reason ?? 'No reason provided.' }}"</p>
+        </div>
+
+        {{-- NEW WARNING BANNER --}}
+        <div class="mb-6 p-3 bg-red-50 border border-red-200 rounded-xl flex items-start gap-3 text-left">
+            <i class="fas fa-exclamation-triangle text-red-500 mt-0.5"></i>
+            <div>
+                <p class="text-xs font-black text-red-800 uppercase tracking-wider">Warning: Data Loss</p>
+                <p class="text-xs text-red-600 mt-1">Approving this request will <b>permanently delete all student
+                        progress</b> and notify enrolled students of the revision.</p>
+            </div>
         </div>
 
         <div class="flex gap-3">
@@ -957,8 +1031,18 @@
             <i class="fas fa-undo"></i>
         </div>
         <h3 class="text-2xl font-black text-gray-900 mb-2">Revert to Draft?</h3>
-        <p class="text-gray-500 mb-4 text-sm leading-relaxed">Are you sure you want to revert this module to draft? It
+        <p class="text-gray-500 mb-4 text-sm leading-relaxed">Are you sure you want to force this module to draft? It
             will be hidden from the public explore page and students.</p>
+
+        {{-- NEW WARNING BANNER --}}
+        <div class="mb-5 p-3 bg-red-50 border border-red-200 rounded-xl flex items-start gap-3 text-left">
+            <i class="fas fa-exclamation-triangle text-red-500 mt-0.5"></i>
+            <div>
+                <p class="text-xs font-black text-red-800 uppercase tracking-wider">Warning: Data Loss</p>
+                <p class="text-xs text-red-600 mt-1">This action will <b>permanently delete all student progress</b> and
+                    reset scores. Students will receive an automated notification.</p>
+            </div>
+        </div>
 
         <textarea id="forceRevertReasonInput" rows="3"
             placeholder="Provide a reason for forcing this revert (Required)..."
@@ -1004,7 +1088,8 @@
 {{-- 4. Import Students Modal --}}
 <div id="importStudentModal"
     class="fixed inset-0 z-[9999] hidden opacity-0 transition-opacity duration-300 flex items-center justify-center p-4">
-    <div class="absolute inset-0 bg-gray-900/60 backdrop-blur-sm" onclick="closeModal('importStudentModal', 'importStudentBox')"></div>
+    <div class="absolute inset-0 bg-gray-900/60 backdrop-blur-sm"
+        onclick="closeModal('importStudentModal', 'importStudentBox')"></div>
     <div id="importStudentBox"
         class="bg-white rounded-3xl max-w-sm w-full p-8 shadow-2xl relative z-10 transform scale-95 transition-all duration-300">
         <div class="flex justify-between items-center mb-6">
@@ -1044,7 +1129,8 @@
 {{-- 5. Delete Module Modal --}}
 <div id="deleteConfirmModal"
     class="fixed inset-0 z-[9999] hidden opacity-0 transition-opacity duration-300 flex items-center justify-center p-4">
-    <div class="absolute inset-0 bg-gray-900/60 backdrop-blur-sm" onclick="closeModal('deleteConfirmModal', 'deleteConfirmBox')"></div>
+    <div class="absolute inset-0 bg-gray-900/60 backdrop-blur-sm"
+        onclick="closeModal('deleteConfirmModal', 'deleteConfirmBox')"></div>
     <div id="deleteConfirmBox"
         class="bg-white rounded-3xl max-w-md w-full p-8 text-center shadow-2xl relative z-10 transform scale-95 transition-all duration-300">
         <div
@@ -1832,18 +1918,63 @@
         fetch(`{{ url('/dashboard/materials/access') }}/${accessId}/invite`, {
             method: 'POST',
             headers: {
-                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+                'Accept': 'application/json' // Forces Laravel to return JSON on errors
             }
-        }).then(r => r.json()).then(data => {
-            if (data.success) {
-                showSnackbar('Invitation sent!', 'success');
-                setTimeout(() => loadPartial('{{ url('/dashboard/materials/' . $material->id . '/manage') }}'), 500);
-            } else {
-                showCustomAlert('Error', 'Error sending invite.', 'error');
+        })
+            .then(r => r.json())
+            .then(data => {
+                if (data.success) {
+                    showSnackbar('Invitation sent!', 'success');
+                    setTimeout(refreshTableOnly, 500); // Quietly refresh the table
+                } else {
+                    // DYNAMIC ERROR: Now shows exactly what went wrong (e.g., "The email does not exist")
+                    showCustomAlert('Error', data.message || 'Error sending invite.', 'error');
+                }
+            })
+            .catch(error => {
+                // Catches complete network failures or server crashes
+                showCustomAlert('Error', 'A network or server error occurred.', 'error');
+            })
+            .finally(() => {
+                // ALWAYS reset the button, even if there is an error
                 btnElement.innerHTML = originalHtml;
                 btnElement.disabled = false;
+            });
+    }
+    window.bulkSendInvites = function () {
+        const btn = document.getElementById('bulkInviteBtn');
+        const originalHtml = btn.innerHTML;
+
+        // UI Feedback
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-1.5"></i> Sending...';
+        btn.disabled = true;
+
+        fetch(`{{ url('/dashboard/materials/' . $material->id . '/notify-students') }}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+                'Accept': 'application/json'
             }
-        });
+        })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showCustomAlert('Success', data.message, 'success');
+                    setTimeout(refreshTableOnly, 500); // Quietly refresh the table!
+                } else {
+                    // Use 'info' for 0 pending students instead of a red error
+                    showCustomAlert('Notice', data.message, 'info');
+                }
+            })
+            .catch(error => {
+                showCustomAlert('Error', 'Failed to send bulk invitations.', 'error');
+            })
+            .finally(() => {
+                btn.innerHTML = originalHtml;
+                btn.disabled = false;
+            });
     }
 
     // --- TAGS LOGIC ---
@@ -2055,4 +2186,90 @@
                 btn.innerHTML = originalHtml;
             });
     }
+
+    // Handles generating the new code via AJAX
+    window.generateNewAccessCode = function () {
+        const btn = document.getElementById('generate-code-btn');
+        const originalHtml = btn.innerHTML;
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i> Generating...';
+
+        fetch(`{{ url('/dashboard/materials/' . $material->id . '/generate-code') }}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+                'Accept': 'application/json'
+            }
+        })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Update UI visually
+                    document.getElementById('access-code-display').innerText = data.code;
+                    document.getElementById('access-code-display').className = 'flex-1 text-center font-black text-gray-700 tracking-widest text-lg';
+
+                    document.getElementById('code-status-badge').className = 'px-2 py-0.5 text-[10px] font-black uppercase tracking-wider rounded border bg-green-50 text-green-700 border-green-200';
+                    document.getElementById('code-status-badge').innerText = 'Active';
+
+                    document.getElementById('copy-code-btn').disabled = false;
+
+                    document.getElementById('code-timer-text').className = 'text-[10px] text-center mt-2 font-medium text-amber-600';
+                    document.getElementById('code-timer-text').innerHTML = `Expires: <span class="font-bold time-remaining" data-expires="${data.expires_at}">Just now</span>`;
+
+                    btn.innerHTML = '<i class="fas fa-lock mr-1"></i> Locked for 3 Hours';
+
+                    showSnackbar(data.message, 'success');
+                    startCountdownTimers(); // Restart the timer loop
+                } else {
+                    showCustomAlert('Error', data.message, 'error');
+                    btn.disabled = false;
+                    btn.innerHTML = originalHtml;
+                }
+            })
+            .catch(error => {
+                showCustomAlert('Error', 'Failed to generate code.', 'error');
+                btn.disabled = false;
+                btn.innerHTML = originalHtml;
+            });
+    }
+
+    // A simple visual countdown timer so the teacher knows exactly when they can click the button again
+    window.startCountdownTimers = function () {
+        if (window.codeInterval) clearInterval(window.codeInterval);
+
+        window.codeInterval = setInterval(() => {
+            const timeSpan = document.querySelector('.time-remaining');
+            if (!timeSpan) return;
+
+            const expiresAt = new Date(timeSpan.getAttribute('data-expires')).getTime();
+            const now = new Date().getTime();
+            const distance = expiresAt - now;
+
+            if (distance < 0) {
+                clearInterval(window.codeInterval);
+                timeSpan.parentElement.innerHTML = 'Code Expired. You can generate a new one.';
+                timeSpan.parentElement.className = 'text-[10px] text-center mt-2 font-medium text-gray-400';
+
+                document.getElementById('generate-code-btn').disabled = false;
+                document.getElementById('generate-code-btn').innerHTML = '<i class="fas fa-sync-alt mr-1"></i> Generate 3-Hour Key';
+
+                document.getElementById('access-code-display').className = 'flex-1 text-center font-black text-gray-400 line-through tracking-widest text-lg';
+                document.getElementById('code-status-badge').className = 'px-2 py-0.5 text-[10px] font-black uppercase tracking-wider rounded border bg-gray-100 text-gray-500 border-gray-200';
+                document.getElementById('code-status-badge').innerText = 'Expired';
+                document.getElementById('copy-code-btn').disabled = true;
+                return;
+            }
+
+            const hours = Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+            const minutes = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
+
+            timeSpan.innerText = `in ${hours}h ${minutes}m`;
+        }, 1000);
+    }
+
+    // Start timer on page load
+    document.addEventListener('DOMContentLoaded', startCountdownTimers);
+    // Safety check if loaded via AJAX partials
+    startCountdownTimers();
 </script>
