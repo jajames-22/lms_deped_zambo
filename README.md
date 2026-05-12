@@ -68,12 +68,19 @@ cd deped-zamboanga-lms
 composer install
 ```
 
-**3. Install Frontend Dependencies**
+**3. Install Required Composer Packages**
+```bash
+composer require maatwebsite/excel
+composer require simplesoftwareio/simple-qrcode
+composer require vinkla/hashids
+```
+
+**4. Install Frontend Dependencies**
 ```bash
 npm install
 ```
 
-**4. Configure Environment Variables**
+**5. Configure Environment Variables**
 
 Copy the example environment file and update it with your local settings:
 ```bash
@@ -93,38 +100,38 @@ DB_USERNAME=your_db_username
 DB_PASSWORD=your_db_password
 ```
 
-**5. Generate Application Key**
+**6. Generate Application Key**
 ```bash
 php artisan key:generate
 ```
 
-**6. Create the Database**
+**7. Create the Database**
 
 Create a new MySQL database matching the `DB_DATABASE` value you set in `.env`:
 ```sql
 CREATE DATABASE deped_zamboanga_lms;
 ```
 
-**7. Run Database Migrations**
+**8. Run Database Migrations**
 ```bash
 php artisan migrate
 ```
 
-**8. Seed the Database**
+**9. Seed the Database**
 
 Populate the database with default roles and an initial administrator account:
 ```bash
 php artisan db:seed
 ```
 
-**9. Create Storage Symlink**
+**10. Create Storage Symlink**
 
 This allows uploaded files (modules, PDFs, etc.) to be publicly accessible:
 ```bash
 php artisan storage:link
 ```
 
-**10. Build Frontend Assets**
+**11. Build Frontend Assets**
 
 For development (with hot reloading):
 ```bash
@@ -136,7 +143,7 @@ For production:
 npm run build
 ```
 
-**11. Start the Local Development Server**
+**12. Start the Local Development Server**
 ```bash
 php artisan serve
 ```
