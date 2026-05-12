@@ -36,12 +36,8 @@ class StudentEnrollmentController extends Controller
 
         return view('dashboard.partials.student.enrolled', compact('activeEnrollments', 'droppedAccesses'));
     }
-
-    // BEFORE: 
-// public function acceptInvitation(Request $request, Material $material, $email)
-
-// AFTER:
-public function acceptInvitation(Request $request, $hashid, $email)
+   
+    public function acceptInvitation(Request $request, $hashid, $email)
 {
     // 1. Decode the hashid
     $decoded = \Vinkla\Hashids\Facades\Hashids::decode($hashid);
@@ -51,6 +47,11 @@ public function acceptInvitation(Request $request, $hashid, $email)
     
     // Find the material
     $material = \App\Models\Material::findOrFail($decoded[0]);
+
+    // 🚨 NEW CHECK: Prevent accepting invites for draft/pending modules
+    if ($material->status !== 'published') {
+        abort(403, 'This module is invalid. Please Try Again Later');
+    }
 
     // 2. Security check: Ensure the logged-in user is the one invited
     if (Auth::user()->email !== $email) {
@@ -90,16 +91,23 @@ public function acceptInvitation(Request $request, $hashid, $email)
         // 1. Find the private material matching the code
         $material = Material::where('access_code', strtoupper($request->access_code))
             ->where('is_public', false) // Ensures codes only work for private materials
+            ->where('status', 'published') // 🚨 NEW CHECK: Block draft/pending modules
             ->first();
 
-        // If it's a public module OR invalid code, this triggers the error
+        // If it's a public module, invalid code, or NOT published, this triggers the error
         if (!$material) {
-            return response()->json(['success' => false, 'message' => 'Invalid or expired access code.']);
+            return response()->json(['success' => false, 'message' => 'Invalid access code.']);
         }
-        // Generate the Hashid for the redirect
-    $hashid = \Vinkla\Hashids\Facades\Hashids::encode($material->id);
 
-        // 2. Check if already enrolled
+        // 2. CHECK EXPIRED CODE (From our previous fix)
+        if ($material->access_code_expires_at && now()->greaterThan($material->access_code_expires_at)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'This access code has expired. Please ask your teacher for a new one.'
+            ]);
+        }
+        
+        // 3. Check if already enrolled (Rest of your existing code remains exactly the same below here)
         $alreadyEnrolled = Enrollment::where('material_id', $material->id)
             ->where('user_id', Auth::id())
             ->exists();
@@ -141,7 +149,7 @@ public function acceptInvitation(Request $request, $hashid, $email)
             abort(404, 'Invalid material link.');
         }
         $id = $decoded[0];
-    
+
         $material = Material::findOrFail($id);
         $user = Auth::user();
 

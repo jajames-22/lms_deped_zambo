@@ -17,6 +17,7 @@ class Material extends Model
         'exam_weight',         
         'passing_percentage',  
         'access_code',
+        'access_code_expires_at',
         'thumbnail',
         'views',
         'downloads',           
@@ -30,6 +31,7 @@ class Material extends Model
     protected $casts = [
         'is_public' => 'boolean',
         'is_featured' => 'boolean', 
+        'access_code_expires_at' => 'datetime',
     ];
 
     protected $appends = ['hashid']; 

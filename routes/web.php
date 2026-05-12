@@ -167,6 +167,7 @@ Route::middleware(['auth', 'verified', CheckAccountStatus::class])->group(functi
         Route::post('/materials/{id}/import-access', [MaterialsController::class, 'importAccess'])->name('dashboard.materials.access.import');
         Route::delete('/materials/access/{id}', [MaterialsController::class, 'removeAccess'])->name('dashboard.materials.access.remove');
         Route::post('/materials/access/{id}/invite', [MaterialsController::class, 'sendIndividualInvite'])->name('dashboard.materials.access.invite');
+        Route::post('/materials/{id}/generate-code', [MaterialsController::class, 'generateAccessCode']);
 
         // Feedback Management
         Route::get('/feedback', [ProfileController::class, 'loadFeedbackPartial'])->name('dashboard.feedback');

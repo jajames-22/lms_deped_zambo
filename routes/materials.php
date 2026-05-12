@@ -83,6 +83,7 @@ Route::prefix('dashboard/materials')
     Route::patch('/{id}/toggle-visibility', [MaterialsController::class, 'toggleVisibility'])->name('toggle-visibility');
     Route::post('/{id}/notify-students', [MaterialsController::class, 'notifyStudents'])->name('notify-students');
     Route::post('/access/{id}/invite', [MaterialsController::class, 'sendIndividualInvite'])->name('access.invite');
+    Route::post('/{id}/notify-students', [MaterialsController::class, 'notifyStudents']);
     Route::get('/{id}/preview', [MaterialsController::class, 'preview'])->name('preview');
     Route::get('/{id}/analytics', [MaterialsController::class, 'analytics'])
         ->name('analytics');

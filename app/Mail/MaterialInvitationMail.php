@@ -27,7 +27,7 @@ class MaterialInvitationMail extends Mailable
         // 2. Create the signed URL using the fixed syntax
         $this->enrollmentUrl = URL::temporarySignedRoute(
             'student.materials.enroll', 
-            now()->addDays(7), 
+            now()->addHours(3), 
             [
                 // FIXED: Removed the extra $ before material
                 'hashid' => \Vinkla\Hashids\Facades\Hashids::encode($this->material->id), 
