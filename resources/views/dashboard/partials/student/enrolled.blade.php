@@ -170,7 +170,7 @@
                                         </span>
                                         
                                         <span class="text-green-600 text-sm font-bold flex items-center gap-1 group-hover:text-green-700 transition-colors">
-                                            Review <i class="fas fa-redo text-xs"></i>
+                                            View
                                         </span>
                                     </div>
                                 </div>
