@@ -11,7 +11,9 @@ Created by **Graziella Marife S. Saavedra & James Benedict A. Rojas** (WMSU - Co
 * **Backend:** [Laravel](https://laravel.com/) (PHP)
 * **Frontend:** Blade Templating, [Tailwind CSS v4](https://tailwindcss.com/), Vanilla JavaScript
 * **Database:** MySQL
-* **File Processing:** Laravel Excel (Maatwebsite) for CSV/XLSX imports
+* **File Processing:** [Laravel Excel (Maatwebsite)](https://docs.laravel-excel.com/) for CSV/XLSX imports
+* **QR Code Generation:** [SimpleSoftwareIO Simple QrCode](https://github.com/SimpleSoftwareIO/simple-qrcode) for generating QR codes
+* **ID Obfuscation:** [Vinkla Hashids](https://github.com/vinkla/hashids) for encoding/obfuscating numeric IDs in URLs
 * **Asset Bundling:** Vite
 * **Interactive Document Viewing:** PDF.js
 
@@ -36,6 +38,18 @@ Before you begin, ensure you have the following installed on your local machine 
 * Composer
 * Node.js & NPM
 * MySQL or MariaDB
+
+---
+
+## 📦 Key PHP Packages
+
+| Package | Version | Purpose |
+|---|---|---|
+| `maatwebsite/excel` | * | CSV/XLSX import and export for bulk user management |
+| `simplesoftwareio/simple-qrcode` | * | QR code generation (e.g., student/module identifiers) |
+| `vinkla/hashids` | * | Obfuscates numeric database IDs in URLs for security |
+
+These are all declared in `composer.json` and installed automatically via `composer install`.
 
 ---
 
