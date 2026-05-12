@@ -43,6 +43,8 @@ Before you begin, ensure you have the following installed on your local machine 
 Follow these steps to get the project running in your local development environment:
 
 **1. Clone the repository**
-```bash
 git clone <your-repository-url>
 cd deped-zamboanga-lms
+
+**2. 2. Install PHP Dependencies**
+composer install
