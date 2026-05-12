@@ -32,8 +32,10 @@
     @php
         // Filter out null materials, then split by status
         $enrollments = collect($activeEnrollments ?? [])->filter(fn($e) => $e->material !== null);
-        $inProgress = $enrollments->filter(fn($e) => strtolower($e->status) !== 'completed');
-        $completed = $enrollments->filter(fn($e) => strtolower($e->status) === 'completed');
+        
+        $completed = $enrollments->filter(fn($e) => in_array(strtolower($e->status), ['completed', 'read']));
+        $failed = $enrollments->filter(fn($e) => strtolower($e->status) === 'failed');
+        $inProgress = $enrollments->filter(fn($e) => !in_array(strtolower($e->status), ['completed', 'read', 'failed']));
     @endphp
 
     {{-- ACTIVE TAB CONTENT --}}
@@ -170,7 +172,62 @@
                                         </span>
                                         
                                         <span class="text-green-600 text-sm font-bold flex items-center gap-1 group-hover:text-green-700 transition-colors">
-                                            View
+                                            Review <i class="fas fa-redo text-xs"></i>
+                                        </span>
+                                    </div>
+                                </div>
+                            </div>
+                        @endforeach
+                    </div>
+                </div>
+            @endif
+
+            {{-- 3. FAILED MODULES --}}
+            @if($failed->isNotEmpty())
+                <div class="pt-6 border-t border-gray-200">
+                    <h3 class="text-lg font-black text-gray-900 mb-5 px-2 flex items-center gap-2">
+                        <i class="fas fa-times-circle text-red-500"></i> Unsuccessful Modules
+                    </h3>
+                    
+                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 px-2">
+                        @foreach($failed as $enrollment)
+                            @php $material = $enrollment->material; @endphp
+                            <div class="bg-red-50/30 rounded-2xl border border-red-100 shadow-sm hover:shadow-xl hover:border-red-300 transition-all duration-300 group flex flex-col overflow-hidden cursor-pointer relative"
+                                onclick="window.location.href = '{{ route('student.materials.show', $material->hashid) }}'">
+                                
+                                {{-- Status Badge --}}
+                                <div class="absolute top-3 right-3 z-10">
+                                    <span class="px-2.5 py-1 bg-white/90 backdrop-blur-sm text-red-700 text-[10px] font-black uppercase tracking-wider rounded-lg shadow-sm flex items-center gap-1.5 border border-red-100">
+                                        <i class="fas fa-times-circle"></i> Failed
+                                    </span>
+                                </div>
+
+                                {{-- Thumbnail --}}
+                                <div class="relative w-full aspect-video overflow-hidden bg-gray-100">
+                                    <img src="{{ $material->thumbnail ? asset('storage/' . $material->thumbnail) : 'https://images.unsplash.com/photo-1509228468518-180dd4864904?q=80&w=400' }}" 
+                                         class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 mix-blend-multiply opacity-90">
+                                    <div class="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+                                </div>
+
+                                {{-- Card Body --}}
+                                <div class="p-5 flex flex-col flex-1">
+                                    <h3 class="font-bold text-gray-900 text-lg leading-tight line-clamp-2 group-hover:text-red-700 transition-colors mb-2">
+                                        {{ $material->title }}
+                                    </h3>
+                                    
+                                    {{-- INSTRUCTOR --}}
+                                    <p class="text-xs text-gray-500 font-medium truncate flex items-center gap-1.5 mb-4">
+                                        <i class="fas fa-chalkboard-user text-gray-400"></i> 
+                                        {{ $material->instructor->first_name ?? 'Instructor' }} {{ $material->instructor->last_name ?? '' }}
+                                    </p>
+
+                                    <div class="mt-auto pt-4 border-t border-red-100/50 flex items-center justify-between">
+                                        <span class="text-[10px] bg-white border border-red-100 text-red-700 px-2 py-1 rounded font-bold uppercase tracking-wider">
+                                            Score: {{ $enrollment->score ?? '--' }}%
+                                        </span>
+                                        
+                                        <span class="text-red-600 text-sm font-bold flex items-center gap-1 group-hover:text-red-700 transition-colors">
+                                            View <i class="fas fa-arrow-right text-xs"></i>
                                         </span>
                                     </div>
                                 </div>
@@ -307,7 +364,7 @@
                 droppedContent.classList.add('hidden');
                 
                 activeContent.classList.remove('hidden');
-                activeContent.classList.add('flex'); // Changed from grid to flex to stack the two sections
+                activeContent.classList.add('flex'); // Stack the sections
                 setTimeout(() => activeContent.classList.remove('opacity-0'), 50);
             }, 300);
 
@@ -322,7 +379,7 @@
             // Hide Active, Show Dropped
             activeContent.classList.add('opacity-0');
             setTimeout(() => {
-                activeContent.classList.remove('flex'); // Changed from grid to flex
+                activeContent.classList.remove('flex');
                 activeContent.classList.add('hidden');
                 
                 droppedContent.classList.remove('hidden');
@@ -419,7 +476,6 @@
         }
     }
 
-    // --- Add this new function ---
     function openRejoinModal(courseTitle) {
         document.getElementById('join-modal-title').innerText = 'Rejoin Module';
         document.getElementById('join-modal-desc').innerHTML = `Enter the access code to rejoin <strong>${courseTitle}</strong>.`;

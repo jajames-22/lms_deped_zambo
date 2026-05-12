@@ -89,6 +89,23 @@
         $sectionsCompleted = 0;
         $progressPct = 0;
         $enrollmentStatus = null;
+        $retakesCount = 0;
+
+        // FETCH ACCESS AND RETAKE COUNT GLOBALLY (Outside of Enrollment block)
+        if (auth()->check() && auth()->user()->role === 'student') {
+            $access = \App\Models\MaterialAccess::where('material_id', $material->id)
+                ->where(function($q) {
+                    $q->where('student_id', auth()->id())
+                      ->orWhere('email', auth()->user()->email);
+                })
+                ->first();
+                
+            if ($access) {
+                $retakesCount = $access->retakes;
+            }
+        }
+        
+        $maxRetakesReached = $retakesCount >= 3;
 
         $totalContents = $timeline->sum(function ($section) {
             return $section->items->count();
@@ -159,10 +176,8 @@
                     $mediaUrl = str_starts_with($item->media_url, 'http') ? $item->media_url : asset('storage/' . $item->media_url);
                     $pathForExt = parse_url($mediaUrl, PHP_URL_PATH) ?? $mediaUrl;
                     $ext = strtolower(pathinfo($pathForExt, PATHINFO_EXTENSION));
-                    // Use the media_name if it exists. If not, extract the raw filename from the URL as a fallback.
                     $name = $item->media_name ?? basename(parse_url($mediaUrl, PHP_URL_PATH));
 
-                    // Attempt to get file size safely
                     $size = 'Unknown Size';
                     try {
                         if (!str_starts_with($item->media_url, 'http')) {
@@ -171,8 +186,7 @@
                                 $size = number_format(filesize($filePath) / 1048576, 2) . ' MB';
                             }
                         }
-                    } catch (\Exception $e) {
-                    }
+                    } catch (\Exception $e) {}
 
                     $resources->push((object) [
                         'url' => $mediaUrl,
@@ -183,7 +197,6 @@
                 }
             }
         }
-        // Remove duplicates if the same file is used in multiple questions
         $resources = $resources->unique('url')->values();
     @endphp
 
@@ -364,57 +377,67 @@
                     {{-- DYNAMIC ACTION BUTTONS --}}
                     <div id="action-buttons-container" class="flex flex-wrap items-center gap-3">
 
-                        {{-- Enroll Button (Hidden if already enrolled) --}}
-                        <button id="enroll-btn" onclick="enrollInMaterial({{ $material->id }}, this)" class="{{ $isEnrolled ? 'hidden' : 'flex' }} w-full sm:w-auto px-8 py-3.5 bg-[#a52a2a] text-white font-bold rounded-xl hover:bg-red-800 transition shadow-lg shadow-[#a52a2a]/20 items-center justify-center gap-2">
-                            @if(!$dbHasExams && !$dbHasQuizzes)
-                                <i class="fas fa-book-reader text-lg"></i> Read Material
-                            @else
-                                <i class="fas fa-user-plus text-lg"></i> Enroll Now
-                            @endif
-                        </button>
-
-                        {{-- Unenroll / Status Button (Hidden if NOT enrolled) --}}
-                        <button id="unenroll-btn" onclick="{{ ($dbHasExams || $dbHasQuizzes) ? 'openDropModal('.$material->id.')' : 'openRemoveModal('.$material->id.')' }}" class="{{ $isEnrolled ? 'flex' : 'hidden' }} w-full sm:w-auto px-6 py-3.5 bg-gray-50 text-gray-700 border border-gray-200 font-bold rounded-xl hover:bg-gray-100 transition items-center justify-center gap-2 cursor-pointer shadow-sm">
-                            @if($enrollmentStatus === 'completed')
-                                <i class="fas fa-check-double text-green-600 text-lg"></i> <span>Completed</span>
-                            @elseif($enrollmentStatus === 'read')
-                                <i class="fas fa-check-double text-green-600 text-lg"></i> <span>Read</span>
-                            @elseif($enrollmentStatus === 'failed')
-                                <i class="fas fa-times-circle text-red-600 text-lg"></i> <span>Needs Retake</span>
-                            @else
-                                <i class="fas fa-check-circle text-green-600 text-lg"></i> <span>Enrolled</span>
-                            @endif
-                        </button>
-
-                        {{-- Conditional Action Buttons (Certificate vs Result vs Read Again) --}}
-                        @if(in_array($enrollmentStatus, ['completed', 'read']))
-                            @if($dbHasExams || $dbHasQuizzes)
-                                <a href="{{ route('dashboard.materials.result', $material->hashid) }}" class="flex-1 sm:flex-none px-8 py-3.5 bg-blue-600 text-white font-bold rounded-xl hover:bg-blue-700 transition shadow-lg shadow-blue-600/20 flex items-center justify-center gap-2">
+                        @if($maxRetakesReached)
+                            {{-- GLOBAL LOCKOUT --}}
+                            <button disabled class="w-full sm:w-auto px-8 py-3.5 bg-gray-200 text-gray-500 border border-gray-300 font-bold rounded-xl cursor-not-allowed flex items-center justify-center gap-2">
+                                <i class="fas fa-lock text-lg"></i> Locked (Max Retakes Reached)
+                            </button>
+                            
+                            @if($isEnrolled && in_array($enrollmentStatus, ['failed', 'completed']))
+                                <a href="{{ route('dashboard.materials.result', $material->hashid) }}" class="flex-1 sm:flex-none px-8 py-3.5 bg-red-600 text-white font-bold rounded-xl hover:bg-red-700 transition shadow-lg shadow-red-600/20 flex items-center justify-center gap-2">
                                     <i class="fas fa-chart-bar text-lg"></i> View Results
                                 </a>
-                                <a href="{{ route('dashboard.materials.certificate', $material->hashid) }}" class="flex-1 sm:flex-none px-8 py-3.5 bg-yellow-500 text-white font-bold rounded-xl hover:bg-yellow-600 transition shadow-lg shadow-yellow-500/20 flex items-center justify-center gap-2">
-                                    <i class="fas fa-certificate text-lg"></i> View Certificate
-                                </a>
-                            @else
-                                <button onclick="startStudying()" class="flex-1 sm:flex-none px-8 py-3.5 bg-green-600 text-white font-bold rounded-xl hover:bg-green-700 transition shadow-lg shadow-green-600/20 flex items-center justify-center gap-2">
-                                    <i class="fas fa-book-reader text-lg"></i> Read Again
-                                </button>
                             @endif
-                        @elseif($enrollmentStatus === 'failed')
-                            <a href="{{ route('dashboard.materials.result', $material->hashid) }}"
-                                class="flex-1 sm:flex-none px-8 py-3.5 bg-red-600 text-white font-bold rounded-xl hover:bg-red-700 transition shadow-lg shadow-red-600/20 flex items-center justify-center gap-2">
-                                <i class="fas fa-chart-bar text-lg"></i> View Results
-                            </a>
-                        @endif
+                        @else
+                            {{-- NORMAL DYNAMIC FLOW --}}
+                            <button id="enroll-btn" onclick="enrollInMaterial({{ $material->id }}, this)" class="{{ $isEnrolled ? 'hidden' : 'flex' }} w-full sm:w-auto px-8 py-3.5 bg-[#a52a2a] text-white font-bold rounded-xl hover:bg-red-800 transition shadow-lg shadow-[#a52a2a]/20 items-center justify-center gap-2">
+                                @if(!$dbHasExams && !$dbHasQuizzes)
+                                    <i class="fas fa-book-reader text-lg"></i> Read Material
+                                @else
+                                    <i class="fas fa-user-plus text-lg"></i> Enroll Now
+                                @endif
+                            </button>
 
-                        {{-- Study Now Button (Hidden if NOT enrolled, or if completed/read/failed) --}}
-                        <button id="study-now-btn" onclick="startStudying()" class="{{ $isEnrolled && !in_array($enrollmentStatus, ['completed', 'read', 'failed']) ? 'flex' : 'hidden' }} flex-1 sm:flex-none px-8 py-3.5 bg-green-600 text-white font-bold rounded-xl hover:bg-green-700 transition shadow-lg shadow-green-600/20 items-center justify-center gap-2">
-                            @if(!$dbHasExams && !$dbHasQuizzes)
-                                <i class="fas fa-book-open text-lg"></i> Continue Reading
-                            @else
-                                <i class="fas fa-play-circle text-lg"></i> Study Now
+                            <button id="unenroll-btn" onclick="{{ ($dbHasExams || $dbHasQuizzes) ? 'openDropModal('.$material->id.')' : 'openRemoveModal('.$material->id.')' }}" class="{{ $isEnrolled ? 'flex' : 'hidden' }} w-full sm:w-auto px-6 py-3.5 bg-gray-50 text-gray-700 border border-gray-200 font-bold rounded-xl hover:bg-gray-100 transition items-center justify-center gap-2 cursor-pointer shadow-sm">
+                                @if($enrollmentStatus === 'completed')
+                                    <i class="fas fa-check-double text-green-600 text-lg"></i> <span>Completed</span>
+                                @elseif($enrollmentStatus === 'read')
+                                    <i class="fas fa-check-double text-green-600 text-lg"></i> <span>Read</span>
+                                @elseif($enrollmentStatus === 'failed')
+                                    <i class="fas fa-times-circle text-red-600 text-lg"></i> <span>Needs Retake</span>
+                                @else
+                                    <i class="fas fa-check-circle text-green-600 text-lg"></i> <span>Enrolled</span>
+                                @endif
+                            </button>
+
+                            @if(in_array($enrollmentStatus, ['completed', 'read']))
+                                @if($dbHasExams || $dbHasQuizzes)
+                                    <a href="{{ route('dashboard.materials.result', $material->hashid) }}" class="flex-1 sm:flex-none px-8 py-3.5 bg-blue-600 text-white font-bold rounded-xl hover:bg-blue-700 transition shadow-lg shadow-blue-600/20 flex items-center justify-center gap-2">
+                                        <i class="fas fa-chart-bar text-lg"></i> View Results
+                                    </a>
+                                    <a href="{{ route('dashboard.materials.certificate', $material->hashid) }}" class="flex-1 sm:flex-none px-8 py-3.5 bg-yellow-500 text-white font-bold rounded-xl hover:bg-yellow-600 transition shadow-lg shadow-yellow-500/20 flex items-center justify-center gap-2">
+                                        <i class="fas fa-certificate text-lg"></i> View Certificate
+                                    </a>
+                                @else
+                                    <button onclick="startStudying()" class="flex-1 sm:flex-none px-8 py-3.5 bg-green-600 text-white font-bold rounded-xl hover:bg-green-700 transition shadow-lg shadow-green-600/20 flex items-center justify-center gap-2">
+                                        <i class="fas fa-book-reader text-lg"></i> Read Again
+                                    </button>
+                                @endif
+                            @elseif($enrollmentStatus === 'failed')
+                                <a href="{{ route('dashboard.materials.result', $material->hashid) }}"
+                                    class="flex-1 sm:flex-none px-8 py-3.5 bg-red-600 text-white font-bold rounded-xl hover:bg-red-700 transition shadow-lg shadow-red-600/20 flex items-center justify-center gap-2">
+                                    <i class="fas fa-chart-bar text-lg"></i> View Results
+                                </a>
                             @endif
-                        </button>
+
+                            <button id="study-now-btn" onclick="startStudying()" class="{{ $isEnrolled && !in_array($enrollmentStatus, ['completed', 'read', 'failed']) ? 'flex' : 'hidden' }} flex-1 sm:flex-none px-8 py-3.5 bg-green-600 text-white font-bold rounded-xl hover:bg-green-700 transition shadow-lg shadow-green-600/20 items-center justify-center gap-2">
+                                @if(!$dbHasExams && !$dbHasQuizzes)
+                                    <i class="fas fa-book-open text-lg"></i> Continue Reading
+                                @else
+                                    <i class="fas fa-play-circle text-lg"></i> Study Now
+                                @endif
+                            </button>
+                        @endif
                         
                         {{-- THE SHARE BUTTON --}}
                         <button onclick="shareMaterial('{{ url()->current() }}', '{{ addslashes($material->title) }}')"
@@ -423,6 +446,17 @@
                         </button>
 
                     </div>
+                    
+                    {{-- Warning Banner for Max Retakes (Always visible if limit reached) --}}
+                    @if($maxRetakesReached)
+                        <div class="mt-4 p-4 bg-red-50 border border-red-200 rounded-xl flex items-start gap-3 w-full">
+                            <i class="fas fa-ban text-red-500 text-lg mt-0.5"></i>
+                            <div>
+                                <p class="text-sm font-bold text-red-700">Maximum Retakes Reached</p>
+                                <p class="text-xs text-red-600 mt-1">You have exhausted the 3 allowed retake attempts for this module. You can no longer access or re-enroll in the course materials.</p>
+                            </div>
+                        </div>
+                    @endif
                 </div>
             </div>
 
@@ -453,14 +487,14 @@
 
                 @forelse($timeline as $index => $section)
                     <div
-                        class="lesson-item p-4 rounded-2xl transition-colors border border-transparent flex items-start gap-4 group {{ $isEnrolled ? 'hover:bg-gray-50 hover:border-gray-100 cursor-pointer' : 'opacity-70 cursor-not-allowed' }}">
+                        class="lesson-item p-4 rounded-2xl transition-colors border border-transparent flex items-start gap-4 group {{ $isEnrolled && !$maxRetakesReached ? 'hover:bg-gray-50 hover:border-gray-100 cursor-pointer' : 'opacity-70 cursor-not-allowed' }}">
                         <div
-                            class="lesson-number h-10 w-10 shrink-0 rounded-xl {{ $section->is_exam ? 'bg-red-50 text-red-500' : 'bg-gray-100 text-gray-400' }} font-black flex items-center justify-center {{ $isEnrolled && !$section->is_exam ? 'group-hover:bg-[#a52a2a]/10 group-hover:text-[#a52a2a]' : '' }} transition-colors">
+                            class="lesson-number h-10 w-10 shrink-0 rounded-xl {{ $section->is_exam ? 'bg-red-50 text-red-500' : 'bg-gray-100 text-gray-400' }} font-black flex items-center justify-center {{ $isEnrolled && !$section->is_exam && !$maxRetakesReached ? 'group-hover:bg-[#a52a2a]/10 group-hover:text-[#a52a2a]' : '' }} transition-colors">
                             @if($section->is_exam) <i class="fas fa-star"></i> @else {{ $index + 1 }} @endif
                         </div>
                         <div class="flex-1 min-w-0 pt-1.5">
                             <h4
-                                class="font-bold text-gray-900 {{ $isEnrolled && !$section->is_exam ? 'group-hover:text-[#a52a2a]' : '' }} transition-colors text-lg">
+                                class="font-bold text-gray-900 {{ $isEnrolled && !$section->is_exam && !$maxRetakesReached ? 'group-hover:text-[#a52a2a]' : '' }} transition-colors text-lg">
                                 {{ $section->title }}
                             </h4>
                             <div class="flex flex-wrap items-center gap-4 mt-1">
@@ -477,8 +511,11 @@
                                 @if($index < $sectionsCompleted)
                                     <i class="lesson-status-icon fas fa-check-circle text-green-500 tooltip" title="Completed"></i>
                                 @elseif($index == $sectionsCompleted)
-                                    <i class="lesson-status-icon fas fa-play-circle text-[#a52a2a] text-xl tooltip"
-                                        title="Current Section"></i>
+                                    @if($maxRetakesReached)
+                                        <i class="lesson-status-icon fas fa-lock text-red-500 tooltip" title="Locked (Max Retakes)"></i>
+                                    @else
+                                        <i class="lesson-status-icon fas fa-play-circle text-[#a52a2a] text-xl tooltip" title="Current Section"></i>
+                                    @endif
                                 @else
                                     <i class="lesson-status-icon fas fa-lock text-gray-300 tooltip" title="Locked"></i>
                                 @endif
@@ -498,6 +535,7 @@
                 @endforelse
 
             </div>
+            
             {{-- DOWNLOADABLE RESOURCES --}}
             @if($resources->count() > 0)
                 <h3 class="text-xl font-black text-gray-900 mb-4 px-2 mt-12">Media & Resources</h3>
@@ -882,46 +920,8 @@
                 const data = await response.json();
 
                 if (response.ok && data.success) {
-                    // Instantly swap buttons
-                    const unenrollBtn = document.getElementById('unenroll-btn');
-                    const studyBtn = document.getElementById('study-now-btn');
-
-                    btn.classList.replace('flex', 'hidden');
-                    unenrollBtn.classList.replace('hidden', 'flex');
-                    studyBtn.classList.replace('hidden', 'flex');
-
-                    // Reveal Progress Bar
-                    document.getElementById('progress-container')?.classList.replace('hidden', 'block');
-
-                    // Unlock lessons visually
-                    document.querySelectorAll('.lesson-item').forEach((item, index) => {
-                        item.classList.remove('opacity-70', 'cursor-not-allowed');
-                        item.classList.add('hover:bg-gray-50', 'hover:border-gray-100', 'cursor-pointer');
-
-                        const icon = item.querySelector('.lesson-status-icon');
-                        if (icon) {
-                            if (index === 0) {
-                                icon.className = 'fas fa-play-circle text-[#a52a2a] text-xl tooltip lesson-status-icon';
-                                icon.title = "Current Section";
-                            } else {
-                                icon.className = 'fas fa-lock text-gray-300 tooltip lesson-status-icon';
-                                icon.title = "Locked";
-                            }
-                        }
-
-                        const numberBadge = item.querySelector('.lesson-number');
-                        if (numberBadge && !numberBadge.classList.contains('text-red-500')) {
-                            numberBadge.classList.add('group-hover:bg-[#a52a2a]/10', 'group-hover:text-[#a52a2a]');
-                        }
-
-                        const titleText = item.querySelector('h4');
-                        if (titleText) titleText.classList.add('group-hover:text-[#a52a2a]');
-                    });
-
-                    btn.innerHTML = originalHtml;
-                    btn.disabled = false;
-
-                    showStandaloneAlert('{{ (!$dbHasExams && !$dbHasQuizzes) ? "Material unlocked and ready to read!" : "Successfully enrolled!" }}', 'success');
+                    // Refresh the page so the blade template can correctly reload the maxRetake logic
+                    window.location.reload();
                 } else {
                     showStandaloneAlert(data.message || 'Failed to enroll.', 'error');
                     btn.innerHTML = originalHtml;

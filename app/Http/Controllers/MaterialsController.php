@@ -1438,12 +1438,25 @@ public function importAccess(Request $request, $id)
             ], 403);
         }
 
+        // --- NEW: Global Lockout Check ---
+        // Fetch access based on user ID or Email (in case it was imported)
+        $access = \App\Models\MaterialAccess::where('material_id', $material->id)
+            ->where(function($q) use ($user) {
+                $q->where('student_id', $user->id)
+                  ->orWhere('email', $user->email);
+            })
+            ->first();
+
+        // If they have 3 retakes, they can NEVER enroll again. Block the API call.
+        if ($access && $access->retakes >= 3) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Maximum retake limit reached. You can no longer access this material.'
+            ], 403);
+        }
+
         // 1. Check Private Material Access
         if (!$material->is_public) {
-            $access = \App\Models\MaterialAccess::where('material_id', $material->id)
-                ->where('email', $user->email)
-                ->first();
-
             if (!$access) {
                 return response()->json([
                     'success' => false,
@@ -1508,7 +1521,6 @@ public function importAccess(Request $request, $id)
 
     public function study($hashid)
     {
-
         $decoded = Hashids::decode($hashid);
         if (empty($decoded))
             abort(404, 'Invalid link.');
@@ -1524,6 +1536,21 @@ public function importAccess(Request $request, $id)
             abort(403, 'You must enroll in this material before studying.');
         }
 
+        // --- NEW: Hard Lockout Check ---
+        if ($user->role === 'student') {
+            $access = \App\Models\MaterialAccess::where('material_id', $material->id)
+                ->where(function($q) use ($user) {
+                    $q->where('student_id', $user->id)
+                      ->orWhere('email', $user->email);
+                })
+                ->first();
+            
+            // Unconditionally lock them out of the study route if limit reached
+            if ($access && $access->retakes >= 3) {
+                abort(403, 'Maximum retake limit reached. You can no longer study this material.');
+            }
+        }
+
         // Decode the JSON so the Blade file can read it
         $savedProgress = $enrollment && $enrollment->progress_data
             ? json_decode($enrollment->progress_data)
@@ -1532,18 +1559,15 @@ public function importAccess(Request $request, $id)
         // 2. LOAD LESSONS, CONTENTS, AND EXAMS WITH SORTING
         $material->load([
             'lessons' => function ($query) {
-                // Sort lessons based on your new sort_order column
                 $query->orderBy('sort_order', 'asc');
             },
             'lessons.contents' => function ($query) {
-                // Sort contents inside each lesson based on its sort_order column
                 $query->orderBy('sort_order', 'asc');
             },
             'lessons.contents.options',
             'exams.options'
         ]);
 
-        // Pass $savedProgress to the view
         return view('dashboard.partials.student.materials-study', compact('material', 'savedProgress'));
     }
 
@@ -1878,8 +1902,17 @@ public function importAccess(Request $request, $id)
         if (empty($decoded))
             abort(404, 'Invalid link.');
         $material = Material::findOrFail($decoded[0]);
-
         $user = auth()->user();
+
+        // --- NEW: Block action if max retakes reached ---
+        $access = \App\Models\MaterialAccess::where('material_id', $material->id)
+            ->where('student_id', $user->id)
+            ->first();
+
+        if ($access && $access->retakes >= 3) {
+            abort(403, 'Maximum retake limit reached.');
+        }
+
         $type = $request->type; // 'exam' or 'module'
 
         $examIds = \Illuminate\Support\Facades\DB::table('exams')->where('material_id', $material->id)->pluck('id');
@@ -1893,22 +1926,26 @@ public function importAccess(Request $request, $id)
             \App\Models\QuizAnswer::where('user_id', $user->id)->whereIn('lesson_content_id', $quizIds)->delete();
             \App\Models\ExamAnswer::where('user_id', $user->id)->whereIn('exam_id', $examIds)->delete();
 
+            // Reset Enrollment Progress (Removed 'retakes' from here)
             \App\Models\Enrollment::where('material_id', $material->id)->where('user_id', $user->id)->update([
                 'progress_data' => json_encode(['lesson' => 0, 'content' => 0, 'highest_unlocked' => 0]),
-                'status' => 'in_progress',
-                'retakes' => \Illuminate\Support\Facades\DB::raw('retakes + 1')
+                'status' => 'in_progress'
             ]);
         } elseif ($type === 'exam') {
             // Delete EXAMS only
             \App\Models\ExamAnswer::where('user_id', $user->id)->whereIn('exam_id', $examIds)->delete();
 
-            // Jump back to the start of the Exam section
+            // Jump back to the start of the Exam section (Removed 'retakes' from here)
             $examSectionIndex = \Illuminate\Support\Facades\DB::table('lessons')->where('material_id', $material->id)->count();
             \App\Models\Enrollment::where('material_id', $material->id)->where('user_id', $user->id)->update([
                 'progress_data' => json_encode(['lesson' => $examSectionIndex, 'content' => 0, 'highest_unlocked' => $examSectionIndex]),
-                'status' => 'in_progress',
-                'retakes' => \Illuminate\Support\Facades\DB::raw('retakes + 1')
+                'status' => 'in_progress'
             ]);
+        }
+
+        // --- NEW LOGIC: Increment retakes in the material_accesses table ---
+        if ($access) {
+            $access->increment('retakes');
         }
 
         return redirect()->route('dashboard.materials.study', $material->hashid);

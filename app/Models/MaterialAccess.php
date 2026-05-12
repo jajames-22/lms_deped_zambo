@@ -13,7 +13,8 @@ class MaterialAccess extends Model
         'material_id',
         'email',
         'student_id',
-        'status'
+        'status',
+        'retakes',
     ];
 
     public function material()
