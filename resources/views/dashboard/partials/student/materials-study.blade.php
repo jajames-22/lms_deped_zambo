@@ -257,6 +257,13 @@
 
         $examCounter = 1;
         foreach ($groupedExams as $time => $questions) {
+            // Randomize if the toggle is enabled, otherwise respect the manual sort order
+            if (isset($material->is_shuffled) && $material->is_shuffled) {
+                $questions = $questions->shuffle();
+            } else {
+                $questions = $questions->sortBy('sort_order')->values();
+            }
+
             $timeline->push((object) [
                 'is_exam' => true,
                 'id' => 'exam_group_' . $examCounter,

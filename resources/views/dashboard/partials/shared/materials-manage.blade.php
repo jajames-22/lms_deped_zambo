@@ -637,6 +637,30 @@
                     </label>
                 </div>
 
+                <div class="mb-6 pt-4 border-t border-gray-100">
+                    <label class="flex items-center justify-between cursor-pointer group">
+                        <div>
+                            <span class="text-sm font-bold text-gray-900 block group-hover:text-[#a52a2a] transition-colors">Shuffle Exam</span>
+                            <span class="text-[10px] text-gray-500 uppercase tracking-wider">Randomize final exam questions</span>
+                        </div>
+                        <label class="relative toggle-container cursor-pointer">
+                            <input type="checkbox" id="shuffleToggle" class="sr-only peer"
+                                onchange="toggleShuffle(this)" {{ $material->is_shuffled ? 'checked' : '' }} {{ $isLocked ? 'disabled' : '' }}>
+
+                            <div class="w-14 h-8 rounded-full border border-gray-200 transition-colors
+                            peer-checked:bg-[#a52a2a] bg-gray-300
+                            peer-disabled:bg-red-200 peer-disabled:opacity-50
+                            peer-disabled:cursor-not-allowed">
+                            </div>
+
+                            <div class="absolute left-1 top-1 w-6 h-6 bg-white rounded-full shadow-sm transition-transform
+                                peer-checked:translate-x-6
+                                peer-disabled:bg-gray-100">
+                            </div>
+                        </label>
+                    </label>
+                </div>
+
                 @php
                     // Calculate if the code is currently active
                     $isCodeActive = $material->access_code && $material->access_code_expires_at && \Carbon\Carbon::parse($material->access_code_expires_at)->isFuture();
@@ -1640,6 +1664,27 @@
                 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
             },
             body: JSON.stringify({ is_public: checkbox.checked })
+        })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showSnackbar(data.message, 'success');
+                } else {
+                    checkbox.checked = !checkbox.checked;
+                    showCustomAlert('Error', data.message, 'error');
+                }
+            });
+    }
+
+    // --- TOGGLE SHUFFLE ---
+    window.toggleShuffle = function (checkbox) {
+        fetch(`{{ url('/dashboard/materials/' . $material->id . '/shuffle') }}`, {
+            method: 'PATCH',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+            },
+            body: JSON.stringify({ is_shuffled: checkbox.checked })
         })
             .then(response => response.json())
             .then(data => {

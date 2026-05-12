@@ -160,6 +160,7 @@ Route::middleware(['auth', 'verified', CheckAccountStatus::class])->group(functi
         Route::delete('/materials/{id}', [MaterialsController::class, 'destroy'])->name('dashboard.materials.destroy');
         Route::patch('/materials/{id}/status', [MaterialsController::class, 'toggleStatus'])->name('dashboard.materials.status');
         Route::patch('/materials/{id}/visibility', [MaterialsController::class, 'toggleVisibility'])->name('dashboard.materials.visibility');
+        Route::patch('/materials/{id}/shuffle', [MaterialsController::class, 'toggleShuffle'])->name('dashboard.materials.shuffle');
         Route::post('/materials/{id}/grading', [MaterialsController::class, 'updateGrading'])->name('dashboard.materials.grading');
 
         // Access Management Routes
