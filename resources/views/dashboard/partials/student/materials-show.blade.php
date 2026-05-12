@@ -415,6 +415,13 @@
                                 <i class="fas fa-play-circle text-lg"></i> Study Now
                             @endif
                         </button>
+                        
+                        {{-- THE SHARE BUTTON --}}
+                        <button onclick="shareMaterial('{{ url()->current() }}', '{{ addslashes($material->title) }}')"
+                            class="px-6 py-3.5 bg-gray-50 hover:bg-gray-100 text-gray-700 font-bold rounded-xl transition-all border border-gray-200 shadow-sm flex items-center gap-2 w-full sm:w-auto justify-center">
+                            <i class="fas fa-share-nodes"></i> Share
+                        </button>
+
                     </div>
                 </div>
             </div>
@@ -502,7 +509,6 @@
                             $isVideo = in_array($res->ext, ['mp4', 'webm', 'ogg']);
                             $isImage = in_array($res->ext, ['jpg', 'jpeg', 'png', 'gif', 'webp']);
 
-                            // FIX: Separate the background colors from the FontAwesome icon names!
                             $bgClass = 'text-gray-500 bg-gray-100';
                             $iconName = 'fa-file-alt';
 
@@ -656,6 +662,29 @@
             }, 300);
         }
 
+        // --- SHARE LOGIC ---
+        function shareMaterial(url, title) {
+            if (navigator.share) {
+                navigator.share({
+                    title: title,
+                    text: 'Check out this learning module: ' + title,
+                    url: url,
+                })
+                .catch((error) => console.log('Error sharing', error));
+            } else {
+                // Fallback to clipboard
+                navigator.clipboard.writeText(url).then(() => {
+                    if(typeof showSnackbar === 'function') {
+                        showSnackbar('Link copied to clipboard!', 'success');
+                    } else {
+                        alert('Link copied to clipboard!');
+                    }
+                }).catch(err => {
+                    console.error('Could not copy text: ', err);
+                });
+            }
+        }
+
         // Study Now Logic
         function startStudying() {
             const btn = event.currentTarget || document.getElementById('study-now-btn');
@@ -697,13 +726,12 @@
             }, 10);
         }
 
-        let alertCallback = null; // Stores the redirect action
+        let alertCallback = null;
 
         function closeStandaloneAlert() {
             const modal = document.getElementById('standaloneAlertModal');
             const box = document.getElementById('standaloneAlertBox');
 
-            // Hide animations...
             box.classList.remove('scale-100');
             box.classList.add('scale-95');
             modal.classList.remove('opacity-100');
@@ -712,16 +740,14 @@
             setTimeout(() => {
                 modal.classList.add('hidden');
 
-                // THIS IS THE PART THAT REDIRECTS TO DASHBOARD
                 if (alertCallback) {
-                    alertCallback();  // Triggers navigateBack()
-                    alertCallback = null; // Reset
+                    alertCallback();
+                    alertCallback = null; 
                 }
             }, 300);
         }
 
         // Drop Modal Logic
-        // --- DROP COURSE LOGIC (With Timer) ---
         let dropTimerInterval;
         let materialToDrop = null;
 

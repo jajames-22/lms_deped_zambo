@@ -257,17 +257,17 @@
                         <div class="space-y-5 max-w-lg">
                             <div>
                                 <label class="block text-sm font-bold text-gray-700 mb-1.5">Current Password</label>
-                                <input type="password" name="current_password" required 
+                                <input type="password" name="current_password" required minlength="8"
                                     class="w-full px-4 py-3 rounded-xl bg-gray-50 border border-gray-200 focus:ring-2 focus:ring-[#a52a2a]/20 focus:border-[#a52a2a] transition-all text-sm outline-none">
                             </div>
                             <div>
                                 <label class="block text-sm font-bold text-gray-700 mb-1.5">New Password</label>
-                                <input type="password" name="password" required 
+                                <input type="password" name="password" required minlength="8"
                                     class="w-full px-4 py-3 rounded-xl bg-gray-50 border border-gray-200 focus:ring-2 focus:ring-[#a52a2a]/20 focus:border-[#a52a2a] transition-all text-sm outline-none">
                             </div>
                             <div>
                                 <label class="block text-sm font-bold text-gray-700 mb-1.5">Confirm New Password</label>
-                                <input type="password" name="password_confirmation" required 
+                                <input type="password" name="password_confirmation" required minlength="8"
                                     class="w-full px-4 py-3 rounded-xl bg-gray-50 border border-gray-200 focus:ring-2 focus:ring-[#a52a2a]/20 focus:border-[#a52a2a] transition-all text-sm outline-none">
                             </div>
                         </div>
@@ -306,9 +306,10 @@
             <button id="btn-support-history" onclick="switchSupportTab('history')" class="px-5 py-3 font-bold text-gray-500 hover:text-gray-700 border-b-2 border-transparent transition-all focus:outline-none">My Reports</button>
         </div>
 
-        <div class="flex-1 overflow-y-auto p-6 md:p-8 relative rounded-b-3xl sidebar-scroll">
+        <div class="flex-1 overflow-x-hidden overflow-y-auto relative rounded-b-3xl sidebar-scroll bg-gray-50">
             
-            <div id="support-panel-send" class="support-panel block">
+            {{-- Panel: SEND REPORT --}}
+            <div id="support-panel-send" class="support-panel absolute inset-0 p-6 md:p-8 transition-all duration-300 transform opacity-100 translate-y-0 z-10">
                 <div class="bg-white p-6 md:p-8 rounded-2xl border border-gray-100 shadow-sm">
                     <h3 class="text-lg font-bold text-gray-900 border-b border-gray-100 pb-4 mb-6 flex items-center gap-2">
                         <i class="fas fa-paper-plane text-[#a52a2a]"></i> Submit a New Ticket
@@ -354,7 +355,8 @@
                 </div>
             </div>
 
-            <div id="support-panel-history" class="support-panel hidden">
+            {{-- Panel: MY REPORTS --}}
+            <div id="support-panel-history" class="support-panel absolute inset-0 p-6 md:p-8 transition-all duration-300 transform opacity-0 translate-y-4 z-0 pointer-events-none hidden">
                 <div class="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
                     @if($userFeedbacks->count() > 0)
                         <div class="space-y-3">
@@ -393,7 +395,8 @@
                 </div>
             </div>
 
-            <div id="support-panel-view" class="support-panel hidden">
+            {{-- Panel: TICKET VIEW --}}
+            <div id="support-panel-view" class="support-panel absolute inset-0 p-6 md:p-8 transition-all duration-300 transform opacity-0 translate-y-4 z-0 pointer-events-none hidden">
                 <button onclick="switchSupportTab('history')" class="mb-4 text-sm font-bold text-gray-500 hover:text-[#a52a2a] flex items-center gap-2 transition-colors">
                     <div class="w-8 h-8 rounded-full bg-white border border-gray-200 flex items-center justify-center shadow-sm">
                         <i class="fas fa-arrow-left"></i>
@@ -409,6 +412,30 @@
 </div>
 @endif
 
+{{-- CONFIRMATION MODAL --}}
+<div id="confirmGlobalModal" class="fixed inset-0 z-[10000] hidden flex items-center justify-center p-4">
+    <div class="absolute inset-0 bg-gray-900/60 transition-opacity" onclick="closeConfirmModal()"></div>
+    <div id="confirmGlobalModalBox" class="relative bg-white rounded-3xl shadow-2xl max-w-sm w-full p-8 text-center transform scale-95 opacity-0 transition-all duration-300 border border-gray-100 z-10">
+        
+        <div class="w-20 h-20 bg-amber-50 text-amber-500 rounded-full flex items-center justify-center mx-auto mb-5 shadow-inner">
+            <i class="fas fa-exclamation-triangle text-4xl"></i>
+        </div>
+        
+        <h3 class="text-2xl font-black text-gray-900 mb-2">Are you sure?</h3>
+        <p id="confirmModalMessage" class="text-gray-500 mb-8 text-sm">You won't be able to change this information again for 30 days after saving.</p>
+        
+        <div class="flex gap-3">
+            <button type="button" onclick="closeConfirmModal()" class="flex-1 px-4 py-3 bg-gray-100 text-gray-700 font-bold rounded-xl hover:bg-gray-200 transition">
+                Cancel
+            </button>
+            <button type="button" id="confirmModalBtn" class="flex-1 px-4 py-3 bg-amber-500 text-white font-bold rounded-xl shadow-lg hover:bg-amber-600 transition">
+                Yes, Save
+            </button>
+        </div>
+    </div>
+</div>
+
+{{-- STATUS MODAL --}}
 <div id="profileGlobalModal" class="fixed inset-0 z-[9999] hidden flex items-center justify-center p-4">
     <div class="absolute inset-0 bg-gray-900/60 transition-opacity" onclick="closeProfileModal()"></div>
     <div id="profileGlobalModalBox" class="relative bg-white rounded-3xl shadow-2xl max-w-sm w-full p-8 text-center transform scale-95 opacity-0 transition-all duration-300 border border-gray-100 z-10">
@@ -455,6 +482,7 @@
     window.daysLeftToUpdate = {{ max(0, $daysLeftToUpdate) }};
     window.userTicketsData = @json($ticketsJson);
     window.reloadPageOnModalClose = false;
+    let pendingConfirmAction = null; // Stores the form submission logic momentarily
 
     function openSupportModal() {
         const modal = document.getElementById('supportModal');
@@ -480,10 +508,32 @@
         }, 300);
     }
 
+    // --- ANIMATED TAB SWITCHING FOR SUPPORT CENTER ---
     function switchSupportTab(tab) {
-        document.querySelectorAll('.support-panel').forEach(p => p.classList.add('hidden'));
-        document.getElementById('support-panel-' + tab).classList.remove('hidden');
+        const panels = document.querySelectorAll('.support-panel');
         
+        // 1. Fade out active panels
+        panels.forEach(p => {
+            if (!p.classList.contains('hidden')) {
+                p.classList.remove('opacity-100', 'translate-y-0', 'z-10');
+                p.classList.add('opacity-0', 'translate-y-4', 'z-0', 'pointer-events-none');
+                setTimeout(() => p.classList.add('hidden'), 200); 
+            }
+        });
+
+        // 2. Fade in new panel
+        setTimeout(() => {
+            const activePanel = document.getElementById('support-panel-' + tab);
+            if (activePanel) {
+                activePanel.classList.remove('hidden');
+                // Force browser reflow to ensure animation triggers
+                void activePanel.offsetWidth;
+                activePanel.classList.remove('opacity-0', 'translate-y-4', 'pointer-events-none');
+                activePanel.classList.add('opacity-100', 'translate-y-0', 'z-10');
+            }
+        }, 200);
+        
+        // 3. Update Buttons
         const btnSend = document.getElementById('btn-support-send');
         const btnHistory = document.getElementById('btn-support-history');
         
@@ -500,103 +550,121 @@
     }
 
     function openTicketView(id) {
-    // Safe lookup: Find the specific ticket matching the ID
-    const t = window.userTicketsData.find(ticket => ticket.id == id);
-    if(!t) return;
-    
-    let statusStyle = 'bg-gray-100 text-gray-600';
-    if(['open', 'waiting_on_support'].includes(t.status)) statusStyle = 'bg-amber-100 text-amber-700 border-amber-200';
-    else if(t.status === 'in_progress' || t.status === 'waiting_on_user') statusStyle = 'bg-blue-100 text-blue-700 border-blue-200';
-    else if(t.status === 'resolved') statusStyle = 'bg-green-100 text-green-700 border-green-200';
+        const t = window.userTicketsData.find(ticket => ticket.id == id);
+        if(!t) return;
+        
+        let statusStyle = 'bg-gray-100 text-gray-600';
+        if(['open', 'waiting_on_support'].includes(t.status)) statusStyle = 'bg-amber-100 text-amber-700 border-amber-200';
+        else if(t.status === 'in_progress' || t.status === 'waiting_on_user') statusStyle = 'bg-blue-100 text-blue-700 border-blue-200';
+        else if(t.status === 'resolved') statusStyle = 'bg-green-100 text-green-700 border-green-200';
 
-    let html = `
-        <div class="flex flex-col sm:flex-row sm:justify-between sm:items-start mb-4 gap-4">
-            <h4 class="font-black text-gray-900 text-2xl leading-tight">${t.subject}</h4>
-            <span class="shrink-0 text-[10px] uppercase tracking-widest font-black px-3 py-1.5 rounded-lg border ${statusStyle}">${t.status.replace(/_/g, ' ')}</span>
-        </div>
-        <div class="text-sm text-gray-700 mb-8 whitespace-pre-wrap leading-relaxed">${t.message}</div>
-    `;
-    
-    // Render Thread
-    if (t.messages && t.messages.length > 0) {
-        html += `<h4 class="text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-8 mb-4 border-b border-gray-100 pb-2">Ticket History</h4>`;
-        t.messages.forEach(msg => {
-            const isAdmin = msg.sender && msg.sender.role === 'admin';
-            if (isAdmin) {
-                html += `<div class="mt-3 p-5 bg-[#a52a2a]/5 rounded-2xl border border-[#a52a2a]/20 relative overflow-hidden"><div class="absolute top-0 left-0 w-1 h-full bg-[#a52a2a]"></div><div class="flex items-center gap-2 mb-2 text-[#a52a2a]"><i class="fas fa-headset"></i><span class="text-xs font-black uppercase tracking-widest">Support Response</span></div><p class="text-sm text-gray-800 leading-relaxed whitespace-pre-wrap">${msg.message}</p></div>`;
-            } else {
-                html += `<div class="mt-3 p-5 bg-gray-50 rounded-2xl border border-gray-200"><div class="flex items-center gap-2 mb-2 text-gray-600"><i class="fas fa-user"></i><span class="text-xs font-black uppercase tracking-widest">You</span></div><p class="text-sm text-gray-800 leading-relaxed whitespace-pre-wrap">${msg.message}</p></div>`;
-            }
-        });
-    }
-    
-    // Show 3-Day Warning if Resolved
-    if (t.status === 'resolved') {
-        html += `
-        <div class="mt-6 mb-4 p-4 bg-blue-50 border border-blue-200 rounded-xl flex items-start gap-3">
-            <i class="fas fa-info-circle text-blue-500 mt-0.5"></i>
-            <div>
-                <p class="text-sm text-blue-800 font-bold">Ticket Resolved</p>
-                <p class="text-xs text-blue-600 mt-1">If there are no further problems, this ticket will be permanently closed in 3 days. If you still need help, reply below to reopen it.</p>
+        let html = `
+            <div class="flex flex-col sm:flex-row sm:justify-between sm:items-start mb-4 gap-4">
+                <h4 class="font-black text-gray-900 text-2xl leading-tight">${t.subject}</h4>
+                <span class="shrink-0 text-[10px] uppercase tracking-widest font-black px-3 py-1.5 rounded-lg border ${statusStyle}">${t.status.replace(/_/g, ' ')}</span>
             </div>
-        </div>`;
-    }
+            <div class="text-sm text-gray-700 mb-8 whitespace-pre-wrap leading-relaxed">${t.message}</div>
+        `;
+        
+        if (t.messages && t.messages.length > 0) {
+            html += `<h4 class="text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-8 mb-4 border-b border-gray-100 pb-2">Ticket History</h4>`;
+            t.messages.forEach(msg => {
+                const isAdmin = msg.sender && msg.sender.role === 'admin';
+                if (isAdmin) {
+                    html += `<div class="mt-3 p-5 bg-[#a52a2a]/5 rounded-2xl border border-[#a52a2a]/20 relative overflow-hidden"><div class="absolute top-0 left-0 w-1 h-full bg-[#a52a2a]"></div><div class="flex items-center gap-2 mb-2 text-[#a52a2a]"><i class="fas fa-headset"></i><span class="text-xs font-black uppercase tracking-widest">Support Response</span></div><p class="text-sm text-gray-800 leading-relaxed whitespace-pre-wrap">${msg.message}</p></div>`;
+                } else {
+                    html += `<div class="mt-3 p-5 bg-gray-50 rounded-2xl border border-gray-200"><div class="flex items-center gap-2 mb-2 text-gray-600"><i class="fas fa-user"></i><span class="text-xs font-black uppercase tracking-widest">You</span></div><p class="text-sm text-gray-800 leading-relaxed whitespace-pre-wrap">${msg.message}</p></div>`;
+                }
+            });
+        }
+        
+        if (t.status === 'resolved') {
+            html += `
+            <div class="mt-6 mb-4 p-4 bg-blue-50 border border-blue-200 rounded-xl flex items-start gap-3">
+                <i class="fas fa-info-circle text-blue-500 mt-0.5"></i>
+                <div>
+                    <p class="text-sm text-blue-800 font-bold">Ticket Resolved</p>
+                    <p class="text-xs text-blue-600 mt-1">If there are no further problems, this ticket will be permanently closed in 3 days. If you still need help, reply below to reopen it.</p>
+                </div>
+            </div>`;
+        }
 
-    // Append Reply Form if NOT Hard Closed
-    if (t.status !== 'closed') {
-        html += `
-        <form action="/dashboard/feedback/${t.id}/user-reply" method="POST" onsubmit="submitFeedbackReplyForm(event, this, ${t.id})" class="mt-4 pt-6 border-t border-gray-100">
-            <input type="hidden" name="_token" value="{{ csrf_token() }}">
-            <label class="block text-sm font-bold text-gray-700 mb-2">Send a Reply</label>
-            <textarea name="message" required rows="3" placeholder="Add more details or answer support's question..." class="w-full px-4 py-3 rounded-xl bg-gray-50 border border-gray-200 focus:ring-2 focus:ring-[#a52a2a]/20 focus:border-[#a52a2a] transition-all text-sm outline-none resize-none"></textarea>
-            <div class="mt-3 flex justify-end">
-                <button type="submit" class="px-5 py-2 bg-gray-900 text-white font-bold rounded-xl shadow-md hover:bg-black transition flex items-center gap-2 text-sm"><i class="fas fa-reply"></i> Send Reply</button>
-            </div>
-        </form>`;
-    }
+        if (t.status !== 'closed') {
+            html += `
+            <form action="/dashboard/feedback/${t.id}/user-reply" method="POST" onsubmit="submitFeedbackReplyForm(event, this, ${t.id})" class="mt-4 pt-6 border-t border-gray-100">
+                <input type="hidden" name="_token" value="{{ csrf_token() }}">
+                <label class="block text-sm font-bold text-gray-700 mb-2">Send a Reply</label>
+                <textarea name="message" required rows="3" placeholder="Add more details or answer support's question..." class="w-full px-4 py-3 rounded-xl bg-gray-50 border border-gray-200 focus:ring-2 focus:ring-[#a52a2a]/20 focus:border-[#a52a2a] transition-all text-sm outline-none resize-none"></textarea>
+                <div class="mt-3 flex justify-end">
+                    <button type="submit" class="px-5 py-2 bg-gray-900 text-white font-bold rounded-xl shadow-md hover:bg-black transition flex items-center gap-2 text-sm"><i class="fas fa-reply"></i> Send Reply</button>
+                </div>
+            </form>`;
+        }
 
-    document.getElementById('ticket-view-content').innerHTML = html;
-    switchSupportTab('view');
-}
+        document.getElementById('ticket-view-content').innerHTML = html;
+        switchSupportTab('view');
+    }
 
     (function() {
-        // Grab the exact URL the SPA just loaded
         const activeUrl = sessionStorage.getItem('lastActiveTab') || window.location.href;
         const urlObj = new URL(activeUrl, window.location.origin);
         const ticketId = urlObj.searchParams.get('ticket');
+        const openSupport = urlObj.searchParams.get('support'); 
 
         if (ticketId) {
             openSupportModal();
             setTimeout(() => {
                 openTicketView(ticketId);
-                
-                // Erase the ticket parameter from session storage so it doesn't loop
                 urlObj.searchParams.delete('ticket');
                 sessionStorage.setItem('lastActiveTab', urlObj.toString());
-                
             }, 350); 
+        } 
+        else if (openSupport === 'true') { 
+            openSupportModal();
+            setTimeout(() => {
+                switchSupportTab('send'); 
+                urlObj.searchParams.delete('support');
+                sessionStorage.setItem('lastActiveTab', urlObj.toString());
+            }, 50);
         }
     })();
 
-    function switchProfileTab(tabId) {
-        document.querySelectorAll('.profile-tab-btn').forEach(btn => {
-            btn.className = 'profile-tab-btn text-gray-600 hover:bg-gray-100 hover:text-gray-900 w-full flex items-center gap-3 px-4 py-3 rounded-xl font-bold transition-all text-left text-sm';
-        });
+    // --- MODAL CONTROLS ---
 
-        const activeBtn = document.getElementById('btn-tab-' + tabId);
-        if (activeBtn) {
-            activeBtn.className = 'profile-tab-btn bg-[#a52a2a] text-white shadow-md w-full flex items-center gap-3 px-4 py-3 rounded-xl font-bold transition-all text-left text-sm';
-        }
+    function showConfirmModal(message, actionCallback) {
+        document.getElementById('confirmModalMessage').innerText = message;
+        pendingConfirmAction = actionCallback;
 
-        document.querySelectorAll('.profile-tab-panel').forEach(panel => {
-            panel.classList.add('hidden');
-        });
-
-        const activePanel = document.getElementById('panel-' + tabId);
-        if (activePanel) {
-            activePanel.classList.remove('hidden');
-        }
+        const modal = document.getElementById('confirmGlobalModal');
+        const box = document.getElementById('confirmGlobalModalBox');
+        
+        modal.classList.remove('hidden');
+        setTimeout(() => {
+            box.classList.remove('scale-95', 'opacity-0');
+            box.classList.add('scale-100', 'opacity-100');
+        }, 10);
     }
+
+    function closeConfirmModal() {
+        const modal = document.getElementById('confirmGlobalModal');
+        const box = document.getElementById('confirmGlobalModalBox');
+        
+        box.classList.remove('scale-100', 'opacity-100');
+        box.classList.add('scale-95', 'opacity-0');
+        
+        setTimeout(() => {
+            modal.classList.add('hidden');
+            pendingConfirmAction = null;
+        }, 300);
+    }
+
+    // Attach Event to Confirmation Button
+    document.getElementById('confirmModalBtn').addEventListener('click', function() {
+        if (pendingConfirmAction) {
+            pendingConfirmAction();
+        }
+        closeConfirmModal();
+    });
 
     function showProfileModal(title, message, type = 'success') {
         document.getElementById('profileModalTitle').innerText = title;
@@ -643,8 +711,16 @@
         }, 300);
     }
 
+    // --- FORM SUBMISSION LOGIC ---
+
     function submitProfileForm(e, form) {
         e.preventDefault();
+
+        // Standard HTML5 validation check
+        if (!form.checkValidity()) {
+            form.reportValidity();
+            return;
+        }
 
         if (window.daysLeftToUpdate > 0) {
             showProfileModal(
@@ -655,6 +731,12 @@
             return;
         }
 
+        showConfirmModal("You won't be able to change your personal details again for 30 days after saving. Proceed?", function() {
+            executeProfileSubmit(form);
+        });
+    }
+
+    function executeProfileSubmit(form) {
         const btn = form.querySelector('button[type="submit"]');
         const originalHtml = btn.innerHTML;
         btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
@@ -681,6 +763,27 @@
 
     function submitPasswordForm(e, form) {
         e.preventDefault();
+
+        if (!form.checkValidity()) {
+            form.reportValidity();
+            return;
+        }
+
+        if (window.daysLeftToUpdate > 0) {
+            showProfileModal(
+                'Update Restricted', 
+                `You recently updated your profile. You cannot change your password for another ${window.daysLeftToUpdate} day(s).`, 
+                'error'
+            );
+            return;
+        }
+
+        showConfirmModal("You won't be able to change your password again for 30 days after saving (unless you use the Forgot Password link). Proceed?", function() {
+            executePasswordSubmit(form);
+        });
+    }
+
+    function executePasswordSubmit(form) {
         const btn = form.querySelector('button[type="submit"]');
         const originalHtml = btn.innerHTML;
         btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Updating...';
@@ -706,6 +809,7 @@
         });
     }
 
+    // Support Form Submissions
     function submitFeedbackReplyForm(e, form, ticketId) {
         e.preventDefault();
         
@@ -775,34 +879,24 @@
         });
     }
 
-    (function() {
-        // Grab the exact URL the SPA just loaded
-        const activeUrl = sessionStorage.getItem('lastActiveTab') || window.location.href;
-        const urlObj = new URL(activeUrl, window.location.origin);
-        const ticketId = urlObj.searchParams.get('ticket');
-        const openSupport = urlObj.searchParams.get('support'); // <-- NEW: Check for support flag
+    // Secondary UI logic
+    function switchProfileTab(tabId) {
+        document.querySelectorAll('.profile-tab-btn').forEach(btn => {
+            btn.className = 'profile-tab-btn text-gray-600 hover:bg-gray-100 hover:text-gray-900 w-full flex items-center gap-3 px-4 py-3 rounded-xl font-bold transition-all text-left text-sm';
+        });
 
-        if (ticketId) {
-            openSupportModal();
-            setTimeout(() => {
-                openTicketView(ticketId);
-                
-                // Erase the ticket parameter from session storage so it doesn't loop
-                urlObj.searchParams.delete('ticket');
-                sessionStorage.setItem('lastActiveTab', urlObj.toString());
-                
-            }, 350); 
-        } 
-        // <-- NEW: Trigger to open the support modal directly
-        else if (openSupport === 'true') { 
-            openSupportModal();
-            setTimeout(() => {
-                switchSupportTab('send'); // Ensure it opens to the "Send Report" tab
-                
-                // Erase the parameter from session storage so it doesn't loop on refresh
-                urlObj.searchParams.delete('support');
-                sessionStorage.setItem('lastActiveTab', urlObj.toString());
-            }, 50);
+        const activeBtn = document.getElementById('btn-tab-' + tabId);
+        if (activeBtn) {
+            activeBtn.className = 'profile-tab-btn bg-[#a52a2a] text-white shadow-md w-full flex items-center gap-3 px-4 py-3 rounded-xl font-bold transition-all text-left text-sm';
         }
-    })();
+
+        document.querySelectorAll('.profile-tab-panel').forEach(panel => {
+            panel.classList.add('hidden');
+        });
+
+        const activePanel = document.getElementById('panel-' + tabId);
+        if (activePanel) {
+            activePanel.classList.remove('hidden');
+        }
+    }
 </script>
