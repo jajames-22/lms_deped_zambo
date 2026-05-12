@@ -311,15 +311,22 @@
     var allFeedbackRows = [];
     var currentFilteredRows = [];
 
-    // Correctly defined Manager to handle Tabs and Search
+    // --- SPA SAFE DOM GETTER ---
+    // Grabs the last (newest) element in the DOM to avoid selecting 
+    // elements from an old page that is fading out.
+    function getActiveEl(selector) {
+        const els = document.querySelectorAll(selector);
+        return els.length ? els[els.length - 1] : null;
+    }
+
     const FeedbackManager = {
         currentStatus: 'all',
 
         filter: function(status, btnElement) {
             this.currentStatus = status;
 
-            // Update tab styles
-            document.querySelectorAll('.feedback-tab').forEach(tab => {
+            const activeContainer = getActiveEl('#admin-feedback-list');
+            activeContainer.querySelectorAll('.feedback-tab').forEach(tab => {
                 tab.classList.remove('bg-white', 'text-[#a52a2a]', 'shadow-sm');
                 tab.classList.add('text-gray-500', 'hover:text-gray-700');
             });
@@ -327,16 +334,28 @@
             btnElement.classList.remove('text-gray-500', 'hover:text-gray-700');
             btnElement.classList.add('bg-white', 'text-[#a52a2a]', 'shadow-sm');
 
+            // Re-query live DOM rows before filtering to avoid stale cache
+            const activeTable = getActiveEl('#feedbacksTable');
+            if (activeTable) {
+                allFeedbackRows = Array.from(activeTable.querySelectorAll('.feedback-row'));
+            }
+
             this.applyFilters();
         },
 
         applyFilters: function() {
-            const query = (document.getElementById('feedbackSearchInput')?.value || '').toLowerCase();
+            const searchInput = getActiveEl('#feedbackSearchInput');
+            const query = (searchInput?.value || '').toLowerCase();
+
+            // Always re-query from the live DOM to avoid stale references
+            const activeTable = getActiveEl('#feedbacksTable');
+            if (activeTable) {
+                allFeedbackRows = Array.from(activeTable.querySelectorAll('.feedback-row'));
+            }
 
             currentFilteredRows = allFeedbackRows.filter(row => {
                 const rowText = row.textContent.toLowerCase();
                 const matchesSearch = rowText.includes(query);
-                
                 const rowStatus = row.dataset.status; 
                 
                 let matchesStatus = false;
@@ -359,11 +378,13 @@
     };
 
     setTimeout(function () {
-        allFeedbackRows = Array.from(document.querySelectorAll('.feedback-row'));
+        const activeTable = getActiveEl('#feedbacksTable');
+        if (!activeTable) return;
+        
+        allFeedbackRows = Array.from(activeTable.querySelectorAll('.feedback-row'));
         currentFilteredRows = [...allFeedbackRows];
         
-        // Connect the search input to the Manager
-        const searchInput = document.getElementById('feedbackSearchInput');
+        const searchInput = getActiveEl('#feedbackSearchInput');
         if (searchInput) {
             const newSearchInput = searchInput.cloneNode(true);
             searchInput.parentNode.replaceChild(newSearchInput, searchInput);
@@ -381,22 +402,30 @@
     }, 50);
 
     function applyPagination() {
-        var tbody = document.querySelector('#feedbacksTable tbody');
-        var emptyState = document.getElementById('emptyStateRow');
-        var paginationWrapper = document.getElementById('pagination-wrapper');
+        var tbody = getActiveEl('#feedbacksTable tbody');
+        var emptyState = getActiveEl('#emptyStateRow');
+        var paginationWrapper = getActiveEl('#pagination-wrapper');
 
-        allFeedbackRows.forEach(row => row.style.display = 'none');
+        if(!tbody) return;
+
+        // Always hide every .feedback-row currently in the live DOM (not just cached allFeedbackRows)
+        // This prevents stale rows from a previous render from staying visible
+        tbody.querySelectorAll('.feedback-row').forEach(row => row.style.display = 'none');
 
         if (currentFilteredRows.length === 0) {
             if (emptyState) emptyState.style.display = '';
-            paginationWrapper.classList.add('hidden');
-            paginationWrapper.classList.remove('flex');
+            if (paginationWrapper) {
+                paginationWrapper.classList.add('hidden');
+                paginationWrapper.classList.remove('flex');
+            }
             return;
         }
 
         if (emptyState) emptyState.style.display = 'none';
-        paginationWrapper.classList.remove('hidden');
-        paginationWrapper.classList.add('flex');
+        if (paginationWrapper) {
+            paginationWrapper.classList.remove('hidden');
+            paginationWrapper.classList.add('flex');
+        }
 
         var totalPages = Math.ceil(currentFilteredRows.length / pageSize);
         if (currentPage > totalPages) currentPage = totalPages;
@@ -405,20 +434,22 @@
         var startIdx = (currentPage - 1) * pageSize;
         var endIdx = Math.min(startIdx + pageSize, currentFilteredRows.length);
 
+        // Only show rows for the current page — do NOT use appendChild (moves DOM nodes causing duplicates)
         for (var i = startIdx; i < endIdx; i++) {
             currentFilteredRows[i].style.display = '';
-            tbody.appendChild(currentFilteredRows[i]);
         }
 
-        document.getElementById('page-start-info').innerText = startIdx + 1;
-        document.getElementById('page-end-info').innerText = endIdx;
-        document.getElementById('page-total-info').innerText = currentFilteredRows.length;
+        getActiveEl('#page-start-info').innerText = startIdx + 1;
+        getActiveEl('#page-end-info').innerText = endIdx;
+        getActiveEl('#page-total-info').innerText = currentFilteredRows.length;
 
         renderPaginationControls(totalPages);
     }
 
     function renderPaginationControls(totalPages) {
-        var controls = document.getElementById('pagination-controls');
+        var controls = getActiveEl('#pagination-controls');
+        if (!controls) return;
+        
         controls.innerHTML = '';
 
         var createBtn = function (text, page, disabled, active) {
@@ -467,7 +498,10 @@
     }
 
     function setupSorting() {
-        var sortableHeaders = document.querySelectorAll('.sortable-col');
+        const activeTable = getActiveEl('#feedbacksTable');
+        if (!activeTable) return;
+
+        var sortableHeaders = activeTable.querySelectorAll('.sortable-col');
         sortableHeaders.forEach(function (header) {
             var newHeader = header.cloneNode(true);
             header.parentNode.replaceChild(newHeader, header);
@@ -476,10 +510,10 @@
                 var colIndex = Array.from(newHeader.parentNode.children).indexOf(newHeader);
                 var isAsc = newHeader.classList.contains('asc');
 
-                document.querySelectorAll('.sortable-col i').forEach(function (icon) {
+                activeTable.querySelectorAll('.sortable-col i').forEach(function (icon) {
                     icon.className = 'fas fa-sort ml-1 text-gray-300';
                 });
-                document.querySelectorAll('.sortable-col').forEach(function (h) {
+                activeTable.querySelectorAll('.sortable-col').forEach(function (h) {
                     h.classList.remove('asc', 'desc');
                 });
 
@@ -503,6 +537,24 @@
                     return 0;
                 });
 
+                // Also sort allFeedbackRows to keep DOM order consistent
+                allFeedbackRows.sort(function (a, b) {
+                    var aVal = a.children[colIndex].dataset.sort ? parseInt(a.children[colIndex].dataset.sort) : a.children[colIndex].textContent.trim().toLowerCase();
+                    var bVal = b.children[colIndex].dataset.sort ? parseInt(b.children[colIndex].dataset.sort) : b.children[colIndex].textContent.trim().toLowerCase();
+
+                    if (aVal < bVal) return -1 * multiplier;
+                    if (aVal > bVal) return 1 * multiplier;
+                    return 0;
+                });
+
+                // Reorder rows physically in the DOM to match the sorted order
+                var tbody = getActiveEl('#feedbacksTable tbody');
+                var emptyStateRow = getActiveEl('#emptyStateRow');
+                allFeedbackRows.forEach(function(row) {
+                    tbody.appendChild(row);
+                });
+                if (emptyStateRow) tbody.appendChild(emptyStateRow);
+
                 currentPage = 1;
                 applyPagination();
             });
@@ -513,34 +565,31 @@
         const feedback = window.allFeedbacksData.find(fb => fb.id === id);
         if (!feedback) return;
 
-        document.getElementById('admin-feedback-list').classList.add('hidden');
-        document.getElementById('admin-feedback-detail').classList.remove('hidden');
+        getActiveEl('#admin-feedback-list').classList.add('hidden');
+        getActiveEl('#admin-feedback-detail').classList.remove('hidden');
 
-        document.getElementById('ad-detail-subject').innerText = feedback.subject;
-        document.getElementById('ad-detail-meta').innerText = `Ticket #${feedback.id.toString().padStart(4, '0')} • ${feedback.sender ? feedback.sender.first_name : 'Unknown'}`;
+        getActiveEl('#ad-detail-subject').innerText = feedback.subject;
+        getActiveEl('#ad-detail-meta').innerText = `Ticket #${feedback.id.toString().padStart(4, '0')} • ${feedback.sender ? feedback.sender.first_name : 'Unknown'}`;
 
-        // Populate Right-Side User Detail Panel
         if (feedback.sender) {
-            document.getElementById('ad-user-initial').innerText = feedback.sender.first_name ? feedback.sender.first_name.charAt(0).toUpperCase() : 'U';
-            document.getElementById('ad-user-name').innerText = `${feedback.sender.first_name} ${feedback.sender.last_name}`;
-            document.getElementById('ad-user-role').innerText = feedback.sender.role;
-            document.getElementById('ad-user-email').innerText = feedback.sender.email;
+            getActiveEl('#ad-user-initial').innerText = feedback.sender.first_name ? feedback.sender.first_name.charAt(0).toUpperCase() : 'U';
+            getActiveEl('#ad-user-name').innerText = `${feedback.sender.first_name} ${feedback.sender.last_name}`;
+            getActiveEl('#ad-user-role').innerText = feedback.sender.role;
+            getActiveEl('#ad-user-email').innerText = feedback.sender.email;
         }
-        document.getElementById('ad-category').innerText = feedback.category.replace(/_/g, ' ');
-        document.getElementById('ad-date').innerText = new Date(feedback.created_at).toLocaleString();
+        getActiveEl('#ad-category').innerText = feedback.category.replace(/_/g, ' ');
+        getActiveEl('#ad-date').innerText = new Date(feedback.created_at).toLocaleString();
 
-        // Check Media URL
-        const mediaBox = document.getElementById('ad-detail-media');
+        const mediaBox = getActiveEl('#ad-detail-media');
         if (feedback.media_url) {
             mediaBox.classList.remove('hidden');
-            document.getElementById('ad-detail-img').src = '/storage/' + feedback.media_url;
-            document.getElementById('ad-detail-media-link').href = '/storage/' + feedback.media_url;
+            getActiveEl('#ad-detail-img').src = '/storage/' + feedback.media_url;
+            getActiveEl('#ad-detail-media-link').href = '/storage/' + feedback.media_url;
         } else {
             mediaBox.classList.add('hidden');
         }
 
-        // Status Colors
-        const badgeContainer = document.getElementById('ad-detail-statusBadge');
+        const badgeContainer = getActiveEl('#ad-detail-statusBadge');
         let statusHtml = '';
         if (feedback.status === 'open') statusHtml = '<span class="px-3 py-1.5 bg-purple-50 text-purple-600 border border-purple-200 text-xs font-black uppercase rounded-lg">New Ticket</span>';
         else if (feedback.status === 'waiting_on_support') statusHtml = '<span class="px-3 py-1.5 bg-red-50 text-red-600 border border-red-200 text-xs font-black uppercase rounded-lg">User Replied</span>';
@@ -550,10 +599,9 @@
         else statusHtml = '<span class="px-3 py-1.5 bg-gray-100 text-gray-600 border border-gray-300 text-xs font-black uppercase rounded-lg"><i class="fas fa-lock"></i> Closed</span>';
         badgeContainer.innerHTML = statusHtml;
 
-        document.getElementById('ad-detail-message').innerText = feedback.message;
+        getActiveEl('#ad-detail-message').innerText = feedback.message;
 
-        // Render Conversation Thread
-        const resolvedBlock = document.getElementById('ad-resolved-block');
+        const resolvedBlock = getActiveEl('#ad-resolved-block');
         if (feedback.messages && feedback.messages.length > 0) {
             resolvedBlock.classList.remove('hidden');
             let threadHtml = '<h4 class="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-4"><i class="fas fa-comments text-blue-500"></i> Conversation History</h4>';
@@ -581,21 +629,20 @@
             resolvedBlock.innerHTML = '';
         }
 
-        // Show/Hide Reply Form based on Hard Close
-        const replyForm = document.getElementById('admin-reply-form');
+        const replyForm = getActiveEl('#admin-reply-form');
         if (feedback.status === 'closed') {
             replyForm.classList.add('hidden');
         } else {
             replyForm.classList.remove('hidden');
-            document.getElementById('reply-feedback-id').value = feedback.id;
-            document.getElementById('reply-message').value = '';
-            document.getElementById('reply-status').value = 'in_progress'; // Set a default
+            getActiveEl('#reply-feedback-id').value = feedback.id;
+            getActiveEl('#reply-message').value = '';
+            getActiveEl('#reply-status').value = 'in_progress'; 
         }
     }
 
     function closeAdminFeedbackDetail() {
-        document.getElementById('admin-feedback-detail').classList.add('hidden');
-        document.getElementById('admin-feedback-list').classList.remove('hidden');
+        getActiveEl('#admin-feedback-detail').classList.add('hidden');
+        getActiveEl('#admin-feedback-list').classList.remove('hidden');
     }
 
     function submitAdminReply(e) {
@@ -603,9 +650,10 @@
 
         const form = e.target;
         const btn = form.querySelector('button[type="submit"]');
-        const feedbackId = document.getElementById('reply-feedback-id').value;
-        const message = document.getElementById('reply-message').value;
-        const statusValue = document.getElementById('reply-status').value; 
+        
+        const feedbackId = getActiveEl('#reply-feedback-id').value;
+        const message = getActiveEl('#reply-message').value;
+        const statusValue = getActiveEl('#reply-status').value; 
 
         const originalHtml = btn.innerHTML;
         btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Sending...';
@@ -626,7 +674,10 @@
             .then(async response => {
                 if (response.ok) {
                     alert(`Update sent successfully!`);
-                    loadPartial('{{ route('dashboard.feedback') }}', document.getElementById('nav-feedback-btn'));
+                    
+                    // FORCE FULL BROWSER REFRESH
+                    window.location.reload(); 
+                    
                 } else {
                     const data = await response.json();
                     alert(data.message || 'Error updating ticket.');

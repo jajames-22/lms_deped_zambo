@@ -39,6 +39,45 @@
     }
 @endphp
 
+<style>
+    /* Force TomSelect to match the Tailwind CSS Design exactly */
+    .ts-wrapper .ts-control {
+        background-color: #f9fafb !important; /* bg-gray-50 */
+        border: 1px solid #e5e7eb !important; /* border-gray-200 */
+        border-radius: 0.75rem !important; /* rounded-xl */
+        padding: 0.75rem 1rem !important; /* py-3 px-4 */
+        font-size: 0.875rem !important; /* text-sm */
+        color: #111827 !important; /* text-gray-900 */
+        box-shadow: none !important;
+        transition: all 0.2s ease-in-out !important;
+    }
+    .ts-wrapper.focus .ts-control {
+        border-color: #a52a2a !important; /* focus:border-[#a52a2a] */
+        box-shadow: 0 0 0 2px rgba(165, 42, 42, 0.2) !important; /* focus:ring-[#a52a2a]/20 */
+    }
+    .ts-wrapper .ts-control input {
+        font-size: 0.875rem !important;
+        color: #111827 !important;
+    }
+    .ts-dropdown {
+        border-radius: 0.75rem !important;
+        border: 1px solid #e5e7eb !important;
+        box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1) !important;
+        font-size: 0.875rem !important;
+        color: #374151 !important;
+        margin-top: 4px !important;
+        overflow: hidden;
+    }
+    .ts-dropdown .option {
+        padding: 0.5rem 1rem !important;
+        transition: background-color 0.15s ease;
+    }
+    .ts-dropdown .option.active, .ts-dropdown .option:hover {
+        background-color: #f3f4f6 !important; /* hover:bg-gray-100 */
+        color: #a52a2a !important;
+    }
+</style>
+
 <div class="space-y-6 w-full max-w-6xl mx-auto pb-12 animate-float-in">
     
     <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -81,7 +120,11 @@
             <div class="mt-4 flex flex-wrap items-center justify-center md:justify-start gap-3">
                 <div class="px-4 py-2 bg-gray-50 rounded-xl border border-gray-100 text-xs font-bold text-gray-600 flex items-center gap-2">
                     <i class="fas fa-id-badge text-gray-400"></i>
-                    {{ $user->email ?? 'Not provided' }}
+                    @if($user->role === 'student')
+                        LRN: {{ $user->lrn ?? 'N/A' }}
+                    @else
+                        Emp ID: {{ $user->emp_id ?? 'N/A' }}
+                    @endif
                 </div>
                 <div class="px-4 py-2 bg-gray-50 rounded-xl border border-gray-100 text-xs font-bold text-gray-600 flex items-center gap-2">
                     <i class="fas fa-calendar-alt text-gray-400"></i>
@@ -175,7 +218,10 @@
                                         </optgroup>
                                     </select>
                                 </div>
-                                <div>
+                            @endif
+
+                            @if($user->role !== 'admin')
+                                <div class="{{ $user->role === 'student' ? '' : 'md:col-span-2' }}">
                                     <label class="block text-sm font-bold text-gray-700 mb-1.5">Institution / School <span class="text-red-500">*</span></label>
                                     <select name="school_id" id="schoolSelect" required class="w-full px-4 py-3 rounded-xl bg-gray-50 border border-gray-200 focus:ring-2 focus:ring-[#a52a2a]/20 focus:border-[#a52a2a] transition-all text-sm outline-none cursor-pointer">
                                         <option value="" disabled {{ empty($user->school_id) ? 'selected' : '' }}>Select your school...</option>
@@ -379,18 +425,19 @@
         </button>
     </div>
 </div>
+
 <script>
     // --- TOM SELECT INITIALIZATION ---
     (function initTomSelect() {
         const schoolSelect = document.getElementById('schoolSelect');
         if (schoolSelect) {
             if (typeof TomSelect !== 'undefined') {
-                new TomSelect("#schoolSelect", { create: false, sortField: { field: "text", direction: "asc" } });
+                new TomSelect(schoolSelect, { create: false, sortField: { field: "text", direction: "asc" } });
             } else {
                 const script = document.createElement('script');
                 script.src = "https://cdn.jsdelivr.net/npm/tom-select/dist/js/tom-select.complete.min.js";
                 script.onload = () => {
-                    new TomSelect("#schoolSelect", { create: false, sortField: { field: "text", direction: "asc" } });
+                    new TomSelect(schoolSelect, { create: false, sortField: { field: "text", direction: "asc" } });
                 };
                 document.head.appendChild(script);
                 

@@ -29,61 +29,19 @@
         </button>
     </div>
 
+    @php
+        // Filter out null materials, then split by status
+        $enrollments = collect($activeEnrollments ?? [])->filter(fn($e) => $e->material !== null);
+        $inProgress = $enrollments->filter(fn($e) => strtolower($e->status) !== 'completed');
+        $completed = $enrollments->filter(fn($e) => strtolower($e->status) === 'completed');
+    @endphp
+
     {{-- ACTIVE TAB CONTENT --}}
-    <div id="tab-content-active" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 px-2 transition-opacity duration-300">
-        @forelse($activeEnrollments ?? [] as $enrollment)
-            @php 
-                $material = $enrollment->material; 
-                if(!$material) continue; 
-            @endphp
-            
-            {{-- Active cards just redirect normally --}}
-            <div class="bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-xl hover:border-[#a52a2a]/30 transition-all duration-300 group flex flex-col overflow-hidden cursor-pointer relative"
-                onclick="window.location.href = '{{ route('student.materials.show', $material->hashid) }}'">
-                
-                {{-- Status Badge --}}
-                <div class="absolute top-3 right-3 z-10">
-                    <span class="px-2.5 py-1 bg-white/90 backdrop-blur-sm text-gray-700 text-[10px] font-black uppercase tracking-wider rounded-lg shadow-sm flex items-center gap-1.5 border border-gray-100">
-                        <span class="relative flex h-2 w-2">
-                            <span class="animate-ping absolute inline-flex h-full w-full rounded-full {{ $enrollment->status === 'completed' ? 'bg-green-400' : 'bg-amber-400' }} opacity-75"></span>
-                            <span class="relative inline-flex rounded-full h-2 w-2 {{ $enrollment->status === 'completed' ? 'bg-green-500' : 'bg-amber-500' }}"></span>
-                        </span>
-                        {{ str_replace('_', ' ', $enrollment->status ?? 'In Progress') }}
-                    </span>
-                </div>
-
-                {{-- Thumbnail --}}
-                <div class="relative w-full aspect-video overflow-hidden bg-gray-100">
-                    <img src="{{ $material->thumbnail ? asset('storage/' . $material->thumbnail) : 'https://images.unsplash.com/photo-1509228468518-180dd4864904?q=80&w=400' }}" 
-                         class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500">
-                    <div class="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
-                </div>
-
-                {{-- Card Body --}}
-                <div class="p-5 flex flex-col flex-1">
-                    <h3 class="font-bold text-gray-900 text-lg leading-tight line-clamp-2 group-hover:text-[#a52a2a] transition-colors mb-2">
-                        {{ $material->title }}
-                    </h3>
-                    
-                    {{-- INSTRUCTOR --}}
-                    <p class="text-xs text-gray-500 font-medium truncate flex items-center gap-1.5 mb-4">
-                        <i class="fas fa-chalkboard-user text-gray-400"></i> 
-                        {{ $material->instructor->first_name ?? 'Instructor' }} {{ $material->instructor->last_name ?? '' }}
-                    </p>
-
-                    <div class="mt-auto pt-4 border-t border-gray-50 flex items-center justify-between">
-                        <span class="text-[10px] bg-gray-100 text-gray-600 px-2 py-1 rounded font-bold uppercase tracking-wider">
-                            {{ $material->tags->first()->name ?? 'General' }}
-                        </span>
-                        
-                        <span class="text-[#a52a2a] text-sm font-bold flex items-center gap-1 group-hover:translate-x-1 transition-transform">
-                            Continue <i class="fas fa-arrow-right text-xs"></i>
-                        </span>
-                    </div>
-                </div>
-            </div>
-        @empty
-            <div class="col-span-full py-20 px-4 text-center bg-white rounded-3xl border border-gray-100 shadow-sm flex flex-col items-center justify-center">
+    <div id="tab-content-active" class="flex flex-col gap-10 transition-opacity duration-300">
+        
+        @if($enrollments->isEmpty())
+            {{-- EMPTY STATE (NO MODULES AT ALL) --}}
+            <div class="w-full py-20 px-4 text-center bg-white rounded-3xl border border-gray-100 shadow-sm flex flex-col items-center justify-center">
                 <div class="w-24 h-24 bg-red-50 text-[#a52a2a] rounded-full flex items-center justify-center text-4xl mb-4 shadow-inner">
                     <i class="fas fa-book-open"></i>
                 </div>
@@ -101,7 +59,128 @@
                     </button>
                 </div>
             </div>
-        @endforelse
+        @else
+            
+            {{-- 1. CURRENTLY READING / IN PROGRESS --}}
+            <div>
+                <h3 class="text-lg font-black text-gray-900 mb-5 px-2 flex items-center gap-2">
+                    <i class="fas fa-book-reader text-[#a52a2a]"></i> Currently Reading
+                </h3>
+                
+                @if($inProgress->isEmpty())
+                    <div class="py-8 px-4 text-center bg-gray-50 rounded-2xl border border-dashed border-gray-200 mx-2">
+                        <i class="fas fa-check-circle text-3xl text-gray-300 mb-2"></i>
+                        <p class="text-gray-500 font-medium">You're all caught up! No modules currently in progress.</p>
+                    </div>
+                @else
+                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 px-2">
+                        @foreach($inProgress as $enrollment)
+                            @php $material = $enrollment->material; @endphp
+                            <div class="bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-xl hover:border-[#a52a2a]/30 transition-all duration-300 group flex flex-col overflow-hidden cursor-pointer relative"
+                                onclick="window.location.href = '{{ route('student.materials.show', $material->hashid) }}'">
+                                
+                                {{-- Status Badge --}}
+                                <div class="absolute top-3 right-3 z-10">
+                                    <span class="px-2.5 py-1 bg-white/90 backdrop-blur-sm text-gray-700 text-[10px] font-black uppercase tracking-wider rounded-lg shadow-sm flex items-center gap-1.5 border border-gray-100">
+                                        <span class="relative flex h-2 w-2">
+                                            <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
+                                            <span class="relative inline-flex rounded-full h-2 w-2 bg-amber-500"></span>
+                                        </span>
+                                        {{ str_replace('_', ' ', $enrollment->status ?? 'In Progress') }}
+                                    </span>
+                                </div>
+
+                                {{-- Thumbnail --}}
+                                <div class="relative w-full aspect-video overflow-hidden bg-gray-100">
+                                    <img src="{{ $material->thumbnail ? asset('storage/' . $material->thumbnail) : 'https://images.unsplash.com/photo-1509228468518-180dd4864904?q=80&w=400' }}" 
+                                         class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500">
+                                    <div class="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+                                </div>
+
+                                {{-- Card Body --}}
+                                <div class="p-5 flex flex-col flex-1">
+                                    <h3 class="font-bold text-gray-900 text-lg leading-tight line-clamp-2 group-hover:text-[#a52a2a] transition-colors mb-2">
+                                        {{ $material->title }}
+                                    </h3>
+                                    
+                                    {{-- INSTRUCTOR --}}
+                                    <p class="text-xs text-gray-500 font-medium truncate flex items-center gap-1.5 mb-4">
+                                        <i class="fas fa-chalkboard-user text-gray-400"></i> 
+                                        {{ $material->instructor->first_name ?? 'Instructor' }} {{ $material->instructor->last_name ?? '' }}
+                                    </p>
+
+                                    <div class="mt-auto pt-4 border-t border-gray-50 flex items-center justify-between">
+                                        <span class="text-[10px] bg-gray-100 text-gray-600 px-2 py-1 rounded font-bold uppercase tracking-wider">
+                                            {{ $material->tags->first()->name ?? 'General' }}
+                                        </span>
+                                        
+                                        <span class="text-[#a52a2a] text-sm font-bold flex items-center gap-1 group-hover:translate-x-1 transition-transform">
+                                            Continue <i class="fas fa-arrow-right text-xs"></i>
+                                        </span>
+                                    </div>
+                                </div>
+                            </div>
+                        @endforeach
+                    </div>
+                @endif
+            </div>
+
+            {{-- 2. COMPLETED MODULES --}}
+            @if($completed->isNotEmpty())
+                <div class="pt-6 border-t border-gray-200">
+                    <h3 class="text-lg font-black text-gray-900 mb-5 px-2 flex items-center gap-2">
+                        <i class="fas fa-award text-green-500"></i> Completed Modules
+                    </h3>
+                    
+                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 px-2">
+                        @foreach($completed as $enrollment)
+                            @php $material = $enrollment->material; @endphp
+                            <div class="bg-green-50/30 rounded-2xl border border-green-100 shadow-sm hover:shadow-xl hover:border-green-300 transition-all duration-300 group flex flex-col overflow-hidden cursor-pointer relative"
+                                onclick="window.location.href = '{{ route('student.materials.show', $material->hashid) }}'">
+                                
+                                {{-- Status Badge --}}
+                                <div class="absolute top-3 right-3 z-10">
+                                    <span class="px-2.5 py-1 bg-white/90 backdrop-blur-sm text-green-700 text-[10px] font-black uppercase tracking-wider rounded-lg shadow-sm flex items-center gap-1.5 border border-green-100">
+                                        <i class="fas fa-check-circle"></i> Completed
+                                    </span>
+                                </div>
+
+                                {{-- Thumbnail --}}
+                                <div class="relative w-full aspect-video overflow-hidden bg-gray-100">
+                                    <img src="{{ $material->thumbnail ? asset('storage/' . $material->thumbnail) : 'https://images.unsplash.com/photo-1509228468518-180dd4864904?q=80&w=400' }}" 
+                                         class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500">
+                                    <div class="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+                                </div>
+
+                                {{-- Card Body --}}
+                                <div class="p-5 flex flex-col flex-1">
+                                    <h3 class="font-bold text-gray-900 text-lg leading-tight line-clamp-2 group-hover:text-green-700 transition-colors mb-2">
+                                        {{ $material->title }}
+                                    </h3>
+                                    
+                                    {{-- INSTRUCTOR --}}
+                                    <p class="text-xs text-gray-500 font-medium truncate flex items-center gap-1.5 mb-4">
+                                        <i class="fas fa-chalkboard-user text-gray-400"></i> 
+                                        {{ $material->instructor->first_name ?? 'Instructor' }} {{ $material->instructor->last_name ?? '' }}
+                                    </p>
+
+                                    <div class="mt-auto pt-4 border-t border-green-100/50 flex items-center justify-between">
+                                        <span class="text-[10px] bg-white border border-green-100 text-green-700 px-2 py-1 rounded font-bold uppercase tracking-wider">
+                                            Score: {{ $enrollment->score ?? 100 }}%
+                                        </span>
+                                        
+                                        <span class="text-green-600 text-sm font-bold flex items-center gap-1 group-hover:text-green-700 transition-colors">
+                                            Review <i class="fas fa-redo text-xs"></i>
+                                        </span>
+                                    </div>
+                                </div>
+                            </div>
+                        @endforeach
+                    </div>
+                </div>
+            @endif
+
+        @endif
     </div>
 
     {{-- DROPPED TAB CONTENT --}}
@@ -228,7 +307,7 @@
                 droppedContent.classList.add('hidden');
                 
                 activeContent.classList.remove('hidden');
-                activeContent.classList.add('grid');
+                activeContent.classList.add('flex'); // Changed from grid to flex to stack the two sections
                 setTimeout(() => activeContent.classList.remove('opacity-0'), 50);
             }, 300);
 
@@ -243,7 +322,7 @@
             // Hide Active, Show Dropped
             activeContent.classList.add('opacity-0');
             setTimeout(() => {
-                activeContent.classList.remove('grid');
+                activeContent.classList.remove('flex'); // Changed from grid to flex
                 activeContent.classList.add('hidden');
                 
                 droppedContent.classList.remove('hidden');
@@ -269,6 +348,12 @@
         input.classList.remove('border-red-500', 'bg-red-50');
         errorMsg.classList.add('hidden');
         errorMsg.innerText = '';
+
+        // Reset the modal text back to default after animation finishes
+        setTimeout(() => {
+            document.getElementById('join-modal-title').innerText = 'Join a Module';
+            document.getElementById('join-modal-desc').innerText = 'Enter the access code provided by your instructor to instantly enroll.';
+        }, 300);
     }
 
     document.getElementById('join-code-input').addEventListener('keypress', function(e) {
@@ -339,24 +424,5 @@
         document.getElementById('join-modal-title').innerText = 'Rejoin Module';
         document.getElementById('join-modal-desc').innerHTML = `Enter the access code to rejoin <strong>${courseTitle}</strong>.`;
         openJoinModal();
-    }
-
-    // --- Update your existing closeJoinModal function to this ---
-    function closeJoinModal() {
-        document.getElementById('join-code-modal').classList.add('hidden');
-        
-        const input = document.getElementById('join-code-input');
-        const errorMsg = document.getElementById('join-code-error');
-        
-        input.value = '';
-        input.classList.remove('border-red-500', 'bg-red-50');
-        errorMsg.classList.add('hidden');
-        errorMsg.innerText = '';
-
-        // Reset the modal text back to default after animation finishes
-        setTimeout(() => {
-            document.getElementById('join-modal-title').innerText = 'Join a Module';
-            document.getElementById('join-modal-desc').innerText = 'Enter the access code provided by your instructor to instantly enroll.';
-        }, 300);
     }
 </script>
