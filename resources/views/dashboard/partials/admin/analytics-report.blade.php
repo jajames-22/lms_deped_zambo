@@ -2,7 +2,7 @@
 <html>
 <head>
     <meta charset="utf-8">
-    <title>Material Analytics Report</title>
+    <title>Admin Analytics Report</title>
     <style>
         /* =======================================================
            1. COMMON STYLES (Applies to both Print and PDF)
@@ -93,12 +93,12 @@
                         @endphp
                         <img src="{{ $logoPath }}" height="40" alt="LMS Logo" style="margin-bottom: 5px;">
                         
-                        <div class="title">Material Analytics Report</div>
+                        <div class="title">Admin Analytics Report</div>
                         <div class="subtitle">Generated on: {{ now()->format('F j, Y - g:i A') }}</div>
                     </td>
                     <td style="width: 40%; text-align: right; vertical-align: bottom; padding-bottom: 3px;">
                         <strong style="font-size: 16px; color: #111;">{{ auth()->user()->first_name }} {{ auth()->user()->last_name }}</strong><br>
-                        <span style="font-size: 10px; text-transform: uppercase; color: #888; letter-spacing: 1px;">Instructor Account</span>
+                        <span style="font-size: 10px; text-transform: uppercase; color: #888; letter-spacing: 1px;">Administrator Account</span>
                     </td>
                 </tr>
             </table>
@@ -106,116 +106,108 @@
     </header>
 
     <main>
-        @if($showOverview)
-        <div class="section-title">1. Material Overview</div>
+        @if($showUsers)
+        <div class="section-title">1. User & Demographics</div>
         <table class="data-table">
             <tr>
-                <th>Total Learners Enrolled</th>
-                <td class="text-right">{{ number_format($totalLearners) }}</td>
+                <th>Total Students</th>
+                <td class="text-right">{{ number_format($totalStudents) }}</td>
             </tr>
             <tr>
-                <th>Active Learners (Last 7 Days)</th>
-                <td class="text-right text-green">{{ number_format($activeLearners) }}</td>
+                <th>Total Teachers</th>
+                <td class="text-right">{{ number_format($totalTeachers) }}</td>
             </tr>
             <tr>
-                <th>Pending Enrollment Invites</th>
-                <td class="text-right text-red">{{ number_format($pendingRequests) }}</td>
+                <th>Total Schools</th>
+                <td class="text-right">{{ number_format($totalSchools) }}</td>
+            </tr>
+            <tr>
+                <th>Daily Active Users (Last 24h)</th>
+                <td class="text-right text-green">{{ number_format($dailyActiveUsers) }}</td>
+            </tr>
+            <tr>
+                <th>Weekly Active Users (Last 7 Days)</th>
+                <td class="text-right text-green">{{ number_format($weeklyActiveUsers) }}</td>
             </tr>
         </table>
+
+        @if(count($schoolLabels) > 0)
+            <div class="sub-table-title">Top Schools by Student Count</div>
+            <table class="sub-table">
+                <tr>
+                    <th style="width: 75%; text-align: left;">School Name</th>
+                    <th style="width: 25%; text-align: right;">Students</th>
+                </tr>
+                @for($i = 0; $i < count($schoolLabels); $i++)
+                <tr>
+                    <td>{{ $schoolLabels[$i] }}</td>
+                    <td style="text-align: right; font-weight: bold; color: #8b5cf6;">{{ number_format($schoolData[$i]) }}</td>
+                </tr>
+                @endfor
+            </table>
+        @endif
         @endif
 
-        @if($showEngagement)
-        <div class="section-title">2. Material Engagement</div>
+        @if($showContent)
+        <div class="section-title">2. Content, Engagement & Performance</div>
         <table class="data-table">
             <tr>
-                <th>Total Modules Created</th>
+                <th>Total Materials Published</th>
                 <td class="text-right">{{ number_format($totalMaterials) }}</td>
             </tr>
             <tr>
-                <th>Total Views Across All Modules</th>
-                <td class="text-right">{{ number_format($totalViews) }}</td>
+                <th>Total Enrollments</th>
+                <td class="text-right">{{ number_format($totalEnrollments) }}</td>
             </tr>
             <tr>
-                <th>Completed Enrollments</th>
-                <td class="text-right text-green">{{ number_format($completedCount) }}</td>
+                <th>Global Completion Rate</th>
+                <td class="text-right text-green">{{ $completionRate }}%</td>
             </tr>
             <tr>
-                <th>In Progress Enrollments</th>
-                <td class="text-right" style="color: #f59e0b;">{{ number_format($inProgressCount) }}</td>
+                <th>Total Assessments Published</th>
+                <td class="text-right">{{ number_format($totalAssessments) }}</td>
+            </tr>
+            <tr>
+                <th>Global Assessment Success Rate</th>
+                <td class="text-right text-blue">{{ $globalSuccessRate }}%</td>
             </tr>
         </table>
 
-        <div class="sub-table-title">Most Viewed Modules</div>
-        @if(count($topMaterials) > 0)
+        @if(count($topMaterialsLabels) > 0)
+            <div class="sub-table-title">Most Viewed Materials</div>
             <table class="sub-table">
                 <tr>
-                    <th style="width: 75%; text-align: left;">Module Title</th>
+                    <th style="width: 75%; text-align: left;">Material Title</th>
                     <th style="width: 25%; text-align: right;">Total Views</th>
                 </tr>
-                @foreach($topMaterials as $material)
+                @for($i = 0; $i < count($topMaterialsLabels); $i++)
                 <tr>
-                    <td>{{ $material->title }}</td>
-                    <td style="text-align: right; font-weight: bold; color: #8b5cf6;">{{ number_format($material->views) }}</td>
+                    <td>{{ $topMaterialsLabels[$i] }}</td>
+                    <td style="text-align: right; font-weight: bold; color: #8b5cf6;">{{ number_format($topMaterialsData[$i]) }}</td>
                 </tr>
-                @endforeach
-            </table>
-        @else
-            <div class="empty-state">No module views recorded yet.</div>
-        @endif
-        @endif
-
-        @if($showPerformance)
-        <div class="section-title">3. Assessment Performance</div>
-        @if($correctAnswers == 0 && $incorrectAnswers == 0)
-            <div class="empty-state">No assessment attempts have been recorded yet. Scores will appear here once students take exams.</div>
-        @else
-            <table class="data-table">
-                <tr>
-                    <th>Global Material Average Score</th>
-                    <td class="text-right text-green">{{ $averageScore }}%</td>
-                </tr>
-                <tr>
-                    <th>Total Correct Answers</th>
-                    <td class="text-right text-blue">{{ number_format($correctAnswers) }}</td>
-                </tr>
-                <tr>
-                    <th>Total Incorrect Answers</th>
-                    <td class="text-right text-red">{{ number_format($incorrectAnswers) }}</td>
-                </tr>
+                @endfor
             </table>
         @endif
         @endif
 
-        @if($showTrends)
-        @php
-            $hasTrendData = collect($activityTrends)->sum('count') > 0;
-        @endphp
-        <div class="section-title">4. Activity Trends (Last 7 Days)</div>
-        @if(!$hasTrendData)
-            <div class="empty-state">No new enrollments or activity recorded in the last 7 days.</div>
-        @else
-            <table class="sub-table">
-                <tr>
-                    <th style="width: 75%; text-align: left;">Date</th>
-                    <th style="width: 25%; text-align: right;">New Enrollments</th>
-                </tr>
-                @foreach($activityTrends as $trend)
-                <tr>
-                    <td>{{ $trend['date'] }}</td>
-                    <td style="text-align: right; font-weight: bold; color: #10b981;">{{ number_format($trend['count']) }}</td>
-                </tr>
-                @endforeach
-            </table>
-        @endif
+        @if($showHealth)
+        <div class="section-title">3. System Health & Resources</div>
+        <table class="data-table">
+            <tr>
+                <th>Storage Usage</th>
+                <td class="text-right" style="{{ $storagePercentage > 80 ? 'color: #dc2626;' : 'color: #16a34a;' }}">
+                    {{ $storagePercentage }}% ({{ $usedGb }} GB / {{ $totalGb }} GB)
+                </td>
+            </tr>
+        </table>
         @endif
     </main>
 
-    
     <footer>
         <div class="footer-inner">
             <table>
                 <tr>
-                    <td style="text-align: left; width: 80%;">{{ config('app.name', 'LMS Platform') }} • Official Instructor Generated Report</td>
+                    <td style="text-align: left; width: 80%;">{{ config('app.name', 'LMS Platform') }} • Official Admin Generated Report</td>
                     <td style="text-align: right; width: 20%;" class="page-number"></td>
                 </tr>
             </table>

@@ -15,6 +15,7 @@
         .sub-table th { background-color: #f8f9fa; padding: 10px; font-size: 12px; font-weight: bold; color: #555; text-transform: uppercase; border-bottom: 2px solid #ddd; }
         .sub-table td { padding: 10px; font-size: 13px; border-bottom: 1px solid #eee; }
         .text-right { text-align: right; font-weight: bold; font-size: 15px; }
+        .empty-state { padding: 15px; background-color: #f9fafb; border: 1px dashed #e5e7eb; color: #6b7280; text-align: center; font-style: italic; font-size: 13px; margin-bottom: 20px; }
         
         @if(!isset($isPrint) || !$isPrint)
             @page { margin: 130px 40px 80px 40px; }
@@ -82,12 +83,16 @@
         </table>
 
         <div style="font-weight: bold; font-size: 13px; color: #555; margin-top: 20px;">Topic Mastery Breakdown</div>
+        @if(count($masteryLabels) > 0)
         <table class="sub-table">
             <tr><th style="text-align: left;">Module Title</th><th style="text-align: right;">Mastery Score</th></tr>
-            @foreach($masteryData as $m)
-            <tr><td>{{ $m->title }}</td><td style="text-align: right; font-weight: bold; color: #8b5cf6;">{{ $m->total_attempts > 0 ? round(($m->correct_attempts / $m->total_attempts) * 100) : 0 }}%</td></tr>
-            @endforeach
+            @for($i = 0; $i < count($masteryLabels); $i++)
+            <tr><td>{{ $masteryLabels[$i] }}</td><td style="text-align: right; font-weight: bold; color: #8b5cf6;">{{ $masteryScores[$i] }}%</td></tr>
+            @endfor
         </table>
+        @else
+        <div class="empty-state">No exams taken yet to determine topic mastery.</div>
+        @endif
         @endif
     </main>
 
