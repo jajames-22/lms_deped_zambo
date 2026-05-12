@@ -176,7 +176,9 @@
                 <span class="text-7xl md:text-8xl font-black text-gray-200 group-hover:text-[#a52a2a]/20 transition-colors italic leading-none">
                     {{ $index + 1 }}
                 </span>
-                <div class="h-64 rounded-xl overflow-hidden -translate-x-6 shadow-lg relative">
+                
+                {{-- UPDATED: Replaced h-64 with w-64 and aspect-[4/3] --}}
+                <div class="w-78 aspect-[4/3] rounded-xl overflow-hidden -translate-x-6 shadow-lg relative">
                     <img src="{{ $material->thumbnail ? asset('storage/' . $material->thumbnail) : 'https://images.unsplash.com/photo-1517694712202-14dd9538aa97?q=80&w=300' }}" 
                          class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500">
                     <div class="absolute inset-0 bg-gradient-to-t from-black/90 via-transparent to-transparent p-4 flex flex-col justify-end">

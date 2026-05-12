@@ -14,7 +14,6 @@ class Enrollment extends Model
         'material_id',
         'status',
         'progress_data',
-        'retakes', // <--- Add this here!
         'completed_at'
     ];
 

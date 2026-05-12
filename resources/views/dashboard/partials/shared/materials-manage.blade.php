@@ -436,6 +436,7 @@
                                 <th class="px-6 py-4">Student Email</th>
                                 <th class="px-6 py-4">Current Status</th>
                                 <th class="px-6 py-4">Progress / Score</th>
+                                <th class="px-6 py-4 text-center">Retakes</th>
                                 <th class="px-6 py-4 text-right">Actions</th>
                             </tr>
                         </thead>
@@ -480,15 +481,18 @@
                                         @if($access->current_enrollment)
                                             <div class="flex flex-col gap-1">
                                                 <div class="flex items-center justify-between text-xs">
-                                                    <span
-                                                        class="font-bold text-gray-700">{{ ucfirst($access->current_enrollment->status) }}</span>
-                                                    <span
-                                                        class="text-gray-400 font-mono">{{ $access->current_enrollment->score ?? '0' }}%</span>
+                                                    <span class="font-bold text-gray-700">{{ ucwords(str_replace('_', ' ', $access->current_enrollment->status)) }}</span>
+                                                    <span class="text-gray-400 font-mono">{{ $access->current_enrollment->score ?? '0' }}%</span>
                                                 </div>
                                             </div>
                                         @else
                                             <span class="text-xs text-gray-400 font-medium">No activity yet</span>
                                         @endif
+                                    </td>
+                                    <td class="px-6 py-4 text-center">
+                                        <span class="inline-flex items-center justify-center w-8 h-8 rounded-full bg-gray-100 text-gray-700 font-bold text-xs border border-gray-200">
+                                            {{ $access->retakes ?? 0 }}
+                                        </span>
                                     </td>
                                     <td class="px-6 py-4 text-right">
                                         <div class="flex items-center justify-end gap-2">
@@ -509,7 +513,7 @@
                                 </tr>
                             @empty
                                 <tr>
-                                    <td colspan="4" class="px-6 py-12 text-center">
+                                    <td colspan="5" class="px-6 py-12 text-center">
                                         <div
                                             class="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-4 border border-gray-100">
                                             <i class="fas fa-users-slash text-2xl text-gray-300"></i>
