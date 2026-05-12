@@ -2,7 +2,7 @@
 
 A centralized, full-stack Learning Management System designed to facilitate the distribution, management, and tracking of educational materials and examinations for the Department of Education (DepEd) Zamboanga City Division. 
 
-Created by **James Benedict A. Rojas** (WMSU - College of Computing Studies) in collaboration with the DepEd Zamboanga Information Technology team.
+Created by **Graziella Marife S. Saavedra & James Benedict A. Rojas** (WMSU - College of Computing Studies) in collaboration with the DepEd Zamboanga Information Technology team.
 
 ---
 
@@ -43,8 +43,14 @@ Before you begin, ensure you have the following installed on your local machine 
 Follow these steps to get the project running in your local development environment:
 
 **1. Clone the repository**
-git clone <your-repository-url>
+git clone <your-repository-url>  
 cd deped-zamboanga-lms
 
-**2. 2. Install PHP Dependencies**
+**2. Install PHP Dependencies**
 composer install
+
+**3. Install Frontend Dependencies**
+npm install
+
+
+
