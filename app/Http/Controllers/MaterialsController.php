@@ -1413,7 +1413,7 @@ class MaterialsController extends Controller
             return response()->json([
                 'success' => true,
                 'is_shuffled' => $newShuffle,
-                'message' => 'Final Exam questions will ' . ($newShuffle ? 'be shuffled' : 'follow sort order')
+                'message' => 'Final Exam questions will ' . ($newShuffle ? 'be shuffled' : 'follow the original order')
             ]);
         } catch (\Exception $e) {
             return response()->json(['success' => false, 'message' => 'Error updating shuffle setting: ' . $e->getMessage()], 500);

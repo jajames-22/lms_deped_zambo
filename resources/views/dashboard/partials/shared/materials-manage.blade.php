@@ -27,7 +27,8 @@
             height: 12px;
             border-radius: 999px;
             outline: none;
-            background-color: #e5e7eb; /* Fallback base color */
+            background-color: #e5e7eb;
+            /* Fallback base color */
         }
 
         input[type=range].custom-slider::-webkit-slider-thumb {
@@ -56,6 +57,7 @@
         #weight-slider::-webkit-slider-thumb {
             border-color: #6b7280;
         }
+
         #weight-slider::-moz-range-thumb {
             border-color: #6b7280;
         }
@@ -63,6 +65,7 @@
         #passing-slider::-webkit-slider-thumb {
             border-color: #22c55e;
         }
+
         #passing-slider::-moz-range-thumb {
             border-color: #22c55e;
         }
@@ -353,10 +356,8 @@
                             <p class="text-xs text-gray-500 mb-6 mt-1">Adjust the impact of Quizzes vs. Final Exam.</p>
 
                             <input type="range" id="weight-slider" min="0" max="100" value="{{ $quizWeight }}"
-                            class="custom-slider {{ $isWeightDisabled ? 'opacity-50 cursor-not-allowed' : '' }}" 
-                            {{ $isWeightDisabled ? 'disabled' : '' }} 
-                            oninput="window.updateWeightUI()"
-                            style="background-image: linear-gradient(to right, #fbbf24 {{ $quizWeight }}%, #ef4444 {{ $quizWeight }}%)">
+                                class="custom-slider {{ $isWeightDisabled ? 'opacity-50 cursor-not-allowed' : '' }}" {{ $isWeightDisabled ? 'disabled' : '' }} oninput="window.updateWeightUI()"
+                                style="background-image: linear-gradient(to right, #fbbf24 {{ $quizWeight }}%, #ef4444 {{ $quizWeight }}%)">
 
                             <div class="flex justify-between mt-4 text-sm font-bold">
                                 <span id="quiz-weight-text" class="text-amber-500">Quizzes: {{ $quizWeight }}%</span>
@@ -376,10 +377,8 @@
                             </div>
 
                             <input type="range" id="passing-slider" min="0" max="100" value="{{ $savedPassingPercentage }}"
-                            class="custom-slider {{ $isPassingDisabled ? 'opacity-50 cursor-not-allowed' : '' }}" 
-                            {{ $isPassingDisabled ? 'disabled' : '' }} 
-                            oninput="window.updatePassingUI()"
-                            style="background-image: linear-gradient(to right, #22c55e {{ $savedPassingPercentage }}%, #e5e7eb {{ $savedPassingPercentage }}%)">
+                                class="custom-slider {{ $isPassingDisabled ? 'opacity-50 cursor-not-allowed' : '' }}" {{ $isPassingDisabled ? 'disabled' : '' }} oninput="window.updatePassingUI()"
+                                style="background-image: linear-gradient(to right, #22c55e {{ $savedPassingPercentage }}%, #e5e7eb {{ $savedPassingPercentage }}%)">
 
                             <div id="zero-percent-warning"
                                 class="mt-4 p-3 bg-amber-50 border border-amber-200 rounded-xl items-start gap-2 transition-all duration-300 {{ $savedPassingPercentage == 0 ? 'flex' : 'hidden' }}">
@@ -428,105 +427,171 @@
                     <i class="fas fa-paper-plane mr-1.5"></i> Invite Pending
                 </button>
 
-                <div class="overflow-x-auto">
-                    <table class="w-full text-left border-collapse">
-                        <thead
-                            class="bg-gray-50/50 text-[10px] uppercase text-gray-400 font-black tracking-wider border-b border-gray-100">
-                            <tr>
-                                <th class="px-6 py-4">Student Email</th>
-                                <th class="px-6 py-4">Current Status</th>
-                                <th class="px-6 py-4">Progress / Score</th>
-                                <th class="px-6 py-4 text-center">Retakes</th>
-                                <th class="px-6 py-4 text-right">Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody class="divide-y divide-gray-50" id="student-list-body">
-                            @forelse($whitelistedStudents as $access)
-                                <tr class="hover:bg-gray-50/50 transition">
-                                    <td class="px-6 py-4">
-                                        <div class="flex items-center gap-3">
-                                            <div
-                                                class="w-8 h-8 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center font-bold text-xs shrink-0 border border-blue-100">
-                                                {{ strtoupper(substr($access->email, 0, 1)) }}
-                                            </div>
-                                            <div>
-                                                <p
-                                                    class="text-sm font-bold text-gray-900 truncate max-w-[150px] sm:max-w-xs">
-                                                    {{ $access->email }}
-                                                </p>
-                                                @if($access->student && $access->current_enrollment)
-                                                    <p class="text-[10px] text-gray-500 uppercase tracking-wider">
-                                                        {{ $access->student->first_name }} {{ $access->student->last_name }}
+                <div class="overflow-hidden">
+                    <div class="overflow-x-auto lg:overflow-x-visible">
+                        <table class="w-full text-left border-collapse min-w-[760px] lg:min-w-0">
+                            <thead
+                                class="bg-gray-50/70 text-[10px] uppercase text-gray-400 font-black tracking-wider border-b border-gray-100">
+                                <tr>
+                                    <th class="px-4 md:px-6 py-4">Student</th>
+                                    <th class="px-4 py-4">Status</th>
+                                    <th class="px-4 py-4 hidden md:table-cell">Progress</th>
+                                    <th class="px-4 py-4 text-center hidden sm:table-cell">Retakes</th>
+                                    <th class="px-4 md:px-6 py-4 text-right">Actions</th>
+                                </tr>
+                            </thead>
+
+                            <tbody class="divide-y divide-gray-50" id="student-list-body">
+                                @forelse($whitelistedStudents as $access)
+                                    <tr class="hover:bg-gray-50/70 transition align-top">
+
+                                        {{-- STUDENT --}}
+                                        <td class="px-4 md:px-6 py-4">
+                                            <div class="flex items-start gap-3 min-w-0">
+
+                                                <div
+                                                    class="w-9 h-9 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center font-bold text-xs shrink-0 border border-blue-100">
+                                                    {{ strtoupper(substr($access->email, 0, 1)) }}
+                                                </div>
+
+                                                <div class="min-w-0 flex-1">
+                                                    <p class="text-sm font-bold text-gray-900 break-all leading-tight">
+                                                        {{ $access->email }}
                                                     </p>
-                                                @endif
-                                            </div>
-                                        </div>
-                                    </td>
-                                    <td class="px-6 py-4">
-                                        @if($access->status === 'enrolled')
-                                            <span
-                                                class="px-2.5 py-1 bg-green-50 text-green-700 text-[10px] font-black uppercase tracking-wider rounded-md border border-green-100">Enrolled</span>
-                                        @elseif($access->status === 'invited')
-                                            <span
-                                                class="px-2.5 py-1 bg-blue-50 text-blue-700 text-[10px] font-black uppercase tracking-wider rounded-md border border-blue-100">Invited</span>
-                                        @elseif($access->status === 'dropped')
-                                            <span
-                                                class="px-2.5 py-1 bg-red-50 text-red-700 text-[10px] font-black uppercase tracking-wider rounded-md border border-red-100">Dropped</span>
-                                        @else
-                                            <span
-                                                class="px-2.5 py-1 bg-amber-50 text-amber-700 text-[10px] font-black uppercase tracking-wider rounded-md border border-amber-100">Pending</span>
-                                        @endif
-                                    </td>
-                                    <td class="px-6 py-4">
-                                        @if($access->current_enrollment)
-                                            <div class="flex flex-col gap-1">
-                                                <div class="flex items-center justify-between text-xs">
-                                                    <span class="font-bold text-gray-700">{{ ucwords(str_replace('_', ' ', $access->current_enrollment->status)) }}</span>
-                                                    <span class="text-gray-400 font-mono">{{ $access->current_enrollment->score ?? '0' }}%</span>
+
+                                                    @if($access->student && $access->current_enrollment)
+                                                        <p class="text-[10px] text-gray-500 uppercase tracking-wider mt-1">
+                                                            {{ $access->student->first_name }}
+                                                            {{ $access->student->last_name }}
+                                                        </p>
+                                                    @endif
+
+                                                    {{-- MOBILE PROGRESS --}}
+                                                    @if($access->current_enrollment)
+                                                        <div class="md:hidden mt-2">
+                                                            <div class="flex items-center justify-between text-[11px]">
+                                                                <span class="font-semibold text-gray-700">
+                                                                    {{ ucwords(str_replace('_', ' ', $access->current_enrollment->status)) }}
+                                                                </span>
+
+                                                                <span class="text-gray-400 font-mono">
+                                                                    {{ $access->current_enrollment->score ?? '0' }}%
+                                                                </span>
+                                                            </div>
+                                                        </div>
+                                                    @endif
                                                 </div>
                                             </div>
-                                        @else
-                                            <span class="text-xs text-gray-400 font-medium">No activity yet</span>
-                                        @endif
-                                    </td>
-                                    <td class="px-6 py-4 text-center">
-                                        <span class="inline-flex items-center justify-center w-8 h-8 rounded-full bg-gray-100 text-gray-700 font-bold text-xs border border-gray-200">
-                                            {{ $access->retakes ?? 0 }}
-                                        </span>
-                                    </td>
-                                    <td class="px-6 py-4 text-right">
-                                        <div class="flex items-center justify-end gap-2">
-                                            @if($access->status === 'pending' || $access->status === 'invited')
-                                                <button onclick="sendIndividualInvite({{ $access->id }}, this)"
-                                                    class="w-8 h-8 rounded-lg flex items-center justify-center text-blue-500 hover:bg-blue-50 transition"
-                                                    title="Send Invitation Email">
-                                                    <i class="fas fa-paper-plane text-xs"></i>
-                                                </button>
+                                        </td>
+
+                                        {{-- STATUS --}}
+                                        <td class="px-4 py-4 whitespace-nowrap">
+                                            @if($access->status === 'enrolled')
+                                                <span
+                                                    class="px-2.5 py-1 bg-green-50 text-green-700 text-[10px] font-black uppercase tracking-wider rounded-md border border-green-100">
+                                                    Enrolled
+                                                </span>
+
+                                            @elseif($access->status === 'invited')
+                                                <span
+                                                    class="px-2.5 py-1 bg-blue-50 text-blue-700 text-[10px] font-black uppercase tracking-wider rounded-md border border-blue-100">
+                                                    Invited
+                                                </span>
+
+                                            @elseif($access->status === 'dropped')
+                                                <span
+                                                    class="px-2.5 py-1 bg-red-50 text-red-700 text-[10px] font-black uppercase tracking-wider rounded-md border border-red-100">
+                                                    Dropped
+                                                </span>
+
+                                            @else
+                                                <span
+                                                    class="px-2.5 py-1 bg-amber-50 text-amber-700 text-[10px] font-black uppercase tracking-wider rounded-md border border-amber-100">
+                                                    Pending
+                                                </span>
                                             @endif
-                                            <button onclick="revokeAccess({{ $access->id }}, this)"
-                                                class="w-8 h-8 rounded-lg flex items-center justify-center text-red-400 hover:text-red-600 hover:bg-red-50 transition"
-                                                title="Revoke Access">
-                                                <i class="fas fa-trash-alt text-xs"></i>
-                                            </button>
-                                        </div>
-                                    </td>
-                                </tr>
-                            @empty
-                                <tr>
-                                    <td colspan="5" class="px-6 py-12 text-center">
-                                        <div
-                                            class="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-4 border border-gray-100">
-                                            <i class="fas fa-users-slash text-2xl text-gray-300"></i>
-                                        </div>
-                                        <p class="text-gray-500 font-medium">No students added yet.</p>
-                                        <p class="text-xs text-gray-400 mt-1">Add students manually or import a CSV list.
-                                        </p>
-                                    </td>
-                                </tr>
-                            @endforelse
-                        </tbody>
-                    </table>
+                                        </td>
+
+                                        {{-- PROGRESS --}}
+                                        <td class="px-4 py-4 hidden md:table-cell">
+                                            @if($access->current_enrollment)
+                                                <div class="flex flex-col gap-1 min-w-[140px]">
+
+                                                    <div class="flex items-center justify-between text-xs">
+                                                        <span class="font-bold text-gray-700">
+                                                            {{ ucwords(str_replace('_', ' ', $access->current_enrollment->status)) }}
+                                                        </span>
+
+                                                        <span class="text-gray-400 font-mono">
+                                                            {{ $access->current_enrollment->score ?? '0' }}%
+                                                        </span>
+                                                    </div>
+
+                                                    <div class="w-full h-2 bg-gray-100 rounded-full overflow-hidden">
+                                                        <div class="h-full bg-blue-500 rounded-full"
+                                                            style="width: {{ $access->current_enrollment->score ?? 0 }}%">
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            @else
+                                                <span class="text-xs text-gray-400 font-medium">
+                                                    No activity yet
+                                                </span>
+                                            @endif
+                                        </td>
+
+                                        {{-- RETAKES --}}
+                                        <td class="px-4 py-4 text-center hidden sm:table-cell">
+                                            <span
+                                                class="inline-flex items-center justify-center min-w-[32px] h-8 px-2 rounded-full bg-gray-100 text-gray-700 font-bold text-xs border border-gray-200">
+                                                {{ $access->retakes ?? 0 }}
+                                            </span>
+                                        </td>
+
+                                        {{-- ACTIONS --}}
+                                        <td class="px-4 md:px-6 py-4">
+                                            <div class="flex items-center justify-end gap-1">
+
+                                                @if($access->status === 'pending' || $access->status === 'invited')
+                                                    <button onclick="sendIndividualInvite({{ $access->id }}, this)"
+                                                        class="w-8 h-8 rounded-lg flex items-center justify-center text-blue-500 hover:bg-blue-50 transition"
+                                                        title="Send Invitation Email">
+                                                        <i class="fas fa-paper-plane text-xs"></i>
+                                                    </button>
+                                                @endif
+
+                                                <button onclick="revokeAccess({{ $access->id }}, this)"
+                                                    class="w-8 h-8 rounded-lg flex items-center justify-center text-red-400 hover:text-red-600 hover:bg-red-50 transition"
+                                                    title="Revoke Access">
+                                                    <i class="fas fa-trash-alt text-xs"></i>
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+
+                                @empty
+                                    <tr>
+                                        <td colspan="5" class="px-6 py-12 text-center">
+                                            <div
+                                                class="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-4 border border-gray-100">
+                                                <i class="fas fa-users-slash text-2xl text-gray-300"></i>
+                                            </div>
+
+                                            <p class="text-gray-500 font-medium">
+                                                No students added yet.
+                                            </p>
+
+                                            <p class="text-xs text-gray-400 mt-1">
+                                                Add students manually or import a CSV list.
+                                            </p>
+                                        </td>
+                                    </tr>
+                                @endforelse
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
+
             </div>
 
             {{-- ANALYTICS OVERVIEW --}}
@@ -637,30 +702,6 @@
                     </label>
                 </div>
 
-                <div class="mb-6 pt-4 border-t border-gray-100">
-                    <label class="flex items-center justify-between cursor-pointer group">
-                        <div>
-                            <span class="text-sm font-bold text-gray-900 block group-hover:text-[#a52a2a] transition-colors">Shuffle Exam</span>
-                            <span class="text-[10px] text-gray-500 uppercase tracking-wider">Randomize final exam questions</span>
-                        </div>
-                        <label class="relative toggle-container cursor-pointer">
-                            <input type="checkbox" id="shuffleToggle" class="sr-only peer"
-                                onchange="toggleShuffle(this)" {{ $material->is_shuffled ? 'checked' : '' }} {{ $isLocked ? 'disabled' : '' }}>
-
-                            <div class="w-14 h-8 rounded-full border border-gray-200 transition-colors
-                            peer-checked:bg-[#a52a2a] bg-gray-300
-                            peer-disabled:bg-red-200 peer-disabled:opacity-50
-                            peer-disabled:cursor-not-allowed">
-                            </div>
-
-                            <div class="absolute left-1 top-1 w-6 h-6 bg-white rounded-full shadow-sm transition-transform
-                                peer-checked:translate-x-6
-                                peer-disabled:bg-gray-100">
-                            </div>
-                        </label>
-                    </label>
-                </div>
-
                 @php
                     // Calculate if the code is currently active
                     $isCodeActive = $material->access_code && $material->access_code_expires_at && \Carbon\Carbon::parse($material->access_code_expires_at)->isFuture();
@@ -681,8 +722,8 @@
                     <div class="flex items-center gap-2 bg-gray-50 p-1.5 rounded-xl border border-gray-200 mb-3">
                         <code id="access-code-display"
                             class="flex-1 text-center font-black {{ $isCodeActive ? 'text-gray-700' : 'text-gray-400 line-through' }} tracking-widest text-lg">
-            {{ $isCodeActive ? $material->access_code : '------' }}
-        </code>
+                            {{ $isCodeActive ? $material->access_code : '------' }}
+                        </code>
                         <button id="copy-code-btn"
                             onclick="copyAccessCode(document.getElementById('access-code-display').innerText.trim())"
                             class="h-10 w-10 bg-white rounded-lg border border-gray-200 text-gray-500 hover:text-[#a52a2a] shadow-sm flex items-center justify-center transition disabled:opacity-50 disabled:cursor-not-allowed"
@@ -707,6 +748,40 @@
                             Generate a code to grant 3-hour access.
                         @endif
                     </p>
+                </div>
+            </div>
+
+            {{-- EXAM SETTINGS --}}
+            <div class="bg-white rounded-3xl shadow-sm border border-gray-100 p-6">
+                <h3 class="text-sm font-black text-gray-900 uppercase tracking-wider mb-6 flex items-center gap-2">
+                    <i class="fas fa-random text-[#a52a2a]"></i> Exam Settings
+                </h3>
+
+                <div>
+                    <label class="flex items-center justify-between cursor-pointer group">
+                        <div>
+                            <span
+                                class="text-sm font-bold text-gray-900 block group-hover:text-[#a52a2a] transition-colors">Shuffle
+                                Exam</span>
+                            <span class="text-[10px] text-gray-500 uppercase tracking-wider">Randomize final exam
+                                questions</span>
+                        </div>
+                        <label class="relative toggle-container cursor-pointer">
+                            <input type="checkbox" id="shuffleToggle" class="sr-only peer"
+                                onchange="toggleShuffle(this)" {{ $material->is_shuffled ? 'checked' : '' }} {{ $isLocked ? 'disabled' : '' }}>
+
+                            <div class="w-14 h-8 rounded-full border border-gray-200 transition-colors
+                            peer-checked:bg-[#a52a2a] bg-gray-300
+                            peer-disabled:bg-red-200 peer-disabled:opacity-50
+                            peer-disabled:cursor-not-allowed">
+                            </div>
+
+                            <div class="absolute left-1 top-1 w-6 h-6 bg-white rounded-full shadow-sm transition-transform
+                                peer-checked:translate-x-6
+                                peer-disabled:bg-gray-100">
+                            </div>
+                        </label>
+                    </label>
                 </div>
             </div>
 
@@ -785,7 +860,7 @@
 
                             <button type="button" onclick="removeTag('{{ $tag->name }}')" {{ $isLocked ? 'disabled' : '' }}
                                 class="text-[#a52a2a]/60 hover:text-[#a52a2a] hover:bg-[#a52a2a]/10 rounded-full h-4 w-4 flex items-center justify-center transition-colors
-                                                        disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent disabled:hover:text-[#a52a2a]/60">
+                                                            disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent disabled:hover:text-[#a52a2a]/60">
                                 <i class="fas fa-times text-[10px]"></i>
                             </button>
 
@@ -1338,7 +1413,7 @@
     };
 
     // --- ROBUST INITIALIZATION (Handles SPA, Hard Refresh, and Browser Back Button) ---
-    window.initializeGradingSliders = function() {
+    window.initializeGradingSliders = function () {
         if (document.getElementById('weight-slider')) window.updateWeightUI();
         if (document.getElementById('passing-slider')) window.updatePassingUI();
     };

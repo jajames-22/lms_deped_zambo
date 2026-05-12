@@ -244,19 +244,19 @@
         }
     }
     if (isset($material->exams) && $material->exams->count() > 0) {
-        $groupedExams = $material->exams->groupBy(function ($e) {
-            return $e->created_at ? \Carbon\Carbon::parse($e->created_at)->format('Y-m-d H:i:s') : '0'; });
-        $examCounter = 1;
-        foreach ($groupedExams as $time => $questions) {
-            $timeline->push((object) [
-                'is_exam' => true,
-                'id' => 'exam_group_' . $examCounter,
-                'title' => 'Examination',
-                'items' => $questions,
-                'order_val' => 999999 + $examCounter // Force exams to stay at the very end
-            ]);
-            $examCounter++;
+        $questions = $material->exams;
+        if (isset($material->is_shuffled) && $material->is_shuffled) {
+            $questions = $questions->shuffle();
+        } else {
+            $questions = $questions->sortBy('sort_order')->values();
         }
+        $timeline->push((object) [
+            'is_exam' => true,
+            'id' => 'exam_group_1',
+            'title' => 'Examination',
+            'items' => $questions,
+            'order_val' => 999999 // Force exams to stay at the very end
+        ]);
     }
     // Sort by our new custom order value instead of creation date
     $timeline = $timeline->sortBy('order_val')->values();
@@ -383,6 +383,21 @@
                             title="Read-only reference material">
                             Learning Resource
                         </span>
+                    @endif
+
+                    {{-- EXAM SHUFFLE STATUS --}}
+                    @if(isset($material->exams) && $material->exams->count() > 0)
+                        @if(isset($material->is_shuffled) && $material->is_shuffled)
+                            <span class="text-[13px] bg-purple-100 text-purple-700 px-2 py-0.5 rounded font-bold uppercase tracking-widest"
+                                title="Exam questions are presented in random order">
+                                <i class="fas fa-random mr-1 text-[10px]"></i> Shuffled Exam
+                            </span>
+                        @else
+                            <span class="text-[13px] bg-slate-100 text-slate-600 px-2 py-0.5 rounded font-bold uppercase tracking-widest"
+                                title="Exam questions are presented in sequential order">
+                                <i class="fas fa-sort-numeric-down mr-1 text-[10px]"></i> Sequential Exam
+                            </span>
+                        @endif
                     @endif
 
                 </div>
