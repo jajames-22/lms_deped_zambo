@@ -103,7 +103,7 @@
                 class="cursor-pointer flex-1 py-2 border-2 border-dashed border-blue-200 text-blue-600 font-bold rounded-xl hover:bg-blue-50 hover:border-blue-300 transition flex items-center justify-center gap-2 text-sm">
                 <i class="fas fa-upload"></i> Import Categories and Questions
             </button>
-            <a href="{{ route('dashboard.assessments.download_template') }}"
+            <a href="{{ route('dashboard.assessments.download_template') }}" target="_blank"
                 class="flex-1 py-2 border border-gray-200 text-gray-500 font-bold rounded-xl hover:bg-gray-50 transition flex items-center justify-center gap-2 text-xs">
                 <i class="fas fa-download"></i> Get Template
             </a>
@@ -390,20 +390,20 @@
 
     let assessmentImportXhr = null; // Changed from AbortController to XHR reference
 
-   function closeImportModal() {
+    function closeImportModal() {
         if (assessmentImportXhr) {
             assessmentImportXhr.abort(); // Cancel the upload if modal is closed
             assessmentImportXhr = null;
             console.log("Assessment import upload aborted.");
         }
         document.getElementById('excel-import-modal').classList.add('hidden');
-        
+
         // Ensure the button text resets completely when cancelled
         let btn = document.getElementById('start-upload-btn');
         if (btn) {
             btn.innerHTML = '<i class="fas fa-upload"></i><span>Upload</span>';
         }
-        
+
         clearSelectedFile(); // Clear out the file so it's fresh next time
     }
 
@@ -502,7 +502,7 @@
         assessmentImportXhr.send(formData);
     }
 
-    
+
     function showStatusModal(title, message, type) {
         const modal = document.getElementById('status-modal');
         const iconContainer = document.getElementById('status-modal-icon');

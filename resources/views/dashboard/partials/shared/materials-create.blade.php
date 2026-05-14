@@ -128,7 +128,7 @@
                     <span class="text-xs font-medium text-red-400 mt-1 block">Graded assessment questions</span>
                 </div>
             </button>
-        </div>
+        </div> 
 
         <div class="flex flex-col md:flex-row gap-3 mt-4">
             <button type="button" onclick="openImportModal()"
@@ -136,7 +136,8 @@
                 <i class="fas fa-upload"></i> Import Content via Excel
             </button>
             <a href="{{ route('dashboard.materials.download_template') ?? '#' }}"
-                class="flex-1 py-3 border border-gray-200 text-gray-500 font-bold rounded-xl hover:bg-gray-50 transition flex items-center justify-center gap-2 text-sm bg-white">
+            target="_blank"   
+            class="flex-1 py-3 border border-gray-200 text-gray-500 font-bold rounded-xl hover:bg-gray-50 transition flex items-center justify-center gap-2 text-sm bg-white">
                 <i class="fas fa-download"></i> Download Template
             </a>
         </div>

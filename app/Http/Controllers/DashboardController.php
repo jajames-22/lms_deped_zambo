@@ -115,6 +115,18 @@ class DashboardController extends Controller
         return view('dashboard.student');
     }
 
+    private function getCompletedExamAnswersQuery()
+    {
+        return \App\Models\ExamAnswer::whereExists(function ($query) {
+            $query->select(\Illuminate\Support\Facades\DB::raw(1))
+                  ->from('enrollments')
+                  ->join('exams', 'exams.material_id', '=', 'enrollments.material_id')
+                  ->whereColumn('exams.id', 'exam_answers.exam_id')
+                  ->whereColumn('enrollments.user_id', 'exam_answers.user_id')
+                  ->where('enrollments.status', 'completed');
+        });
+    }
+
     public function loadHomePartial()
     {
         $role = Auth::user()->role;
@@ -190,8 +202,8 @@ class DashboardController extends Controller
             $totalEnrollments = \App\Models\Enrollment::count();
             $completionRate = $totalEnrollments > 0 ? round(($certificatesIssued / $totalEnrollments) * 100) : 0;
 
-            $totalExamAnswers = \App\Models\ExamAnswer::count();
-            $correctExamAnswers = \App\Models\ExamAnswer::where('is_correct', true)->count();
+            $totalExamAnswers = $this->getCompletedExamAnswersQuery()->count();
+            $correctExamAnswers = $this->getCompletedExamAnswersQuery()->where('is_correct', true)->count();
             $avgLearnerSuccessRate = $totalExamAnswers > 0 ? round(($correctExamAnswers / $totalExamAnswers) * 100, 1) : 0;
 
             // --- E. ACTIONABLE ALERTS ---
@@ -224,8 +236,8 @@ class DashboardController extends Controller
             $publishedMaterials = \App\Models\Material::where('status', 'published')->count();
             $activeTeachers = \App\Models\User::where('role', 'teacher')->where('status', 'verified')->count();
 
-            $totalExamAnswers = \App\Models\ExamAnswer::count();
-            $correctExamAnswers = \App\Models\ExamAnswer::where('is_correct', true)->count();
+            $totalExamAnswers = $this->getCompletedExamAnswersQuery()->count();
+            $correctExamAnswers = $this->getCompletedExamAnswersQuery()->where('is_correct', true)->count();
             $averageScore = $totalExamAnswers > 0 ? round(($correctExamAnswers / $totalExamAnswers) * 100, 1) : 0;
 
             // --- B. RECENT EVALUATIONS ---
@@ -242,8 +254,9 @@ class DashboardController extends Controller
                 $month = now()->subMonths($i);
                 $masteryLabels[] = $month->format('M');
 
-                $monthAnswers = \App\Models\ExamAnswer::whereMonth('created_at', $month->month)
-                    ->whereYear('created_at', $month->year);
+                $monthAnswers = $this->getCompletedExamAnswersQuery()
+                    ->whereMonth('exam_answers.created_at', $month->month)
+                    ->whereYear('exam_answers.created_at', $month->year);
 
                 $tot = $monthAnswers->count();
                 $cor = (clone $monthAnswers)->where('is_correct', true)->count();
@@ -320,8 +333,8 @@ class DashboardController extends Controller
                 $query->select('id')->from('materials')->where('instructor_id', $teacherId);
             })->pluck('id');
 
-            $totalTeacherExamAnswers = \App\Models\ExamAnswer::whereIn('exam_id', $teacherExamIds)->count();
-            $correctTeacherExamAnswers = \App\Models\ExamAnswer::whereIn('exam_id', $teacherExamIds)
+            $totalTeacherExamAnswers = $this->getCompletedExamAnswersQuery()->whereIn('exam_id', $teacherExamIds)->count();
+            $correctTeacherExamAnswers = $this->getCompletedExamAnswersQuery()->whereIn('exam_id', $teacherExamIds)
                 ->where('is_correct', true)->count();
 
             $examPassingRate = $totalTeacherExamAnswers > 0
@@ -414,8 +427,8 @@ class DashboardController extends Controller
                 })->count();
 
             // Calculate personal Average Exam Score
-            $totalAnswers = \App\Models\ExamAnswer::where('user_id', $studentId)->count();
-            $correctAnswers = \App\Models\ExamAnswer::where('user_id', $studentId)
+            $totalAnswers = $this->getCompletedExamAnswersQuery()->where('exam_answers.user_id', $studentId)->count();
+            $correctAnswers = $this->getCompletedExamAnswersQuery()->where('exam_answers.user_id', $studentId)
                 ->where('is_correct', true)->count();
 
             $averageExamScore = $totalAnswers > 0
@@ -807,8 +820,8 @@ class DashboardController extends Controller
         // 3. ASSESSMENT & PERFORMANCE
         // ==========================================
         $totalAssessments = \App\Models\Assessment::where('status', 'published')->count();
-        $totalExamAnswers = \App\Models\ExamAnswer::count();
-        $correctExamAnswers = \App\Models\ExamAnswer::where('is_correct', true)->count();
+        $totalExamAnswers = $this->getCompletedExamAnswersQuery()->count();
+        $correctExamAnswers = $this->getCompletedExamAnswersQuery()->where('is_correct', true)->count();
 
         $globalSuccessRate = $totalExamAnswers > 0 ? round(($correctExamAnswers / $totalExamAnswers) * 100, 1) : 0;
 
@@ -852,7 +865,7 @@ class DashboardController extends Controller
             abort(403, 'Unauthorized action.');
         }
 
-        // 2. Fetch the User & Demographics data
+        // 2. Data Preparation
         $totalStudents = \App\Models\User::where('role', 'student')->count();
         $totalTeachers = \App\Models\User::where('role', 'teacher')->count();
         $totalSchools = \App\Models\School::count();
@@ -860,7 +873,6 @@ class DashboardController extends Controller
         $dailyActiveUsers = \App\Models\User::where('last_login_at', '>=', now()->subDay())->count();
         $weeklyActiveUsers = \App\Models\User::where('last_login_at', '>=', now()->subDays(7))->count();
 
-        // Fetch Top Schools Data (For the PDF Table)
         $topSchoolsRaw = \App\Models\User::where('role', 'student')
             ->whereNotNull('school_id')
             ->selectRaw('school_id, count(*) as count')
@@ -870,26 +882,35 @@ class DashboardController extends Controller
             ->with('school')
             ->get();
 
-        $topSchools = [];
+        $schoolLabels = [];
+        $schoolData = [];
         foreach ($topSchoolsRaw as $ts) {
             if ($ts->school) {
-                $topSchools[] = [
-                    'name' => $ts->school->name,
-                    'count' => $ts->count
-                ];
+                $schoolLabels[] = \Illuminate\Support\Str::limit($ts->school->name, 20);
+                $schoolData[] = $ts->count;
             }
         }
 
-        // 3. Fetch the Content & Engagement data
         $totalMaterials = \App\Models\Material::where('status', 'published')->count();
-        $totalEnrollments = \App\Models\Enrollment::count();
         $certificatesIssued = \App\Models\Enrollment::where('status', 'completed')->count();
+        $totalEnrollments = \App\Models\Enrollment::count();
+
         $completionRate = $totalEnrollments > 0 ? round(($certificatesIssued / $totalEnrollments) * 100) : 0;
 
-        // Fetch Top Materials Data (For the PDF Table)
-        $topMaterials = \App\Models\Material::orderBy('views', 'desc')->take(5)->get();
+        $topMaterialsRaw = \App\Models\Material::orderBy('views', 'desc')->take(5)->get();
+        $topMaterialsLabels = [];
+        $topMaterialsData = [];
+        foreach ($topMaterialsRaw as $mat) {
+            $topMaterialsLabels[] = \Illuminate\Support\Str::limit($mat->title, 20);
+            $topMaterialsData[] = $mat->views;
+        }
 
-        // 4. Fetch the System Health & Resources data
+        $totalAssessments = \App\Models\Assessment::where('status', 'published')->count();
+        $totalExamAnswers = $this->getCompletedExamAnswersQuery()->count();
+        $correctExamAnswers = $this->getCompletedExamAnswersQuery()->where('is_correct', true)->count();
+
+        $globalSuccessRate = $totalExamAnswers > 0 ? round(($correctExamAnswers / $totalExamAnswers) * 100, 1) : 0;
+
         $storagePath = storage_path();
         $freeSpace = function_exists('disk_free_space') ? @disk_free_space($storagePath) : 0;
         $totalSpace = function_exists('disk_total_space') ? @disk_total_space($storagePath) : 1;
@@ -899,32 +920,32 @@ class DashboardController extends Controller
         $usedGb = round($usedSpace / 1073741824, 1);
         $totalGb = round($totalSpace / 1073741824, 1);
 
-        // 5. Bundle it all together for the view
         $isPrint = $request->input('action') === 'print';
 
-        $data = [
-            'totalStudents' => $totalStudents,
-            'totalTeachers' => $totalTeachers,
-            'totalSchools' => $totalSchools,
-            'dailyActiveUsers' => $dailyActiveUsers,
-            'weeklyActiveUsers' => $weeklyActiveUsers,
-            'topSchools' => $topSchools,
+        $data = compact(
+            'totalStudents',
+            'totalTeachers',
+            'totalSchools',
+            'dailyActiveUsers',
+            'weeklyActiveUsers',
+            'schoolLabels',
+            'schoolData',
+            'totalMaterials',
+            'completionRate',
+            'totalEnrollments',
+            'topMaterialsLabels',
+            'topMaterialsData',
+            'totalAssessments',
+            'globalSuccessRate',
+            'storagePercentage',
+            'usedGb',
+            'totalGb'
+        );
 
-            'totalMaterials' => $totalMaterials,
-            'totalEnrollments' => $totalEnrollments,
-            'completionRate' => $completionRate,
-            'topMaterials' => $topMaterials,
-
-            'totalGb' => $totalGb,
-            'usedGb' => $usedGb,
-            'storagePercentage' => $storagePercentage,
-
-            'showUsers' => $request->has('check_users'),
-            'showContent' => $request->has('check_content'),
-            'showHealth' => $request->has('check_health'),
-
-            'isPrint' => $isPrint,
-        ];
+        $data['showUsers'] = $request->has('check_users');
+        $data['showContent'] = $request->has('check_content');
+        $data['showHealth'] = $request->has('check_health');
+        $data['isPrint'] = $isPrint;
 
         // 6. IF PRINT: Return the HTML view directly for browser printing
         if ($isPrint) {
@@ -976,8 +997,8 @@ class DashboardController extends Controller
 
         // 3. ASSESSMENT & PERFORMANCE
         $teacherExamIds = \App\Models\Exam::whereIn('material_id', $myMaterialIds)->pluck('id');
-        $totalAnswers = \App\Models\ExamAnswer::whereIn('exam_id', $teacherExamIds)->count();
-        $correctAnswers = \App\Models\ExamAnswer::whereIn('exam_id', $teacherExamIds)->where('is_correct', true)->count();
+        $totalAnswers = $this->getCompletedExamAnswersQuery()->whereIn('exam_id', $teacherExamIds)->count();
+        $correctAnswers = $this->getCompletedExamAnswersQuery()->whereIn('exam_id', $teacherExamIds)->where('is_correct', true)->count();
 
         $averageScore = $totalAnswers > 0 ? round(($correctAnswers / $totalAnswers) * 100, 1) : 0;
         $incorrectAnswers = $totalAnswers - $correctAnswers;
@@ -1036,10 +1057,10 @@ class DashboardController extends Controller
             ->where('status', 'pending')
             ->count();
 
-        // 3. MATERIAL ENGAGEMENT
         $totalMaterials = \App\Models\MaterialAccess::whereIn('material_id', $myMaterialIds)
             ->where('status', 'published')
             ->count();
+
         $totalViews = \App\Models\Material::where('instructor_id', $teacherId)->sum('views');
 
         $topMaterials = \App\Models\Material::where('instructor_id', $teacherId)
@@ -1047,57 +1068,53 @@ class DashboardController extends Controller
             ->take(5)
             ->get();
 
+        $materialLabels = $topMaterials->pluck('title')->map(fn($t) => \Illuminate\Support\Str::limit($t, 20))->toArray();
+        $materialViews = $topMaterials->pluck('views')->toArray();
+
         $completedCount = \App\Models\Enrollment::whereIn('material_id', $myMaterialIds)->where('status', 'completed')->count();
         $inProgressCount = \App\Models\Enrollment::whereIn('material_id', $myMaterialIds)->where('status', 'in_progress')->count();
 
-        // 4. ASSESSMENT & PERFORMANCE
         $teacherExamIds = \App\Models\Exam::whereIn('material_id', $myMaterialIds)->pluck('id');
-        $totalAnswers = \App\Models\ExamAnswer::whereIn('exam_id', $teacherExamIds)->count();
-        $correctAnswers = \App\Models\ExamAnswer::whereIn('exam_id', $teacherExamIds)->where('is_correct', true)->count();
+        $totalAnswers = $this->getCompletedExamAnswersQuery()->whereIn('exam_id', $teacherExamIds)->count();
+        $correctAnswers = $this->getCompletedExamAnswersQuery()->whereIn('exam_id', $teacherExamIds)->where('is_correct', true)->count();
 
         $averageScore = $totalAnswers > 0 ? round(($correctAnswers / $totalAnswers) * 100, 1) : 0;
         $incorrectAnswers = $totalAnswers - $correctAnswers;
 
-        // 5. RECENT ACTIVITY TREND (Tabular Format for PDF)
-        $activityTrends = [];
+        $activityDates = [];
+        $activityTrend = [];
         for ($i = 6; $i >= 0; $i--) {
             $date = now()->subDays($i)->format('Y-m-d');
-            $displayDate = now()->subDays($i)->format('M d, Y');
-            $count = \App\Models\Enrollment::whereDate('created_at', $date)
+            $activityDates[] = now()->subDays($i)->format('M d');
+            $activityTrend[] = \App\Models\Enrollment::whereDate('created_at', $date)
                 ->whereIn('material_id', $myMaterialIds)
                 ->count();
-
-            $activityTrends[] = [
-                'date' => $displayDate,
-                'count' => $count
-            ];
         }
 
-        // 6. Bundle it all together
         $isPrint = $request->input('action') === 'print';
 
-        $data = [
-            'totalLearners' => $totalLearners,
-            'activeLearners' => $activeLearners,
-            'pendingRequests' => $pendingRequests,
-            'totalMaterials' => $totalMaterials,
-            'totalViews' => $totalViews,
-            'topMaterials' => $topMaterials,
-            'completedCount' => $completedCount,
-            'inProgressCount' => $inProgressCount,
-            'averageScore' => $averageScore,
-            'correctAnswers' => $correctAnswers,
-            'incorrectAnswers' => $incorrectAnswers,
-            'activityTrends' => $activityTrends,
+        $data = compact(
+            'totalLearners',
+            'activeLearners',
+            'pendingRequests',
+            'totalMaterials',
+            'totalViews',
+            'materialLabels',
+            'materialViews',
+            'completedCount',
+            'inProgressCount',
+            'averageScore',
+            'correctAnswers',
+            'incorrectAnswers',
+            'activityDates',
+            'activityTrend'
+        );
 
-            // Filter checkboxes from the UI Modal
-            'showOverview' => $request->has('check_overview'),
-            'showEngagement' => $request->has('check_engagement'),
-            'showPerformance' => $request->has('check_performance'),
-            'showTrends' => $request->has('check_trends'),
-
-            'isPrint' => $isPrint,
-        ];
+        $data['showOverview'] = $request->has('check_overview');
+        $data['showEngagement'] = $request->has('check_engagement');
+        $data['showPerformance'] = $request->has('check_performance');
+        $data['showTrends'] = $request->has('check_trends');
+        $data['isPrint'] = $isPrint;
 
         // 7. IF PRINT: Return HTML directly. IF PDF: Download DomPDF
         if ($isPrint) {
@@ -1134,8 +1151,8 @@ class DashboardController extends Controller
         $totalHours = round(($materialMinutes + ($assessmentSeconds / 60)) / 60, 1);
 
         // 2. ALL-TIME QUIZ PERFORMANCE
-        $totalAnswers = \App\Models\ExamAnswer::where('user_id', $studentId)->count();
-        $correctAnswers = \App\Models\ExamAnswer::where('user_id', $studentId)->where('is_correct', true)->count();
+        $totalAnswers = $this->getCompletedExamAnswersQuery()->where('exam_answers.user_id', $studentId)->count();
+        $correctAnswers = $this->getCompletedExamAnswersQuery()->where('exam_answers.user_id', $studentId)->where('is_correct', true)->count();
         $incorrectAnswers = $totalAnswers - $correctAnswers;
 
         // 3. RECENT QUIZ TREND (Last 7 Days)
@@ -1146,8 +1163,8 @@ class DashboardController extends Controller
             $date = now()->subDays($i)->format('Y-m-d');
             $examDates[] = now()->subDays($i)->format('M d');
 
-            $dailyScore = \App\Models\ExamAnswer::where('user_id', $studentId)
-                ->whereDate('created_at', $date)
+            $dailyScore = $this->getCompletedExamAnswersQuery()->where('exam_answers.user_id', $studentId)
+                ->whereDate('exam_answers.created_at', $date)
                 ->where('is_correct', true)
                 ->count();
 
@@ -1161,6 +1178,11 @@ class DashboardController extends Controller
         $masteryRaw = \Illuminate\Support\Facades\DB::table('exam_answers')
             ->join('exams', 'exam_answers.exam_id', '=', 'exams.id')
             ->join('materials', 'exams.material_id', '=', 'materials.id')
+            ->join('enrollments', function($join) {
+                $join->on('enrollments.material_id', '=', 'exams.material_id')
+                     ->on('enrollments.user_id', '=', 'exam_answers.user_id');
+            })
+            ->where('enrollments.status', 'completed')
             ->where('exam_answers.user_id', $studentId)
             ->selectRaw('materials.title, 
                          COUNT(exam_answers.id) as total_attempts, 
@@ -1200,69 +1222,86 @@ class DashboardController extends Controller
         $totalEnrollments = \App\Models\Enrollment::where('user_id', $studentId)->count();
         $completedCount = \App\Models\Enrollment::where('user_id', $studentId)->where('status', 'completed')->count();
         $inProgressCount = \App\Models\Enrollment::where('user_id', $studentId)->where('status', 'in_progress')->count();
+
         $completionRate = $totalEnrollments > 0 ? round(($completedCount / $totalEnrollments) * 100) : 0;
 
-        // NEW: Total Hours Learned (Calculated for the PDF)
-        $totalMinutes = \Illuminate\Support\Facades\DB::table('enrollments')
+        $materialMinutes = \Illuminate\Support\Facades\DB::table('enrollments')
             ->where('enrollments.user_id', $studentId)
             ->where('enrollments.status', 'completed')
             ->join('lessons', 'enrollments.material_id', '=', 'lessons.material_id')
             ->sum('lessons.time_limit');
-        $totalHours = round($totalMinutes / 60, 1);
+
+        $assessmentSeconds = \Illuminate\Support\Facades\DB::table('assessment_sessions')
+            ->where('user_id', $studentId)
+            ->selectRaw('SUM(TIMESTAMPDIFF(SECOND, created_at, updated_at)) as total')
+            ->value('total') ?? 0;
+
+        $totalHours = round(($materialMinutes + ($assessmentSeconds / 60)) / 60, 1);
 
         // 2. EXAM PERFORMANCE
         $totalAnswers = \App\Models\ExamAnswer::where('user_id', $studentId)->count();
         $correctAnswers = \App\Models\ExamAnswer::where('user_id', $studentId)->where('is_correct', true)->count();
         $incorrectAnswers = $totalAnswers - $correctAnswers;
 
-        // 3. TOPIC MASTERY DATA
-        $masteryData = \Illuminate\Support\Facades\DB::table('exam_answers')
+        // 3. RECENT QUIZ TREND (Last 7 Days)
+        $examDates = [];
+        $examScores = [];
+
+        for ($i = 6; $i >= 0; $i--) {
+            $date = now()->subDays($i)->format('Y-m-d');
+            $examDates[] = now()->subDays($i)->format('M d');
+
+            $dailyScore = \App\Models\ExamAnswer::where('user_id', $studentId)
+                ->whereDate('created_at', $date)
+                ->where('is_correct', true)
+                ->count();
+
+            $examScores[] = $dailyScore;
+        }
+
+        // 4. LEARNING STREAK
+        $streak = \Illuminate\Support\Facades\Auth::user()->current_streak ?? 0;
+       
+        // 5. TOPIC MASTERY
+        $masteryRaw = \Illuminate\Support\Facades\DB::table('exam_answers')
             ->join('exams', 'exam_answers.exam_id', '=', 'exams.id')
             ->join('materials', 'exams.material_id', '=', 'materials.id')
             ->where('exam_answers.user_id', $studentId)
-            ->selectRaw('materials.title, COUNT(exam_answers.id) as total_attempts, SUM(CASE WHEN exam_answers.is_correct = 1 THEN 1 ELSE 0 END) as correct_attempts')
+            ->selectRaw('materials.title, 
+                         COUNT(exam_answers.id) as total_attempts, 
+                         SUM(CASE WHEN exam_answers.is_correct = 1 THEN 1 ELSE 0 END) as correct_attempts')
             ->groupBy('materials.id', 'materials.title')
             ->get();
 
-        // 4. LEARNING STREAK (Re-calculating for PDF)
-        $streak = 0;
-        $checkDate = now();
-        while (true) {
-            $hasActivity = \App\Models\ExamAnswer::where('user_id', $studentId)->whereDate('created_at', $checkDate->format('Y-m-d'))->exists() ||
-                \App\Models\Enrollment::where('user_id', $studentId)->whereDate('updated_at', $checkDate->format('Y-m-d'))->exists();
-            if ($hasActivity) {
-                $streak++;
-                $checkDate->subDay();
-            } else {
-                if ($streak == 0 && $checkDate->isToday()) {
-                    $checkDate->subDay();
-                    continue;
-                }
-                break;
-            }
+        $masteryLabels = [];
+        $masteryScores = [];
+        foreach ($masteryRaw as $m) {
+            $masteryLabels[] = \Illuminate\Support\Str::limit($m->title, 15);
+            $masteryScores[] = $m->total_attempts > 0 ? round(($m->correct_attempts / $m->total_attempts) * 100) : 0;
         }
 
-        // 5. Bundle it all together
         $isPrint = $request->input('action') === 'print';
-        $data = [
-            'totalEnrollments' => $totalEnrollments,
-            'completedCount' => $completedCount,
-            'inProgressCount' => $inProgressCount,
-            'completionRate' => $completionRate,
-            'totalAnswers' => $totalAnswers,
-            'correctAnswers' => $correctAnswers,
-            'incorrectAnswers' => $incorrectAnswers,
-            'totalHours' => $totalHours,
-            'masteryData' => $masteryData,
-            'streak' => $streak,
 
-            // Filter checkboxes
-            'showAchievements' => $request->has('check_achievements'),
-            'showProgress' => $request->has('check_progress'),
-            'showPerformance' => $request->has('check_performance'),
+        $data = compact(
+            'totalEnrollments',
+            'completedCount',
+            'inProgressCount',
+            'completionRate',
+            'totalAnswers',
+            'correctAnswers',
+            'incorrectAnswers',
+            'totalHours',
+            'examDates',
+            'examScores',
+            'streak',
+            'masteryLabels',
+            'masteryScores'
+        );
 
-            'isPrint' => $isPrint,
-        ];
+        $data['showAchievements'] = $request->has('check_achievements');
+        $data['showProgress'] = $request->has('check_progress');
+        $data['showPerformance'] = $request->has('check_performance');
+        $data['isPrint'] = $isPrint;
 
         if ($isPrint) {
             return view('dashboard.partials.student.analytics-report', $data);

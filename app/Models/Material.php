@@ -22,6 +22,7 @@ class Material extends Model
         'views',
         'downloads',           
         'is_public',
+        'is_shuffled',
         'is_featured',
         'draft_json',
         'admin_remarks',     
@@ -30,6 +31,7 @@ class Material extends Model
 
     protected $casts = [
         'is_public' => 'boolean',
+        'is_shuffled' => 'boolean',
         'is_featured' => 'boolean', 
         'access_code_expires_at' => 'datetime',
     ];

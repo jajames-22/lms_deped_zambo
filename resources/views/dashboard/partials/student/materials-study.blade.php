@@ -251,21 +251,22 @@
         }
     }
     if (isset($material->exams) && $material->exams->count() > 0) {
-        $groupedExams = $material->exams->groupBy(function ($e) {
-            return $e->created_at ? \Carbon\Carbon::parse($e->created_at)->format('Y-m-d H:i:s') : '0';
-        });
+        $questions = $material->exams;
 
-        $examCounter = 1;
-        foreach ($groupedExams as $time => $questions) {
-            $timeline->push((object) [
-                'is_exam' => true,
-                'id' => 'exam_group_' . $examCounter,
-                'title' => 'Examination',
-                'items' => $questions,
-                'timestamp' => \Carbon\Carbon::parse($time)->timestamp
-            ]);
-            $examCounter++;
+        // Randomize if the toggle is enabled, otherwise respect the manual sort order
+        if (isset($material->is_shuffled) && $material->is_shuffled) {
+            $questions = $questions->shuffle();
+        } else {
+            $questions = $questions->sortBy('sort_order')->values();
         }
+
+        $timeline->push((object) [
+            'is_exam' => true,
+            'id' => 'exam_group_1',
+            'title' => 'Examination',
+            'items' => $questions,
+            'timestamp' => $questions->first()->created_at ? \Carbon\Carbon::parse($questions->first()->created_at)->timestamp : 0
+        ]);
     }
     $timeline = $timeline->sortBy('timestamp')->values();
 @endphp

@@ -143,25 +143,30 @@
             </tr>
         </table>
 
-        @if(count($topMaterials) > 0)
+        @if(count($materialLabels) > 0)
             <div class="sub-table-title">Most Viewed Modules</div>
             <table class="sub-table">
                 <tr>
                     <th style="width: 75%; text-align: left;">Module Title</th>
                     <th style="width: 25%; text-align: right;">Total Views</th>
                 </tr>
-                @foreach($topMaterials as $material)
+                @for($i = 0; $i < count($materialLabels); $i++)
                 <tr>
-                    <td>{{ $material->title }}</td>
-                    <td style="text-align: right; font-weight: bold; color: #8b5cf6;">{{ number_format($material->views) }}</td>
+                    <td>{{ $materialLabels[$i] }}</td>
+                    <td style="text-align: right; font-weight: bold; color: #8b5cf6;">{{ number_format($materialViews[$i]) }}</td>
                 </tr>
-                @endforeach
+                @endfor
             </table>
+        @else
+            <div class="empty-state">No module views recorded yet.</div>
         @endif
         @endif
 
         @if($showPerformance)
         <div class="section-title">3. Assessment Performance</div>
+        @if($correctAnswers == 0 && $incorrectAnswers == 0)
+            <div class="empty-state">No assessment attempts have been recorded yet. Scores will appear here once students take exams.</div>
+        @else
         <table class="data-table">
             <tr>
                 <th>Global Material Average Score</th>
@@ -177,21 +182,29 @@
             </tr>
         </table>
         @endif
+        @endif
 
         @if($showTrends)
+        @php
+            $hasTrendData = collect($activityTrend)->sum() > 0;
+        @endphp
         <div class="section-title">4. Activity Trends (Last 7 Days)</div>
+        @if(!$hasTrendData)
+            <div class="empty-state">No new enrollments or activity recorded in the last 7 days.</div>
+        @else
         <table class="sub-table">
             <tr>
                 <th style="width: 75%; text-align: left;">Date</th>
                 <th style="width: 25%; text-align: right;">New Enrollments</th>
             </tr>
-            @foreach($activityTrends as $trend)
+            @for($i = 0; $i < count($activityDates); $i++)
             <tr>
-                <td>{{ $trend['date'] }}</td>
-                <td style="text-align: right; font-weight: bold; color: #10b981;">{{ number_format($trend['count']) }}</td>
+                <td>{{ $activityDates[$i] }}</td>
+                <td style="text-align: right; font-weight: bold; color: #10b981;">{{ number_format($activityTrend[$i]) }}</td>
             </tr>
-            @endforeach
+            @endfor
         </table>
+        @endif
         @endif
     </main>
 

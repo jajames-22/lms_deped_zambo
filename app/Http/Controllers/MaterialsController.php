@@ -1393,8 +1393,30 @@ class MaterialsController extends Controller
                 'is_public' => $newVisibility,
                 'message' => 'Module is now ' . ($newVisibility ? 'Public (Open to all)' : 'Private (Restricted access)')
             ]);
-        } catch (Exception $e) {
+        } catch (\Exception $e) {
             return response()->json(['success' => false, 'message' => 'Error updating visibility: ' . $e->getMessage()], 500);
+        }
+    }
+
+    public function toggleShuffle(Request $request, $id)
+    {
+        try {
+            $material = DB::table('materials')->where('id', $id)->first();
+
+            // Toggle the boolean
+            $newShuffle = !$material->is_shuffled;
+
+            DB::table('materials')
+                ->where('id', $id)
+                ->update(['is_shuffled' => $newShuffle, 'updated_at' => now()]);
+
+            return response()->json([
+                'success' => true,
+                'is_shuffled' => $newShuffle,
+                'message' => 'Final Exam questions will ' . ($newShuffle ? 'be shuffled' : 'follow the original order')
+            ]);
+        } catch (\Exception $e) {
+            return response()->json(['success' => false, 'message' => 'Error updating shuffle setting: ' . $e->getMessage()], 500);
         }
     }
 
