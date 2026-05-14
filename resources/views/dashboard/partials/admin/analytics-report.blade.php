@@ -188,6 +188,22 @@
                 @endfor
             </table>
         @endif
+
+        @if(isset($topDownloadedMaterialsLabels) && count($topDownloadedMaterialsLabels) > 0)
+            <div class="sub-table-title">Most Downloaded Materials</div>
+            <table class="sub-table">
+                <tr>
+                    <th style="width: 75%; text-align: left;">Material Title</th>
+                    <th style="width: 25%; text-align: right;">Total Downloads</th>
+                </tr>
+                @for($i = 0; $i < count($topDownloadedMaterialsLabels); $i++)
+                <tr>
+                    <td>{{ $topDownloadedMaterialsLabels[$i] }}</td>
+                    <td style="text-align: right; font-weight: bold; color: #10b981;">{{ number_format($topDownloadedMaterialsData[$i]) }}</td>
+                </tr>
+                @endfor
+            </table>
+        @endif
         @endif
 
         @if($showHealth)

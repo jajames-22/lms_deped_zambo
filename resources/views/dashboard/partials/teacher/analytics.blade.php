@@ -93,12 +93,29 @@
 
             <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
-                    <h4 class="text-gray-700 font-semibold mb-4 border-b pb-2">Most Viewed Modules</h4>
-                    <div class="relative h-64 w-full">
-                        <canvas id="teacherViewsChart"></canvas>
+                    <h4 class="text-gray-700 font-semibold mb-4 border-b pb-2">Top 5 Most Viewed Modules</h4>
+                    <div class="relative h-64 w-full flex justify-center items-center">
+                        @if(array_sum($materialViews ?? []) > 0)
+                            <canvas id="teacherViewsChart"></canvas>
+                        @else
+                            <p class="text-gray-400 text-sm">No views to display yet.</p>
+                        @endif
                     </div>
                 </div>
 
+                <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+                    <h4 class="text-gray-700 font-semibold mb-4 border-b pb-2">Top 5 Most Downloaded Modules</h4>
+                    <div class="relative h-64 w-full flex justify-center items-center">
+                        @if(array_sum($materialDownloads ?? []) > 0)
+                            <canvas id="teacherDownloadsChart"></canvas>
+                        @else
+                            <p class="text-gray-400 text-sm">No downloads to display yet.</p>
+                        @endif
+                    </div>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1">
                 <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
                     <h4 class="text-gray-700 font-semibold mb-4 border-b pb-2">Overall Student Completion</h4>
                     <div class="relative h-64 w-full flex justify-center items-center">
@@ -157,8 +174,12 @@
 
             <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
                 <h4 class="text-gray-700 font-semibold mb-4 border-b pb-2">New Enrollments (Last 7 Days)</h4>
-                <div class="relative h-72 w-full">
-                    <canvas id="teacherTrendChart"></canvas>
+                <div class="relative h-72 w-full flex justify-center items-center">
+                    @if(array_sum($activityTrend ?? []) > 0)
+                        <canvas id="teacherTrendChart"></canvas>
+                    @else
+                        <p class="text-gray-400 text-sm">No recent enrollments to display.</p>
+                    @endif
                 </div>
             </div>
         </section>
@@ -284,6 +305,7 @@ EXPORT MODAL
 
     function initDashboardCharts() {
         if (window.dashboardCharts.teacherViews) window.dashboardCharts.teacherViews.destroy();
+        if (window.dashboardCharts.teacherDownloads) window.dashboardCharts.teacherDownloads.destroy();
         if (window.dashboardCharts.teacherProgress) window.dashboardCharts.teacherProgress.destroy();
         if (window.dashboardCharts.teacherTrend) window.dashboardCharts.teacherTrend.destroy();
         if (window.dashboardCharts.teacherScores) window.dashboardCharts.teacherScores.destroy();
@@ -299,6 +321,27 @@ EXPORT MODAL
                     label: 'Total Views',
                     data: @json($materialViews),
                     backgroundColor: '#8b5cf6', // Purple
+                    borderRadius: 4
+                }]
+            },
+            options: {
+                indexAxis: 'y',
+                responsive: true, maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: { x: { beginAtZero: true, grid: { borderDash: [2, 4] } }, y: { grid: { display: false } } }
+            }
+        });
+
+        // 1b. Downloads Bar Chart
+        const downloadsCtx = document.getElementById('teacherDownloadsChart').getContext('2d');
+        window.dashboardCharts.teacherDownloads = new Chart(downloadsCtx, {
+            type: 'bar',
+            data: {
+                labels: @json($downloadedMaterialLabels),
+                datasets: [{
+                    label: 'Total Downloads',
+                    data: @json($materialDownloads),
+                    backgroundColor: '#10b981', // Green
                     borderRadius: 4
                 }]
             },

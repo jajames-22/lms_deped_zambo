@@ -117,14 +117,27 @@
                 </div>
             </div>
 
-            <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
-                <h4 class="text-gray-700 font-semibold mb-4 border-b pb-2">Most Popular Modules (By Views)</h4>
-                <div class="relative h-72 w-full flex justify-center items-center">
-                    @if(count($topMaterialsLabels ?? []) == 0)
-                        <p class="text-gray-400 text-sm">No modules have been viewed yet.</p>
-                    @else
-                        <canvas id="topMaterialsChart"></canvas>
-                    @endif
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+                    <h4 class="text-gray-700 font-semibold mb-4 border-b pb-2">Most Popular Modules (By Views)</h4>
+                    <div class="relative h-72 w-full flex justify-center items-center">
+                        @if(count($topMaterialsLabels ?? []) == 0)
+                            <p class="text-gray-400 text-sm">No modules have been viewed yet.</p>
+                        @else
+                            <canvas id="topMaterialsChart"></canvas>
+                        @endif
+                    </div>
+                </div>
+
+                <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+                    <h4 class="text-gray-700 font-semibold mb-4 border-b pb-2">Most Popular Modules (By Downloads)</h4>
+                    <div class="relative h-72 w-full flex justify-center items-center">
+                        @if(count($topDownloadedMaterialsLabels ?? []) == 0)
+                            <p class="text-gray-400 text-sm">No modules have been downloaded yet.</p>
+                        @else
+                            <canvas id="topDownloadedMaterialsChart"></canvas>
+                        @endif
+                    </div>
                 </div>
             </div>
         </section>
@@ -295,6 +308,7 @@ EXPORT MODAL
         // 2. Destroy existing charts if they exist to prevent "Canvas already in use" errors
         if (window.dashboardCharts.schoolDistribution) window.dashboardCharts.schoolDistribution.destroy();
         if (window.dashboardCharts.topMaterials) window.dashboardCharts.topMaterials.destroy();
+        if (window.dashboardCharts.topDownloadedMaterials) window.dashboardCharts.topDownloadedMaterials.destroy();
         if (window.dashboardCharts.storage) window.dashboardCharts.storage.destroy();
 
         // 3. School Distribution
@@ -328,6 +342,27 @@ EXPORT MODAL
                                 label: 'Total Views',
                                 data: @json($topMaterialsData),
                                 backgroundColor: '#8b5cf6',
+                                borderRadius: 6,
+                                borderWidth: 0
+                            }]
+                        },
+                        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, grid: { borderDash: [2, 4] } }, x: { grid: { display: false } } } }
+                    });
+                }
+            @endif
+
+            // 4b. Top Downloads
+            @if(count($topDownloadedMaterialsLabels ?? []) > 0)
+                const ctxDownloadedMaterials = document.getElementById('topDownloadedMaterialsChart');
+                if (ctxDownloadedMaterials) {
+                    window.dashboardCharts.topDownloadedMaterials = new Chart(ctxDownloadedMaterials.getContext('2d'), {
+                        type: 'bar',
+                        data: {
+                            labels: @json($topDownloadedMaterialsLabels),
+                            datasets: [{
+                                label: 'Total Downloads',
+                                data: @json($topDownloadedMaterialsData),
+                                backgroundColor: '#10b981',
                                 borderRadius: 6,
                                 borderWidth: 0
                             }]
