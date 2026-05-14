@@ -26,6 +26,8 @@ Created by **Graziella Marife S. Saavedra & James Benedict A. Rojas** (WMSU - Co
 * **Interactive Study Mode:** Students can navigate a timeline-based curriculum that tracks their progress, saves states automatically, and issues completion metrics.
 * **Dynamic Examinations:** Built-in interactive quizzes (Multiple Choice, Checkbox, True/False, Text/Essay) integrated directly into the study flow.
 * **Grading & Certification:** Dynamic sliders to set examination weights and passing score percentages.
+* **Strict Retake Limits:** Students are granted a maximum of 3 retake attempts for failed modules. Reaching the limit permanently locks the material to maintain academic rigor.
+* **Account Security & Integrity:** Users are restricted from changing their personal information and passwords more than once every 30 days to enforce accountability.
 * **Bulk User Management:** Mass import and registration of Students and Personnel using `.csv` and `.xlsx` templates with automated conflict resolution and username generation.
 
 ---
@@ -38,18 +40,6 @@ Before you begin, ensure you have the following installed on your local machine 
 * Composer
 * Node.js & NPM
 * MySQL or MariaDB
-
----
-
-## 📦 Key PHP Packages
-
-| Package | Version | Purpose |
-|---|---|---|
-| `maatwebsite/excel` | * | CSV/XLSX import and export for bulk user management |
-| `simplesoftwareio/simple-qrcode` | * | QR code generation (e.g., student/module identifiers) |
-| `vinkla/hashids` | * | Obfuscates numeric database IDs in URLs for security |
-
-These are all declared in `composer.json` and installed automatically via `composer install`.
 
 ---
 
@@ -105,50 +95,37 @@ DB_PASSWORD=your_db_password
 php artisan key:generate
 ```
 
-**7. Create the Database**
+**7. Run Database Migrations & Seeders**
 
-Create a new MySQL database matching the `DB_DATABASE` value you set in `.env`:
-```sql
-CREATE DATABASE deped_zamboanga_lms;
-```
-
-**8. Run Database Migrations**
+This will create the necessary tables and populate the system with default roles and admin accounts:
 ```bash
-php artisan migrate
+php artisan migrate:fresh --seed
 ```
 
-**9. Seed the Database**
+**8. Create Storage Symlink**
 
-Populate the database with default roles and an initial administrator account:
-```bash
-php artisan db:seed
-```
-
-**10. Create Storage Symlink**
-
-This allows uploaded files (modules, PDFs, etc.) to be publicly accessible:
+Required for viewing uploaded thumbnails, PDFs, videos, and profile avatars:
 ```bash
 php artisan storage:link
 ```
 
-**11. Build Frontend Assets**
+**9. Build Frontend Assets**
 
-For development (with hot reloading):
+Compile the Tailwind CSS v4 and JavaScript files using Vite:
 ```bash
+# For development (with hot reloading):
 npm run dev
-```
 
-For production:
-```bash
+# For production (minified):
 npm run build
 ```
 
-**12. Start the Local Development Server**
+**10. Start the Local Development Server**
 ```bash
 php artisan serve
 ```
 
-The application will be available at `http://localhost:8000`.
+Visit `http://localhost:8000` in your browser.
 
 ---
 
@@ -206,17 +183,54 @@ MAIL_FROM_NAME="DepEd Zamboanga LMS"
 
 ---
 
-## 🚢 Production Deployment
+## 💻 Essential Developer Commands
 
-When deploying to a production server, run the following commands after pulling the latest changes:
+During development, especially when modifying routes or Blade files, you may need to clear Laravel's caches:
 
 ```bash
+# Clear all application cache
+php artisan optimize:clear
+
+# Clear route cache (after adding/changing routes in web.php)
+php artisan route:clear
+
+# Clear view cache (if Blade edits aren't showing up)
+php artisan view:clear
+```
+
+---
+
+## 🚢 Production Deployment Checklist
+
+When deploying to a live server (e.g., Hostinger, DigitalOcean, AWS), run the following to ensure maximum performance and security:
+
+**1. Set environment to production in `.env`:**
+```env
+APP_ENV=production
+APP_DEBUG=false
+```
+
+**2. Install optimized dependencies:**
+```bash
 composer install --optimize-autoloader --no-dev
-php artisan migrate --force
+```
+
+**3. Build production assets:**
+```bash
+npm run build
+```
+
+**4. Cache configurations and routes:**
+```bash
 php artisan config:cache
 php artisan route:cache
 php artisan view:cache
-npm run build
+php artisan event:cache
+```
+
+**5. Ensure storage link exists on server:**
+```bash
+php artisan storage:link
 ```
 
 Ensure your web server (Apache/Nginx) points its document root to the `/public` directory of the project.
