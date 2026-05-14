@@ -77,6 +77,8 @@ Route::middleware(['auth', 'verified', CheckAccountStatus::class])->group(functi
         Route::put('/schools/{school}', [DashboardController::class, 'updateSchool'])->name('schools.update');
         Route::delete('/schools/{school}', [DashboardController::class, 'destroySchool'])->name('schools.destroy');
 
+        Route::post('/admin/broadcast', [ProfileController::class, 'broadcastNotification'])->name('admin.broadcast');
+
         /*
         |--------------------------------------------------------------------------
         | STUDENTS MANAGEMENT

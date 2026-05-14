@@ -206,6 +206,33 @@
         </main>
     </div>
 
+    {{-- BROADCAST READ MODAL --}}
+    <div id="broadcastReadModal" class="fixed inset-0 z-[10000] hidden opacity-0 transition-opacity duration-300 flex items-center justify-center p-4">
+        <div class="absolute inset-0 bg-gray-900/60 " onclick="closeBroadcastReadModal()"></div>
+        <div id="broadcastReadBox" class="bg-white rounded-3xl max-w-lg w-full p-8 shadow-2xl relative z-10 transform scale-95 transition-all duration-300">
+            <div class="flex items-start gap-4 mb-4">
+                <div id="br-modal-icon-bg" class="w-12 h-12 rounded-full flex items-center justify-center text-white shrink-0 shadow-sm">
+                    <i id="br-modal-icon" class="fas fa-bullhorn text-lg"></i>
+                </div>
+                <div class="flex-1 min-w-0">
+                    <h3 id="br-modal-title" class="text-xl font-black text-gray-900 leading-tight">System Notification</h3>
+                    <p id="br-modal-time" class="text-xs text-gray-400 font-medium mt-1">Just now</p>
+                </div>
+                <button onclick="closeBroadcastReadModal()" class="text-gray-400 hover:text-gray-600 transition p-1 focus:outline-none">
+                    <i class="fas fa-times text-xl"></i>
+                </button>
+            </div>
+            
+            <div class="bg-gray-50 border border-gray-100 rounded-2xl p-5 mb-6 max-h-64 overflow-y-auto custom-scrollbar">
+                <p id="br-modal-message" class="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">Message goes here.</p>
+            </div>
+            
+            <button type="button" onclick="closeBroadcastReadModal()" class="w-full py-3 bg-gray-100 text-gray-700 font-bold rounded-xl hover:bg-gray-200 transition text-sm">
+                Okay, got it
+            </button>
+        </div>
+    </div>
+
     {{-- TEACHER VERIFICATION MODAL --}}
     @if(auth()->user()->role === 'teacher')
         <div id="teacherVerificationModal"
@@ -389,6 +416,47 @@
             }
         }
 
+        // --- BROADCAST MODAL LOGIC ---
+        function openBroadcastReadModal(title, message, timeAgo, icon, colorClass) {
+            document.getElementById('br-modal-title').innerText = title || 'System Notification';
+            document.getElementById('br-modal-message').innerText = message;
+            document.getElementById('br-modal-time').innerText = timeAgo;
+
+            const iconBg = document.getElementById('br-modal-icon-bg');
+            const iconEl = document.getElementById('br-modal-icon');
+
+            iconEl.className = `${icon || 'fas fa-bullhorn'} text-lg`;
+            
+            // Convert tailwind text colors to background colors for the icon
+            const bgClass = colorClass ? colorClass.replace('text-', 'bg-').replace('-600', '-500') : 'bg-blue-500';
+            iconBg.className = `w-12 h-12 rounded-full flex items-center justify-center text-white shrink-0 shadow-sm ${bgClass}`;
+
+            const modal = document.getElementById('broadcastReadModal');
+            const box = document.getElementById('broadcastReadBox');
+
+            modal.classList.remove('hidden');
+            setTimeout(() => {
+                modal.classList.remove('opacity-0');
+                modal.classList.add('opacity-100');
+                box.classList.remove('scale-95');
+                box.classList.add('scale-100');
+            }, 10);
+        }
+
+        function closeBroadcastReadModal() {
+            const modal = document.getElementById('broadcastReadModal');
+            const box = document.getElementById('broadcastReadBox');
+
+            modal.classList.remove('opacity-100');
+            modal.classList.add('opacity-0');
+            box.classList.remove('scale-100');
+            box.classList.add('scale-95');
+
+            setTimeout(() => {
+                modal.classList.add('hidden');
+            }, 300);
+        }
+
         // --- SINGLE PAGE APPLICATION (SPA) LOADER ---
         function loadPartial(url, element) {
             sessionStorage.setItem('lastActiveTab', url);
@@ -517,23 +585,43 @@
             }
         }
 
-        async function markAsReadAndGo(notifId, targetUrl, isRead) {
+        async function markAsReadAndGo(notifId, targetUrl, isRead, notifObj = null) {
+            // 1. Mark as read in the backend if not already read
             if (!isRead) {
                 try {
-                    await fetch(`{{ url('/dashboard/notifications') }}/${notifId}/read`, {
+                    // Check if this is a broadcast to inform the backend
+                    const isBroadcastFlag = notifObj && notifObj.is_broadcast ? '?is_broadcast=true' : '';
+                    
+                    await fetch(`{{ url('/dashboard/notifications') }}/${notifId}/read${isBroadcastFlag}`, {
                         method: 'POST',
                         headers: {
                             'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
                             'Accept': 'application/json'
                         }
                     });
-                } catch (error) { }
+                } catch (error) { console.error(error); }
             }
+            
             toggleNotifications();
 
+            // 2. Determine Action based on URL
+            if (targetUrl === '#' || targetUrl === '#broadcast') {
+                if (notifObj) {
+                    openBroadcastReadModal(notifObj.title, notifObj.message, notifObj.time_ago, notifObj.icon, notifObj.colorClass);
+                }
+                
+                // FIX: Re-fetch the notifications so the red dot and unread count update instantly!
+                fetchNotifications(); 
+                return;
+            }
+
+            // 3. Otherwise, navigate to the link
             const requiresFullReload = ['/show', '/study', '/result', '/certificate', '/lobby', '/exam'].some(kw => targetUrl.includes(kw));
-            if (requiresFullReload) window.location.href = targetUrl;
-            else loadPartial(targetUrl, null);
+            if (requiresFullReload) {
+                window.location.href = targetUrl;
+            } else {
+                loadPartial(targetUrl, null);
+            }
         }
 
         function renderNotifications(notifications, unreadCount) {
@@ -565,7 +653,13 @@
                 const iconOpacity = notif.is_read ? 'opacity-60' : 'opacity-100';
 
                 item.className = `px-4 py-3 hover:bg-gray-100 transition-colors cursor-pointer flex gap-3 group border-b border-gray-50 ${bgDefault}`;
-                item.onclick = (e) => { e.preventDefault(); e.stopPropagation(); markAsReadAndGo(notif.id, notif.url, notif.is_read); };
+                
+                // Pass the full notif object to handle modals vs redirects
+                item.onclick = (e) => { 
+                    e.preventDefault(); 
+                    e.stopPropagation(); 
+                    markAsReadAndGo(notif.id, notif.url, notif.is_read, notif); 
+                };
 
                 const bgClass = notif.colorClass.replace('text-', 'bg-').replace('-600', '-500').replace('-500', '-500');
 

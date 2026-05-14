@@ -5,12 +5,16 @@
             <h1 class="text-2xl font-bold text-gray-900">Help & Support Desk</h1>
             <p class="text-gray-500 text-sm mt-1">Review user reports, feature requests, and system bugs.</p>
         </div>
+        
+        {{-- NEW: Broadcast Button --}}
+        <button onclick="openBroadcastModal()" class="px-5 py-2.5 bg-blue-600 text-white font-bold rounded-xl shadow-md hover:bg-blue-700 transition flex items-center gap-2 text-sm w-fit">
+            <i class="fas fa-bullhorn"></i> System Broadcast
+        </button>
     </div>
 
     <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex items-center gap-4">
-            <div
-                class="w-12 h-12 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center text-xl shrink-0">
+            <div class="w-12 h-12 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center text-xl shrink-0">
                 <i class="fas fa-inbox"></i>
             </div>
             <div>
@@ -30,8 +34,7 @@
         </div>
 
         <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex items-center gap-4">
-            <div
-                class="w-12 h-12 rounded-xl bg-green-50 text-green-600 flex items-center justify-center text-xl shrink-0">
+            <div class="w-12 h-12 rounded-xl bg-green-50 text-green-600 flex items-center justify-center text-xl shrink-0">
                 <i class="fas fa-check-circle"></i>
             </div>
             <div>
@@ -41,12 +44,10 @@
         </div>
     </div>
 
-    <div
-        class="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden flex flex-col min-h-[600px] relative">
+    <div class="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden flex flex-col min-h-[600px] relative">
 
         <div id="admin-feedback-list" class="flex-1 flex flex-col">
-            <div
-                class="p-6 border-b border-gray-100 flex flex-col sm:flex-row justify-between items-center gap-4 bg-gray-50/50 shrink-0">
+            <div class="p-6 border-b border-gray-100 flex flex-col sm:flex-row justify-between items-center gap-4 bg-gray-50/50 shrink-0">
                 <div class="flex items-center space-x-1 bg-gray-200/50 p-1 rounded-xl w-full md:w-fit overflow-x-auto no-scrollbar shrink-0">
                     @php 
                         $actionNeededCount = collect($feedbacks)->filter(function($fb) {
@@ -96,24 +97,19 @@
                 <table class="w-full text-left border-collapse" id="feedbacksTable">
                     <thead class="bg-white text-gray-400 text-[10px] uppercase tracking-widest border-b border-gray-100">
                         <tr>
-                            <th class="px-6 py-4 font-black cursor-pointer hover:bg-gray-50 transition sortable-col select-none"
-                                title="Sort by User">
+                            <th class="px-6 py-4 font-black cursor-pointer hover:bg-gray-50 transition sortable-col select-none" title="Sort by User">
                                 User <i class="fas fa-sort ml-1 text-gray-300"></i>
                             </th>
-                            <th class="px-6 py-4 font-black cursor-pointer hover:bg-gray-50 transition sortable-col select-none"
-                                title="Sort by Subject">
+                            <th class="px-6 py-4 font-black cursor-pointer hover:bg-gray-50 transition sortable-col select-none" title="Sort by Subject">
                                 Subject <i class="fas fa-sort ml-1 text-gray-300"></i>
                             </th>
-                            <th class="px-6 py-4 font-black cursor-pointer hover:bg-gray-50 transition sortable-col select-none"
-                                title="Sort by Category">
+                            <th class="px-6 py-4 font-black cursor-pointer hover:bg-gray-50 transition sortable-col select-none" title="Sort by Category">
                                 Category <i class="fas fa-sort ml-1 text-gray-300"></i>
                             </th>
-                            <th class="px-6 py-4 font-black cursor-pointer hover:bg-gray-50 transition sortable-col select-none"
-                                title="Sort by Date">
+                            <th class="px-6 py-4 font-black cursor-pointer hover:bg-gray-50 transition sortable-col select-none" title="Sort by Date">
                                 Date <i class="fas fa-sort ml-1 text-gray-300"></i>
                             </th>
-                            <th class="px-6 py-4 font-black cursor-pointer hover:bg-gray-50 transition sortable-col select-none"
-                                title="Sort by Status">
+                            <th class="px-6 py-4 font-black cursor-pointer hover:bg-gray-50 transition sortable-col select-none" title="Sort by Status">
                                 Status <i class="fas fa-sort ml-1 text-gray-300"></i>
                             </th>
                             <th class="px-6 py-4 font-black text-right">Action</th>
@@ -123,10 +119,8 @@
                         @forelse($feedbacks as $fb)
                             @php
                                 $filterGroup = 'completed';
-                                if (in_array($fb->status, ['open', 'waiting_on_support']))
-                                    $filterGroup = 'action_needed';
-                                if (in_array($fb->status, ['in_progress', 'waiting_on_user']))
-                                    $filterGroup = 'in_progress';
+                                if (in_array($fb->status, ['open', 'waiting_on_support'])) $filterGroup = 'action_needed';
+                                if (in_array($fb->status, ['in_progress', 'waiting_on_user'])) $filterGroup = 'in_progress';
                             @endphp
 
                             <tr class="hover:bg-gray-50/50 transition group cursor-pointer feedback-row"
@@ -303,262 +297,297 @@
     </div>
 </div>
 
+{{-- NEW: Broadcast Notification Modal --}}
+<div id="broadcastModal" class="fixed inset-0 z-[9999] hidden flex items-center justify-center p-4">
+    <div class="absolute inset-0 bg-gray-900/60 backdrop-blur-sm" onclick="closeBroadcastModal()"></div>
+    <div id="broadcastBox" class="bg-white rounded-3xl w-full max-w-lg shadow-2xl relative z-10 transform scale-95 opacity-0 transition-all duration-300 overflow-hidden flex flex-col">
+        
+        <div class="px-8 pt-8 pb-6 border-b border-gray-100 flex justify-between items-center bg-gray-50/50 shrink-0">
+            <div>
+                <h2 class="text-xl font-black text-gray-900">System Broadcast</h2>
+                <p class="text-gray-500 text-sm mt-1">Send a notification to all registered users.</p>
+            </div>
+            <button onclick="closeBroadcastModal()" class="w-10 h-10 rounded-full bg-white border border-gray-200 text-gray-400 hover:text-red-500 hover:bg-red-50 transition flex items-center justify-center shadow-sm">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+
+        <form id="broadcastForm" onsubmit="submitBroadcast(event)" class="p-8 space-y-5">
+            <div>
+                <label class="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-2">Notification Type</label>
+                <div class="grid grid-cols-3 gap-3">
+                    <label class="cursor-pointer">
+                        <input type="radio" name="broadcastType" value="info" class="peer sr-only" checked>
+                        <div class="p-3 text-center rounded-xl border border-gray-200 peer-checked:border-blue-500 peer-checked:bg-blue-50 transition-all">
+                            <i class="fas fa-info-circle text-blue-500 mb-1"></i>
+                            <p class="text-xs font-bold text-gray-700">Info</p>
+                        </div>
+                    </label>
+                    <label class="cursor-pointer">
+                        <input type="radio" name="broadcastType" value="warning" class="peer sr-only">
+                        <div class="p-3 text-center rounded-xl border border-gray-200 peer-checked:border-amber-500 peer-checked:bg-amber-50 transition-all">
+                            <i class="fas fa-exclamation-triangle text-amber-500 mb-1"></i>
+                            <p class="text-xs font-bold text-gray-700">Warning</p>
+                        </div>
+                    </label>
+                    <label class="cursor-pointer">
+                        <input type="radio" name="broadcastType" value="success" class="peer sr-only">
+                        <div class="p-3 text-center rounded-xl border border-gray-200 peer-checked:border-green-500 peer-checked:bg-green-50 transition-all">
+                            <i class="fas fa-check-circle text-green-500 mb-1"></i>
+                            <p class="text-xs font-bold text-gray-700">Success</p>
+                        </div>
+                    </label>
+                </div>
+            </div>
+
+            <div>
+                <label class="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-2">Subject / Title</label>
+                <input type="text" id="broadcastSubject" required placeholder="e.g., Scheduled System Maintenance"
+                    class="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all text-sm text-gray-900 shadow-sm">
+            </div>
+
+            <div>
+                <label class="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-2">Message</label>
+                <textarea id="broadcastMessage" required rows="4" placeholder="Type the announcement here..."
+                    class="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all text-sm resize-none shadow-sm"></textarea>
+            </div>
+
+            <div class="pt-4 flex justify-end gap-3">
+                <button type="button" onclick="closeBroadcastModal()" class="px-6 py-3 text-gray-500 font-bold hover:bg-gray-100 rounded-xl transition">Cancel</button>
+                <button type="submit" id="broadcastSubmitBtn" class="px-6 py-3 bg-blue-600 text-white font-bold rounded-xl shadow-md hover:bg-blue-700 transition flex items-center gap-2">
+                    <i class="fas fa-paper-plane"></i> Send to All
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
 <script>
     window.allFeedbacksData = @json($feedbacks);
 
-    var currentPage = 1;
-    var pageSize = 10;
-    var allFeedbackRows = [];
-    var currentFilteredRows = [];
-
-    // --- SPA SAFE DOM GETTER ---
-    // Grabs the last (newest) element in the DOM to avoid selecting 
-    // elements from an old page that is fading out.
-    function getActiveEl(selector) {
-        const els = document.querySelectorAll(selector);
-        return els.length ? els[els.length - 1] : null;
-    }
-
-    const FeedbackManager = {
+    var FeedbackManager = {
         currentStatus: 'all',
+        currentPage: 1,
+        pageSize: 10,
+
+        getActiveEl: function(selector) {
+            const els = document.querySelectorAll(selector);
+            return els.length ? els[els.length - 1] : null;
+        },
+
+        init: function() {
+            const activeTable = this.getActiveEl('#feedbacksTable');
+            if (!activeTable) return;
+            
+            const searchInput = this.getActiveEl('#feedbackSearchInput');
+            if (searchInput && !searchInput.dataset.initialized) {
+                searchInput.dataset.initialized = 'true';
+                searchInput.addEventListener('input', () => this.applyFilters());
+            }
+
+            this.setupSorting(activeTable);
+            this.applyFilters();
+
+            const savedUrl = sessionStorage.getItem('lastActiveTab') || '';
+            if (savedUrl.includes('?ticket=')) {
+                const ticketId = parseInt(new URLSearchParams(savedUrl.split('?')[1]).get('ticket'));
+                if (ticketId) openAdminFeedbackDetail(ticketId);
+            }
+        },
 
         filter: function(status, btnElement) {
             this.currentStatus = status;
 
-            const activeContainer = getActiveEl('#admin-feedback-list');
-            activeContainer.querySelectorAll('.feedback-tab').forEach(tab => {
-                tab.classList.remove('bg-white', 'text-[#a52a2a]', 'shadow-sm');
-                tab.classList.add('text-gray-500', 'hover:text-gray-700');
-            });
-
-            btnElement.classList.remove('text-gray-500', 'hover:text-gray-700');
-            btnElement.classList.add('bg-white', 'text-[#a52a2a]', 'shadow-sm');
-
-            // Re-query live DOM rows before filtering to avoid stale cache
-            const activeTable = getActiveEl('#feedbacksTable');
-            if (activeTable) {
-                allFeedbackRows = Array.from(activeTable.querySelectorAll('.feedback-row'));
+            const activeContainer = this.getActiveEl('#admin-feedback-list');
+            if(activeContainer) {
+                activeContainer.querySelectorAll('.feedback-tab').forEach(tab => {
+                    tab.classList.remove('bg-white', 'text-[#a52a2a]', 'shadow-sm');
+                    tab.classList.add('text-gray-500', 'hover:text-gray-700');
+                });
             }
 
+            if(btnElement) {
+                btnElement.classList.remove('text-gray-500', 'hover:text-gray-700');
+                btnElement.classList.add('bg-white', 'text-[#a52a2a]', 'shadow-sm');
+            }
+
+            this.currentPage = 1; 
             this.applyFilters();
         },
 
         applyFilters: function() {
-            const searchInput = getActiveEl('#feedbackSearchInput');
+            const activeTable = this.getActiveEl('#feedbacksTable');
+            if (!activeTable) return;
+
+            const searchInput = this.getActiveEl('#feedbackSearchInput');
             const query = (searchInput?.value || '').toLowerCase();
 
-            // Always re-query from the live DOM to avoid stale references
-            const activeTable = getActiveEl('#feedbacksTable');
-            if (activeTable) {
-                allFeedbackRows = Array.from(activeTable.querySelectorAll('.feedback-row'));
-            }
-
-            currentFilteredRows = allFeedbackRows.filter(row => {
+            const allRows = Array.from(activeTable.querySelectorAll('.feedback-row'));
+            
+            const filteredRows = allRows.filter(row => {
                 const rowText = row.textContent.toLowerCase();
                 const matchesSearch = rowText.includes(query);
                 const rowStatus = row.dataset.status; 
                 
                 let matchesStatus = false;
-                if (this.currentStatus === 'all') {
-                    matchesStatus = true;
-                } else if (this.currentStatus === 'action_needed') {
-                    matchesStatus = (rowStatus === 'action_needed');
-                } else if (this.currentStatus === 'pending') {
-                    matchesStatus = (rowStatus === 'in_progress'); 
-                } else if (this.currentStatus === 'resolved') {
-                    matchesStatus = (rowStatus === 'completed'); 
-                }
+                if (this.currentStatus === 'all') matchesStatus = true;
+                else if (this.currentStatus === 'action_needed') matchesStatus = (rowStatus === 'action_needed');
+                else if (this.currentStatus === 'pending') matchesStatus = (rowStatus === 'in_progress'); 
+                else if (this.currentStatus === 'resolved') matchesStatus = (rowStatus === 'completed'); 
 
                 return matchesSearch && matchesStatus;
             });
 
-            currentPage = 1;
-            applyPagination();
+            this.applyPagination(activeTable, allRows, filteredRows);
+        },
+
+        applyPagination: function(activeTable, allRows, filteredRows) {
+            const tbody = activeTable.querySelector('tbody');
+            const emptyState = this.getActiveEl('#emptyStateRow');
+            const paginationWrapper = this.getActiveEl('#pagination-wrapper');
+
+            allRows.forEach(row => row.style.display = 'none');
+
+            if (filteredRows.length === 0) {
+                if (emptyState) emptyState.style.display = '';
+                if (paginationWrapper) {
+                    paginationWrapper.classList.add('hidden');
+                    paginationWrapper.classList.remove('flex');
+                }
+                return;
+            }
+
+            if (emptyState) emptyState.style.display = 'none';
+            if (paginationWrapper) {
+                paginationWrapper.classList.remove('hidden');
+                paginationWrapper.classList.add('flex');
+            }
+
+            let totalPages = Math.ceil(filteredRows.length / this.pageSize);
+            if (this.currentPage > totalPages) this.currentPage = totalPages;
+            if (this.currentPage < 1) this.currentPage = 1;
+
+            const startIdx = (this.currentPage - 1) * this.pageSize;
+            const endIdx = Math.min(startIdx + this.pageSize, filteredRows.length);
+
+            for (let i = startIdx; i < endIdx; i++) {
+                filteredRows[i].style.display = '';
+                tbody.appendChild(filteredRows[i]);
+            }
+
+            const startInfo = this.getActiveEl('#page-start-info');
+            const endInfo = this.getActiveEl('#page-end-info');
+            const totalInfo = this.getActiveEl('#page-total-info');
+            
+            if (startInfo) startInfo.innerText = startIdx + 1;
+            if (endInfo) endInfo.innerText = endIdx;
+            if (totalInfo) totalInfo.innerText = filteredRows.length;
+
+            this.renderPaginationControls(totalPages);
+        },
+
+        renderPaginationControls: function(totalPages) {
+            const controls = this.getActiveEl('#pagination-controls');
+            if (!controls) return;
+            controls.innerHTML = '';
+
+            const createBtn = (text, page, disabled, active) => {
+                const btn = document.createElement('button');
+                btn.innerHTML = text;
+                btn.disabled = disabled;
+                btn.className = `px-3 py-1 min-w-[32px] rounded-lg text-sm font-bold transition-all border ${active
+                    ? 'bg-[#a52a2a] text-white border-[#a52a2a] shadow-sm'
+                    : disabled
+                        ? 'bg-transparent text-gray-300 border-transparent cursor-not-allowed'
+                        : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50 hover:text-[#a52a2a] hover:border-[#a52a2a]/30 shadow-sm'
+                    }`;
+
+                if (!disabled && !active) {
+                    btn.onclick = () => {
+                        this.currentPage = page;
+                        this.applyFilters();
+                    };
+                }
+                return btn;
+            };
+
+            controls.appendChild(createBtn('<i class="fas fa-chevron-left text-xs"></i>', this.currentPage - 1, this.currentPage === 1, false));
+
+            let startP = Math.max(1, this.currentPage - 1);
+            let endP = Math.min(totalPages, this.currentPage + 1);
+
+            if (this.currentPage === 1) endP = Math.min(3, totalPages);
+            if (this.currentPage === totalPages) startP = Math.max(1, totalPages - 2);
+
+            if (startP > 1) {
+                controls.appendChild(createBtn(1, 1, false, this.currentPage === 1));
+                if (startP > 2) controls.appendChild(createBtn('...', null, true, false));
+            }
+
+            for (let i = startP; i <= endP; i++) {
+                controls.appendChild(createBtn(i, i, false, i === this.currentPage));
+            }
+
+            if (endP < totalPages) {
+                if (endP < totalPages - 1) controls.appendChild(createBtn('...', null, true, false));
+                controls.appendChild(createBtn(totalPages, totalPages, false, this.currentPage === totalPages));
+            }
+
+            controls.appendChild(createBtn('<i class="fas fa-chevron-right text-xs"></i>', this.currentPage + 1, this.currentPage === totalPages, false));
+        },
+
+        setupSorting: function(activeTable) {
+            const sortableHeaders = activeTable.querySelectorAll('.sortable-col');
+            sortableHeaders.forEach(header => {
+                const newHeader = header.cloneNode(true);
+                header.parentNode.replaceChild(newHeader, header);
+
+                newHeader.addEventListener('click', () => {
+                    const colIndex = Array.from(newHeader.parentNode.children).indexOf(newHeader);
+                    const isAsc = newHeader.classList.contains('asc');
+
+                    activeTable.querySelectorAll('.sortable-col i').forEach(icon => {
+                        icon.className = 'fas fa-sort ml-1 text-gray-300';
+                    });
+                    activeTable.querySelectorAll('.sortable-col').forEach(h => {
+                        h.classList.remove('asc', 'desc');
+                    });
+
+                    let multiplier = 1;
+                    if (isAsc) {
+                        newHeader.classList.add('desc');
+                        newHeader.querySelector('i').className = 'fas fa-sort-down ml-1 text-[#a52a2a]';
+                        multiplier = -1;
+                    } else {
+                        newHeader.classList.add('asc');
+                        newHeader.querySelector('i').className = 'fas fa-sort-up ml-1 text-[#a52a2a]';
+                        multiplier = 1;
+                    }
+
+                    const tbody = activeTable.querySelector('tbody');
+                    const rows = Array.from(tbody.querySelectorAll('.feedback-row'));
+                    
+                    rows.sort((a, b) => {
+                        const aVal = a.children[colIndex].dataset.sort ? parseInt(a.children[colIndex].dataset.sort) : a.children[colIndex].textContent.trim().toLowerCase();
+                        const bVal = b.children[colIndex].dataset.sort ? parseInt(b.children[colIndex].dataset.sort) : b.children[colIndex].textContent.trim().toLowerCase();
+
+                        if (aVal < bVal) return -1 * multiplier;
+                        if (aVal > bVal) return 1 * multiplier;
+                        return 0;
+                    });
+                    
+                    rows.forEach(row => tbody.appendChild(row));
+                    this.applyFilters();
+                });
+            });
         }
     };
 
-    setTimeout(function () {
-        const activeTable = getActiveEl('#feedbacksTable');
-        if (!activeTable) return;
-        
-        allFeedbackRows = Array.from(activeTable.querySelectorAll('.feedback-row'));
-        currentFilteredRows = [...allFeedbackRows];
-        
-        const searchInput = getActiveEl('#feedbackSearchInput');
-        if (searchInput) {
-            const newSearchInput = searchInput.cloneNode(true);
-            searchInput.parentNode.replaceChild(newSearchInput, searchInput);
-            newSearchInput.addEventListener('input', () => FeedbackManager.applyFilters());
-        }
+    setTimeout(() => FeedbackManager.init(), 50);
 
-        setupSorting();
-        applyPagination();
-
-        const savedUrl = sessionStorage.getItem('lastActiveTab') || '';
-        if (savedUrl.includes('?ticket=')) {
-            const ticketId = parseInt(new URLSearchParams(savedUrl.split('?')[1]).get('ticket'));
-            if (ticketId) openAdminFeedbackDetail(ticketId);
-        }
-    }, 50);
-
-    function applyPagination() {
-        var tbody = getActiveEl('#feedbacksTable tbody');
-        var emptyState = getActiveEl('#emptyStateRow');
-        var paginationWrapper = getActiveEl('#pagination-wrapper');
-
-        if(!tbody) return;
-
-        // Always hide every .feedback-row currently in the live DOM (not just cached allFeedbackRows)
-        // This prevents stale rows from a previous render from staying visible
-        tbody.querySelectorAll('.feedback-row').forEach(row => row.style.display = 'none');
-
-        if (currentFilteredRows.length === 0) {
-            if (emptyState) emptyState.style.display = '';
-            if (paginationWrapper) {
-                paginationWrapper.classList.add('hidden');
-                paginationWrapper.classList.remove('flex');
-            }
-            return;
-        }
-
-        if (emptyState) emptyState.style.display = 'none';
-        if (paginationWrapper) {
-            paginationWrapper.classList.remove('hidden');
-            paginationWrapper.classList.add('flex');
-        }
-
-        var totalPages = Math.ceil(currentFilteredRows.length / pageSize);
-        if (currentPage > totalPages) currentPage = totalPages;
-        if (currentPage < 1) currentPage = 1;
-
-        var startIdx = (currentPage - 1) * pageSize;
-        var endIdx = Math.min(startIdx + pageSize, currentFilteredRows.length);
-
-        // Only show rows for the current page — do NOT use appendChild (moves DOM nodes causing duplicates)
-        for (var i = startIdx; i < endIdx; i++) {
-            currentFilteredRows[i].style.display = '';
-        }
-
-        getActiveEl('#page-start-info').innerText = startIdx + 1;
-        getActiveEl('#page-end-info').innerText = endIdx;
-        getActiveEl('#page-total-info').innerText = currentFilteredRows.length;
-
-        renderPaginationControls(totalPages);
-    }
-
-    function renderPaginationControls(totalPages) {
-        var controls = getActiveEl('#pagination-controls');
-        if (!controls) return;
-        
-        controls.innerHTML = '';
-
-        var createBtn = function (text, page, disabled, active) {
-            var btn = document.createElement('button');
-            btn.innerHTML = text;
-            btn.disabled = disabled;
-            btn.className = `px-3 py-1 min-w-[32px] rounded-lg text-sm font-bold transition-all border ${active
-                ? 'bg-[#a52a2a] text-white border-[#a52a2a] shadow-sm'
-                : disabled
-                    ? 'bg-transparent text-gray-300 border-transparent cursor-not-allowed'
-                    : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50 hover:text-[#a52a2a] hover:border-[#a52a2a]/30 shadow-sm'
-                }`;
-
-            if (!disabled && !active) {
-                btn.onclick = function () {
-                    currentPage = page;
-                    applyPagination();
-                };
-            }
-            return btn;
-        };
-
-        controls.appendChild(createBtn('<i class="fas fa-chevron-left text-xs"></i>', currentPage - 1, currentPage === 1, false));
-
-        var startP = Math.max(1, currentPage - 1);
-        var endP = Math.min(totalPages, currentPage + 1);
-
-        if (currentPage === 1) endP = Math.min(3, totalPages);
-        if (currentPage === totalPages) startP = Math.max(1, totalPages - 2);
-
-        if (startP > 1) {
-            controls.appendChild(createBtn(1, 1, false, currentPage === 1));
-            if (startP > 2) controls.appendChild(createBtn('...', null, true, false));
-        }
-
-        for (var i = startP; i <= endP; i++) {
-            controls.appendChild(createBtn(i, i, false, i === currentPage));
-        }
-
-        if (endP < totalPages) {
-            if (endP < totalPages - 1) controls.appendChild(createBtn('...', null, true, false));
-            controls.appendChild(createBtn(totalPages, totalPages, false, currentPage === totalPages));
-        }
-
-        controls.appendChild(createBtn('<i class="fas fa-chevron-right text-xs"></i>', currentPage + 1, currentPage === totalPages, false));
-    }
-
-    function setupSorting() {
-        const activeTable = getActiveEl('#feedbacksTable');
-        if (!activeTable) return;
-
-        var sortableHeaders = activeTable.querySelectorAll('.sortable-col');
-        sortableHeaders.forEach(function (header) {
-            var newHeader = header.cloneNode(true);
-            header.parentNode.replaceChild(newHeader, header);
-
-            newHeader.addEventListener('click', function () {
-                var colIndex = Array.from(newHeader.parentNode.children).indexOf(newHeader);
-                var isAsc = newHeader.classList.contains('asc');
-
-                activeTable.querySelectorAll('.sortable-col i').forEach(function (icon) {
-                    icon.className = 'fas fa-sort ml-1 text-gray-300';
-                });
-                activeTable.querySelectorAll('.sortable-col').forEach(function (h) {
-                    h.classList.remove('asc', 'desc');
-                });
-
-                var multiplier = 1;
-                if (isAsc) {
-                    newHeader.classList.add('desc');
-                    newHeader.querySelector('i').className = 'fas fa-sort-down ml-1 text-[#a52a2a]';
-                    multiplier = -1;
-                } else {
-                    newHeader.classList.add('asc');
-                    newHeader.querySelector('i').className = 'fas fa-sort-up ml-1 text-[#a52a2a]';
-                    multiplier = 1;
-                }
-
-                currentFilteredRows.sort(function (a, b) {
-                    var aVal = a.children[colIndex].dataset.sort ? parseInt(a.children[colIndex].dataset.sort) : a.children[colIndex].textContent.trim().toLowerCase();
-                    var bVal = b.children[colIndex].dataset.sort ? parseInt(b.children[colIndex].dataset.sort) : b.children[colIndex].textContent.trim().toLowerCase();
-
-                    if (aVal < bVal) return -1 * multiplier;
-                    if (aVal > bVal) return 1 * multiplier;
-                    return 0;
-                });
-
-                // Also sort allFeedbackRows to keep DOM order consistent
-                allFeedbackRows.sort(function (a, b) {
-                    var aVal = a.children[colIndex].dataset.sort ? parseInt(a.children[colIndex].dataset.sort) : a.children[colIndex].textContent.trim().toLowerCase();
-                    var bVal = b.children[colIndex].dataset.sort ? parseInt(b.children[colIndex].dataset.sort) : b.children[colIndex].textContent.trim().toLowerCase();
-
-                    if (aVal < bVal) return -1 * multiplier;
-                    if (aVal > bVal) return 1 * multiplier;
-                    return 0;
-                });
-
-                // Reorder rows physically in the DOM to match the sorted order
-                var tbody = getActiveEl('#feedbacksTable tbody');
-                var emptyStateRow = getActiveEl('#emptyStateRow');
-                allFeedbackRows.forEach(function(row) {
-                    tbody.appendChild(row);
-                });
-                if (emptyStateRow) tbody.appendChild(emptyStateRow);
-
-                currentPage = 1;
-                applyPagination();
-            });
-        });
+    function getActiveEl(selector) {
+        const els = document.querySelectorAll(selector);
+        return els.length ? els[els.length - 1] : null;
     }
 
     function openAdminFeedbackDetail(id) {
@@ -673,23 +702,92 @@
         })
             .then(async response => {
                 if (response.ok) {
-                    alert(`Update sent successfully!`);
+                    if(typeof showSnackbar === 'function') showSnackbar('Update sent successfully!', 'success');
+                    else alert(`Update sent successfully!`);
                     
-                    // FORCE FULL BROWSER REFRESH
                     window.location.reload(); 
-                    
                 } else {
                     const data = await response.json();
-                    alert(data.message || 'Error updating ticket.');
+                    if(typeof showSnackbar === 'function') showSnackbar(data.message || 'Error updating ticket.', 'error');
+                    else alert(data.message || 'Error updating ticket.');
                     btn.innerHTML = originalHtml;
                     btn.disabled = false;
                 }
             })
             .catch(err => {
                 console.error(err);
-                alert('A network error occurred.');
+                if(typeof showSnackbar === 'function') showSnackbar('A network error occurred.', 'error');
+                else alert('A network error occurred.');
                 btn.innerHTML = originalHtml;
                 btn.disabled = false;
             });
+    }
+
+    // --- NEW: Broadcast Modal Logic ---
+    function openBroadcastModal() {
+        const modal = document.getElementById('broadcastModal');
+        const box = document.getElementById('broadcastBox');
+        modal.classList.remove('hidden');
+        setTimeout(() => {
+            box.classList.remove('scale-95', 'opacity-0');
+            box.classList.add('scale-100', 'opacity-100');
+        }, 10);
+    }
+
+    function closeBroadcastModal() {
+        const modal = document.getElementById('broadcastModal');
+        const box = document.getElementById('broadcastBox');
+        box.classList.remove('scale-100', 'opacity-100');
+        box.classList.add('scale-95', 'opacity-0');
+        setTimeout(() => {
+            modal.classList.add('hidden');
+            document.getElementById('broadcastForm').reset();
+        }, 300);
+    }
+
+    function submitBroadcast(e) {
+        e.preventDefault();
+        const btn = document.getElementById('broadcastSubmitBtn');
+        const originalHtml = btn.innerHTML;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Sending...';
+        btn.disabled = true;
+
+        const subject = document.getElementById('broadcastSubject').value;
+        const message = document.getElementById('broadcastMessage').value;
+        const type = document.querySelector('input[name="broadcastType"]:checked').value;
+
+        fetch(`{{ route('admin.broadcast') }}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+                'Accept': 'application/json'
+            },
+            body: JSON.stringify({ 
+                subject: subject,
+                message: message,
+                type: type
+            })
+        })
+        .then(async response => {
+            const data = await response.json();
+            if (response.ok) {
+                closeBroadcastModal();
+                if(typeof showSnackbar === 'function') showSnackbar('Broadcast sent to all users!', 'success');
+                else alert('Broadcast sent to all users!');
+            } else {
+                if(typeof showSnackbar === 'function') showSnackbar(data.message || 'Error sending broadcast.', 'error');
+                else alert(data.message || 'Error sending broadcast.');
+            }
+        })
+        .catch(err => {
+            console.error(err);
+            if(typeof showSnackbar === 'function') showSnackbar('A network error occurred.', 'error');
+            else alert('A network error occurred.');
+        })
+        .finally(() => {
+            btn.innerHTML = originalHtml;
+            btn.disabled = false;
+        });
     }
 </script>

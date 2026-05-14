@@ -306,4 +306,133 @@ class ProfileController extends Controller
 
         return response()->json(['success' => true, 'message' => 'Reply sent successfully.']);
     }
+
+    public function broadcastNotification(\Illuminate\Http\Request $request)
+    {
+        if (auth()->user()->role !== 'admin') {
+            return response()->json(['message' => 'Unauthorized.'], 403);
+        }
+
+        $request->validate([
+            'subject' => 'required|string|max:255',
+            'message' => 'required|string',
+            'type'    => 'required|in:info,warning,success'
+        ]);
+
+        \App\Models\Broadcast::create([
+            'subject' => $request->subject,
+            'message' => $request->message,
+            'type'    => $request->type
+        ]);
+
+        return response()->json([
+            'success' => true, 
+            'message' => 'Broadcast published successfully.'
+        ]);
+    }
+
+    /**
+     * Fetch standard notifications + global broadcasts
+     */
+    public function getNotifications()
+    {
+        $user = auth()->user();
+
+        // 1. Fetch Standard Notifications (Last 30 days)
+        $standardNotifs = $user->notifications()
+            ->where('created_at', '>=', now()->subDays(30))
+            ->latest()
+            ->limit(30)
+            ->get()
+            ->map(function ($notif) {
+                return [
+                    'id' => $notif->id,
+                    'is_broadcast' => false,
+                    'title' => $notif->data['title'],
+                    'message' => $notif->data['message'],
+                    'url' => $notif->data['url'],
+                    'icon' => $notif->data['icon'],
+                    'colorClass' => $notif->data['colorClass'],
+                    'time_ago' => $notif->created_at->diffForHumans(),
+                    'timestamp' => $notif->created_at->timestamp,
+                    'is_read' => $notif->read_at !== null
+                ];
+            });
+
+        // 2. Fetch Global Broadcasts (Last 30 days)
+        $broadcasts = \App\Models\Broadcast::where('created_at', '>=', now()->subDays(30))
+            ->latest()
+            ->get();
+            
+        $readBroadcastIds = \App\Models\BroadcastRead::where('user_id', $user->id)
+            ->pluck('broadcast_id')
+            ->toArray();
+
+        $broadcastNotifs = $broadcasts->map(function ($broadcast) use ($readBroadcastIds) {
+            $icon = 'fas fa-bullhorn';
+            $colorClass = 'text-blue-500';
+
+            if ($broadcast->type === 'warning') {
+                $icon = 'fas fa-exclamation-triangle';
+                $colorClass = 'text-amber-500';
+            } elseif ($broadcast->type === 'success') {
+                $icon = 'fas fa-check-circle';
+                $colorClass = 'text-green-500';
+            }
+
+            return [
+                'id' => $broadcast->id,
+                'is_broadcast' => true, // Flag it as a broadcast!
+                'title' => $broadcast->subject,
+                'message' => $broadcast->message,
+                'url' => '#broadcast', 
+                'icon' => $icon,
+                'colorClass' => $colorClass,
+                'time_ago' => $broadcast->created_at->diffForHumans(),
+                'timestamp' => $broadcast->created_at->timestamp,
+                'is_read' => in_array($broadcast->id, $readBroadcastIds)
+            ];
+        });
+
+        // 3. Merge, Sort by Newest, and Count Unread
+        $allNotifications = collect($standardNotifs)->merge($broadcastNotifs)->sortByDesc('timestamp')->values();
+        $unreadCount = $allNotifications->where('is_read', false)->count();
+
+        return response()->json([
+            'success' => true,
+            'notifications' => $allNotifications,
+            'unread_count' => $unreadCount
+        ]);
+    }
+
+    public function markNotificationRead(\Illuminate\Http\Request $request, $id)
+    {
+        $user = auth()->user();
+        
+        // Robust check for the broadcast flag (Supports ?is_broadcast=true or JSON body)
+        $isBroadcast = $request->boolean('is_broadcast') || $request->query('is_broadcast') === 'true';
+
+        if ($isBroadcast) {
+            // FIX: Use DB facade with insertOrIgnore to bypass any Model $fillable issues
+            \Illuminate\Support\Facades\DB::table('broadcast_reads')->insertOrIgnore([
+                'user_id' => $user->id,
+                'broadcast_id' => $id,
+                'created_at' => now(),
+                'updated_at' => now()
+            ]);
+            
+            return response()->json(['success' => true]);
+            
+        } else {
+            // Standard notification marking
+            $notification = $user->notifications()->find($id);
+            
+            if ($notification && is_null($notification->read_at)) {
+                $notification->markAsRead();
+                return response()->json(['success' => true]);
+            }
+            
+            return response()->json(['success' => true, 'message' => 'Already read']);
+        }
+    }
 }

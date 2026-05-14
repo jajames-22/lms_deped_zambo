@@ -2141,46 +2141,108 @@ class MaterialsController extends Controller
     {
         $user = auth()->user();
 
-        // 1. Fetch ALL notifications from the last 30 days (Both Read and Unread)
-        $notifications = $user->notifications()
+        // 1. Fetch Standard Notifications (Last 30 days)
+        $standardNotifs = $user->notifications()
             ->where('created_at', '>=', now()->subDays(30))
             ->latest()
-            ->limit(50) // Safe limit to prevent massive dropdowns
+            ->limit(30)
             ->get()
             ->map(function ($notif) {
                 return [
                     'id' => $notif->id,
-                    'title' => $notif->data['title'],
-                    'message' => $notif->data['message'],
-                    'url' => $notif->data['url'],
-                    'icon' => $notif->data['icon'],
-                    'colorClass' => $notif->data['colorClass'],
+                    'is_broadcast' => false,
+                    'title' => $notif->data['title'] ?? 'Notification',
+                    'message' => $notif->data['message'] ?? '',
+                    'url' => $notif->data['url'] ?? '#',
+                    'icon' => $notif->data['icon'] ?? 'fas fa-bell',
+                    'colorClass' => $notif->data['colorClass'] ?? 'text-blue-500',
                     'time_ago' => $notif->created_at->diffForHumans(),
-                    'is_read' => $notif->read_at !== null // Tell frontend if it's read
+                    'timestamp' => $notif->created_at->timestamp,
+                    'is_read' => $notif->read_at !== null
                 ];
             });
 
-        // 2. Get the specific count of UNREAD notifications for the red bell badge
-        $unreadCount = $user->unreadNotifications()->count();
+        // 2. Fetch Global Broadcasts (Last 30 days)
+        $broadcasts = \App\Models\Broadcast::where('created_at', '>=', now()->subDays(30))
+            ->latest()
+            ->get();
+            
+        // Get an array of broadcast IDs this user has already read
+        $readBroadcastIds = \App\Models\BroadcastRead::where('user_id', $user->id)
+            ->pluck('broadcast_id')
+            ->toArray();
+
+        $broadcastNotifs = $broadcasts->map(function ($broadcast) use ($readBroadcastIds) {
+            // Set dynamic styling based on broadcast type
+            $icon = 'fas fa-bullhorn';
+            $colorClass = 'text-blue-500';
+
+            if ($broadcast->type === 'warning') {
+                $icon = 'fas fa-exclamation-triangle';
+                $colorClass = 'text-amber-500';
+            } elseif ($broadcast->type === 'success') {
+                $icon = 'fas fa-check-circle';
+                $colorClass = 'text-green-500';
+            }
+
+            return [
+                'id' => $broadcast->id,
+                'is_broadcast' => true, // Flag it as a broadcast!
+                'title' => $broadcast->subject,
+                'message' => $broadcast->message,
+                'url' => '#broadcast', 
+                'icon' => $icon,
+                'colorClass' => $colorClass,
+                'time_ago' => $broadcast->created_at->diffForHumans(),
+                'timestamp' => $broadcast->created_at->timestamp,
+                'is_read' => in_array($broadcast->id, $readBroadcastIds)
+            ];
+        });
+
+        // 3. Merge, Sort by Newest, and Count Unread
+        $allNotifications = collect($standardNotifs)
+            ->merge($broadcastNotifs)
+            ->sortByDesc('timestamp')
+            ->values();
+            
+        $unreadCount = $allNotifications->where('is_read', false)->count();
 
         return response()->json([
             'success' => true,
-            'notifications' => $notifications,
+            'notifications' => $allNotifications,
             'unread_count' => $unreadCount
         ]);
     }
 
-    public function markNotificationRead($id)
+    /**
+     * Mark a single notification or broadcast as read
+     */
+    public function markNotificationRead(\Illuminate\Http\Request $request, $id)
     {
-        // Query ALL notifications so we don't get a 404 if it's already read
-        $notification = auth()->user()->notifications()->find($id);
+        $user = auth()->user();
+        
+        // Check if the frontend flagged this as a broadcast
+        $isBroadcast = $request->query('is_broadcast') === 'true';
 
-        if ($notification && is_null($notification->read_at)) {
-            $notification->markAsRead();
+        if ($isBroadcast) {
+            // Log it in the pivot table so they don't see it as "unread" again
+            \App\Models\BroadcastRead::firstOrCreate([
+                'user_id' => $user->id,
+                'broadcast_id' => $id
+            ]);
+            
             return response()->json(['success' => true]);
+        } else {
+            // Standard notification marking
+            $notification = $user->notifications()->find($id);
+            
+            if ($notification && is_null($notification->read_at)) {
+                $notification->markAsRead();
+                return response()->json(['success' => true]);
+            }
+            
+            return response()->json(['success' => true, 'message' => 'Already read']);
         }
-
-        return response()->json(['success' => true, 'message' => 'Already read']);
     }
 
     public function preview($hashid)
