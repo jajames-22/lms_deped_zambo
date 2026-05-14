@@ -1,6 +1,8 @@
 <!DOCTYPE html>
 <html>
 <head>
+    
+    <link rel="icon" type="image/png" href="{{ asset('deped_lms_logo.png') }}">
     <title>Module Invitation</title>
 </head>
 <body>

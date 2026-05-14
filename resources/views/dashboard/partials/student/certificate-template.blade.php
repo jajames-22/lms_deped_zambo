@@ -1,6 +1,8 @@
 <!DOCTYPE html>
 <html>
 <head>
+    
+    <link rel="icon" type="image/png" href="{{ asset('deped_lms_logo.png') }}">
     <title>Certificate of Completion</title>
     <style>
         /* Lock the PDF size and margins to prevent any extra pages */
