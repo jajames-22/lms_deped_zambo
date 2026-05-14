@@ -122,9 +122,9 @@
                         <table class="w-full text-center mt-auto border-collapse">
                             <tr>
                                 <td class="w-1/3 align-bottom pb-2">
-                                    <div class="border-t border-black w-[250px] inline-block pt-2">
+                                    <div class=" w-[250px] inline-block pt-2">
                                         <strong
-                                            class="text-[18px] block">{{ $enrollment->material->instructor->first_name ?? 'Instructor' }}
+                                            class="text-[24px] block">{{ $enrollment->material->instructor->first_name ?? 'Instructor' }}
                                             {{ $enrollment->material->instructor->last_name ?? '' }}</strong>
                                         <span class="text-[#555] text-[14px]">Instructor</span>
                                     </div>
@@ -142,9 +142,9 @@
                                 </td>
 
                                 <td class="w-1/3 align-bottom pb-2">
-                                    <div class="border-t border-black w-[250px] inline-block pt-2">
+                                    <div class=" w-[250px] inline-block pt-2">
                                         <strong
-                                            class="text-[18px] block">{{ $enrollment->completed_at ? $enrollment->completed_at->format('F j, Y') : now()->format('F j, Y') }}</strong>
+                                            class="text-[24px] block">{{ $enrollment->completed_at ? $enrollment->completed_at->format('F j, Y') : now()->format('F j, Y') }}</strong>
                                         <span class="text-[#555] text-[14px]">Date of Completion</span>
                                     </div>
                                 </td>

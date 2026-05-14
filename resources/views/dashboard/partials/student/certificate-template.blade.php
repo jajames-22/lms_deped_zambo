@@ -76,7 +76,6 @@
         }
 
         .signature-line {
-            border-top: 1px solid #000;
             width: 220px;
             display: inline-block;
             padding-top: 8px;
@@ -129,7 +128,7 @@
             <tr>
                 <td>
                     <div class="signature-line">
-                        <strong>{{ $instructorName }}</strong><br>
+                        <strong style="font-size: 24px;">{{ $instructorName }}</strong><br>
                         <span style="color: #555; font-size: 14px;">Instructor</span>
                     </div>
                 </td>
@@ -143,7 +142,7 @@
                 
                 <td>
                     <div class="signature-line">
-                        <strong>{{ $date }}</strong><br>
+                        <strong style="font-size: 24px;">{{ $date }}</strong><br>
                         <span style="color: #555; font-size: 14px;">Date of Completion</span>
                     </div>
                 </td>

@@ -82,8 +82,9 @@
                     <div
                         class="bg-gray-50 p-4 rounded-xl border border-gray-100 flex flex-col sm:flex-row items-center gap-4 hover:border-[#a52a2a]/30 transition group">
 
+                        {{-- STRICT 4:3 THUMBNAIL CONTAINER --}}
                         <div
-                            class="w-full sm:w-24 h-24 rounded-lg overflow-hidden bg-white border border-gray-200 flex items-center justify-center flex-shrink-0">
+                            class="w-full sm:w-32 aspect-[4/3] rounded-lg overflow-hidden bg-gray-100 border border-gray-200 flex items-center justify-center flex-shrink-0 relative">
                             @if($enrollment->material->thumbnail)
                                 <img src="{{ asset('storage/' . $enrollment->material->thumbnail) }}"
                                     class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
@@ -91,6 +92,7 @@
                             @else
                                 <i class="fas fa-book text-gray-300 text-3xl"></i>
                             @endif
+                            <div class="absolute inset-0 bg-black/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
                         </div>
 
                         <div class="flex-1 w-full min-w-0">
@@ -147,13 +149,13 @@
                             @endphp
 
                             <div class="w-full bg-gray-200 rounded-full h-1.5 mb-1">
-                                <div class="bg-blue-600 h-1.5 rounded-full transition-all duration-500" style="width: {{ $progressPct }}%"></div>
+                                <div class="bg-[#a52a2a] h-1.5 rounded-full transition-all duration-500" style="width: {{ $progressPct }}%"></div>
                             </div>
                             <p class="text-[9px] text-gray-400 font-bold uppercase tracking-wider text-right">{{ $progressPct }}% Complete</p>
                         </div>
 
                         <a href="{{ route('student.materials.show', \Vinkla\Hashids\Facades\Hashids::encode($enrollment->material_id)) }}"
-                            class="bg-white border border-gray-200 text-gray-700 px-5 py-2.5 rounded-lg text-xs font-bold hover:bg-gray-100 hover:text-blue-600 transition w-full sm:w-auto text-center shadow-sm whitespace-nowrap block sm:inline-block">
+                            class="bg-white border border-gray-200 text-gray-700 px-5 py-2.5 rounded-lg text-xs font-bold hover:bg-gray-100 hover:text-[#a52a2a] transition w-full sm:w-auto text-center shadow-sm whitespace-nowrap block sm:inline-block">
                             Resume <i class="fas fa-arrow-right ml-1"></i>
                         </a>
 
@@ -194,7 +196,7 @@
 </div>
 
 <div id="assessmentModal"
-    class="fixed inset-0 z-100 opacity-0 pointer-events-none transition-opacity duration-300 flex items-center justify-center p-4">
+    class="fixed inset-0 z-[100] opacity-0 pointer-events-none transition-opacity duration-300 flex items-center justify-center p-4">
     <div class="absolute inset-0 bg-gray-900/60" onclick="toggleAssessmentModal(false)"></div>
 
     <div id="assessmentModalBox"
