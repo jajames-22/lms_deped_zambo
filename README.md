@@ -145,8 +145,8 @@ The system supports four distinct roles, each with a dedicated dashboard and per
 After seeding, log in with the default admin account:
 
 ```
-Email:    admin@deped-zamboanga.edu.ph
-Password: password
+Email:    adminlms@deped.gov.ph
+Password: Admin456
 ```
 
 > ⚠️ **Change these credentials immediately** after your first login in a production environment.
