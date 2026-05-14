@@ -109,9 +109,14 @@
 
                         <p class="text-gray-500 text-[20px] my-5">This is proudly presented to</p>
 
+                        @php
+                            $studentFullName = trim($enrollment->user->first_name . ' ' . $enrollment->user->last_name);
+                            $studentNameLen = strlen($studentFullName);
+                        @endphp
                         <h3
-                            class="text-[50px] font-black text-gray-900 italic border-b-2 border-gray-300 pb-2 mb-4 w-[80%]">
-                            {{ $enrollment->user->first_name }} {{ $enrollment->user->last_name }}
+                            class="font-black text-gray-900 italic border-b-2 border-gray-300 pb-2 mb-4 w-[80%] break-words leading-tight"
+                            style="font-size: {{ $studentNameLen > 40 ? '30px' : ($studentNameLen > 25 ? '40px' : '50px') }};">
+                            {{ $studentFullName }}
                         </h3>
 
                         <p class="text-gray-500 text-[20px] mb-4">for successfully completing the learning module</p>
@@ -122,10 +127,14 @@
                         <table class="w-full text-center mt-auto border-collapse">
                             <tr>
                                 <td class="w-1/3 align-bottom pb-2">
-                                    <div class=" w-[250px] inline-block pt-2">
+                                    <div class=" w-[250px] inline-block pt-2 break-words">
+                                        @php
+                                            $instName = trim(($enrollment->material->instructor->first_name ?? 'Instructor') . ' ' . ($enrollment->material->instructor->last_name ?? ''));
+                                            $instLen = strlen($instName);
+                                        @endphp
                                         <strong
-                                            class="text-[24px] block">{{ $enrollment->material->instructor->first_name ?? 'Instructor' }}
-                                            {{ $enrollment->material->instructor->last_name ?? '' }}</strong>
+                                            class="block leading-tight"
+                                            style="font-size: {{ $instLen > 25 ? '16px' : ($instLen > 15 ? '20px' : '24px') }};">{{ $instName }}</strong>
                                         <span class="text-[#555] text-[14px]">Instructor</span>
                                     </div>
                                 </td>

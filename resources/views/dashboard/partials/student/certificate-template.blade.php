@@ -53,6 +53,8 @@
             margin-bottom: 10px;
             width: 80%;
             margin-top: 10px;
+            word-wrap: break-word;
+            line-height: 1.2;
         }
 
         .course-name {
@@ -81,6 +83,7 @@
             padding-top: 8px;
             font-size: 16px;
             margin-bottom: 10px;
+            word-wrap: break-word;
         }
 
         .qr-container {
@@ -118,7 +121,7 @@
         <div class="header">Certificate of Completion</div>
         <div class="sub-header">This is proudly presented to</div>
 
-                <div class="student-name">{{ $studentName }}</div>
+                <div class="student-name" style="font-size: {{ strlen($studentName) > 40 ? '28px' : (strlen($studentName) > 25 ? '38px' : '48px') }};">{{ $studentName }}</div>
 
                 <div class="course-label">for successfully completing the learning module</div>
 
@@ -128,7 +131,7 @@
             <tr>
                 <td>
                     <div class="signature-line">
-                        <strong style="font-size: 24px;">{{ $instructorName }}</strong><br>
+                        <strong style="font-size: {{ strlen($instructorName) > 25 ? '16px' : (strlen($instructorName) > 15 ? '20px' : '24px') }}; line-height: 1.2;">{{ $instructorName }}</strong><br>
                         <span style="color: #555; font-size: 14px;">Instructor</span>
                     </div>
                 </td>
