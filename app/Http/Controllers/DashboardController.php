@@ -660,6 +660,51 @@ class DashboardController extends Controller
         ));
     }
 
+    /**
+     * Handle AJAX requests to filter Explore page by Tag/Category or Section Title
+     */
+    public function filterByCategory(\Illuminate\Http\Request $request)
+    {
+        $category = $request->query('category');
+
+        // 1. Check if the clicked string is actually a Dynamic Section Title
+        $section = \App\Models\ExplorePageSection::where('title', $category)->first();
+
+        $materials = \App\Models\Material::with(['instructor', 'tags'])
+            ->where('status', 'published')
+            ->where('is_public', true)
+            ->whereHas('tags', function ($query) use ($category, $section) {
+                
+                if ($section) {
+                    // It IS a Dynamic Section! Parse its tags and search for them.
+                    $tagsArray = json_decode($section->tag_name, true);
+                    
+                    if (!is_array($tagsArray)) {
+                        $tagsArray = [$section->tag_name];
+                    }
+                    
+                    // Fetch all materials that have ANY of the tags in this section
+                    $query->whereIn('name', $tagsArray);
+                } else {
+                    // It is a standard tag button like "GRADE 1" or "KINDERGARTEN"
+                    $query->where('name', 'LIKE', $category); 
+                }
+                
+            })
+            ->latest()
+            ->get()
+            ->map(function ($mat) {
+                // Encode the ID so the frontend can build the correct viewing link
+                $mat->hashid = \Vinkla\Hashids\Facades\Hashids::encode($mat->id);
+                return $mat;
+            });
+
+        return response()->json([
+            'success' => true,
+            'materials' => $materials
+        ]);
+    }
+
     public function publicExplore()
     {
         // 1. Featured Materials

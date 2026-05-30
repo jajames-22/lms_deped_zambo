@@ -37,6 +37,8 @@ Route::middleware(['auth', 'verified', CheckAccountStatus::class])->group(functi
 
         Route::get('/search', [DashboardController::class, 'globalSearch'])->name('dashboard.search');
 
+        Route::get('/explore/filter', [DashboardController::class, 'filterByCategory'])->name('dashboard.explore.filter');
+
         // General Dashboard Links
         Route::get('/home', [DashboardController::class, 'loadHomePartial'])->name('dashboard.home');
         Route::get('/enrolled', [DashboardController::class, 'loadEnrolledPartial'])->name('dashboard.enrolled');
