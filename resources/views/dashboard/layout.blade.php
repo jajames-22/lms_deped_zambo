@@ -4,6 +4,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    
+    <link rel="icon" type="image/png" href="{{ asset('deped_lms_logo.png') }}">
     <title>LMS Dashboard - DepEd Zamboanga</title>
     <meta name="csrf-token" content="{{ csrf_token() }}">
 
@@ -303,11 +305,13 @@
                         class="flex-1 py-3 bg-gray-100 text-gray-700 font-bold rounded-xl hover:bg-gray-200 transition text-sm">
                         Close
                     </button>
+                    @if(auth()->user()->status !== 'verified')
                     <button type="button"
                         onclick="closeVerificationModal(); loadPartial('{{ url('/dashboard/profile') }}?support=true', document.getElementById('nav-profile-btn'));"
                         class="flex-1 py-3 bg-[#a52a2a] text-white font-bold rounded-xl shadow-md shadow-[#a52a2a]/20 hover:bg-red-800 transition text-sm flex items-center justify-center gap-2">
                         <i class="fas fa-headset"></i> Contact Support
                     </button>
+                    @endif
                 </div>
             </div>
         </div>

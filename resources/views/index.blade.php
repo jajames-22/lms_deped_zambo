@@ -11,6 +11,8 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700;900&display=swap" rel="stylesheet">
     
+    
+    <link rel="icon" type="image/png" href="{{ asset('deped_lms_logo.png') }}">
     <title>DepEd Zamboanga - LMS</title>
     <style>
         * {

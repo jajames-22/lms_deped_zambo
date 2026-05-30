@@ -2,6 +2,8 @@
 <html>
 <head>
     <meta charset="utf-8">
+    
+    <link rel="icon" type="image/png" href="{{ asset('deped_lms_logo.png') }}">
     <title>{{ $assessment->title }} - Analytics Report</title>
     <style>
         /* Common Styles */

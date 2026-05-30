@@ -50,7 +50,7 @@
     </div>
 </div>
 
-<div class="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-8">
+<div class="grid grid-cols-1 gap-8 mb-8">
     <div class="lg:col-span-2 bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
         <div class="flex items-center justify-between mb-4">
             <h3 class="font-bold text-gray-900">Active Users (Last 7 Days)</h3>
@@ -63,12 +63,22 @@
             <canvas id="activityChart"></canvas>
         </div>
     </div>
+</div>
 
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
     <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 flex flex-col">
-        <h3 class="font-bold text-gray-900 mb-2">Most Popular Modules</h3>
+        <h3 class="font-bold text-gray-900 mb-2">Most Popular Views</h3>
         <p class="text-xs text-gray-500 mb-4">Top 5 modules based on student views.</p>
         <div class="relative flex-1 flex items-center justify-center min-h-[200px]">
             <canvas id="materialsChart"></canvas>
+        </div>
+    </div>
+
+    <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 flex flex-col">
+        <h3 class="font-bold text-gray-900 mb-2">Most Popular Downloads</h3>
+        <p class="text-xs text-gray-500 mb-4">Top 5 modules based on student downloads.</p>
+        <div class="relative flex-1 flex items-center justify-center min-h-[200px]">
+            <canvas id="downloadsChart"></canvas>
         </div>
     </div>
 </div>
@@ -148,6 +158,7 @@
         // 2. Destroy existing charts if they exist to prevent "Canvas already in use" errors
         if (window.dashboardCharts.activity) window.dashboardCharts.activity.destroy();
         if (window.dashboardCharts.materials) window.dashboardCharts.materials.destroy();
+        if (window.dashboardCharts.downloads) window.dashboardCharts.downloads.destroy();
         if (window.dashboardCharts.schools) window.dashboardCharts.schools.destroy();
 
         // 3. Activity Line Chart
@@ -193,6 +204,31 @@
                     datasets: [{
                         data: {!! json_encode($topMaterialsData ?? []) !!},
                         backgroundColor: ['#a52a2a', '#f59e0b', '#10b981', '#3b82f6', '#8b5cf6'],
+                        borderWidth: 0,
+                        hoverOffset: 4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    cutout: '70%',
+                    plugins: {
+                        legend: { position: 'bottom', labels: { boxWidth: 10, font: { size: 10 } } }
+                    }
+                }
+            });
+        }
+
+        // 4b. Top Downloads Doughnut Chart
+        const ctxDownloads = document.getElementById('downloadsChart');
+        if (ctxDownloads) {
+            window.dashboardCharts.downloads = new Chart(ctxDownloads.getContext('2d'), {
+                type: 'doughnut',
+                data: {
+                    labels: {!! json_encode($topDownloadedMaterialsLabels ?? []) !!},
+                    datasets: [{
+                        data: {!! json_encode($topDownloadedMaterialsData ?? []) !!},
+                        backgroundColor: ['#8b5cf6', '#3b82f6', '#10b981', '#f59e0b', '#ef4444'],
                         borderWidth: 0,
                         hoverOffset: 4
                     }]

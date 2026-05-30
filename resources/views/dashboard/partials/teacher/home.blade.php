@@ -12,40 +12,59 @@
     </div>
 </div>
 
-<div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
     <div
-        class="bg-gradient-to-r from-amber-500 to-orange-500 rounded-2xl p-6 text-white shadow-lg shadow-orange-900/20 relative overflow-hidden">
-        <div class="relative z-10">
-            <p class="text-orange-100 text-xs font-bold uppercase tracking-wider mb-1 flex items-center gap-1.5"><i
-                    class="fas fa-star"></i> Most Popular Module</p>
-            @if($topModule)
-                <h3 class="text-2xl font-black mb-1 line-clamp-1" title="{{ $topModule->title }}">{{ $topModule->title }}
-                </h3>
-                <p class="text-sm text-orange-200">{{ number_format($topModule->views) }} Total Views</p>
+        class="bg-gradient-to-r from-amber-500 to-orange-500 rounded-2xl p-6 text-white shadow-lg shadow-orange-900/20 flex items-center justify-between">
+        <div class="flex-1 min-w-0 pr-4">
+            <p class="text-orange-100 text-xs font-bold uppercase tracking-wider mb-1">Most Popular Views</p>
+            @if($topViewedModule)
+                <h3 class="text-2xl font-black mb-1 truncate" title="{{ $topViewedModule->title }}">{{ $topViewedModule->title }}</h3>
+                <p class="text-sm text-orange-200">{{ number_format($topViewedModule->views) }} Total Views</p>
             @else
                 <h3 class="text-xl font-black mb-1 text-white/70">No Modules Yet</h3>
             @endif
         </div>
-        <i class="fas fa-fire absolute -bottom-4 -right-4 text-7xl text-white/20 transform -rotate-12"></i>
+        <i class="fas fa-eye text-5xl text-white/20 shrink-0"></i>
+    </div>
+
+    <div
+        class="bg-gradient-to-r from-purple-500 to-pink-500 rounded-2xl p-6 text-white shadow-lg shadow-pink-900/20 flex items-center justify-between">
+        <div class="flex-1 min-w-0 pr-4">
+            <p class="text-pink-100 text-xs font-bold uppercase tracking-wider mb-1">Most Popular Downloads</p>
+            @if($topDownloadedModule)
+                <h3 class="text-2xl font-black mb-1 truncate" title="{{ $topDownloadedModule->title }}">{{ $topDownloadedModule->title }}</h3>
+                <p class="text-sm text-pink-200">{{ number_format($topDownloadedModule->downloads) }} Total Downloads</p>
+            @else
+                <h3 class="text-xl font-black mb-1 text-white/70">No Modules Yet</h3>
+            @endif
+        </div>
+        <i class="fas fa-download text-5xl text-white/20 shrink-0"></i>
     </div>
 
     <div
         class="bg-gradient-to-r from-blue-600 to-indigo-700 rounded-2xl p-6 text-white shadow-lg shadow-blue-900/20 flex items-center justify-between">
         <div>
             <p class="text-blue-200 text-xs font-bold uppercase tracking-wider mb-1">Average Exam Score</p>
-            <h3 class="text-3xl font-black">{{ $examPassingRate }}<span class="text-xl text-blue-300">%</span></h3>
+            @if(($totalTeacherExamAnswers ?? 0) > 0)
+                <h3 class="text-3xl font-black">{{ $examPassingRate }}<span class="text-xl text-blue-300">%</span></h3>
+            @else
+                <h3 class="text-xl font-black mb-1 text-white/70">No Exams Yet</h3>
+            @endif
         </div>
-        <i class="fas fa-spell-check text-5xl text-white/20"></i>
+        <i class="fas fa-spell-check text-5xl text-white/20 shrink-0"></i>
     </div>
 
     <div
         class="bg-gradient-to-r from-emerald-500 to-green-600 rounded-2xl p-6 text-white shadow-lg shadow-green-900/20 flex items-center justify-between">
         <div>
             <p class="text-emerald-200 text-xs font-bold uppercase tracking-wider mb-1">Overall Completion Rate</p>
-            <h3 class="text-3xl font-black">{{ $moduleCompletionRate }}<span class="text-xl text-emerald-300">%</span>
-            </h3>
+            @if(($totalMyEnrollments ?? 0) > 0)
+                <h3 class="text-3xl font-black">{{ $moduleCompletionRate }}<span class="text-xl text-emerald-300">%</span></h3>
+            @else
+                <h3 class="text-xl font-black mb-1 text-white/70">No Enrollments</h3>
+            @endif
         </div>
-        <i class="fas fa-flag-checkered text-5xl text-white/20"></i>
+        <i class="fas fa-flag-checkered text-5xl text-white/20 shrink-0"></i>
     </div>
 </div>
 
@@ -86,8 +105,12 @@
 
         <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
             <h3 class="font-bold text-gray-900 mb-4">Recent Enrollments (Last 7 Days)</h3>
-            <div class="relative h-64">
-                <canvas id="teacherActivityChart"></canvas>
+            <div class="relative h-64 flex justify-center items-center">
+                @if(array_sum($activityTrend ?? []) > 0)
+                    <canvas id="teacherActivityChart"></canvas>
+                @else
+                    <p class="text-gray-400 text-sm">No recent enrollments to display.</p>
+                @endif
             </div>
         </div>
 

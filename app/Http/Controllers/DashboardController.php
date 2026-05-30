@@ -188,6 +188,15 @@ class DashboardController extends Controller
                 $topMaterialsData[] = $mat->views;
             }
 
+            // Top 5 Materials by Downloads for Doughnut Chart
+            $topDownloadedMaterialsRaw = Material::orderBy('downloads', 'desc')->take(5)->get();
+            $topDownloadedMaterialsLabels = [];
+            $topDownloadedMaterialsData = [];
+            foreach ($topDownloadedMaterialsRaw as $mat) {
+                $topDownloadedMaterialsLabels[] = \Illuminate\Support\Str::limit($mat->title, 15);
+                $topDownloadedMaterialsData[] = $mat->downloads;
+            }
+
             // --- C. SYSTEM HEALTH & STORAGE ---
             $storagePath = storage_path();
             $freeSpace = function_exists('disk_free_space') ? @disk_free_space($storagePath) : 0;
@@ -222,6 +231,8 @@ class DashboardController extends Controller
                 'topSchoolData',
                 'topMaterialsLabels',
                 'topMaterialsData',
+                'topDownloadedMaterialsLabels',
+                'topDownloadedMaterialsData',
                 'storagePercentage',
                 'usedGb',
                 'totalGb',
@@ -317,9 +328,14 @@ class DashboardController extends Controller
             $myMaterialsCount = \App\Models\Material::where('instructor_id', $teacherId)->count();
             $totalViews = \App\Models\Material::where('instructor_id', $teacherId)->sum('views');
 
-            // Most Popular Module
-            $topModule = \App\Models\Material::where('instructor_id', $teacherId)
+            // Most Popular Views
+            $topViewedModule = \App\Models\Material::where('instructor_id', $teacherId)
                 ->orderBy('views', 'desc')
+                ->first();
+
+            // Most Popular Downloads
+            $topDownloadedModule = \App\Models\Material::where('instructor_id', $teacherId)
+                ->orderBy('downloads', 'desc')
                 ->first();
 
             // Total unique students across all the teacher's modules
@@ -373,6 +389,12 @@ class DashboardController extends Controller
             $topMaterialsLabels = $topMaterialsRaw->pluck('title')->map(fn($t) => \Illuminate\Support\Str::limit($t, 15))->toArray();
             $topMaterialsData = $topMaterialsRaw->pluck('views')->toArray();
 
+            // Top 5 Modules by Downloads
+            $topDownloadedMaterialsRaw = \App\Models\Material::where('instructor_id', $teacherId)
+                ->orderBy('downloads', 'desc')->take(5)->get();
+            $topDownloadedMaterialsLabels = $topDownloadedMaterialsRaw->pluck('title')->map(fn($t) => \Illuminate\Support\Str::limit($t, 15))->toArray();
+            $topDownloadedMaterialsData = $topDownloadedMaterialsRaw->pluck('downloads')->toArray();
+
             // --- E. LISTS: MOST ACTIVE STUDENTS & PENDING INVITES ---
             // Pending Invites with explicit Module Context
             $pendingInvitesQuery = \App\Models\MaterialAccess::with('material')
@@ -395,7 +417,8 @@ class DashboardController extends Controller
             return view('dashboard.partials.teacher.home', compact(
                 'myMaterialsCount',
                 'totalViews',
-                'topModule',
+                'topViewedModule',
+                'topDownloadedModule',
                 'totalLearners',
                 'examPassingRate',
                 'moduleCompletionRate',
@@ -404,9 +427,13 @@ class DashboardController extends Controller
                 'activityTrend',
                 'topMaterialsLabels',
                 'topMaterialsData',
+                'topDownloadedMaterialsLabels',
+                'topDownloadedMaterialsData',
                 'pendingInvitesCount',
                 'pendingInvitesList',
-                'activeStudentsList'
+                'activeStudentsList',
+                'totalTeacherExamAnswers',
+                'totalMyEnrollments'
             ));
         }
 
@@ -861,6 +888,15 @@ class DashboardController extends Controller
             $topMaterialsData[] = $mat->views;
         }
 
+        // Top Materials by Downloads
+        $topDownloadedMaterialsRaw = \App\Models\Material::orderBy('downloads', 'desc')->take(5)->get();
+        $topDownloadedMaterialsLabels = [];
+        $topDownloadedMaterialsData = [];
+        foreach ($topDownloadedMaterialsRaw as $mat) {
+            $topDownloadedMaterialsLabels[] = \Illuminate\Support\Str::limit($mat->title, 20);
+            $topDownloadedMaterialsData[] = $mat->downloads;
+        }
+
         // ==========================================
         // 3. ASSESSMENT & PERFORMANCE
         // ==========================================
@@ -895,6 +931,8 @@ class DashboardController extends Controller
             'totalEnrollments',
             'topMaterialsLabels',
             'topMaterialsData',
+            'topDownloadedMaterialsLabels',
+            'topDownloadedMaterialsData',
             'totalAssessments',
             'globalSuccessRate',
             'storagePercentage',
@@ -950,6 +988,14 @@ class DashboardController extends Controller
             $topMaterialsData[] = $mat->views;
         }
 
+        $topDownloadedMaterialsRaw = \App\Models\Material::orderBy('downloads', 'desc')->take(5)->get();
+        $topDownloadedMaterialsLabels = [];
+        $topDownloadedMaterialsData = [];
+        foreach ($topDownloadedMaterialsRaw as $mat) {
+            $topDownloadedMaterialsLabels[] = \Illuminate\Support\Str::limit($mat->title, 20);
+            $topDownloadedMaterialsData[] = $mat->downloads;
+        }
+
         $totalAssessments = \App\Models\Assessment::where('status', 'published')->count();
         $totalExamAnswers = $this->getCompletedExamAnswersQuery()->count();
         $correctExamAnswers = $this->getCompletedExamAnswersQuery()->where('is_correct', true)->count();
@@ -980,6 +1026,8 @@ class DashboardController extends Controller
             'totalEnrollments',
             'topMaterialsLabels',
             'topMaterialsData',
+            'topDownloadedMaterialsLabels',
+            'topDownloadedMaterialsData',
             'totalAssessments',
             'globalSuccessRate',
             'storagePercentage',
@@ -1037,6 +1085,14 @@ class DashboardController extends Controller
         $materialLabels = $topMaterials->pluck('title')->map(fn($t) => \Illuminate\Support\Str::limit($t, 20))->toArray();
         $materialViews = $topMaterials->pluck('views')->toArray();
 
+        $topDownloadedMaterials = \App\Models\Material::where('instructor_id', $teacherId)
+            ->orderBy('downloads', 'desc')
+            ->take(5)
+            ->get();
+
+        $downloadedMaterialLabels = $topDownloadedMaterials->pluck('title')->map(fn($t) => \Illuminate\Support\Str::limit($t, 20))->toArray();
+        $materialDownloads = $topDownloadedMaterials->pluck('downloads')->toArray();
+
         $completedCount = \App\Models\Enrollment::whereIn('material_id', $myMaterialIds)->where('status', 'completed')->count();
         $inProgressCount = \App\Models\Enrollment::whereIn('material_id', $myMaterialIds)->where('status', 'in_progress')->count();
 
@@ -1067,6 +1123,8 @@ class DashboardController extends Controller
             'totalViews',
             'materialLabels',
             'materialViews',
+            'downloadedMaterialLabels',
+            'materialDownloads',
             'completedCount',
             'inProgressCount',
             'averageScore',
@@ -1116,6 +1174,14 @@ class DashboardController extends Controller
         $materialLabels = $topMaterials->pluck('title')->map(fn($t) => \Illuminate\Support\Str::limit($t, 20))->toArray();
         $materialViews = $topMaterials->pluck('views')->toArray();
 
+        $topDownloadedMaterials = \App\Models\Material::where('instructor_id', $teacherId)
+            ->orderBy('downloads', 'desc')
+            ->take(5)
+            ->get();
+
+        $downloadedMaterialLabels = $topDownloadedMaterials->pluck('title')->map(fn($t) => \Illuminate\Support\Str::limit($t, 20))->toArray();
+        $materialDownloads = $topDownloadedMaterials->pluck('downloads')->toArray();
+
         $completedCount = \App\Models\Enrollment::whereIn('material_id', $myMaterialIds)->where('status', 'completed')->count();
         $inProgressCount = \App\Models\Enrollment::whereIn('material_id', $myMaterialIds)->where('status', 'in_progress')->count();
 
@@ -1146,6 +1212,8 @@ class DashboardController extends Controller
             'totalViews',
             'materialLabels',
             'materialViews',
+            'downloadedMaterialLabels',
+            'materialDownloads',
             'completedCount',
             'inProgressCount',
             'averageScore',
@@ -1180,12 +1248,24 @@ class DashboardController extends Controller
 
         $completionRate = $totalEnrollments > 0 ? round(($completedCount / $totalEnrollments) * 100) : 0;
 
-        // NEW: Accurate Total Time (Material Estimates + Actual Exam Seconds)
-        $materialMinutes = \Illuminate\Support\Facades\DB::table('enrollments')
-            ->where('enrollments.user_id', $studentId)
-            ->where('enrollments.status', 'completed')
-            ->join('lessons', 'enrollments.material_id', '=', 'lessons.material_id')
-            ->sum('lessons.time_limit');
+        // NEW: Accurate Total Time Based on Actual Progress
+        $enrollmentsForTime = \App\Models\Enrollment::where('user_id', $studentId)->get();
+        $materialMinutes = 0;
+
+        foreach ($enrollmentsForTime as $enrollment) {
+            if ($enrollment->status === 'completed') {
+                $materialMinutes += \App\Models\Lesson::where('material_id', $enrollment->material_id)->sum('time_limit');
+            } elseif ($enrollment->status === 'in_progress' && !empty($enrollment->progress_data)) {
+                $progress = is_string($enrollment->progress_data) ? json_decode($enrollment->progress_data, true) : $enrollment->progress_data;
+                if (is_array($progress) && isset($progress['highest_unlocked']) && $progress['highest_unlocked'] > 0) {
+                    $materialMinutes += \App\Models\Lesson::where('material_id', $enrollment->material_id)
+                        ->orderBy('sort_order')
+                        ->take($progress['highest_unlocked'])
+                        ->get()
+                        ->sum('time_limit');
+                }
+            }
+        }
 
         $assessmentSeconds = \Illuminate\Support\Facades\DB::table('assessment_sessions')
             ->where('user_id', $studentId)
@@ -1270,11 +1350,23 @@ class DashboardController extends Controller
 
         $completionRate = $totalEnrollments > 0 ? round(($completedCount / $totalEnrollments) * 100) : 0;
 
-        $materialMinutes = \Illuminate\Support\Facades\DB::table('enrollments')
-            ->where('enrollments.user_id', $studentId)
-            ->where('enrollments.status', 'completed')
-            ->join('lessons', 'enrollments.material_id', '=', 'lessons.material_id')
-            ->sum('lessons.time_limit');
+        $enrollmentsForTime = \App\Models\Enrollment::where('user_id', $studentId)->get();
+        $materialMinutes = 0;
+
+        foreach ($enrollmentsForTime as $enrollment) {
+            if ($enrollment->status === 'completed') {
+                $materialMinutes += \App\Models\Lesson::where('material_id', $enrollment->material_id)->sum('time_limit');
+            } elseif ($enrollment->status === 'in_progress' && !empty($enrollment->progress_data)) {
+                $progress = is_string($enrollment->progress_data) ? json_decode($enrollment->progress_data, true) : $enrollment->progress_data;
+                if (is_array($progress) && isset($progress['highest_unlocked']) && $progress['highest_unlocked'] > 0) {
+                    $materialMinutes += \App\Models\Lesson::where('material_id', $enrollment->material_id)
+                        ->orderBy('sort_order')
+                        ->take($progress['highest_unlocked'])
+                        ->get()
+                        ->sum('time_limit');
+                }
+            }
+        }
 
         $assessmentSeconds = \Illuminate\Support\Facades\DB::table('assessment_sessions')
             ->where('user_id', $studentId)

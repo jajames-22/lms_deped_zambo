@@ -2,6 +2,8 @@
 <html>
 <head>
     <meta charset="utf-8">
+    
+    <link rel="icon" type="image/png" href="{{ asset('deped_lms_logo.png') }}">
     <title>My Learning Report</title>
     <style>
         body { font-family: 'Helvetica', 'Arial', sans-serif; color: #333; font-size: 14px; line-height: 1.4; }

@@ -2,6 +2,8 @@
 <html>
 <head>
     <meta charset="utf-8">
+    
+    <link rel="icon" type="image/png" href="{{ asset('deped_lms_logo.png') }}">
     <title>Material Analytics Report</title>
     <style>
         /* =======================================================
@@ -159,6 +161,22 @@
             </table>
         @else
             <div class="empty-state">No module views recorded yet.</div>
+        @endif
+
+        @if(isset($downloadedMaterialLabels) && count($downloadedMaterialLabels) > 0)
+            <div class="sub-table-title">Most Downloaded Modules</div>
+            <table class="sub-table">
+                <tr>
+                    <th style="width: 75%; text-align: left;">Module Title</th>
+                    <th style="width: 25%; text-align: right;">Total Downloads</th>
+                </tr>
+                @for($i = 0; $i < count($downloadedMaterialLabels); $i++)
+                <tr>
+                    <td>{{ $downloadedMaterialLabels[$i] }}</td>
+                    <td style="text-align: right; font-weight: bold; color: #10b981;">{{ number_format($materialDownloads[$i]) }}</td>
+                </tr>
+                @endfor
+            </table>
         @endif
         @endif
 
