@@ -24,14 +24,25 @@ class UserFactory extends Factory
     public function definition(): array
     {
         return [
-            'name' => fake()->name(),
+            // REMOVE THIS LINE: 'name' => fake()->name(),
+            
+            // ADD THESE LINES:
+            'first_name' => fake()->firstName(),
+            'last_name' => fake()->lastName(),
+            
             'email' => fake()->unique()->safeEmail(),
             'email_verified_at' => now(),
             'password' => static::$password ??= Hash::make('password'),
             'remember_token' => Str::random(10),
+            
+            // Add default values for your custom columns so the factory never fails
+            'role' => 'student', 
+            'status' => 'active',
+            // ADD THIS LINE: It automatically grabs the first existing school in your DB!
+            'school_id' => \App\Models\School::first()->id ?? 1,
         ];
     }
-
+    
     /**
      * Indicate that the model's email address should be unverified.
      */
