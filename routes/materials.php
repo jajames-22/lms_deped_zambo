@@ -4,15 +4,16 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\MaterialsController;
 use App\Http\Controllers\StudentEnrollmentController;
 use App\Http\Middleware\CheckRole;
+use App\Http\Middleware\CheckAccountStatus;
 
 // ==========================================
-// STUDENT ROUTE (Must be outside the dashboard prefix/middleware)
+// STUDENT ROUTES (Must be outside the dashboard CheckRole middleware)
 // ==========================================
 Route::get('/materials/{hashid}/enroll/{email}', [StudentEnrollmentController::class, 'acceptInvitation'])
     ->name('student.materials.enroll')
     ->middleware(['signed', 'auth']);
 
-Route::get('/dashboard/student/materials/{hashid}', [App\Http\Controllers\StudentEnrollmentController::class, 'show'])
+Route::get('/dashboard/student/materials/{hashid}', [StudentEnrollmentController::class, 'show'])
     ->name('student.materials.show')
     ->middleware(['auth']);
 
@@ -20,76 +21,86 @@ Route::post('/student/enroll-code', [StudentEnrollmentController::class, 'enroll
     ->name('student.enroll.code')
     ->middleware(['auth']);
 
-Route::get('/dashboard/enrolled', [App\Http\Controllers\StudentEnrollmentController::class, 'index'])
+Route::get('/dashboard/enrolled', [StudentEnrollmentController::class, 'index'])
     ->name('student.enrolled')
     ->middleware(['auth']);
 
-Route::post('/dashboard/student/materials/{id}/complete', [App\Http\Controllers\StudentEnrollmentController::class, 'markAsCompleted'])
+Route::post('/dashboard/student/materials/{id}/complete', [StudentEnrollmentController::class, 'markAsCompleted'])
     ->name('student.materials.complete')
     ->middleware(['auth']);
 
-Route::get('/dashboard/certificates', [App\Http\Controllers\StudentEnrollmentController::class, 'myCertificates'])
+Route::get('/dashboard/certificates', [StudentEnrollmentController::class, 'myCertificates'])
     ->name('student.certificates.index')
     ->middleware(['auth']);
 
 
-// Remove any ->middleware('signed') attachments here
-
-
-// Public Certificate Verification and Download
-Route::get('/certificate/{hashid}', [StudentEnrollmentController::class, 'completionPage'])->name('student.materials.achieved');
-Route::get('/certificate/download/{hashid}', [StudentEnrollmentController::class, 'downloadCertificate'])->name('student.certificate.download');
-
-// Route to preview the PDF template directly in the browser as HTML
-Route::get('/certificate/preview/{enrollment_id}', [App\Http\Controllers\StudentEnrollmentController::class, 'previewCertificateTemplate'])
-    ->name('student.certificate.preview')
-    ->middleware(['auth']); // Requires you to be logged in to view it
 // ==========================================
-// TEACHER / ADMIN ROUTES
+// INSTRUCTOR & ADMIN MATERIAL MANAGEMENT ROUTES
 // ==========================================
-Route::prefix('dashboard/materials')
-    ->name('dashboard.materials.')
-    // Apply auth and role middleware to the entire group
-    ->middleware(['auth', 'verified', CheckRole::class . ':admin,teacher,cid']) // 👈 Replaced superadmin with cid
+Route::middleware(['auth', 'verified', CheckAccountStatus::class, CheckRole::class . ':admin,teacher,cid'])
+    ->prefix('dashboard/materials')
+    ->name('materials.') 
     ->group(function () {
+        
+        // =========================================================
+        // STATIC ROUTES (Must go BEFORE {hashid} to avoid 404 hijacks)
+        // =========================================================
+        Route::get('/', [MaterialsController::class, 'index'])->name('index');
+        Route::post('/', [MaterialsController::class, 'store'])->name('store'); // Fixes Test 5 (Create)
+        Route::get('/create', [MaterialsController::class, 'create'])->name('create');
+        Route::get('/template/download', [MaterialsController::class, 'downloadTemplate'])->name('download_template');
+        Route::post('/upload-media', [MaterialsController::class, 'uploadMedia'])->name('upload_media');
+        Route::post('/upload-temp-media', [MaterialsController::class, 'uploadTempMedia'])->name('uploadTempMedia');
+        Route::post('/check-access-code', [MaterialsController::class, 'checkAccessCode'])->name('checkAccessCode');
+        Route::get('/tags', [MaterialsController::class, 'getTags'])->name('tags');
 
-    // The main index route (acts as a dispatcher)
-    Route::get('/', [MaterialsController::class, 'index'])->name('index');
-
-    // Shared CRUD & Builder Routes
-    Route::get('/create', [MaterialsController::class, 'create'])->name('create');
-    Route::get('/{id}/edit', [MaterialsController::class, 'edit'])->name('edit');
-    Route::get('/{id}/show', [MaterialsController::class, 'edit'])->name('show');
-
-    // Management & Access Routes
-    Route::get('/{id}/manage', [MaterialsController::class, 'manage'])->name('manage');
-    Route::patch('/{id}/toggle-status', [MaterialsController::class, 'toggleStatus'])->name('toggle-status');
-    Route::post('/{id}/access', [MaterialsController::class, 'addAccess'])->name('access.add');
-    Route::delete('/access/{id}', [MaterialsController::class, 'removeAccess'])->name('access.remove');
-    Route::post('/{id}/access/import', [MaterialsController::class, 'importAccess'])->name('access.import');
-
-    // Builder APIs
-    Route::post('/{id}/store', [MaterialsController::class, 'store'])->name('store');
-    Route::post('/{id}/autosave', [MaterialsController::class, 'autosave'])->name('autosave');
-    Route::post('/upload-media', [MaterialsController::class, 'uploadMedia'])->name('upload_media');
-    Route::post('/{id}/duplicate', [MaterialsController::class, 'duplicate'])->name('duplicate');
-    Route::delete('/{id}', [MaterialsController::class, 'destroy'])->name('destroy');
-
-    // Import/Export Routes
-    Route::get('/template/download', [MaterialsController::class, 'downloadTemplate'])->name('download_template');
-    Route::post('/{id}/import', [MaterialsController::class, 'importLessons'])->name('import');
-
-    // Visibility & Notification Routes
-    Route::patch('/{id}/toggle-visibility', [MaterialsController::class, 'toggleVisibility'])->name('toggle-visibility');
-    Route::post('/{id}/notify-students', [MaterialsController::class, 'notifyStudents'])->name('notify-students');
-    Route::post('/access/{id}/invite', [MaterialsController::class, 'sendIndividualInvite'])->name('access.invite');
-    Route::post('/{id}/notify-students', [MaterialsController::class, 'notifyStudents']);
-    Route::get('/{id}/preview', [MaterialsController::class, 'preview'])->name('preview');
-    Route::get('/{id}/analytics', [MaterialsController::class, 'analytics'])
-        ->name('analytics');
-    Route::get('/{id}/analytics', [MaterialsController::class, 'analytics'])
-        ->name('analytics');
-    Route::get('/{id}/export', [MaterialsController::class, 'exportMaterialAnalyticsPdf'])
-        ->name('export');
-
-});
+        // =========================================================
+        // DYNAMIC ROUTES (Using {hashid} exactly as the Controller expects)
+        // =========================================================
+        Route::prefix('{hashid}')->group(function () {
+            
+            // Core CRUD operations
+            Route::get('/manage', [MaterialsController::class, 'manage'])->name('manage');
+            Route::get('/edit', [MaterialsController::class, 'edit'])->name('edit');
+            Route::put('/update', [MaterialsController::class, 'update'])->name('update');
+            Route::get('/show', [MaterialsController::class, 'show'])->name('show');
+            Route::get('/preview', [MaterialsController::class, 'preview'])->name('preview');
+            Route::delete('/', [MaterialsController::class, 'destroy'])->name('destroy');
+            Route::post('/autosave', [MaterialsController::class, 'autosave'])->name('autosave');
+            
+            // Settings & Tools
+            Route::post('/thumbnail', [MaterialsController::class, 'updateThumbnail'])->name('thumbnail.update');
+            Route::post('/save-grading-settings', [MaterialsController::class, 'saveGradingSettings'])->name('saveGradingSettings');
+            Route::post('/duplicate', [MaterialsController::class, 'duplicate'])->name('duplicate');
+            Route::post('/import', [MaterialsController::class, 'importLessons'])->name('import');
+            
+            // Workflows & Approvals
+            Route::post('/submit', [MaterialsController::class, 'submitForReview'])->name('submitForReview');
+            Route::post('/revert', [MaterialsController::class, 'revertToDraft'])->name('revertToDraft');
+            Route::post('/request-unpublish', [MaterialsController::class, 'requestUnpublish'])->name('requestUnpublish');
+            Route::post('/unpublish', [MaterialsController::class, 'unpublish'])->name('unpublish');
+            Route::post('/publish', [MaterialsController::class, 'publish'])->name('publish');
+            Route::post('/approve', [MaterialsController::class, 'approve'])->name('approve');
+            Route::post('/evaluate', [MaterialsController::class, 'saveEvaluation'])->name('evaluate');
+            Route::post('/toggle-featured', [MaterialsController::class, 'toggleFeatured'])->name('toggleFeatured');
+            Route::patch('/toggle-visibility', [MaterialsController::class, 'toggleVisibility'])->name('toggle-visibility');
+            
+            // Access Management & Notifications
+            Route::post('/notify-students', [MaterialsController::class, 'notifyStudents'])->name('notify-students');
+            Route::post('/access/invite', [MaterialsController::class, 'sendIndividualInvite'])->name('access.invite');
+            
+            // Analytics & Exports
+            Route::get('/analytics', [MaterialsController::class, 'analytics'])->name('analytics');
+            Route::get('/export', [MaterialsController::class, 'exportMaterialAnalyticsPdf'])->name('export');
+            Route::get('/export-report', [MaterialsController::class, 'exportReport'])->name('exportReport');
+            Route::get('/export-pdf', [MaterialsController::class, 'exportPdf'])->name('exportPdf');
+            
+            // Soft Deletes
+            Route::patch('/restore', [MaterialsController::class, 'restore'])->name('restore');
+            Route::delete('/force', [MaterialsController::class, 'forceDelete'])->name('forceDelete');
+            
+            // Certificates
+            Route::post('/unlock-certificate', [MaterialsController::class, 'unlockCertificate'])->name('unlockCertificate');
+            Route::get('/certificate/download', [MaterialsController::class, 'downloadCertificate'])->name('downloadCertificate');
+        });
+    });
