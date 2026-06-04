@@ -153,7 +153,7 @@ Route::middleware(['auth', 'verified', CheckAccountStatus::class])->group(functi
         Route::get('/materials/{hashid}/evaluate', [MaterialsController::class, 'evaluateMaterial'])->name('dashboard.materials.evaluate');
         Route::get('/materials/{hashid}/evaluation-result', [MaterialsController::class, 'evaluationResult'])->name('dashboard.materials.evaluation-result');
         Route::get('/materials/{id}/analytics', [MaterialsController::class, 'analytics'])->name('dashboard.materials.analytics');
-        Route::get('/materials/{id}/report', [MaterialsController::class, 'exportMaterialAnalyticsPdf'])->name('dashboard.materials.report');
+        Route::get('/materials/{id}/report', [MaterialsController::class, 'exportMaterialAnalyticsPdf'])->name('dashboard.materials.export');
 
         Route::patch('/materials/{material}/toggle-featured', [MaterialsController::class, 'toggleFeatured'])->name('dashboard.materials.toggle-featured');
         Route::post('/materials/{material}/tags', [MaterialsController::class, 'addTag'])->name('dashboard.materials.tags.add');
@@ -162,7 +162,7 @@ Route::middleware(['auth', 'verified', CheckAccountStatus::class])->group(functi
         // Manage Page Routes
         Route::put('/materials/{id}', [MaterialsController::class, 'update'])->name('dashboard.materials.update');
         Route::delete('/materials/{id}', [MaterialsController::class, 'destroy'])->name('dashboard.materials.destroy');
-        Route::patch('/materials/{id}/status', [MaterialsController::class, 'toggleStatus'])->name('dashboard.materials.status');
+        Route::patch('/materials/{id}/status', [MaterialsController::class, 'toggleStatus'])->name('dashboard.materials.toggle-status');
         Route::patch('/materials/{id}/visibility', [MaterialsController::class, 'toggleVisibility'])->name('dashboard.materials.visibility');
         Route::patch('/materials/{id}/shuffle', [MaterialsController::class, 'toggleShuffle'])->name('dashboard.materials.shuffle');
         Route::post('/materials/{id}/grading', [MaterialsController::class, 'updateGrading'])->name('dashboard.materials.grading');
@@ -259,10 +259,20 @@ Route::middleware(['auth', 'verified', \App\Http\Middleware\CheckAccountStatus::
     ->prefix('dashboard')
     ->group(function () {
         // Re-register critical named routes so dashboard.materials.* names resolve correctly
-        Route::get('/materials/{hashid}/show',   [\App\Http\Controllers\MaterialsController::class, 'show'])
-            ->name('dashboard.materials.show');
-        Route::get('/materials/{id}/manage',     [\App\Http\Controllers\MaterialsController::class, 'manage'])
+        Route::get('/materials',                  [\App\Http\Controllers\MaterialsController::class, 'index'])
+            ->name('dashboard.materials.index');
+        Route::get('/materials/create',           [\App\Http\Controllers\MaterialsController::class, 'create'])
+            ->name('dashboard.materials.create');
+        Route::get('/materials/{id}/manage',      [\App\Http\Controllers\MaterialsController::class, 'manage'])
             ->name('dashboard.materials.manage');
+        Route::get('/materials/{hashid}/show',    [\App\Http\Controllers\MaterialsController::class, 'show'])
+            ->name('dashboard.materials.show');
         Route::get('/materials/{hashid}/preview', [\App\Http\Controllers\MaterialsController::class, 'preview'])
             ->name('dashboard.materials.preview');
+        Route::get('/materials/{id}/analytics',   [\App\Http\Controllers\MaterialsController::class, 'analytics'])
+            ->name('dashboard.materials.analytics');
+        Route::post('/materials/{id}/duplicate',  [\App\Http\Controllers\MaterialsController::class, 'duplicate'])
+            ->name('dashboard.materials.duplicate');
+        Route::delete('/materials/{id}',          [\App\Http\Controllers\MaterialsController::class, 'destroy'])
+            ->name('dashboard.materials.destroy');
     });
