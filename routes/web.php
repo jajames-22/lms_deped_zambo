@@ -174,6 +174,9 @@ Route::middleware(['auth', 'verified', CheckAccountStatus::class])->group(functi
         Route::post('/materials/access/{id}/invite', [MaterialsController::class, 'sendIndividualInvite'])->name('dashboard.materials.access.invite');
         Route::post('/materials/{id}/generate-code', [MaterialsController::class, 'generateAccessCode']);
 
+        // Alias: POST /dashboard/materials/store (simple create-from-form for new drafts)
+        Route::post('/materials/store', [MaterialsController::class, 'createDraft'])->name('dashboard.materials.store');
+
         // Feedback Management
         Route::get('/feedback', [ProfileController::class, 'loadFeedbackPartial'])->name('dashboard.feedback');
         Route::post('/feedback/store', [ProfileController::class, 'storeFeedback'])->name('feedback.store');
@@ -214,11 +217,8 @@ Route::get('/explore', [App\Http\Controllers\DashboardController::class, 'public
 Route::get('/explore/materials/{hashid}/show', [App\Http\Controllers\DashboardController::class, 'publicMaterialShow'])->name('explore.materials.show');
 Route::get('/explore/tags/{tag}/json', [App\Http\Controllers\DashboardController::class, 'viewByTagJson'])->name('explore.tag.json');
 
-Route::middleware(['auth', CheckAccountStatus::class])->group(function () {
-    Route::resource('courses', CourseController::class);
-    Route::resource('lessons', LessonController::class);
-    Route::resource('quizzes', QuizController::class);
-});
+// NOTE: CourseController, LessonController, QuizController routes are not yet implemented.
+// They are intentionally disabled to prevent fatal errors during route loading.
 
 /*
 |--------------------------------------------------------------------------
@@ -248,3 +248,21 @@ Route::middleware(['auth', CheckAccountStatus::class])->group(function () {
 require __DIR__ . '/auth.php';
 require __DIR__ . '/assessment.php';
 require __DIR__ . '/materials.php';
+
+/*
+|--------------------------------------------------------------------------
+| Route Name Aliases (registered AFTER materials.php to take precedence)
+| These fix the name collision where materials.php overrides dashboard.materials.*
+|--------------------------------------------------------------------------
+*/
+Route::middleware(['auth', 'verified', \App\Http\Middleware\CheckAccountStatus::class])
+    ->prefix('dashboard')
+    ->group(function () {
+        // Re-register critical named routes so dashboard.materials.* names resolve correctly
+        Route::get('/materials/{hashid}/show',   [\App\Http\Controllers\MaterialsController::class, 'show'])
+            ->name('dashboard.materials.show');
+        Route::get('/materials/{id}/manage',     [\App\Http\Controllers\MaterialsController::class, 'manage'])
+            ->name('dashboard.materials.manage');
+        Route::get('/materials/{hashid}/preview', [\App\Http\Controllers\MaterialsController::class, 'preview'])
+            ->name('dashboard.materials.preview');
+    });
