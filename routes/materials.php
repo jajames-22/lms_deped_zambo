@@ -73,6 +73,7 @@ Route::prefix('dashboard/materials')
     Route::post('/{id}/autosave', [MaterialsController::class, 'autosave'])->name('autosave');
     Route::post('/upload-media', [MaterialsController::class, 'uploadMedia'])->name('upload_media');
     Route::post('/{id}/duplicate', [MaterialsController::class, 'duplicate'])->name('duplicate');
+    Route::delete('/bulk-delete', [MaterialsController::class, 'bulkDestroy'])->name('bulk-delete');
     Route::delete('/{id}', [MaterialsController::class, 'destroy'])->name('destroy');
 
     // Import/Export Routes

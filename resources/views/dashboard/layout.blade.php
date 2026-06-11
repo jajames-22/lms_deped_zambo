@@ -505,9 +505,14 @@
                     let targetBtn = element;
                     if (!targetBtn || !targetBtn.classList) {
                         if (url.includes('/profile')) targetBtn = document.getElementById('nav-profile-btn');
-                        else if (url.includes('/analytics')) targetBtn = document.getElementById('nav-analytics-btn');
-                        else if (url.includes('/certificates')) targetBtn = document.getElementById('nav-certificates-btn');
+                        // /materials must be checked BEFORE /analytics so that
+                        // material-specific analytics URLs (/materials/123/analytics)
+                        // highlight the Materials sidebar item, not the Analytics one.
                         else if (url.includes('/materials') || url.includes('/explore')) targetBtn = document.getElementById('nav-explore-btn') || document.getElementById('nav-materials-btn');
+                        // Only highlight Analytics when the URL is a standalone analytics page
+                        // (i.e. it contains /analytics but NOT /materials)
+                        else if (url.includes('/analytics') && !url.includes('/materials')) targetBtn = document.getElementById('nav-analytics-btn');
+                        else if (url.includes('/certificates')) targetBtn = document.getElementById('nav-certificates-btn');
                         else if (url.includes('/enrolled')) targetBtn = document.getElementById('nav-enrolled-btn');
                         else if (url.includes('/assessment')) targetBtn = document.getElementById('nav-assessment-btn');
                         else if (url.includes('/explore-layout')) targetBtn = document.getElementById('nav-explore-layout-btn');

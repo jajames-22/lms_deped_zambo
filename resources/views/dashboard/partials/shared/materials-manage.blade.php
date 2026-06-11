@@ -146,7 +146,7 @@
 
                 {{-- View Analytics Button --}}
                 @if($material->status === 'published')
-                    <button onclick="loadPartial('{{ url('/dashboard/materials/' . $material->id . '/analytics') }}')"
+                    <button onclick="loadPartial('{{ url('/dashboard/materials/' . $material->id . '/analytics') }}', document.getElementById('nav-materials-btn'))"
                         class="px-4 py-2.5 bg-white text-gray-700 border border-gray-200 font-bold rounded-xl hover:bg-gray-50 transition shadow-sm flex items-center justify-center gap-2 text-sm">
                         <i class="fas fa-chart-pie text-amber-600"></i> Analytics
                     </button>

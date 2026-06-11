@@ -1086,6 +1086,73 @@ class MaterialsController extends Controller
         }
     }
 
+    public function bulkDestroy(Request $request)
+    {
+        $request->validate([
+            'ids' => 'required|array',
+            'ids.*' => 'integer|exists:materials,id'
+        ]);
+
+        $ids = $request->ids;
+        $deletedCount = 0;
+
+        \Illuminate\Support\Facades\DB::beginTransaction();
+        try {
+            foreach ($ids as $id) {
+                $material = \Illuminate\Support\Facades\DB::table('materials')->where('id', $id)->first();
+                if (!$material) continue;
+
+                // Ensure it's not published
+                if ($material->status === 'published') {
+                    continue; // Skip published materials
+                }
+
+                // Delete Exam dependencies
+                $examIds = \Illuminate\Support\Facades\DB::table('exams')->where('material_id', $id)->pluck('id');
+                if ($examIds->isNotEmpty()) {
+                    \Illuminate\Support\Facades\DB::table('exam_answers')->whereIn('exam_id', $examIds)->delete();
+                    \Illuminate\Support\Facades\DB::table('exam_options')->whereIn('exam_id', $examIds)->delete();
+                    \Illuminate\Support\Facades\DB::table('exams')->whereIn('id', $examIds)->delete();
+                }
+
+                // Delete Lesson dependencies
+                $lessonIds = \Illuminate\Support\Facades\DB::table('lessons')->where('material_id', $id)->pluck('id');
+                if ($lessonIds->isNotEmpty()) {
+                    $quizIds = \Illuminate\Support\Facades\DB::table('lesson_contents')->whereIn('lesson_id', $lessonIds)->pluck('id');
+
+                    if ($quizIds->isNotEmpty()) {
+                        \Illuminate\Support\Facades\DB::table('quiz_answers')->whereIn('lesson_content_id', $quizIds)->delete();
+                        \Illuminate\Support\Facades\DB::table('quiz_options')->whereIn('quiz_id', $quizIds)->delete();
+                    }
+
+                    \Illuminate\Support\Facades\DB::table('lesson_contents')->whereIn('lesson_id', $lessonIds)->delete();
+                    \Illuminate\Support\Facades\DB::table('lessons')->whereIn('id', $lessonIds)->delete();
+                }
+
+                // Delete Material specific relationships
+                \Illuminate\Support\Facades\DB::table('material_accesses')->where('material_id', $id)->delete();
+                \Illuminate\Support\Facades\DB::table('material_tag')->where('material_id', $id)->delete();
+                \Illuminate\Support\Facades\DB::table('enrollments')->where('material_id', $id)->delete();
+
+                // Finally, safely delete the Material itself
+                \Illuminate\Support\Facades\DB::table('materials')->where('id', $id)->delete();
+                $deletedCount++;
+            }
+
+            \Illuminate\Support\Facades\DB::commit();
+
+            if ($deletedCount > 0) {
+                return response()->json(['success' => true, 'message' => "$deletedCount module(s) deleted successfully."]);
+            } else {
+                return response()->json(['success' => false, 'message' => 'No modules were deleted. Published modules cannot be deleted.'], 403);
+            }
+
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\DB::rollBack();
+            return response()->json(['success' => false, 'message' => 'Failed to delete modules: ' . $e->getMessage()], 500);
+        }
+    }
+
 
     public function downloadTemplate()
     {

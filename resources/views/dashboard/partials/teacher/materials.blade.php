@@ -24,11 +24,21 @@
                 class="material-tab px-6 py-2 text-sm font-bold rounded-lg transition-all text-gray-500 hover:text-gray-700 whitespace-nowrap">Drafts</button>
         </div>
 
-        <div class="relative w-full max-w-md shrink-0">
-            <i class="fas fa-search absolute left-4 top-1/2 -translate-y-1/2 text-gray-400"></i>
-            <input type="text" id="material-search" onkeyup="MaterialManager.search()"
-                placeholder="Search materials by title..."
-                class="w-full pl-11 pr-4 py-2.5 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#a52a2a]/20 focus:border-[#a52a2a] outline-none transition-all shadow-sm">
+        <div class="relative w-full max-w-md shrink-0 flex gap-2">
+            <div class="relative w-full">
+                <i class="fas fa-search absolute left-4 top-1/2 -translate-y-1/2 text-gray-400"></i>
+                <input type="text" id="material-search" onkeyup="MaterialManager.search()"
+                    placeholder="Search materials by title..."
+                    class="w-full pl-11 pr-4 py-2.5 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#a52a2a]/20 focus:border-[#a52a2a] outline-none transition-all shadow-sm">
+            </div>
+            <button onclick="MaterialManager.toggleBulkDeleteMode()" id="bulk-delete-toggle-btn"
+                class="px-4 py-2 bg-gray-100 text-gray-700 text-sm font-bold rounded-xl hover:bg-gray-200 transition-all shadow-sm shrink-0 flex items-center">
+                <i class="fas fa-trash-alt mr-2"></i>Delete
+            </button>
+            <button onclick="MaterialManager.submitBulkDelete('{{ route('dashboard.materials.bulk-delete') }}')" id="bulk-delete-submit-btn" style="display: none;"
+                class="px-4 py-2 bg-red-600 text-white text-sm font-bold rounded-xl hover:bg-red-700 transition-all shadow-sm shrink-0 flex items-center">
+                Delete Selected
+            </button>
         </div>
     </div>
 
@@ -110,7 +120,10 @@
                         @endif
                     </div>
                     
-                    <div class="absolute top-3 left-3 flex items-center">
+                    <div class="absolute top-3 left-3 flex items-center gap-2 z-20">
+                        @if($statusStr !== 'published')
+                            <input type="checkbox" class="bulk-delete-checkbox hidden w-5 h-5 rounded border-gray-300 text-red-600 focus:ring-red-500 cursor-pointer shadow-sm" value="{{ $material->id }}" onclick="event.stopPropagation()">
+                        @endif
                         <span class="px-2 py-1 {{ $statusBg }} {{ $statusText }} backdrop-blur-sm text-[9px] font-bold rounded uppercase tracking-wider shadow-sm border border-white/40">
                             {{ $statusLabel }}
                         </span>
@@ -191,6 +204,72 @@
     window.MaterialManager = window.MaterialManager || {};
     
     MaterialManager.currentStatus = 'all';
+    MaterialManager.isBulkDeleteMode = false;
+
+    MaterialManager.toggleBulkDeleteMode = function() {
+        MaterialManager.isBulkDeleteMode = !MaterialManager.isBulkDeleteMode;
+        const checkboxes = document.querySelectorAll('.bulk-delete-checkbox');
+        const submitBtn = document.getElementById('bulk-delete-submit-btn');
+        const toggleBtn = document.getElementById('bulk-delete-toggle-btn');
+
+        if (MaterialManager.isBulkDeleteMode) {
+            checkboxes.forEach(cb => { cb.classList.remove('hidden'); cb.checked = false; });
+            submitBtn.style.display = 'block';
+            toggleBtn.classList.replace('bg-gray-100', 'bg-gray-800');
+            toggleBtn.classList.replace('text-gray-700', 'text-white');
+            toggleBtn.innerHTML = '<i class="fas fa-times mr-2"></i>Cancel';
+        } else {
+            checkboxes.forEach(cb => cb.classList.add('hidden'));
+            submitBtn.style.display = 'none';
+            toggleBtn.classList.replace('bg-gray-800', 'bg-gray-100');
+            toggleBtn.classList.replace('text-white', 'text-gray-700');
+            toggleBtn.innerHTML = '<i class="fas fa-trash-alt mr-2"></i>Delete';
+        }
+    };
+
+    MaterialManager.submitBulkDelete = function(url) {
+        const checkboxes = document.querySelectorAll('.bulk-delete-checkbox:checked');
+        const ids = Array.from(checkboxes).map(cb => cb.value);
+
+        if (ids.length === 0) {
+            MaterialManager.showModal('error', 'No Selection', 'Please select at least one module to delete.');
+            return;
+        }
+
+        MaterialManager.showModal('confirm', 'Delete Modules?', `Are you sure you want to delete ${ids.length} module(s)? This action cannot be undone.`, async () => {
+            const submitBtn = document.getElementById('bulk-delete-submit-btn');
+            const originalHtml = submitBtn.innerHTML;
+            submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Deleting...';
+            submitBtn.disabled = true;
+
+            const csrf = document.querySelector('meta[name="csrf-token"]')?.content || "{{ csrf_token() }}";
+
+            try {
+                const response = await fetch(url, {
+                    method: 'DELETE',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': csrf,
+                        'Accept': 'application/json'
+                    },
+                    body: JSON.stringify({ ids: ids })
+                });
+
+                if (response.ok) {
+                    loadPartial('{{ url('/dashboard/materials') }}', document.getElementById('nav-materials-btn'));
+                } else {
+                    const data = await response.json().catch(() => ({}));
+                    MaterialManager.showModal('error', 'Delete Failed', data.message || 'The server returned an error while deleting.');
+                    submitBtn.innerHTML = originalHtml;
+                    submitBtn.disabled = false;
+                }
+            } catch (e) {
+                MaterialManager.showModal('error', 'Network Error', 'Could not delete modules. Please check your connection.');
+                submitBtn.innerHTML = originalHtml;
+                submitBtn.disabled = false;
+            }
+        });
+    };
 
     MaterialManager.showModal = function (type, title, message, callback = null) {
         const modal = document.getElementById('status-modal');

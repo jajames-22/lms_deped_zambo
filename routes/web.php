@@ -160,6 +160,7 @@ Route::middleware(['auth', 'verified', CheckAccountStatus::class])->group(functi
         Route::delete('/materials/{material}/tags/{tag}', [MaterialsController::class, 'removeTag'])->name('dashboard.materials.tags.remove');
 
         // Manage Page Routes
+        Route::delete('/materials/bulk-delete', [MaterialsController::class, 'bulkDestroy'])->name('dashboard.materials.bulk-delete');
         Route::put('/materials/{id}', [MaterialsController::class, 'update'])->name('dashboard.materials.update');
         Route::delete('/materials/{id}', [MaterialsController::class, 'destroy'])->name('dashboard.materials.destroy');
         Route::patch('/materials/{id}/status', [MaterialsController::class, 'toggleStatus'])->name('dashboard.materials.status');

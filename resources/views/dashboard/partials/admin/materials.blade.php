@@ -42,10 +42,20 @@
         class="material-tab px-6 py-2 text-sm font-bold rounded-lg transition-all text-gray-500 hover:text-gray-700 whitespace-nowrap">Drafts</button>
 </div>
 
-        <div class="relative w-full max-w-md">
-            <i class="fas fa-search absolute left-4 top-1/2 -translate-y-1/2 text-gray-400"></i>
-            <input type="text" id="materialSearchInput" placeholder="Search materials by title or description..."
-                class="w-full pl-11 pr-4 py-2.5 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#a52a2a]/20 focus:border-[#a52a2a] outline-none transition-all shadow-sm">
+        <div class="relative w-full max-w-md flex gap-2">
+            <div class="relative w-full">
+                <i class="fas fa-search absolute left-4 top-1/2 -translate-y-1/2 text-gray-400"></i>
+                <input type="text" id="materialSearchInput" placeholder="Search materials by title or description..."
+                    class="w-full pl-11 pr-4 py-2.5 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#a52a2a]/20 focus:border-[#a52a2a] outline-none transition-all shadow-sm">
+            </div>
+            <button onclick="MaterialTableManager.toggleBulkDeleteMode()" id="bulk-delete-toggle-btn"
+                class="px-4 py-2 bg-gray-100 text-gray-700 text-sm font-bold rounded-xl hover:bg-gray-200 transition-all shadow-sm shrink-0 flex items-center">
+                <i class="fas fa-trash-alt mr-2"></i>Delete
+            </button>
+            <button onclick="MaterialTableManager.submitBulkDelete('{{ route('dashboard.materials.bulk-delete') }}')" id="bulk-delete-submit-btn" style="display: none;"
+                class="px-4 py-2 bg-red-600 text-white text-sm font-bold rounded-xl hover:bg-red-700 transition-all shadow-sm shrink-0 flex items-center">
+                Delete Selected
+            </button>
         </div>
     </div>
 
@@ -54,6 +64,9 @@
             <table class="w-full text-left border-collapse" id="materialsTable">
                 <thead class="bg-gray-50/50 text-xs uppercase text-gray-500 font-bold border-b border-gray-100">
                     <tr>
+                        <th class="bulk-delete-col hidden px-4 py-3 text-center w-10">
+                            <input type="checkbox" id="selectAllBulk" onclick="MaterialTableManager.toggleSelectAll(this)" class="w-4 h-4 rounded border-gray-300 text-red-600 focus:ring-red-500 cursor-pointer">
+                        </th>
                         <th class="px-4 py-3 text-center w-16">Cover</th>
                         <th class="px-4 py-3 cursor-pointer hover:bg-gray-100 transition sortable-col select-none" title="Sort by Title">
                             Material Details <i class="fas fa-sort ml-1 text-gray-300"></i>
@@ -107,6 +120,14 @@
                         data-status="{{ $statusStr }}"
                         data-owner="{{ $material->instructor_id == auth()->id() ? 'mine' : 'other' }}"
                         onclick="loadPartial('{{ route('dashboard.materials.manage', $material->id) }}', document.getElementById('nav-materials-btn'))">
+
+                            <td class="bulk-delete-col hidden px-4 py-3 text-center" onclick="event.stopPropagation()">
+                                @if(in_array($statusStr, ['published', 'revert_requested']))
+                                    <input type="checkbox" disabled class="w-4 h-4 rounded border-gray-200 bg-gray-100 cursor-not-allowed" title="Cannot delete published/requested materials">
+                                @else
+                                    <input type="checkbox" class="bulk-delete-checkbox w-4 h-4 rounded border-gray-300 text-red-600 focus:ring-red-500 cursor-pointer" value="{{ $material->id }}">
+                                @endif
+                            </td>
 
                             <td class="px-4 py-3">
                                 <div class="w-12 h-12 rounded-lg bg-gray-100 border border-gray-200 overflow-hidden flex items-center justify-center shadow-sm mx-auto relative">
@@ -194,7 +215,7 @@
                         </tr>
                     @empty
                         <tr id="emptyStateRowInit">
-                            <td colspan="6" class="px-6 py-16 text-center">
+                            <td colspan="7" class="px-6 py-16 text-center">
                                 <div class="flex flex-col items-center">
                                     <div class="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center mb-4">
                                         <i class="fas fa-folder-open text-gray-200 text-2xl"></i>
@@ -258,6 +279,7 @@
         currentPage: 1,
         pageSize: 15,
         currentStatusFilter: 'all',
+        isBulkDeleteMode: false,
         allRows: [],
         filteredRows: [],
 
@@ -283,6 +305,87 @@
             btnElement.classList.add('bg-white', 'text-[#a52a2a]', 'shadow-sm');
 
             this.applyFilters();
+        },
+
+        toggleBulkDeleteMode: function() {
+            this.isBulkDeleteMode = !this.isBulkDeleteMode;
+            const cols = document.querySelectorAll('.bulk-delete-col');
+            const submitBtn = document.getElementById('bulk-delete-submit-btn');
+            const toggleBtn = document.getElementById('bulk-delete-toggle-btn');
+            const checkboxes = document.querySelectorAll('.bulk-delete-checkbox');
+            const selectAll = document.getElementById('selectAllBulk');
+
+            if (this.isBulkDeleteMode) {
+                cols.forEach(col => col.classList.remove('hidden'));
+                submitBtn.style.display = 'flex';
+                toggleBtn.classList.replace('bg-gray-100', 'bg-gray-800');
+                toggleBtn.classList.replace('text-gray-700', 'text-white');
+                toggleBtn.innerHTML = '<i class="fas fa-times mr-2"></i>Cancel';
+            } else {
+                cols.forEach(col => col.classList.add('hidden'));
+                submitBtn.style.display = 'none';
+                toggleBtn.classList.replace('bg-gray-800', 'bg-gray-100');
+                toggleBtn.classList.replace('text-white', 'text-gray-700');
+                toggleBtn.innerHTML = '<i class="fas fa-trash-alt mr-2"></i>Delete';
+                checkboxes.forEach(cb => cb.checked = false);
+                if(selectAll) selectAll.checked = false;
+            }
+            
+            this.renderPagination();
+        },
+
+        toggleSelectAll: function(source) {
+            const checkboxes = document.querySelectorAll('.bulk-delete-checkbox:not(:disabled)');
+            checkboxes.forEach(cb => {
+                const row = cb.closest('tr');
+                if(row.style.display !== 'none') {
+                    cb.checked = source.checked;
+                }
+            });
+        },
+
+        submitBulkDelete: function(url) {
+            const checkboxes = document.querySelectorAll('.bulk-delete-checkbox:checked');
+            const ids = Array.from(checkboxes).map(cb => cb.value);
+
+            if (ids.length === 0) {
+                this.showModal('error', 'No Selection', 'Please select at least one module to delete.');
+                return;
+            }
+
+            this.showModal('confirm', 'Delete Modules?', `Are you sure you want to permanently delete ${ids.length} module(s)? This action cannot be undone.`, async () => {
+                const submitBtn = document.getElementById('bulk-delete-submit-btn');
+                const originalHtml = submitBtn.innerHTML;
+                submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Deleting...';
+                submitBtn.disabled = true;
+
+                const csrf = document.querySelector('meta[name="csrf-token"]')?.content || "{{ csrf_token() }}";
+
+                try {
+                    const response = await fetch(url, {
+                        method: 'DELETE',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRF-TOKEN': csrf,
+                            'Accept': 'application/json'
+                        },
+                        body: JSON.stringify({ ids: ids })
+                    });
+
+                    if (response.ok) {
+                        loadPartial('{{ url('/dashboard/materials') }}', document.getElementById('nav-materials-btn'));
+                    } else {
+                        const data = await response.json().catch(() => ({}));
+                        this.showModal('error', 'Delete Failed', data.message || 'The server returned an error while deleting.');
+                        submitBtn.innerHTML = originalHtml;
+                        submitBtn.disabled = false;
+                    }
+                } catch (e) {
+                    this.showModal('error', 'Network Error', 'Could not delete modules. Please check your connection.');
+                    submitBtn.innerHTML = originalHtml;
+                    submitBtn.disabled = false;
+                }
+            });
         },
 
         setupSearch: function() {
@@ -417,8 +520,9 @@ applyFilters: function() {
                     currentOwner = row.dataset.owner;
                     const divider = document.createElement('tr');
                     divider.className = 'owner-divider select-none pointer-events-none bg-gray-50/80';
+                    const colCount = this.isBulkDeleteMode ? 7 : 6;
                     divider.innerHTML = `
-                        <td colspan="6" class="px-4 py-2 text-xs font-extrabold text-gray-500 uppercase tracking-widest border-y border-gray-100">
+                        <td colspan="${colCount}" class="px-4 py-2 text-xs font-extrabold text-gray-500 uppercase tracking-widest border-y border-gray-100">
                             <div class="flex items-center gap-2 text-[#a52a2a]">
                                 <i class="fas ${currentOwner === 'mine' ? 'fa-user' : 'fa-users'}"></i>
                                 ${currentOwner === 'mine' ? 'My Materials' : 'Other Instructors'}
