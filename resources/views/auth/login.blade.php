@@ -4,12 +4,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    
+
     <link rel="icon" type="image/png" href="{{ asset('deped_lms_logo.png') }}">
     <title>Login - DepEd Zamboanga</title>
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 
     {{-- Ensure Cinzel Font is Loaded --}}
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700;900&display=swap" rel="stylesheet">
@@ -18,6 +19,7 @@
         * {
             box-sizing: border-box;
         }
+
         .font-cinzel {
             font-family: 'Cinzel', serif;
         }
@@ -25,54 +27,62 @@
 </head>
 
 <body class="font-sans antialiased text-gray-900 bg-gray-50">
-    
+
     <header class="bg-[#a52a2a] text-white flex justify-center shadow-lg fixed top-0 z-50 w-full no-print">
-            <div class="px-4 py-3 md:px-8 md:py-6 max-w-[1200px] w-full">
-                <div class="flex flex-row sm:flex-row items-center justify-between gap-2 md:gap-6 relative">
-                    
-                    {{-- Mobile Menu Trigger --}}
-                    <button @click="sidebarOpen = true" class="absolute left-0 top-0 lg:hidden text-white hover:text-white/80 transition p-1">
-                        <i data-lucide="menu" class="w-6 h-6"></i>
-                    </button>
+        <div class="px-4 py-3 md:px-8 md:py-6 max-w-[1200px] w-full">
+            <div class="flex flex-row sm:flex-row items-center justify-between gap-2 md:gap-6 relative">
 
-                    {{-- Left Logos --}}
-                    <div class="flex items-center gap-2 md:gap-4 shrink-0 md:mt-0">
-                        <img src="{{ asset('images/deped.png') }}" alt="DepEd" class="h-10 sm:h-12 md:h-16 w-auto drop-shadow-md">
-                        <img src="{{ asset('images/r9.png') }}" alt="Region IX" class="h-10 sm:h-12 md:h-16 w-auto drop-shadow-md">
-                    </div>
+                {{-- Mobile Menu Trigger --}}
+                <button @click="sidebarOpen = true"
+                    class="absolute left-0 top-0 lg:hidden text-white hover:text-white/80 transition p-1">
+                    <i data-lucide="menu" class="w-6 h-6"></i>
+                </button>
 
-                    {{-- Central Branding --}}
-                    <div class="flex flex-col font-cinzel text-white items-start sm:items-start text-center sm:text-left flex-1 px-4 w-full">
-                        {{-- Wrapper to constrain the width of the horizontal line to exactly the text width --}}
-                        <div class="inline-flex flex-col items-start sm:items-start w-fit">
-                            <span class="text-[8px] sm:text-[10px] tracking-widest leading-tight font-bold">Republic of the Philippines</span>
-                            <span class="text-[8px] sm:text-[10px] tracking-widest leading-tight font-bold">Department of Education</span>
-                            
-                            {{-- Horizontal Line (Now restricted by the parent wrapper) --}}
-                            <div class="w-full border-b border-white my-1"></div>
-                            
-                            <h1 class="text-sm sm:text-lg md:text-xl lg:text-2xl tracking-wide font-bold leading-tight">
-                                {{ $site_settings->header_title ?? 'Zamboanga City Division' }}
-                            </h1>
-                        </div>
-                    </div>
+                {{-- Left Logos --}}
+                <div class="flex items-center gap-2 md:gap-4 shrink-0 md:mt-0">
+                    <img src="{{ asset('images/deped.png') }}" alt="DepEd"
+                        class="h-10 sm:h-12 md:h-16 w-auto drop-shadow-md">
+                    <img src="{{ asset('images/r9.png') }}" alt="Region IX"
+                        class="h-10 sm:h-12 md:h-16 w-auto drop-shadow-md">
+                </div>
 
-                    {{-- Right Logo --}}
-                    <div class="block md:block shrink-0">
-                        <img src="{{ asset('images/ts.png') }}" alt="Transparency Seal" class=" opacity-90 h-10 sm:h-12 md:h-16 w-auto drop-shadow-md">
+                {{-- Central Branding --}}
+                <div
+                    class="flex flex-col font-cinzel text-white items-start sm:items-start text-center sm:text-left flex-1 px-4 w-full">
+                    {{-- Wrapper to constrain the width of the horizontal line to exactly the text width --}}
+                    <div class="inline-flex flex-col items-start sm:items-start w-fit">
+                        <span class="text-[8px] sm:text-[10px] tracking-widest leading-tight font-bold">Republic of the
+                            Philippines</span>
+                        <span class="text-[8px] sm:text-[10px] tracking-widest leading-tight font-bold">Department of
+                            Education</span>
+
+                        {{-- Horizontal Line (Now restricted by the parent wrapper) --}}
+                        <div class="w-full border-b border-white my-1"></div>
+
+                        <h1 class="text-sm sm:text-lg md:text-xl lg:text-2xl tracking-wide font-bold leading-tight">
+                            {{ $site_settings->header_title ?? 'Zamboanga City Division' }}
+                        </h1>
                     </div>
                 </div>
+
+                {{-- Right Logo --}}
+                <div class="block md:block shrink-0">
+                    <img src="{{ asset('images/ts.png') }}" alt="Transparency Seal"
+                        class=" opacity-90 h-10 sm:h-12 md:h-16 w-auto drop-shadow-md">
+                </div>
             </div>
-        </header>
+        </div>
+    </header>
 
     <main>
         <section style="background-image: url('{{ asset('storage/images/deped_zamdiv.jpg') }}');"
             class="relative bg-cover bg-center bg-no-repeat min-h-screen flex items-center justify-center pt-20 md:pt-32 pb-12 px-4">
-            
+
             <div class="absolute inset-0 bg-red-900/50"></div>
 
-            <div class="relative z-10 w-full max-w-6xl mx-auto flex flex-col md:flex-row items-center justify-between gap-12">
-                
+            <div
+                class="relative z-10 w-full max-w-6xl mx-auto flex flex-col md:flex-row items-center justify-between gap-12">
+
                 <div class="w-full md:w-1/2 text-center md:text-left text-white">
                     <a href="{{ url('/') }}"
                         class="inline-flex w-full items-center text-white/80 hover:text-white mb-6 group transition-colors">
@@ -85,9 +95,11 @@
                         <span class="font-medium">Back to Home</span>
                     </a>
 
-                    <h1 class="text-5xl md:text-7xl font-extrabold text-white mb-6 tracking-tight text-shadow-lg/30">Welcome Back!</h1>
+                    <h1 class="text-5xl md:text-7xl font-extrabold text-white mb-6 tracking-tight text-shadow-lg/30">
+                        Welcome Back!</h1>
                     <p class="text-lg md:text-xl text-white/80 max-w-lg mx-auto md:mx-0">
-                        Sign in to access your Learning Management System dashboard and continue your educational journey.
+                        Sign in to access your Learning Management System dashboard and continue your educational
+                        journey.
                     </p>
                 </div>
 
@@ -102,17 +114,19 @@
                         @csrf
 
                         <div>
-                            <label for="login_id" class="block text-sm font-medium text-gray-700 mb-1">Username or Email</label>
-                            <input type="text" name="login_id" id="login_id" value="{{ old('login_id') }}" 
-                                class="w-full px-4 py-2.5 rounded-lg border border-gray-300 focus:ring-2 focus:ring-[#a52a2a]/50 focus:border-[#a52a2a] outline-none transition-all @error('login_id') border-red-500 @enderror" 
+                            <label for="login_id" class="block text-sm font-medium text-gray-700 mb-1">Username or
+                                Email</label>
+                            <input type="text" name="login_id" id="login_id" value="{{ old('login_id') }}"
+                                class="w-full px-4 py-2.5 rounded-lg border border-gray-300 focus:ring-2 focus:ring-[#a52a2a]/50 focus:border-[#a52a2a] outline-none transition-all @error('login_id') border-red-500 @enderror"
                                 placeholder="Enter your username or email" autofocus>
-                            
+
                             @error('login_id')
                                 <p class="text-red-500 text-xs mt-1.5 font-medium">{{ $message }}</p>
-                                
+
                                 {{-- Button linked to the external resend form using form="id" --}}
                                 @if(session('unverified_email'))
-                                    <button type="submit" form="resend-verification-form" class="mt-2 text-[#a52a2a] text-xs font-bold hover:underline bg-transparent border-none cursor-pointer p-0 text-left">
+                                    <button type="submit" form="resend-verification-form"
+                                        class="mt-2 text-[#a52a2a] text-xs font-bold hover:underline bg-transparent border-none cursor-pointer p-0 text-left">
                                         Resend verification link
                                     </button>
                                 @endif
@@ -120,28 +134,42 @@
                         </div>
 
                         <div>
-                            <label for="password" class="block text-sm font-medium text-gray-700 mb-1">Password</label>
-                            <input type="password" name="password" id="password" 
-                                class="w-full px-4 py-2.5 rounded-lg border border-gray-300 focus:ring-2 focus:ring-[#a52a2a]/50 focus:border-[#a52a2a] outline-none transition-all @error('password') border-red-500 @enderror" 
-                                placeholder="Enter your password">
+                            <label for="password" class="block text-sm font-medium text-gray-700 mb-1">
+                                Password
+                            </label>
+
+                            <div class="relative">
+                                <input type="password" name="password" id="password"
+                                    class="w-full px-4 py-2.5 pr-12 rounded-lg border border-gray-300 focus:ring-2 focus:ring-[#a52a2a]/50 focus:border-[#a52a2a] outline-none transition-all @error('password') border-red-500 @enderror"
+                                    placeholder="Enter your password">
+
+                                <button type="button" onclick="togglePassword()"
+                                    class="absolute inset-y-0 right-0 flex items-center px-4 text-gray-500 hover:text-gray-700">
+                                    <i id="passwordIcon" class="fa-solid fa-eye"></i>
+                                </button>
+                            </div>
+
                             @error('password')
                                 <p class="text-red-500 text-xs mt-1.5 font-medium">{{ $message }}</p>
                             @enderror
                         </div>
 
+
+
                         <div class="flex items-center justify-between mt-2">
                             <label class="flex items-center cursor-pointer">
-                                <input type="checkbox" name="remember" 
+                                <input type="checkbox" name="remember"
                                     class="w-4 h-4 accent-[#a52a2a] border-gray-300 rounded focus:ring-red-700">
                                 <span class="ml-2 text-sm text-gray-600">Remember me</span>
                             </label>
-                            
+
                             @if (Route::has('password.request'))
-                                <a href="{{ route('password.request') }}" class="text-sm text-[#a52a2a] hover:underline font-medium">Forgot password?</a>
+                                <a href="{{ route('password.request') }}"
+                                    class="text-sm text-[#a52a2a] hover:underline font-medium">Forgot password?</a>
                             @endif
                         </div>
 
-                        <button type="submit" 
+                        <button type="submit"
                             class="w-full py-3 px-4 bg-[#a52a2a] hover:bg-red-800 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200 mt-4">
                             Log In
                         </button>
@@ -150,7 +178,8 @@
 
                     {{-- HIDDEN RESEND VERIFICATION FORM --}}
                     @if(session('unverified_email'))
-                        <form id="resend-verification-form" method="POST" action="{{ route('verification.send') }}" class="hidden">
+                        <form id="resend-verification-form" method="POST" action="{{ route('verification.send') }}"
+                            class="hidden">
                             @csrf
                             <input type="hidden" name="email" value="{{ session('unverified_email') }}">
                         </form>
@@ -158,7 +187,7 @@
 
                     <div class="mt-5 text-center border-t border-gray-100 pt-5">
                         <p class="text-gray-600 text-sm">
-                            Don't have an account? 
+                            Don't have an account?
                             <a href="/register" class="text-[#a52a2a] font-bold hover:underline">Create one here</a>
                         </p>
                     </div>
@@ -221,4 +250,21 @@
     @endif
 
 </body>
+<script>
+    function togglePassword() {
+        const passwordInput = document.getElementById('password');
+        const passwordIcon = document.getElementById('passwordIcon');
+
+        if (passwordInput.type === 'password') {
+            passwordInput.type = 'text';
+            passwordIcon.classList.remove('fa-eye');
+            passwordIcon.classList.add('fa-eye-slash');
+        } else {
+            passwordInput.type = 'password';
+            passwordIcon.classList.remove('fa-eye-slash');
+            passwordIcon.classList.add('fa-eye');
+        }
+    }
+</script>
+
 </html>
