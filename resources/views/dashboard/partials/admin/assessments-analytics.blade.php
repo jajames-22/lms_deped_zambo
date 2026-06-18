@@ -24,7 +24,7 @@
     <div class="fixed bottom-8 right-8 z-50 flex flex-col items-end pointer-events-none">
         <div id="fabMenu"
             class="opacity-0 translate-y-4 pointer-events-none transition-all duration-300 ease-in-out mb-4 flex flex-col gap-2 origin-bottom">
-            <div class="bg-white/95 backdrop-blur-md shadow-xl border border-gray-100 rounded-2xl p-3 flex flex-col gap-1 w-64 pointer-events-auto">
+            <div class="bg-white/95 backdrop-blur-md shadow-xl border border-gray-100 rounded-2xl p-3 flex flex-col gap-1 w-64">
                 <p class="text-[10px] font-bold text-gray-400 uppercase tracking-wider px-2 pb-2 mb-1 border-b border-gray-100">
                     Quick Navigation
                 </p>
@@ -45,10 +45,6 @@
                     <i class="fas fa-microscope w-4 text-center"></i> Item Analysis
                 </button>
 
-                <button onclick="scrollToSection('assessment-analytics-content', true); toggleFabMenu();"
-                    class="flex items-center gap-3 px-3 py-2 mt-1 text-xs font-semibold text-gray-400 hover:text-gray-800 bg-gray-50 rounded-xl transition-all text-left justify-center border border-gray-200 cursor-pointer">
-                    <i class="fas fa-arrow-up"></i> Back to Top
-                </button>
             </div>
         </div>
 
@@ -275,7 +271,7 @@
                             <p class="text-sm font-medium text-gray-600">No competency data available</p>
                         </div>
                     @else
-                        <div class="overflow-y-auto max-h-[350px]">
+                        <div id="competency-table-wrapper" class="flex-1 flex flex-col">
                             <table class="w-full text-left text-sm text-gray-600">
                                 <thead class="bg-gray-50 text-xs uppercase text-gray-500 font-bold border-b border-gray-100 sticky top-0">
                                     <tr>
@@ -286,7 +282,7 @@
                                 </thead>
                                 <tbody class="divide-y divide-gray-100">
                                     @forelse($competencies ?? [] as $cat)
-                                        <tr class="hover:bg-gray-50/50 transition">
+                                        <tr class="competency-row hover:bg-gray-50/50 transition">
                                             <td class="px-6 py-4 font-medium text-gray-900">{{ $cat->title ?? 'Unknown' }}</td>
                                             <td class="px-6 py-4 text-center">
                                                 @if(($cat->total_answers ?? 0) == 0)
@@ -341,7 +337,7 @@
                             <p class="text-sm font-medium text-gray-600">No school rankings available</p>
                         </div>
                     @else
-                        <div class="overflow-y-auto max-h-[350px]">
+                        <div id="school-table-wrapper" class="flex-1 flex flex-col">
                             <table class="w-full text-left text-sm text-gray-600">
                                 <thead class="bg-gray-50 text-xs uppercase text-gray-500 font-bold border-b border-gray-100 sticky top-0">
                                     <tr>
@@ -353,7 +349,7 @@
                                 </thead>
                                 <tbody class="divide-y divide-gray-100">
                                     @foreach($schoolLeaderboard as $index => $school)
-                                        <tr class="hover:bg-gray-50/50 transition">
+                                        <tr class="school-row hover:bg-gray-50/50 transition">
                                             <td class="px-6 py-4 text-center font-bold {{ $index < 3 ? 'text-[#a52a2a]' : 'text-gray-400' }}">{{ $index + 1 }}</td>
                                             <td class="px-6 py-4 font-medium text-gray-900">{{ $school->name ?? 'Unknown' }}</td>
                                             <td class="px-6 py-4 text-center text-gray-500">{{ $school->student_count ?? 0 }}</td>
@@ -388,7 +384,7 @@
                         <p class="text-base font-medium text-gray-600">No items available to analyze</p>
                     </div>
                 @else
-                    <div class="overflow-x-auto max-h-[600px] custom-scrollbar">
+                    <div id="item-table-wrapper" class="overflow-x-auto custom-scrollbar flex-1 flex flex-col">
                         <table class="w-full text-left text-sm text-gray-600 min-w-[800px]">
                             <thead class="bg-gray-50 text-xs uppercase text-gray-500 font-bold border-b border-gray-100 sticky top-0 z-10 shadow-sm">
                                 <tr>
@@ -423,7 +419,7 @@
                                         $wrong = $item->wrong_count ?? 0;
                                         $totalItemAnswers = $correct + $wrong;
                                     @endphp
-                                    <tr class="hover:bg-gray-50/50 transition">
+                                    <tr class="item-row hover:bg-gray-50/50 transition">
                                         <td class="px-6 py-4 text-center font-bold text-gray-400">{{ $index + 1 }}</td>
                                         <td class="px-6 py-4">
                                             <p class="text-gray-900 font-medium line-clamp-2 mb-1">{!! strip_tags($item->question_text ?? '') !!}</p>
@@ -548,13 +544,13 @@ EXPORT MODAL WITH CHECKBOXES
 
         if (menu.classList.contains('opacity-0')) {
             menu.classList.remove('opacity-0', 'translate-y-4', 'pointer-events-none');
-            menu.classList.add('opacity-100', 'translate-y-0');
+            menu.classList.add('opacity-100', 'translate-y-0', 'pointer-events-auto');
             icon.classList.remove('fa-list-ul');
             icon.classList.add('fa-times');
             icon.style.transform = 'rotate(90deg)';
         } else {
             menu.classList.add('opacity-0', 'translate-y-4', 'pointer-events-none');
-            menu.classList.remove('opacity-100', 'translate-y-0');
+            menu.classList.remove('opacity-100', 'translate-y-0', 'pointer-events-auto');
             icon.classList.add('fa-list-ul');
             icon.classList.remove('fa-times');
             icon.style.transform = 'rotate(0deg)';
@@ -658,4 +654,12 @@ EXPORT MODAL WITH CHECKBOXES
     }
     
     initAssessmentCharts();
+
+    @include('dashboard.partials.shared.analytics-pagination')
+
+    setTimeout(() => {
+        setupTablePagination('competencyTable', 'competency-table-wrapper', '.competency-row', null, 5);
+        setupTablePagination('schoolTable', 'school-table-wrapper', '.school-row', null, 5);
+        setupTablePagination('itemTable', 'item-table-wrapper', '.item-row', null, 5);
+    }, 100);
 </script>

@@ -38,10 +38,6 @@
                     <i class="fas fa-server w-4 text-center"></i> System Health
                 </button>
 
-                <button onclick="scrollToSection('dashboard-content', true); toggleFabMenu();"
-                    class="flex items-center gap-3 px-3 py-2 mt-1 text-xs font-semibold text-gray-400 hover:text-gray-800 bg-gray-50 rounded-xl transition-all text-left justify-center border border-gray-200">
-                    <i class="fas fa-arrow-up"></i> Back to Top
-                </button>
             </div>
         </div>
 

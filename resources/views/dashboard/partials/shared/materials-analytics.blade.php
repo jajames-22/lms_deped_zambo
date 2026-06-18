@@ -25,7 +25,7 @@
         <div id="fabMenu"
             class="opacity-0 translate-y-4 pointer-events-none transition-all duration-300 ease-in-out mb-4 flex flex-col gap-2 origin-bottom">
             <div
-                class="bg-white/95 backdrop-blur-md shadow-xl border border-gray-100 rounded-2xl p-3 flex flex-col gap-1 w-56 pointer-events-auto">
+                class="bg-white/95 backdrop-blur-md shadow-xl border border-gray-100 rounded-2xl p-3 flex flex-col gap-1 w-56">
                 <p
                     class="text-[10px] font-bold text-gray-400 uppercase tracking-wider px-2 pb-2 mb-1 border-b border-gray-100">
                     Quick Navigation
@@ -45,10 +45,6 @@
                 <button onclick="scrollToSection('item-analysis'); toggleFabMenu();"
                     class="flex items-center gap-3 px-3 py-2.5 text-sm text-gray-600 hover:text-[#a52a2a] hover:bg-red-50 rounded-xl transition-all text-left bg-transparent border-0 cursor-pointer">
                     <i class="fas fa-microscope w-4 text-center"></i> Item Analysis
-                </button>
-                <button onclick="scrollToSection('material-analytics-content', true); toggleFabMenu();"
-                    class="flex items-center gap-3 px-3 py-2 mt-1 text-xs font-semibold text-gray-400 hover:text-gray-800 bg-gray-50 rounded-xl transition-all text-left justify-center border border-gray-200 cursor-pointer">
-                    <i class="fas fa-arrow-up"></i> Back to Top
                 </button>
             </div>
         </div>
@@ -171,7 +167,7 @@
                         </div>
                         <p class="text-xs text-gray-400">Mean Percentage Score (MPS) across module sections. </p>
                     </div>
-                    <div class="overflow-y-auto max-h-[400px] custom-scrollbar">
+                    <div id="competency-table-wrapper" class="flex-1 flex flex-col">
                         <table class="w-full text-left text-sm text-gray-600">
                             <thead
                                 class="bg-gray-50 text-xs uppercase text-gray-500 font-bold border-b border-gray-100 sticky top-0 z-10 shadow-sm">
@@ -183,7 +179,7 @@
                             </thead>
                             <tbody class="divide-y divide-gray-100">
                                 @forelse($competencies ?? [] as $cat)
-                                    <tr class="hover:bg-gray-50/50 transition">
+                                    <tr class="competency-row hover:bg-gray-50/50 transition">
                                         <td class="px-6 py-4 font-medium text-gray-900">{{ $cat->title }}</td>
 
                                         @if($cat->has_quiz)
@@ -280,7 +276,7 @@
                         </div>
 
                     </div>
-                    <div class="overflow-y-auto max-h-[400px] custom-scrollbar">
+                    <div id="student-table-wrapper" class="flex-1 flex flex-col">
                         <table class="w-full text-left text-sm text-gray-600">
                             <thead
                                 class="bg-gray-50 text-xs uppercase text-gray-500 font-bold border-b border-gray-100 sticky top-0 z-10 shadow-sm">
@@ -295,7 +291,7 @@
                             </thead>
                             <tbody class="divide-y divide-gray-100">
                                 @forelse($studentLeaderboard ?? [] as $index => $student)
-                                    <tr class="hover:bg-gray-50/50 transition">
+                                    <tr class="student-row hover:bg-gray-50/50 transition">
                                         <td
                                             class="px-4 py-4 text-center font-bold {{ $index < 3 ? 'text-[#a52a2a]' : 'text-gray-400' }}">
                                             {{ $index + 1 }}</td>
@@ -353,7 +349,7 @@
                             </div>
                         </div>
                         <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-                            <div class="overflow-x-auto max-h-[500px] custom-scrollbar">
+                            <div id="quiz-item-table-wrapper" class="overflow-x-auto custom-scrollbar flex-1 flex flex-col">
                                 <table class="w-full text-left text-sm text-gray-600 min-w-[800px]">
                                     <thead
                                         class="bg-gray-50 text-xs uppercase text-gray-500 font-bold border-b border-gray-100 sticky top-0 z-10 shadow-sm">
@@ -491,7 +487,7 @@
                             </div>
                         </div>
                         <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-                            <div class="overflow-x-auto max-h-[500px] custom-scrollbar">
+                            <div id="exam-item-table-wrapper" class="overflow-x-auto custom-scrollbar flex-1 flex flex-col">
                                 <table class="w-full text-left text-sm text-gray-600 min-w-[800px]">
                                     <thead
                                         class="bg-gray-50 text-xs uppercase text-gray-500 font-bold border-b border-gray-100 sticky top-0 z-10 shadow-sm">
@@ -772,112 +768,12 @@
     }
     initMaterialCharts();
 
-    // Pagination for Item Analysis
-    function initPagination(rowClass, prefix) {
-        var currentPage = 1;
-        var pageSize = 10;
-        var allRows = Array.from(document.querySelectorAll(rowClass));
-        if (allRows.length === 0) return;
+    @include('dashboard.partials.shared.analytics-pagination')
 
-        function applyPagination() {
-            allRows.forEach(row => row.style.display = 'none');
-            var wrapper = document.getElementById(prefix + '-pagination-wrapper');
-            if (wrapper) {
-                wrapper.classList.remove('hidden');
-                wrapper.classList.add('flex');
-            }
-
-            var totalPages = Math.ceil(allRows.length / pageSize);
-            if (currentPage > totalPages) currentPage = totalPages;
-            if (currentPage < 1) currentPage = 1;
-
-            var startIdx = (currentPage - 1) * pageSize;
-            var endIdx = Math.min(startIdx + pageSize, allRows.length);
-
-            for (var i = startIdx; i < endIdx; i++) {
-                allRows[i].style.display = '';
-            }
-
-            var startInfo = document.getElementById(prefix + '-page-start-info');
-            if(startInfo) startInfo.innerText = startIdx + 1;
-            
-            var endInfo = document.getElementById(prefix + '-page-end-info');
-            if(endInfo) endInfo.innerText = endIdx;
-            
-            var totalInfo = document.getElementById(prefix + '-page-total-info');
-            if(totalInfo) totalInfo.innerText = allRows.length;
-
-            renderPaginationControls(totalPages);
-        }
-
-        function renderPaginationControls(totalPages) {
-            var controls = document.getElementById(prefix + '-pagination-controls');
-            if (!controls) return;
-            controls.innerHTML = '';
-
-            var createBtn = function (text, page, disabled, active) {
-                var btn = document.createElement('button');
-                btn.innerHTML = text;
-                btn.disabled = disabled;
-                btn.className = `px-3 py-1 min-w-[32px] rounded-lg text-sm font-bold transition-all border ${active
-                    ? 'bg-[#a52a2a] text-white border-[#a52a2a] shadow-sm'
-                    : disabled
-                        ? 'bg-transparent text-gray-300 border-transparent cursor-not-allowed'
-                        : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50 hover:text-[#a52a2a] hover:border-[#a52a2a]/30 shadow-sm'
-                    }`;
-
-                if (!disabled && !active) {
-                    btn.onclick = function () {
-                        currentPage = page;
-                        applyPagination();
-                    };
-                }
-                return btn;
-            };
-
-            controls.appendChild(createBtn('<i class="fas fa-chevron-left"></i>', currentPage - 1, currentPage === 1, false));
-
-            var maxVisiblePages = 5;
-            var startPage = Math.max(1, currentPage - Math.floor(maxVisiblePages / 2));
-            var endPage = Math.min(totalPages, startPage + maxVisiblePages - 1);
-
-            if (endPage - startPage + 1 < maxVisiblePages) {
-                startPage = Math.max(1, endPage - maxVisiblePages + 1);
-            }
-
-            if (startPage > 1) {
-                controls.appendChild(createBtn('1', 1, false, false));
-                if (startPage > 2) {
-                    var ellipsis = document.createElement('span');
-                    ellipsis.className = "px-1 text-gray-400";
-                    ellipsis.innerText = "...";
-                    controls.appendChild(ellipsis);
-                }
-            }
-
-            for (var i = startPage; i <= endPage; i++) {
-                controls.appendChild(createBtn(i, i, false, i === currentPage));
-            }
-
-            if (endPage < totalPages) {
-                if (endPage < totalPages - 1) {
-                    var ellipsis = document.createElement('span');
-                    ellipsis.className = "px-1 text-gray-400";
-                    ellipsis.innerText = "...";
-                    controls.appendChild(ellipsis);
-                }
-                controls.appendChild(createBtn(totalPages, totalPages, false, false));
-            }
-
-            controls.appendChild(createBtn('<i class="fas fa-chevron-right"></i>', currentPage + 1, currentPage === totalPages, false));
-        }
-
-        applyPagination();
-    }
-
-    // Initialize pagination
-    setTimeout(function() {
-        initPagination('.quiz-item-row', 'quiz');
-        initPagination('.exam-item-row', 'exam');
+    setTimeout(() => {
+        setupTablePagination('competencyTable', 'competency-table-wrapper', '.competency-row', null, 5);
+        setupTablePagination('studentTable', 'student-table-wrapper', '.student-row', null, 5);
+        setupTablePagination('quizItemTable', 'quiz-item-table-wrapper', '.quiz-item-row', null, 5);
+        setupTablePagination('examItemTable', 'exam-item-table-wrapper', '.exam-item-row', null, 5);
     }, 100);
 </script>
