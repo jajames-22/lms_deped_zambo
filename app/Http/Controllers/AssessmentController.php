@@ -522,10 +522,23 @@ class AssessmentController extends Controller
             ]);
         }
 
+        // Clear any orphaned data for this student in case they were previously removed
+        $student = \App\Models\User::where('lrn', $cleanLrn)->first();
+        if ($student) {
+            \App\Models\AssessmentSession::where('user_id', $student->id)
+                ->where('assessment_id', $assessment->id)
+                ->delete();
+
+            \App\Models\StudentAnswer::where('user_id', $student->id)
+                ->where('assessment_id', $assessment->id)
+                ->delete();
+        }
+
         AssessmentAccess::create([
             'assessment_id' => $assessment->id,
             'lrn' => $cleanLrn,
-            'status' => 'offline' // Default status
+            'status' => 'offline',
+            'pauses_left' => 3
         ]);
 
         return response()->json([

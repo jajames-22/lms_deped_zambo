@@ -50,9 +50,25 @@ class LrnAccessImport implements ToCollection, WithHeadingRow
                     continue;
                 }
 
-                // 'update' strategy: reset status back to offline
+                // 'update' strategy: reset status back to offline and reset pauses_left
                 try {
-                    $existing->update(['status' => 'offline']);
+                    $existing->update([
+                        'status' => 'offline',
+                        'pauses_left' => 3
+                    ]);
+                    
+                    // Clear their progress details if they have a registered user account
+                    $student = \App\Models\User::where('lrn', $lrn)->first();
+                    if ($student) {
+                        \App\Models\AssessmentSession::where('user_id', $student->id)
+                            ->where('assessment_id', $this->assessmentId)
+                            ->delete();
+
+                        \App\Models\StudentAnswer::where('user_id', $student->id)
+                            ->where('assessment_id', $this->assessmentId)
+                            ->delete();
+                    }
+
                     $this->importedCount++;
                 } catch (\Exception $e) {
                     Log::error('LRN Access Update Failed: ' . $e->getMessage());

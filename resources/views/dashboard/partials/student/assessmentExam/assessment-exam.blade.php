@@ -61,31 +61,42 @@
     @endphp
 
     <div id="exam-start-modal" class="fixed inset-0 z-[100] flex items-center justify-center bg-[#a52a2a]/95 backdrop-blur-xl transition-opacity duration-300 p-4">
-        <div class="bg-white rounded-3xl p-8 max-w-md w-full mx-4 shadow-2xl transform transition-all text-center">
-            <div class="w-20 h-20 bg-red-50 rounded-full flex items-center justify-center mx-auto mb-6 shadow-inner">
-                <i id="start-modal-icon" class="fas fa-file-signature text-3xl text-[#a52a2a]"></i>
-            </div>
+        <div class="bg-white rounded-3xl max-w-md w-full mx-4 shadow-2xl transform transition-all text-center flex flex-col overflow-hidden max-h-[85vh]">
             
-            <h2 class="text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">Section {{ $assessment->categories->search(fn($cat) => $cat->id === $currentCategory->id) + 1 }}</h2>
-            <h1 id="start-modal-title" class="text-2xl font-black text-gray-900 mb-6">{{ $currentCategory->title }}</h1>
-            
-            <div class="bg-gray-50 rounded-2xl p-5 mb-8 border border-gray-100 flex items-center justify-center gap-4">
-                <div class="h-12 w-12 bg-white rounded-xl shadow-sm flex items-center justify-center">
-                    <i class="fas fa-stopwatch text-gray-400 text-2xl"></i>
+            {{-- STICKY HEADER --}}
+            <div class="px-8 pt-8 pb-4 shrink-0 bg-white z-10 border-b border-gray-50">
+                <div class="w-16 h-16 bg-red-50 rounded-full flex items-center justify-center mx-auto mb-4 shadow-inner shrink-0">
+                    <i id="start-modal-icon" class="fas fa-file-signature text-3xl text-[#a52a2a]"></i>
                 </div>
-                <div class="text-left">
-                    <p class="text-xs font-bold text-gray-400 uppercase">Time Limit</p>
-                    <p class="text-lg font-black text-gray-900">
-                        {{ $currentCategory->time_limit > 0 ? $currentCategory->time_limit . ' Minutes' : 'No Time Limit' }}
-                    </p>
-                </div>
+                <h2 class="text-xs font-bold text-gray-400 uppercase tracking-widest mb-1">Section {{ $assessment->categories->search(fn($cat) => $cat->id === $currentCategory->id) + 1 }}</h2>
+                <h1 id="start-modal-title" class="text-xl font-black text-gray-900 line-clamp-2">{{ $currentCategory->title }}</h1>
             </div>
 
-            <p id="start-modal-desc" class="text-sm text-gray-500 mb-8 px-4 font-medium leading-relaxed">Once you click start, the timer will begin. Do not refresh or close this page.</p>
+            {{-- SCROLLABLE BODY --}}
+            <div class="px-6 py-6 overflow-y-auto min-h-0 bg-white custom-scrollbar">
+                <div class="bg-gray-50 rounded-2xl p-5 mb-6 border border-gray-100 flex items-center justify-center gap-4 shrink-0 mx-2">
+                    <div class="h-12 w-12 bg-white rounded-xl shadow-sm flex items-center justify-center shrink-0">
+                        <i class="fas fa-stopwatch text-gray-400 text-2xl"></i>
+                    </div>
+                    <div class="text-left overflow-hidden">
+                        <p class="text-xs font-bold text-gray-400 uppercase">Time Limit</p>
+                        <p class="text-lg font-black text-gray-900 truncate">
+                            {{ $currentCategory->time_limit > 0 ? $currentCategory->time_limit . ' Minutes' : 'No Time Limit' }}
+                        </p>
+                    </div>
+                </div>
+
+                <p id="start-modal-desc" class="text-sm text-gray-500 px-2 font-medium leading-relaxed">
+                    Once you click start, the timer will begin. Do not refresh or close this page.
+                </p>
+            </div>
             
-            <button onclick="startExam()" class="w-full py-4 bg-[#a52a2a] text-white font-black rounded-xl hover:bg-red-800 transition-all shadow-xl shadow-[#a52a2a]/30 flex items-center justify-center gap-3 group active:scale-[0.98]">
-                <span id="start-btn-text">START SECTION</span> <i class="fas fa-arrow-right group-hover:translate-x-1 transition-transform"></i>
-            </button>
+            {{-- STICKY FOOTER --}}
+            <div class="px-8 pb-8 pt-4 shrink-0 bg-white z-10 border-t border-gray-50">
+                <button onclick="startExam()" class="w-full py-4 bg-[#a52a2a] text-white font-black rounded-xl hover:bg-red-800 transition-all shadow-xl shadow-[#a52a2a]/30 flex items-center justify-center gap-3 group active:scale-[0.98]">
+                    <span id="start-btn-text">START SECTION</span> <i class="fas fa-arrow-right group-hover:translate-x-1 transition-transform"></i>
+                </button>
+            </div>
         </div>
     </div>
 
@@ -135,7 +146,7 @@
                     @endphp
                     
                     <div class="question-card w-full" id="question-{{ $index }}" data-index="{{ $index }}" data-is-question="{{ $isInstruction ? 'false' : 'true' }}" data-qnum="{{ $realQuestionCounter }}">
-                        <div class="bg-white rounded-3xl p-6 shadow-card border border-gray-300 relative mb-6">
+                        <div class="bg-white rounded-3xl p-6 shadow-card border border-gray-300 relative mb-6 ">
                             <div class="grid grid-cols-1 md:grid-cols-2 gap-8 md:gap-12">
                                 <div class="flex flex-col">
                                     <div class="flex flex-row items-start mb-4">
@@ -258,7 +269,7 @@
 
     <div id="time-up-modal" class="fixed inset-0 z-[200] hidden flex items-center justify-center bg-gray-900/90 backdrop-blur-sm p-4">
         <div class="bg-white rounded-3xl p-8 max-w-sm w-full shadow-2xl text-center transform transition-all">
-            <div class="w-20 h-20 bg-red-50 rounded-full flex items-center justify-center mx-auto mb-6 shadow-inner">
+            <div class="w-20 h-20 bg-red-50 rounded-full max-h-[90vh] flex items-center justify-center mx-auto mb-6 shadow-inner">
                 <i class="fas fa-hourglass-end text-3xl text-red-500 animate-pulse"></i>
             </div>
             <h3 id="time-up-title" class="text-2xl font-black text-gray-900 mb-2">Time's Up!</h3>
@@ -404,7 +415,6 @@
             document.getElementById('pause-count-display').innerText = pausesLeft;
 
             isPaused = true;
-            clearInterval(timerInterval);
             
             // Instantly save the new pause count to the database!
             triggerAutoSave();
@@ -433,7 +443,12 @@
                 icon.className = 'fas fa-pause-circle text-3xl text-[#a52a2a]';
             }
 
-            desc.innerHTML = `You have <b>${pausesLeft}</b> pauses remaining for the entire exam. <br><br> If you run out of pauses and switch tabs or click outside the browser, your exam will automatically submit.`;
+            let warningHtml = '';
+            if (isTimed) {
+                warningHtml = `<div class="mt-6 p-4 bg-red-50 border border-red-200 text-red-700 rounded-xl text-sm font-bold flex items-center gap-3 text-left shadow-sm"><i class="fas fa-exclamation-circle text-2xl text-red-500"></i> Assessment is paused, but the timer is still running.</div>`;
+            }
+
+            desc.innerHTML = `You have <b>${pausesLeft}</b> pauses remaining for the entire exam. <br><br> If you run out of pauses and switch tabs or click outside the browser, your exam will automatically submit. ${warningHtml}`;
             btnText.innerText = "RESUME EXAM";
         }
 
@@ -462,10 +477,9 @@
                 timerDisplay.classList.add('flex');
                 updateTimerDisplay();
                 
-                clearInterval(timerInterval);
-                if (totalSeconds > 0) {
+                if (!timerInterval && totalSeconds > 0) {
                     timerInterval = setInterval(tickTimer, 1000);
-                } else {
+                } else if (totalSeconds <= 0) {
                     handleTimeUp();
                 }
             }
@@ -569,6 +583,12 @@
             clearInterval(timerInterval);
             document.getElementById('time-remaining').innerText = "00:00";
             triggerAutoSave();
+            
+            // Hide the start/pause modal if it's currently open
+            const startModal = document.getElementById('exam-start-modal');
+            if (startModal && !startModal.classList.contains('hidden')) {
+                startModal.classList.add('hidden');
+            }
             
             const timeUpModal = document.getElementById('time-up-modal');
             timeUpModal.classList.remove('hidden');

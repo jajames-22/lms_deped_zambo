@@ -241,7 +241,7 @@
                         <div>
                             <div class="flex">
                                 <div class="flex gap-3 ">
-                                    <h4 class="font-semibold mb-1">Top Performing Students</h4>
+                                    <h4 class="font-semibold mb-1">Top 10 Performing Students</h4>
                                     <div class="relative group cursor-help">
                                         <i
                                             class="fas fa-question-circle text-white transition-colors group-hover:text-white"></i>
@@ -250,10 +250,9 @@
                                             <strong
                                                 class="text-white block mb-2 border-b border-gray-700 pb-1">Calculation
                                                 Method</strong>
-                                            <p class="mb-2 leading-relaxed">The Overall score is the total accuracy
-                                                across the module:</p>
+                                            <p class="mb-2 leading-relaxed">The Overall score is the final weighted average of the student's quiz and exam performance:</p>
                                             <div class="bg-black/30 p-2 rounded font-mono text-center mb-2">
-                                                (Σ Correct Quiz + Σ Correct Exam) / (Σ Total Items Answered) × 100
+                                                (Quiz% × {{ $quizWeight }}%) + (Exam% × {{ $examWeight }}%)
                                             </div>
                                             <p class="text-amber-400 italic font-bold">Note: Students currently "In Progress" are strictly excluded from all scoring metrics until they finish the module.</p>
                                             <div
@@ -399,12 +398,12 @@
                                             <th class="px-6 py-4 w-1/2 text-center">Answers Chosen</th>
                                         </tr>
                                     </thead>
-                                    <tbody class="divide-y divide-gray-100">
+                                    <tbody class="divide-y divide-gray-100" id="quizItemTableBody">
                                         @foreach($quizItemAnalysis ?? [] as $index => $item)
                                             @php
                                                 $totalItemAnswers = ($item->correct_count ?? 0) + ($item->wrong_count ?? 0);
                                             @endphp
-                                            <tr class="hover:bg-gray-50/50 transition">
+                                            <tr class="hover:bg-gray-50/50 transition quiz-item-row">
                                                 <td class="px-6 py-4 text-center font-bold text-gray-400">{{ $index + 1 }}</td>
                                                 <td class="px-6 py-4">
                                                     <p class="text-gray-900 font-medium line-clamp-2 mb-1">
@@ -537,12 +536,12 @@
                                             <th class="px-6 py-4 w-1/2 text-center">Answers Chosen</th>
                                         </tr>
                                     </thead>
-                                    <tbody class="divide-y divide-gray-100">
+                                    <tbody class="divide-y divide-gray-100" id="examItemTableBody">
                                         @foreach($examItemAnalysis ?? [] as $index => $item)
                                             @php
                                                 $totalItemAnswers = ($item->correct_count ?? 0) + ($item->wrong_count ?? 0);
                                             @endphp
-                                            <tr class="hover:bg-gray-50/50 transition">
+                                            <tr class="hover:bg-gray-50/50 transition exam-item-row">
                                                 <td class="px-6 py-4 text-center font-bold text-gray-400">{{ $index + 1 }}</td>
                                                 <td class="px-6 py-4">
                                                     <p class="text-gray-900 font-medium line-clamp-2 mb-1">
@@ -772,4 +771,113 @@
         @endif
     }
     initMaterialCharts();
+
+    // Pagination for Item Analysis
+    function initPagination(rowClass, prefix) {
+        var currentPage = 1;
+        var pageSize = 10;
+        var allRows = Array.from(document.querySelectorAll(rowClass));
+        if (allRows.length === 0) return;
+
+        function applyPagination() {
+            allRows.forEach(row => row.style.display = 'none');
+            var wrapper = document.getElementById(prefix + '-pagination-wrapper');
+            if (wrapper) {
+                wrapper.classList.remove('hidden');
+                wrapper.classList.add('flex');
+            }
+
+            var totalPages = Math.ceil(allRows.length / pageSize);
+            if (currentPage > totalPages) currentPage = totalPages;
+            if (currentPage < 1) currentPage = 1;
+
+            var startIdx = (currentPage - 1) * pageSize;
+            var endIdx = Math.min(startIdx + pageSize, allRows.length);
+
+            for (var i = startIdx; i < endIdx; i++) {
+                allRows[i].style.display = '';
+            }
+
+            var startInfo = document.getElementById(prefix + '-page-start-info');
+            if(startInfo) startInfo.innerText = startIdx + 1;
+            
+            var endInfo = document.getElementById(prefix + '-page-end-info');
+            if(endInfo) endInfo.innerText = endIdx;
+            
+            var totalInfo = document.getElementById(prefix + '-page-total-info');
+            if(totalInfo) totalInfo.innerText = allRows.length;
+
+            renderPaginationControls(totalPages);
+        }
+
+        function renderPaginationControls(totalPages) {
+            var controls = document.getElementById(prefix + '-pagination-controls');
+            if (!controls) return;
+            controls.innerHTML = '';
+
+            var createBtn = function (text, page, disabled, active) {
+                var btn = document.createElement('button');
+                btn.innerHTML = text;
+                btn.disabled = disabled;
+                btn.className = `px-3 py-1 min-w-[32px] rounded-lg text-sm font-bold transition-all border ${active
+                    ? 'bg-[#a52a2a] text-white border-[#a52a2a] shadow-sm'
+                    : disabled
+                        ? 'bg-transparent text-gray-300 border-transparent cursor-not-allowed'
+                        : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50 hover:text-[#a52a2a] hover:border-[#a52a2a]/30 shadow-sm'
+                    }`;
+
+                if (!disabled && !active) {
+                    btn.onclick = function () {
+                        currentPage = page;
+                        applyPagination();
+                    };
+                }
+                return btn;
+            };
+
+            controls.appendChild(createBtn('<i class="fas fa-chevron-left"></i>', currentPage - 1, currentPage === 1, false));
+
+            var maxVisiblePages = 5;
+            var startPage = Math.max(1, currentPage - Math.floor(maxVisiblePages / 2));
+            var endPage = Math.min(totalPages, startPage + maxVisiblePages - 1);
+
+            if (endPage - startPage + 1 < maxVisiblePages) {
+                startPage = Math.max(1, endPage - maxVisiblePages + 1);
+            }
+
+            if (startPage > 1) {
+                controls.appendChild(createBtn('1', 1, false, false));
+                if (startPage > 2) {
+                    var ellipsis = document.createElement('span');
+                    ellipsis.className = "px-1 text-gray-400";
+                    ellipsis.innerText = "...";
+                    controls.appendChild(ellipsis);
+                }
+            }
+
+            for (var i = startPage; i <= endPage; i++) {
+                controls.appendChild(createBtn(i, i, false, i === currentPage));
+            }
+
+            if (endPage < totalPages) {
+                if (endPage < totalPages - 1) {
+                    var ellipsis = document.createElement('span');
+                    ellipsis.className = "px-1 text-gray-400";
+                    ellipsis.innerText = "...";
+                    controls.appendChild(ellipsis);
+                }
+                controls.appendChild(createBtn(totalPages, totalPages, false, false));
+            }
+
+            controls.appendChild(createBtn('<i class="fas fa-chevron-right"></i>', currentPage + 1, currentPage === totalPages, false));
+        }
+
+        applyPagination();
+    }
+
+    // Initialize pagination
+    setTimeout(function() {
+        initPagination('.quiz-item-row', 'quiz');
+        initPagination('.exam-item-row', 'exam');
+    }, 100);
 </script>

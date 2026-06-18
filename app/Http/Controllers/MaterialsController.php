@@ -463,6 +463,53 @@ class MaterialsController extends Controller
 
         return response()->json(['success' => true, 'message' => 'Student added successfully!']);
     }
+    public function removeBulkAccess(Request $request)
+    {
+        $ids = $request->input('ids');
+        if (!is_array($ids) || empty($ids)) {
+            return response()->json(['success' => false, 'message' => 'No access records selected.']);
+        }
+
+        DB::beginTransaction();
+        try {
+            $accesses = MaterialAccess::whereIn('id', $ids)->get();
+
+            if ($accesses->isEmpty()) {
+                DB::rollBack();
+                return response()->json(['success' => false, 'message' => 'Invalid access records.']);
+            }
+
+            // Group by material in case multiple materials are involved
+            foreach ($accesses->groupBy('material_id') as $materialId => $group) {
+                $emails = $group->pluck('email')->toArray();
+                $students = User::whereIn('email', $emails)->get();
+                $studentIds = $students->pluck('id')->toArray();
+
+                if (!empty($studentIds)) {
+                    $examIds = DB::table('exams')->where('material_id', $materialId)->pluck('id');
+                    $quizIds = DB::table('lesson_contents')
+                        ->join('lessons', 'lesson_contents.lesson_id', '=', 'lessons.id')
+                        ->where('lessons.material_id', $materialId)
+                        ->pluck('lesson_contents.id');
+
+                    QuizAnswer::whereIn('user_id', $studentIds)->whereIn('lesson_content_id', $quizIds)->delete();
+                    ExamAnswer::whereIn('user_id', $studentIds)->whereIn('exam_id', $examIds)->delete();
+
+                    Enrollment::where('material_id', $materialId)
+                        ->whereIn('user_id', $studentIds)
+                        ->delete();
+                }
+            }
+
+            MaterialAccess::whereIn('id', $ids)->delete();
+
+            DB::commit();
+            return response()->json(['success' => true, 'message' => count($ids) . ' students removed.']);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json(['success' => false, 'message' => 'Error removing students.']);
+        }
+    }
 
 
     public function removeAccess($id)
@@ -568,8 +615,10 @@ class MaterialsController extends Controller
             if (!empty($material->revert_reason) && in_array($currentUser->role, ['admin', 'cid'])) {
                 if ($targetStatus === 'draft') {
 
-                    // 🚨 NEW: Wipe progress and notify students!
-                    $this->wipeProgressAndNotifyStudents($material);
+                    // 🚨 NEW: Clear progress if requested!
+                    if ($request->data_option === 'clear') {
+                        $this->clearStudentProgressAndResults($material);
+                    }
 
                     // Approved: Move to draft and clear reason
                     \Illuminate\Support\Facades\DB::table('materials')->where('id', $id)->update([
@@ -617,9 +666,11 @@ class MaterialsController extends Controller
             if ($currentUser->role === 'teacher' && $targetStatus === 'published') {
                 $targetStatus = 'pending';
             }
-            // 🚨 NEW: Catch any other scenario where a published material is forced to draft
-            if ($targetStatus === 'draft' && $material->status === 'published') {
-                $this->wipeProgressAndNotifyStudents($material);
+            // 🚨 NEW: Catch any other scenario where a published or pending material is forced to draft
+            if ($targetStatus === 'draft' && in_array($material->status, ['published', 'pending'])) {
+                if ($request->data_option === 'clear') {
+                    $this->clearStudentProgressAndResults($material);
+                }
             }
 
             // 2. Prepare the database update array for normal status toggles
@@ -2116,6 +2167,38 @@ class MaterialsController extends Controller
     public function complete(Request $request, \App\Models\Material $material)
     {
         $user = auth()->user();
+
+        // --- SERVER-SIDE VALIDATION FOR INCOMPLETE ASSESSMENTS ---
+        $quizIds = \Illuminate\Support\Facades\DB::table('lesson_contents')
+            ->join('lessons', 'lessons.id', '=', 'lesson_contents.lesson_id')
+            ->where('lessons.material_id', $material->id)
+            ->whereIn('lesson_contents.type', ['mcq', 'checkbox', 'true_false', 'text'])
+            ->pluck('lesson_contents.id');
+
+        $examIds = \Illuminate\Support\Facades\DB::table('exams')
+            ->where('material_id', $material->id)
+            ->pluck('id');
+
+        $answeredQuizzesCount = \Illuminate\Support\Facades\DB::table('quiz_answers')
+            ->where('user_id', $user->id)
+            ->whereIn('lesson_content_id', $quizIds)
+            ->distinct('lesson_content_id')
+            ->count('lesson_content_id');
+
+        $answeredExamsCount = \Illuminate\Support\Facades\DB::table('exam_answers')
+            ->where('user_id', $user->id)
+            ->whereIn('exam_id', $examIds)
+            ->distinct('exam_id')
+            ->count('exam_id');
+
+        if ($answeredQuizzesCount < $quizIds->count() || $answeredExamsCount < $examIds->count()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Incomplete assessments. You must answer all questions before finishing the module.'
+            ], 422);
+        }
+        // ---------------------------------------------------------
+
         $grades = $this->calculateGrades($material, $user);
 
         $enrollment = \App\Models\Enrollment::where('material_id', $material->id)->where('user_id', $user->id)->firstOrFail();
@@ -2267,6 +2350,36 @@ class MaterialsController extends Controller
 
 
         return view('dashboard.partials.student.certificate-achieved', compact('enrollment', 'hashid'));
+    }
+
+    public function downloadCertificate($hashid)
+    {
+        $decoded = \Vinkla\Hashids\Facades\Hashids::decode($hashid);
+        if (empty($decoded)) {
+            abort(404, 'Invalid link.');
+        }
+        
+        $enrollmentId = $decoded[0];
+        
+        $enrollment = \App\Models\Enrollment::with(['user', 'material.instructor'])
+            ->findOrFail($enrollmentId);
+
+        $url = route('dashboard.materials.certificate', ['hashid' => $hashid]);
+        $qrCode = base64_encode(\SimpleSoftwareIO\QrCode\Facades\QrCode::format('svg')->size(100)->generate($url));
+
+        $data = [
+            'studentName' => trim($enrollment->user->first_name . ' ' . $enrollment->user->last_name),
+            'courseName' => $enrollment->material->title,
+            'instructorName' => trim(($enrollment->material->instructor->first_name ?? 'Instructor') . ' ' . ($enrollment->material->instructor->last_name ?? '')),
+            'date' => $enrollment->completed_at ? $enrollment->completed_at->format('F j, Y') : now()->format('F j, Y'),
+            'certificateId' => 'CERT-' . str_pad($enrollment->id, 6, '0', STR_PAD_LEFT),
+            'qrCode' => $qrCode
+        ];
+
+        $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('dashboard.partials.student.certificate-template', $data)
+            ->setPaper('a4', 'landscape');
+            
+        return $pdf->download('Certificate_of_Completion_' . $enrollment->user->last_name . '.pdf');
     }
 
     public function getNotifications()
@@ -2535,11 +2648,14 @@ class MaterialsController extends Controller
         }
 
         // 6. LEADERBOARD & OVERALL AVERAGES (Filtered)
+        $examWeight = $material->exam_weight ?? 60;
+        $quizWeight = 100 - $examWeight;
+
         $allStudents = \App\Models\Enrollment::with('user')
             ->where('material_id', $material->id)
             ->whereIn('status', ['completed', 'failed']) // ONLY Fetch completed students
             ->get()
-            ->map(function ($enrollment) use ($examIds, $quizIds, $lessons) {
+            ->map(function ($enrollment) use ($examIds, $quizIds, $lessons, $quizWeight, $examWeight, $hasQuizzes, $hasExams) {
                 $quizAnswers = \Illuminate\Support\Facades\DB::table('quiz_answers')
                     ->where('user_id', $enrollment->user_id)
                     ->whereIn('lesson_content_id', $quizIds);
@@ -2554,12 +2670,18 @@ class MaterialsController extends Controller
                 $examCorrect = (clone $examAnswers)->where('is_correct', 1)->count();
                 $examTotal = $examAnswers->count();
 
-                $totalCorrect = $quizCorrect + $examCorrect;
-                $totalAnswered = $quizTotal + $examTotal;
-
-                $quizScore = $quizTotal > 0 ? round(($quizCorrect / $quizTotal) * 100, 2) : 0;
-                $examScore = $examTotal > 0 ? round(($examCorrect / $examTotal) * 100, 2) : 0;
-                $score = $totalAnswered > 0 ? round(($totalCorrect / $totalAnswered) * 100, 2) : 0;
+                $quizScore = $quizTotal > 0 ? round(($quizCorrect / $quizTotal) * 100, 2) : 100;
+                $examScore = $examTotal > 0 ? round(($examCorrect / $examTotal) * 100, 2) : 100;
+                
+                if (!$hasExams && !$hasQuizzes) {
+                    $score = 0;
+                } elseif ($hasQuizzes && $hasExams) {
+                    $score = round(($quizScore * ($quizWeight / 100)) + ($examScore * ($examWeight / 100)));
+                } elseif ($hasQuizzes) {
+                    $score = round($quizScore);
+                } else {
+                    $score = round($examScore);
+                }
 
                 // Since we only fetch completed/failed, progress is effectively 100%
                 $prog = 100; 
@@ -2569,6 +2691,7 @@ class MaterialsController extends Controller
                     'progress' => $prog,
                     'quiz_score' => $quizScore,
                     'exam_score' => $examScore,
+                    'quiz_weight' => $quizWeight,
                     'quiz_score_raw' => $quizTotal > 0 ? "{$quizCorrect}/{$quizTotal}" : "0/0",
                     'exam_score_raw' => $examTotal > 0 ? "{$examCorrect}/{$examTotal}" : "0/0",
                     'score' => $score,
@@ -2711,7 +2834,7 @@ class MaterialsController extends Controller
             'overallAverage', 'passRate', 'avgQuizScore', 'avgExamScore', 'completedCount', 
             'inProgressCount', 'activityDates', 'activityTrend', 'competencies', 
             'studentLeaderboard', 'quizItemAnalysis', 'examItemAnalysis', 'hasQuizzes', 
-            'hasExams', 'quizItemsCount', 'examItemsCount'
+            'hasExams', 'quizItemsCount', 'examItemsCount', 'quizWeight', 'examWeight'
         ));
     }
 
@@ -3136,12 +3259,9 @@ class MaterialsController extends Controller
     }
 
     /**
-     * Wipes student progress and notifies them when a module is reverted to draft.
+     * Clears student progress but keeps their enrollment records.
      */
-    /**
-     * Wipes student enrollment/progress and notifies them when a module is reverted to draft.
-     */
-    private function wipeProgressAndNotifyStudents($material)
+    private function clearStudentProgressAndResults($material)
     {
         // 1. Find all exam and quiz IDs
         $examIds = \Illuminate\Support\Facades\DB::table('exams')->where('material_id', $material->id)->pluck('id');
@@ -3150,12 +3270,12 @@ class MaterialsController extends Controller
             ->where('lessons.material_id', $material->id)
             ->pluck('lesson_contents.id');
 
-        // 2. Identify enrolled students BEFORE we delete their records so we can notify them
+        // 2. Identify enrolled students so we can notify them
         $enrolledStudentIds = \Illuminate\Support\Facades\DB::table('enrollments')
             ->where('material_id', $material->id)
             ->pluck('user_id');
 
-        // 3. Delete all submitted student answers (Matches removeAccess logic)
+        // 3. Delete all submitted student answers
         if ($examIds->isNotEmpty()) {
             \Illuminate\Support\Facades\DB::table('exam_answers')->whereIn('exam_id', $examIds)->delete();
         }
@@ -3163,27 +3283,25 @@ class MaterialsController extends Controller
             \Illuminate\Support\Facades\DB::table('quiz_answers')->whereIn('lesson_content_id', $quizIds)->delete();
         }
 
-        // 4. Delete the Enrollments entirely (Matches removeAccess logic)
-        \Illuminate\Support\Facades\DB::table('enrollments')->where('material_id', $material->id)->delete();
-
-        // 5. Reset Access List statuses to 'pending' instead of deleting them!
-        // This preserves the teacher's roster so they don't have to re-invite everyone later.
-        \Illuminate\Support\Facades\DB::table('material_accesses')
+        // 4. RESET Enrollments (Do not delete them!)
+        \Illuminate\Support\Facades\DB::table('enrollments')
             ->where('material_id', $material->id)
             ->update([
-                'status' => 'pending',
-                'student_id' => null // Clear the account link until they re-enroll
+                'status' => 'in_progress',
+                'progress_data' => json_encode(['lesson' => 0, 'content' => 0, 'highest_unlocked' => 0]),
+                'completed_at' => null,
+                'updated_at' => now()
             ]);
 
-        // 6. Notify the students who were enrolled
+        // 5. Notify the students who were enrolled
         if ($enrolledStudentIds->isNotEmpty()) {
             $studentsToNotify = \App\Models\User::whereIn('id', $enrolledStudentIds)->get();
 
             foreach ($studentsToNotify as $student) {
                 $student->notify(new \App\Notifications\LmsAlertNotification(
-                    'Module Under Revision',
-                    'The module "' . $material->title . '" has been reverted to draft for revisions. Your enrollment and progress have been reset.',
-                    '#', // No link, as it's draft and they can't access it anymore
+                    'Module Progress Reset',
+                    'The module "' . $material->title . '" has been reverted to draft and your progress has been reset by the instructor.',
+                    '#',
                     'fas fa-tools',
                     'text-amber-600'
                 ));
@@ -3332,16 +3450,20 @@ class MaterialsController extends Controller
             'title' => $material->title,
         ];
 
-        $quizWeight = $material->quiz_weight ?? 40;
         $examWeight = $material->exam_weight ?? 60;
+        $quizWeight = 100 - $examWeight;
 
         $qPct = $quizTotalQuestions > 0 ? ($quizScore / $quizTotalQuestions) * 100 : 100;
         $ePct = $examTotalQuestions > 0 ? ($examScore / $examTotalQuestions) * 100 : 100;
 
         if (!$hasExams && !$hasQuizzes) {
             $finalPercentage = 0;
-        } else {
+        } elseif ($hasQuizzes && $hasExams) {
             $finalPercentage = ($qPct * ($quizWeight / 100)) + ($ePct * ($examWeight / 100));
+        } elseif ($hasQuizzes) {
+            $finalPercentage = $qPct;
+        } else {
+            $finalPercentage = $ePct;
         }
 
         $finalPercentage = round($finalPercentage);

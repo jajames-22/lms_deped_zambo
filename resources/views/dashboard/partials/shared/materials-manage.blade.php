@@ -108,6 +108,9 @@
 
     // Draft Lock Check
     $isLocked = $material->status !== 'draft';
+
+    // Check for Student Activity
+    $studentActivityCount = \App\Models\Enrollment::where('material_id', $material->id)->count();
 @endphp
 
 <div class="animate-float-in">
@@ -419,6 +422,10 @@
 
                     {{-- UPDATED: Added flex-wrap and the new Bulk Invite Button --}}
                     <div class="flex flex-wrap items-center gap-2">
+                        <button onclick="openModal('importStudentModal', 'importStudentBox')"
+                            class="h-10 px-4 bg-white border border-gray-200 text-gray-600 rounded-xl hover:bg-gray-50 transition text-sm font-bold shadow-sm flex items-center justify-center">
+                            <i class="fas fa-file-import mr-1.5"></i> Import CSV
+                        </button>
                         <button onclick="openModal('exportListModal', 'exportListBox')"
                             class="h-10 px-4 bg-white border border-gray-200 text-gray-600 rounded-xl hover:bg-gray-50 transition text-sm font-bold shadow-sm flex items-center justify-center">
                             <i class="fas fa-download mr-1.5"></i> Export List
@@ -434,9 +441,14 @@
                     </button>
 
                     <div class="flex flex-wrap items-center gap-2">
-                        <button onclick="openModal('importStudentModal', 'importStudentBox')"
-                            class="h-10 px-4 bg-white border border-gray-200 text-gray-600 rounded-xl hover:bg-gray-50 transition text-sm font-bold shadow-sm flex items-center justify-center">
-                            <i class="fas fa-file-import mr-1.5"></i> Import CSV
+                        <button id="toggleBulkDeleteBtn" onclick="toggleBulkDeleteMode()"
+                            class="h-10 px-4 bg-red-50 text-red-600 border border-red-200 rounded-xl hover:bg-red-100 transition text-sm font-bold shadow-sm flex items-center justify-center gap-1.5">
+                            <i class="fas fa-trash-alt"></i> Delete
+                        </button>
+                        
+                        <button id="bulkDeleteAccessBtn" onclick="confirmBulkDeleteAccess()"
+                            class="hidden opacity-50 cursor-not-allowed h-10 px-4 bg-red-50 text-red-600 border border-red-200 rounded-xl hover:bg-red-100 transition text-sm font-bold shadow-sm flex items-center justify-center gap-1.5" disabled>
+                            <i class="fas fa-trash-alt"></i> <span id="bulkDeleteAccessCount">Delete (0)</span>
                         </button>
 
                         <button onclick="openModal('addStudentModal', 'addStudentBox')"
@@ -452,7 +464,12 @@
                             <thead
                                 class="bg-gray-50/70 text-[10px] uppercase text-gray-400 font-black tracking-wider border-b border-gray-100">
                                 <tr>
-                                    <th class="px-4 md:px-6 py-4">Student</th>
+                                    <th class="px-4 md:px-6 py-4">
+                                        <div class="flex items-center gap-3">
+                                            <input type="checkbox" id="selectAllAccessCheckbox" class="hidden rounded border-gray-300 text-[#a52a2a] focus:ring-[#a52a2a] cursor-pointer w-4 h-4 mt-0.5">
+                                            <span>Student</span>
+                                        </div>
+                                    </th>
                                     <th class="px-4 py-4">Status</th>
                                     <th class="px-4 py-4 hidden md:table-cell">Progress</th>
                                     <th class="px-4 py-4 text-center hidden sm:table-cell">Retakes</th>
@@ -468,6 +485,8 @@
                                         <td class="px-4 md:px-6 py-4">
                                             <div class="flex items-start gap-3 min-w-0">
 
+                                                <input type="checkbox" value="{{ $access->id }}" class="access-checkbox hidden rounded border-gray-300 text-[#a52a2a] focus:ring-[#a52a2a] cursor-pointer w-4 h-4 mt-2.5 transition-all">
+
                                                 <div
                                                     class="w-9 h-9 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center font-bold text-xs shrink-0 border border-blue-100">
                                                     {{ strtoupper(substr($access->email, 0, 1)) }}
@@ -475,7 +494,11 @@
 
                                                 <div class="min-w-0 flex-1">
                                                     @php
-                                                        $hasGrade = $access->student && $access->current_enrollment && in_array($access->current_enrollment->status, ['completed', 'failed']) && ($hasExams || $hasQuizzes);
+                                                        $status = $access->current_enrollment ? $access->current_enrollment->status : null;
+                                                        if (($access->retakes ?? 0) >= 3 && $status !== 'completed') {
+                                                            $status = 'failed';
+                                                        }
+                                                        $hasGrade = $access->student && $status && in_array($status, ['completed', 'failed']) && ($hasExams || $hasQuizzes);
                                                     @endphp
 
                                                     @if($hasGrade)
@@ -562,8 +585,14 @@
                                             @if($access->current_enrollment)
                                                 <div class="flex flex-col min-w-[140px]">
 
-                                                    <span class="font-bold text-gray-700 text-xs!">
-                                                        {{ ucwords(str_replace('_', ' ', $access->current_enrollment->status)) }}
+                                                    @php
+                                                        $status = $access->current_enrollment->status;
+                                                        if (($access->retakes ?? 0) >= 3 && $status !== 'completed') {
+                                                            $status = 'failed';
+                                                        }
+                                                    @endphp
+                                                    <span class="font-bold {{ $status === 'failed' ? 'text-red-600' : 'text-gray-700' }} text-xs!">
+                                                        {{ ucwords(str_replace('_', ' ', $status)) }}
                                                     </span>
 
 
@@ -578,7 +607,7 @@
                                                     </div>
 
 
-                                                    @if(($hasExams || $hasQuizzes) && in_array($access->current_enrollment->status, ['completed', 'failed']))
+                                                    @if(($hasExams || $hasQuizzes) && in_array($status, ['completed', 'failed']))
                                                         <span
                                                             class="p-0.5 bg-blue-50 text-blue-700 rounded border border-blue-100 w-min text-nowrap text-[10px] font-black shadow-sm">
                                                             Score: {{ $access->current_enrollment->score ?? '0' }}%
@@ -1095,10 +1124,16 @@
         </div>
         <h3 id="customAlertTitle" class="text-xl font-black text-gray-900 mb-2">Notice</h3>
         <p id="customAlertMessage" class="text-sm text-gray-500 mb-6"></p>
-        <button type="button" id="customAlertBtn" onclick="closeCustomAlert()"
-            class="w-full px-4 py-3 bg-gray-100 text-gray-700 font-bold rounded-xl hover:bg-gray-200 transition">
-            Okay
-        </button>
+        <div class="flex gap-3 w-full">
+            <button type="button" id="customAlertCancelBtn" onclick="dismissCustomAlert()"
+                class="hidden flex-1 px-4 py-3 bg-gray-100 text-gray-700 font-bold rounded-xl hover:bg-gray-200 transition">
+                Cancel
+            </button>
+            <button type="button" id="customAlertBtn" onclick="confirmCustomAlert()"
+                class="flex-1 px-4 py-3 bg-gray-100 text-gray-700 font-bold rounded-xl hover:bg-gray-200 transition">
+                Okay
+            </button>
+        </div>
     </div>
 </div>
 
@@ -1243,6 +1278,67 @@
             <button type="button" onclick="executeRevertToDraft()" id="executeRevertBtn"
                 class="flex-1 py-3 bg-amber-500 text-white font-bold rounded-xl shadow-lg shadow-amber-500/20 hover:bg-amber-600 transition flex justify-center items-center">Yes,
                 Revert</button>
+        </div>
+    </div>
+</div>
+
+{{-- 2.5 Student Data Found Modal (Revert to Draft) --}}
+<div id="studentActivityModal"
+    class="fixed inset-0 z-[9999] hidden opacity-0 transition-opacity duration-300 flex items-center justify-center p-4">
+    <div class="absolute inset-0 bg-gray-900/60" onclick="closeModal('studentActivityModal', 'studentActivityBox')"></div>
+    <div id="studentActivityBox"
+        class="bg-white rounded-3xl max-w-lg w-full text-left shadow-2xl relative z-10 transform scale-95 transition-all duration-300 max-h-[90vh] flex flex-col overflow-hidden">
+        
+        {{-- Sticky Header --}}
+        <div class="shrink-0 p-8 pb-6 border-b border-gray-100 bg-white relative z-20">
+            <h3 class="text-2xl font-black text-gray-900 mb-2">Student Data Found</h3>
+            <p class="text-gray-500 text-sm leading-relaxed mb-0">This module contains student enrollments, progress records, and/or assessment results. When reverting this module to Draft, choose how existing student data should be handled. You may also export the current student records before continuing.</p>
+        </div>
+
+        {{-- Scrollable Body --}}
+        <div class="flex-1 overflow-y-auto p-8 py-6">
+            {{-- Export Section --}}
+            <div class="mb-6 p-4 bg-blue-50 border border-blue-100 rounded-xl">
+                <h4 class="text-sm font-bold text-blue-900 mb-1">Export Current Student Data (Optional)</h4>
+                <p class="text-xs text-blue-700 mb-3">You may export the current student records before reverting this module to Draft.</p>
+                <button type="button" onclick="closeModal('studentActivityModal', 'studentActivityBox'); setTimeout(() => openModal('exportListModal', 'exportListBox'), 300);" class="px-4 py-2 bg-blue-600 text-white text-xs font-bold rounded-lg hover:bg-blue-700 transition shadow-sm">
+                    <i class="fas fa-file-export mr-1"></i> Export Data
+                </button>
+            </div>
+
+            {{-- Options --}}
+            <div class="space-y-4 mb-6">
+                <label class="flex items-start gap-3 p-4 border border-gray-200 rounded-xl cursor-pointer hover:bg-gray-50 transition-colors">
+                    <input type="radio" name="revert_data_option" value="keep" checked class="mt-1 text-amber-500 focus:ring-amber-500">
+                    <div>
+                        <span class="block text-sm font-bold text-gray-900">Keep Student Data (Default)</span>
+                        <span class="block text-xs text-gray-500 mt-1">Students will remain enrolled and all progress, scores, attempts, and submitted answers will be preserved. The module will simply become unavailable to students while it is in Draft status.</span>
+                    </div>
+                </label>
+
+                <label class="flex items-start gap-3 p-4 border border-red-200 bg-red-50/50 rounded-xl cursor-pointer hover:bg-red-50 transition-colors">
+                    <input type="radio" name="revert_data_option" value="clear" class="mt-1 text-red-600 focus:ring-red-600">
+                    <div>
+                        <span class="block text-sm font-bold text-red-800">Clear Student Progress and Assessment Results</span>
+                        <span class="block text-xs text-red-600 mt-1">Students will remain enrolled, but all progress, completion records, scores, quiz attempts, exam attempts, and submitted answers related to this module will be permanently removed. Students will start from the beginning if the module is republished.</span>
+                        <span class="block text-xs font-bold text-red-600 mt-2"><i class="fas fa-exclamation-triangle mr-1"></i> This action cannot be undone.</span>
+                    </div>
+                </label>
+            </div>
+            
+            <textarea id="activityRevertReasonInput" rows="2"
+                placeholder="Provide a reason for reverting to draft (Required)..."
+                class="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 outline-none transition-all text-sm"></textarea>
+        </div>
+
+        {{-- Sticky Footer --}}
+        <div class="shrink-0 p-8 pt-6 border-t border-gray-100 bg-white relative z-20">
+            <div class="flex gap-3">
+                <button type="button" onclick="closeModal('studentActivityModal', 'studentActivityBox')"
+                    class="flex-1 py-3 bg-gray-100 text-gray-700 font-bold rounded-xl hover:bg-gray-200 transition">Cancel</button>
+                <button type="button" onclick="executeActivityRevertToDraft()" id="executeActivityRevertBtn"
+                    class="flex-1 py-3 bg-amber-500 text-white font-bold rounded-xl shadow-lg shadow-amber-500/20 hover:bg-amber-600 transition flex justify-center items-center">Proceed & Revert</button>
+            </div>
         </div>
     </div>
 </div>
@@ -1677,8 +1773,19 @@
         document.getElementById('customAlertTitle').innerText = title;
         document.getElementById('customAlertMessage').innerText = message;
         document.getElementById('customAlertBtn').innerText = 'Okay'; // Reset button text
+        document.getElementById('customAlertCancelBtn').classList.add('hidden');
+        document.getElementById('customAlertBtn').className = 'flex-1 px-4 py-3 bg-gray-100 text-gray-700 font-bold rounded-xl hover:bg-gray-200 transition';
 
         window.customAlertCallback = callback;
+
+        if (callback) {
+            document.getElementById('customAlertCancelBtn').classList.remove('hidden');
+            if (type === 'error') {
+                document.getElementById('customAlertBtn').className = 'flex-1 px-4 py-3 bg-red-600 text-white font-bold rounded-xl hover:bg-red-700 transition shadow-lg shadow-red-600/20';
+            } else {
+                document.getElementById('customAlertBtn').className = 'flex-1 px-4 py-3 bg-gray-800 text-white font-bold rounded-xl hover:bg-gray-900 transition shadow-lg shadow-gray-900/20';
+            }
+        }
 
         if (type === 'success') {
             iconContainer.className = 'w-16 h-16 rounded-full mx-auto mb-4 flex items-center justify-center text-3xl bg-green-100 text-green-500';
@@ -1697,7 +1804,7 @@
         }, 10);
     };
 
-    window.closeCustomAlert = function () {
+    window.confirmCustomAlert = function () {
         const modal = document.getElementById('customAlertModal');
         const box = document.getElementById('customAlertBox');
 
@@ -1712,6 +1819,23 @@
             window.customAlertCallback = null; // Clear callback after execution
         }, 300);
     };
+
+    window.dismissCustomAlert = function () {
+        const modal = document.getElementById('customAlertModal');
+        const box = document.getElementById('customAlertBox');
+
+        box.classList.remove('scale-100');
+        box.classList.add('scale-95');
+        modal.classList.remove('opacity-100');
+        modal.classList.add('opacity-0');
+
+        setTimeout(() => {
+            modal.classList.add('hidden');
+            window.customAlertCallback = null; // Clear callback without execution
+        }, 300);
+    };
+
+    window.closeCustomAlert = window.dismissCustomAlert;
 
     // --- SNACKBAR ALERT ---
     window.showSnackbar = function (message, type = 'success') {
@@ -1863,7 +1987,12 @@
     }
 
     window.revertToDraft = function () {
-        openModal('revertConfirmModal', 'revertConfirmBox');
+        const hasActivity = {{ $studentActivityCount > 0 ? 'true' : 'false' }};
+        if (hasActivity) {
+            openModal('studentActivityModal', 'studentActivityBox');
+        } else {
+            openModal('revertConfirmModal', 'revertConfirmBox');
+        }
     }
 
     window.executeRevertToDraft = function () {
@@ -1887,14 +2016,57 @@
                 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
                 'Accept': 'application/json'
             },
-            // FIX: Send as revert_reason instead of admin_remarks
-            body: JSON.stringify({ status: 'draft', revert_reason: reason })
+            body: JSON.stringify({ status: 'draft', revert_reason: reason, data_option: 'keep' })
         })
             .then(r => r.json())
             .then(data => {
                 if (data.success) {
                     closeModal('revertConfirmModal', 'revertConfirmBox');
                     showSnackbar('Module reverted to draft.', 'success');
+                    setTimeout(() => loadPartial('{{ url('/dashboard/materials') }}', document.getElementById('nav-materials-btn')), 500);
+                } else {
+                    showCustomAlert('Error', data.message || 'Failed to revert to draft.', 'error');
+                    btn.disabled = false;
+                    btn.innerHTML = originalHtml;
+                }
+            })
+            .catch(error => {
+                showCustomAlert('Error', 'An error occurred.', 'error');
+                btn.disabled = false;
+                btn.innerHTML = originalHtml;
+            });
+    }
+
+    window.executeActivityRevertToDraft = function () {
+        const reasonInput = document.getElementById('activityRevertReasonInput');
+        const reason = reasonInput ? reasonInput.value.trim() : '';
+
+        if (!reason) {
+            showSnackbar('Please provide a reason for reverting to draft.', 'error');
+            return;
+        }
+
+        const dataOption = document.querySelector('input[name="revert_data_option"]:checked').value;
+
+        const btn = document.getElementById('executeActivityRevertBtn');
+        const originalHtml = btn.innerHTML;
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Reverting...';
+
+        fetch(`{{ url('/dashboard/materials/' . $material->id . '/status') }}`, {
+            method: 'PATCH',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+                'Accept': 'application/json'
+            },
+            body: JSON.stringify({ status: 'draft', revert_reason: reason, data_option: dataOption })
+        })
+            .then(r => r.json())
+            .then(data => {
+                if (data.success) {
+                    closeModal('studentActivityModal', 'studentActivityBox');
+                    showSnackbar('Module reverted to draft successfully.', 'success');
                     setTimeout(() => loadPartial('{{ url('/dashboard/materials') }}', document.getElementById('nav-materials-btn')), 500);
                 } else {
                     showCustomAlert('Error', data.message || 'Failed to revert to draft.', 'error');
@@ -2209,6 +2381,138 @@
             list.appendChild(div);
         });
     }
+
+    // --- MULTI-SELECT CHECKBOX LOGIC FOR ACCESS ---
+    var selectAllAccessCheckbox = document.getElementById('selectAllAccessCheckbox');
+    var bulkDeleteAccessBtn = document.getElementById('bulkDeleteAccessBtn');
+    var bulkDeleteAccessCount = document.getElementById('bulkDeleteAccessCount');
+
+    var deleteModeActive = false;
+
+    window.toggleBulkDeleteMode = function() {
+        deleteModeActive = !deleteModeActive;
+        const toggleBtn = document.getElementById('toggleBulkDeleteBtn');
+        const executeBtn = document.getElementById('bulkDeleteAccessBtn');
+        const checkboxes = document.querySelectorAll('.access-checkbox');
+        const selectAll = document.getElementById('selectAllAccessCheckbox');
+
+        if (deleteModeActive) {
+            toggleBtn.innerHTML = '<i class="fas fa-times"></i> Cancel';
+            toggleBtn.className = 'h-10 px-4 bg-gray-100 text-gray-600 border border-gray-200 rounded-xl hover:bg-gray-200 transition text-sm font-bold shadow-sm flex items-center justify-center gap-1.5';
+            executeBtn.classList.remove('hidden');
+            checkboxes.forEach(cb => cb.classList.remove('hidden'));
+            if(selectAll) selectAll.classList.remove('hidden');
+        } else {
+            toggleBtn.innerHTML = '<i class="fas fa-trash-alt"></i> Delete';
+            toggleBtn.className = 'h-10 px-4 bg-red-50 text-red-600 border border-red-200 rounded-xl hover:bg-red-100 transition text-sm font-bold shadow-sm flex items-center justify-center gap-1.5';
+            executeBtn.classList.add('hidden');
+            checkboxes.forEach(cb => {
+                cb.classList.add('hidden');
+                cb.checked = false;
+            });
+            if(selectAll) {
+                selectAll.classList.add('hidden');
+                selectAll.checked = false;
+            }
+            window.updateBulkAccessUI(); // reset counts
+        }
+    }
+
+    window.updateBulkAccessUI = function() {
+        var checkedBoxes = document.querySelectorAll('.access-checkbox:checked');
+        var count = checkedBoxes.length;
+
+        if(bulkDeleteAccessCount) bulkDeleteAccessCount.innerText = `Delete (${count})`;
+        
+        if(bulkDeleteAccessBtn) {
+            bulkDeleteAccessBtn.disabled = count === 0;
+            if(count === 0) {
+                bulkDeleteAccessBtn.classList.add('opacity-50', 'cursor-not-allowed');
+            } else {
+                bulkDeleteAccessBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+            }
+        }
+
+        var totalBoxes = document.querySelectorAll('.access-checkbox').length;
+        if (selectAllAccessCheckbox) {
+            selectAllAccessCheckbox.checked = (count > 0 && count === totalBoxes);
+        }
+    }
+
+    if (selectAllAccessCheckbox) {
+        selectAllAccessCheckbox.addEventListener('change', function (e) {
+            var isChecked = e.target.checked;
+            document.querySelectorAll('.access-checkbox').forEach(cb => {
+                cb.checked = isChecked;
+            });
+            window.updateBulkAccessUI();
+        });
+    }
+
+    const studentListBody = document.getElementById('student-list-body');
+    if(studentListBody) {
+        studentListBody.addEventListener('change', function (e) {
+            if (e.target.classList.contains('access-checkbox')) {
+                window.updateBulkAccessUI();
+            }
+        });
+    }
+
+    window.confirmBulkDeleteAccess = function () {
+        var checkedBoxes = document.querySelectorAll('.access-checkbox:checked');
+        var ids = Array.from(checkedBoxes).map(cb => cb.value);
+
+        if (ids.length === 0) return;
+
+        showCustomAlert(
+            'Remove Students',
+            `Are you sure you want to remove these ${ids.length} students? Their progress will be permanently lost.`,
+            'error',
+            () => {
+                const originalHtml = bulkDeleteAccessBtn.innerHTML;
+                bulkDeleteAccessBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-1.5"></i> Processing...';
+                bulkDeleteAccessBtn.disabled = true;
+
+                fetch(`{{ url('/dashboard/materials/access-bulk') }}`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+                        'Accept': 'application/json'
+                    },
+                    body: JSON.stringify({ ids: ids, _method: 'DELETE' })
+                }).then(async r => {
+                    const data = await r.json().catch(() => null);
+                    if (!r.ok) throw data || { message: 'Server error occurred.' };
+                    return data;
+                }).then(data => {
+                    if (data.success) {
+                        showSnackbar(data.message || 'Students removed.', 'success');
+                        setTimeout(refreshTableOnly, 300);
+                        
+                        // Turn off delete mode
+                        if (deleteModeActive) {
+                            window.toggleBulkDeleteMode();
+                        }
+                    } else {
+                        throw { message: data.message || 'Error removing students.' };
+                    }
+                }).catch(error => {
+                    let errorMsg = 'An error occurred while deleting students.';
+                    if (error && error.errors) {
+                        errorMsg = Object.values(error.errors)[0][0];
+                    } else if (error && error.message) {
+                        errorMsg = error.message;
+                    }
+                    showCustomAlert('Error', errorMsg, 'error');
+                }).finally(() => {
+                    bulkDeleteAccessBtn.innerHTML = originalHtml;
+                    bulkDeleteAccessBtn.disabled = false;
+                });
+            }
+        );
+        document.getElementById('customAlertBtn').innerText = 'Yes, Remove All';
+    };
 
     window.revokeAccess = function (accessId, btnElement) {
         showCustomAlert('Remove Student', 'Are you sure you want to remove this student? Their progress will be permanently lost.', 'error', () => {

@@ -1306,6 +1306,27 @@
 
             // 1. Immediately block any double-clicks and ensure we are not already processing!
             if (btn.disabled || btn.dataset.processing === "true") return;
+
+            // --- ADDED VALIDATION FOR ALL ASSESSMENT ITEMS ---
+            let unansweredCount = 0;
+            
+            materialData.forEach(section => {
+                section.items.forEach(item => {
+                    if (item.type !== 'content' && item.type !== 'instruction') {
+                        const answerData = getAnswerData(item.id, item.type, section.is_exam);
+                        if (!answerData) {
+                            unansweredCount++;
+                        }
+                    }
+                });
+            });
+
+            if (unansweredCount > 0) {
+                showCustomAlert("Incomplete Assessments", `You have ${unansweredCount} unanswered question(s). You must complete all questions before finishing the module.`);
+                return;
+            }
+            // -------------------------------------------------
+
             btn.dataset.processing = "true";
 
             // 2. Change the button visually to "Processing", disable it, and completely turn off pointer events
@@ -1628,6 +1649,16 @@
 
         function pdfZoomIn(id) { if (pdfInstances[id]) { pdfInstances[id].scale += 0.2; renderPdfPage(id); } }
         function pdfZoomOut(id) { if (pdfInstances[id] && pdfInstances[id].scale > 0.4) { pdfInstances[id].scale -= 0.2; renderPdfPage(id); } }
+
+        // --- CONTENT PROTECTION (ANTI-CHEAT) ---
+        document.addEventListener('contextmenu', event => event.preventDefault());
+        document.addEventListener('selectstart', event => {
+            if (event.target.tagName !== 'TEXTAREA' && event.target.tagName !== 'INPUT') {
+                event.preventDefault();
+            }
+        });
+        document.addEventListener('copy', event => event.preventDefault());
+        document.addEventListener('paste', event => event.preventDefault());
     </script>
 </body>
 

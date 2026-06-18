@@ -110,7 +110,7 @@
                     </div>
 
                     {{-- MAIN LOGIN FORM --}}
-                    <form method="POST" action="{{ route('login') }}" class="space-y-3">
+                    <form id="loginForm" method="POST" action="{{ route('login') }}" class="space-y-3">
                         @csrf
 
                         <div>
@@ -169,9 +169,9 @@
                             @endif
                         </div>
 
-                        <button type="submit"
-                            class="w-full py-3 px-4 bg-[#a52a2a] hover:bg-red-800 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200 mt-4">
-                            Log In
+                        <button type="submit" id="loginBtn"
+                            class="w-full py-3 px-4 bg-[#a52a2a] hover:bg-red-800 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200 mt-4 flex items-center justify-center gap-2">
+                            <span>Log In</span>
                         </button>
                     </form>
                     {{-- END MAIN LOGIN FORM --}}
@@ -265,6 +265,19 @@
             passwordIcon.classList.add('fa-eye');
         }
     }
+
+    document.addEventListener('DOMContentLoaded', function () {
+        const loginForm = document.getElementById('loginForm');
+        const loginBtn = document.getElementById('loginBtn');
+
+        if (loginForm && loginBtn) {
+            loginForm.addEventListener('submit', function () {
+                loginBtn.disabled = true;
+                loginBtn.classList.add('opacity-75', 'cursor-not-allowed');
+                loginBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> <span>Signing In...</span>';
+            });
+        }
+    });
 </script>
 
 </html>

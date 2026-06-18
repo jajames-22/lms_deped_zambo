@@ -32,7 +32,7 @@ class MaterialExportService
     {
         [$accesses, $enrollments, $hasQuizzes, $hasExams] = $this->loadBaseData($material);
 
-        $headers = ['Name', 'Email', 'Status', 'Progress (%)'];
+        $headers = ['Name', 'Email', 'Status', 'Progress'];
         if ($hasQuizzes) $headers[] = 'Quiz Score';
         if ($hasExams)   $headers[] = 'Exam Score';
         if ($hasQuizzes || $hasExams) $headers[] = 'Final Grade (%)';
@@ -41,13 +41,13 @@ class MaterialExportService
         foreach ($accesses as $access) {
             $student    = $access->student;
             $enrollment = $student ? $enrollments->get($student->id) : null;
-            $progress   = $this->getProgress($enrollment, $material->id);
+            $progressText = $this->getProgressText($enrollment, $material->id, $access);
 
             $row = [
                 $student ? trim($student->first_name . ' ' . $student->last_name) : 'N/A',
                 $access->email,
                 $access->status,
-                $progress,
+                $progressText,
             ];
 
             if ($hasQuizzes) $row[] = $student ? $this->getQuizScore($student->id, $material->id) : 'N/A';
@@ -73,7 +73,7 @@ class MaterialExportService
         // ── Sheet 1: Student Summary ──────────────────────────────
         $sheet1 = $spreadsheet->getActiveSheet();
         $sheet1->setTitle('Student Summary');
-        $headers = ['Name', 'Email', 'Status', 'Progress (%)'];
+        $headers = ['Name', 'Email', 'Status', 'Progress'];
         if ($hasQuizzes) $headers[] = 'Quiz Score';
         if ($hasExams)   $headers[] = 'Exam Score';
         if ($hasQuizzes || $hasExams) $headers[] = 'Final Grade (%)';
@@ -88,7 +88,7 @@ class MaterialExportService
                 $student ? trim($student->first_name . ' ' . $student->last_name) : 'N/A',
                 $access->email,
                 $access->status,
-                $this->getProgress($enrollment, $material->id),
+                $this->getProgressText($enrollment, $material->id, $access),
             ];
             if ($hasQuizzes) $rowData[] = $student ? $this->getQuizScore($student->id, $material->id) : 'N/A';
             if ($hasExams)   $rowData[] = $student ? $this->getExamScore($student->id, $material->id) : 'N/A';
@@ -303,8 +303,8 @@ class MaterialExportService
     {
         if (!$hasQuizzes && !$hasExams) return 'N/A';
         
-        $quizWeight = $material->quiz_weight ?? 40;
         $examWeight = $material->exam_weight ?? 60;
+        $quizWeight = 100 - $examWeight;
 
         $qPct = 100;
         if ($hasQuizzes) {
@@ -377,6 +377,23 @@ class MaterialExportService
 
         $percentage = round(($contentsPassed / $totalContents) * 100);
         return $percentage > 100 ? 100 : $percentage;
+    }
+
+    private function getProgressText(?Enrollment $enrollment, int $materialId, $access = null): string
+    {
+        $percentage = $this->getProgress($enrollment, $materialId);
+        
+        if (!$enrollment) {
+            return "Not Started ({$percentage}%)";
+        }
+
+        $status = $enrollment->status;
+        if ($access && ($access->retakes ?? 0) >= 3 && $status !== 'completed') {
+            $status = 'failed';
+        }
+
+        $statusText = ucwords(str_replace('_', ' ', $status));
+        return "{$statusText} ({$percentage}%)";
     }
 
     // ─────────────────────────────────────────────────────────────

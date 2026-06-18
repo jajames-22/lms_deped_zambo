@@ -174,6 +174,15 @@ class StudentAssessmentController extends Controller
             $assessment = \App\Models\Assessment::where('access_key', $access_key)->firstOrFail();
             $user = \Illuminate\Support\Facades\Auth::user();
 
+            // Verify they still have access
+            $access = \App\Models\AssessmentAccess::where('assessment_id', $assessment->id)
+                ->where('lrn', $user->lrn)
+                ->first();
+
+            if (!$access) {
+                return response()->json(['status' => 'error', 'message' => 'Access revoked.']);
+            }
+
             // 1. Save the timer
             \App\Models\AssessmentSession::updateOrCreate(
                 [
@@ -207,13 +216,7 @@ class StudentAssessmentController extends Controller
 
             // 3. Save the pauses left to the database
             if ($request->has('pauses_left')) {
-                $access = \App\Models\AssessmentAccess::where('assessment_id', $assessment->id)
-                    ->where('lrn', $user->lrn)
-                    ->first();
-
-                if ($access) {
-                    $access->update(['pauses_left' => (int) $request->input('pauses_left')]);
-                }
+                $access->update(['pauses_left' => (int) $request->input('pauses_left')]);
             }
 
             return response()->json(['status' => 'success']);
@@ -229,6 +232,15 @@ class StudentAssessmentController extends Controller
         $assessment = \App\Models\Assessment::where('access_key', $access_key)->firstOrFail();
         $user = \Illuminate\Support\Facades\Auth::user();
         $currentCategoryId = $request->input('category_id');
+
+        // Verify they still have access
+        $access = \App\Models\AssessmentAccess::where('assessment_id', $assessment->id)
+            ->where('lrn', $user->lrn)
+            ->first();
+
+        if (!$access) {
+            return redirect()->route('dashboard.explore')->with('error', 'Your access to this assessment has been revoked.');
+        }
 
         // 1. Mark THIS section as permanently completed
         \App\Models\AssessmentSession::updateOrCreate(

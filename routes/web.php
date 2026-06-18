@@ -139,6 +139,7 @@ Route::middleware(['auth', 'verified', CheckAccountStatus::class])->group(functi
         Route::get('/materials/{hashid}/study', [MaterialsController::class, 'study'])->name('dashboard.materials.study');
         Route::get('/materials/{hashid}/result', [MaterialsController::class, 'result'])->name('dashboard.materials.result');
         Route::get('/materials/{hashid}/certificate', [MaterialsController::class, 'certificate'])->name('dashboard.materials.certificate');
+        Route::get('/materials/{hashid}/certificate/download', [MaterialsController::class, 'downloadCertificate'])->name('student.certificate.download');
 
         // Student Actions
         Route::post('/materials/{material}/enroll', [MaterialsController::class, 'enroll'])->name('materials.enroll');
@@ -175,6 +176,7 @@ Route::middleware(['auth', 'verified', CheckAccountStatus::class])->group(functi
         Route::post('/materials/{id}/access', [MaterialsController::class, 'addAccess'])->name('dashboard.materials.access.add');
         Route::post('/materials/{id}/import-access', [MaterialsController::class, 'importAccess'])->name('dashboard.materials.access.import');
         Route::delete('/materials/access/{id}', [MaterialsController::class, 'removeAccess'])->name('dashboard.materials.access.remove');
+        Route::delete('/materials/access-bulk', [MaterialsController::class, 'removeBulkAccess'])->name('dashboard.materials.access.removeBulk');
         Route::post('/materials/access/{id}/invite', [MaterialsController::class, 'sendIndividualInvite'])->name('dashboard.materials.access.invite');
         Route::post('/materials/{id}/generate-code', [MaterialsController::class, 'generateAccessCode']);
 
