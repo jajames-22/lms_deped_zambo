@@ -322,6 +322,7 @@
                         @endphp
 
                         {{-- Changed to a direct download link --}}
+                        @if($material->is_downloadable ?? true)
                         <a href="{{ $res->url }}" download target="_blank" class="flex items-center gap-4 p-3 rounded-2xl hover:bg-gray-50 border border-transparent hover:border-gray-100 transition group cursor-pointer">
                             
                             <div class="h-12 w-12 shrink-0 rounded-xl flex items-center justify-center overflow-hidden {{ $bgClass }}">
@@ -337,6 +338,23 @@
                                 <i class="fas fa-download"></i>
                             </div>
                         </a>
+                        @else
+                        <div class="flex items-center gap-4 p-3 rounded-2xl border border-transparent transition group">
+                            
+                            <div class="h-12 w-12 shrink-0 rounded-xl flex items-center justify-center overflow-hidden {{ $bgClass }}">
+                                <i class="fas {{ $iconName }} text-xl"></i>
+                            </div>
+
+                            <div class="flex-1 min-w-0">
+                                <h4 class="font-bold text-gray-900 text-sm truncate transition">{{ $res->name }}</h4>
+                                <p class="text-[10px] font-bold text-gray-400 uppercase tracking-wider mt-0.5">{{ strtoupper($res->ext) }} • {{ $res->size }}</p>
+                            </div>
+
+                            <div class="h-10 w-10 shrink-0 rounded-full flex items-center justify-center text-gray-300 cursor-not-allowed transition" title="Downloads Disabled">
+                                <i class="fas fa-download"></i>
+                            </div>
+                        </div>
+                        @endif
                     @endforeach
                 </div>
             @endif

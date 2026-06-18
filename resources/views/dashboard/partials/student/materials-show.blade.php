@@ -586,11 +586,19 @@
                                     {{ strtoupper($res->ext) }} • {{ $res->size }}</p>
                             </div>
 
+                            @if($material->is_downloadable ?? true)
                             <button onclick="trackAndDownloadResource('{{ $res->url }}', {{ $material->id }})"
                                 class="h-10 w-10 shrink-0 rounded-full flex items-center justify-center text-gray-400 hover:text-[#a52a2a] hover:bg-red-50 transition"
                                 title="Download File">
                                 <i class="fas fa-download"></i>
                             </button>
+                            @else
+                            <button disabled
+                                class="h-10 w-10 shrink-0 rounded-full flex items-center justify-center text-gray-300 cursor-not-allowed"
+                                title="Downloads Disabled">
+                                <i class="fas fa-download"></i>
+                            </button>
+                            @endif
                         </div>
                     @endforeach
                 </div>
@@ -674,9 +682,15 @@
                 <span id="rv-title" class="font-bold truncate text-sm sm:text-base hidden sm:block">filename.pdf</span>
             </div>
             <div class="flex items-center gap-2 shrink-0">
+                @if($material->is_downloadable ?? true)
                 <button id="rv-download-btn"
                     class="hover:bg-white/20 h-10 w-10 rounded-full flex items-center justify-center transition"
                     title="Download"><i class="fas fa-download"></i></button>
+                @else
+                <button disabled id="rv-download-btn"
+                    class="text-white/30 h-10 w-10 rounded-full flex items-center justify-center cursor-not-allowed"
+                    title="Downloads Disabled"><i class="fas fa-download"></i></button>
+                @endif
                 <div class="w-px h-6 bg-white/20 mx-1"></div>
                 <button onclick="closeResourceViewer()"
                     class="hover:bg-red-500/80 h-10 w-10 rounded-full flex items-center justify-center transition"
@@ -943,7 +957,9 @@
             const dlBtn = document.getElementById('rv-download-btn');
 
             titleEl.innerText = name;
+            @if($material->is_downloadable ?? true)
             dlBtn.onclick = () => trackAndDownloadResource(url, {{ $material->id }});
+            @endif
 
             contentArea.innerHTML = '<i class="fas fa-circle-notch fa-spin text-4xl text-white/50"></i>';
 
@@ -1039,7 +1055,11 @@
                             <i class="fas fa-file-archive text-6xl mb-4 text-white/50"></i>
                             <h3 class="text-xl font-bold mb-2">Preview Not Available</h3>
                             <p class="text-white/60 mb-6 text-sm">This file type cannot be previewed in the browser.</p>
+                            @if($material->is_downloadable ?? true)
                             <button onclick="trackAndDownloadResource('${url}', {{ $material->id }})" class="px-6 py-3 bg-[#a52a2a] rounded-xl font-bold hover:bg-red-700 transition">Download File Instead</button>
+                            @else
+                            <p class="text-red-400 mt-2 text-sm font-bold">Downloads are disabled for this module.</p>
+                            @endif
                         </div>`;
                 }
             }, 300);

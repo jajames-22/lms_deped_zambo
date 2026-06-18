@@ -139,14 +139,23 @@
 
             @if($isOwner || $isAdminOrCid)
                 {{-- Evaluation Result Button --}}
-                <a href="{{ url('/dashboard/materials/' . $material->hashid . '/evaluation-result') }}"
-                    class="px-4 py-2.5 bg-white text-gray-700 border border-gray-200 font-bold rounded-xl hover:bg-gray-50 transition shadow-sm flex items-center justify-center gap-2 text-sm">
-                    <i class="fas fa-clipboard-check text-blue-600"></i> Evaluation
-                </a>
+                @if(!empty($material->evaluation_json))
+                    <a href="{{ url('/dashboard/materials/' . $material->hashid . '/evaluation-result') }}"
+                        class="px-4 py-2.5 bg-white text-gray-700 border border-gray-200 font-bold rounded-xl hover:bg-gray-50 transition shadow-sm flex items-center justify-center gap-2 text-sm">
+                        <i class="fas fa-clipboard-check text-blue-600"></i> Evaluation
+                    </a>
+                @else
+                    <button disabled
+                        class="px-4 py-2.5 bg-gray-50 text-gray-400 border border-gray-200 font-bold rounded-xl cursor-not-allowed flex items-center justify-center gap-2 text-sm"
+                        title="No evaluation available yet">
+                        <i class="fas fa-clipboard-check text-gray-400"></i> Evaluation
+                    </button>
+                @endif
 
                 {{-- View Analytics Button --}}
                 @if($material->status === 'published')
-                    <button onclick="loadPartial('{{ url('/dashboard/materials/' . $material->id . '/analytics') }}', document.getElementById('nav-materials-btn'))"
+                    <button
+                        onclick="loadPartial('{{ url('/dashboard/materials/' . $material->id . '/analytics') }}', document.getElementById('nav-materials-btn'))"
                         class="px-4 py-2.5 bg-white text-gray-700 border border-gray-200 font-bold rounded-xl hover:bg-gray-50 transition shadow-sm flex items-center justify-center gap-2 text-sm">
                         <i class="fas fa-chart-pie text-amber-600"></i> Analytics
                     </button>
@@ -410,6 +419,21 @@
 
                     {{-- UPDATED: Added flex-wrap and the new Bulk Invite Button --}}
                     <div class="flex flex-wrap items-center gap-2">
+                        <button onclick="openModal('exportListModal', 'exportListBox')"
+                            class="h-10 px-4 bg-white border border-gray-200 text-gray-600 rounded-xl hover:bg-gray-50 transition text-sm font-bold shadow-sm flex items-center justify-center">
+                            <i class="fas fa-download mr-1.5"></i> Export List
+                        </button>
+                    </div>
+                </div>
+
+                <div
+                    class="px-6 md:px-8 py-4 border-b border-gray-100 flex flex-wrap items-center justify-between gap-4">
+                    <button id="bulkInviteBtn" onclick="bulkSendInvites()"
+                        class="h-10 px-4 bg-amber-50 text-amber-600 border border-amber-100 rounded-xl hover:bg-amber-100 transition text-sm font-bold shadow-sm flex items-center justify-center">
+                        <i class="fas fa-paper-plane mr-1.5"></i> Invite Pending
+                    </button>
+
+                    <div class="flex flex-wrap items-center gap-2">
                         <button onclick="openModal('importStudentModal', 'importStudentBox')"
                             class="h-10 px-4 bg-white border border-gray-200 text-gray-600 rounded-xl hover:bg-gray-50 transition text-sm font-bold shadow-sm flex items-center justify-center">
                             <i class="fas fa-file-import mr-1.5"></i> Import CSV
@@ -421,11 +445,6 @@
                         </button>
                     </div>
                 </div>
-
-                <button id="bulkInviteBtn" onclick="bulkSendInvites()"
-                    class="h-10 w-45 px-4 text-amber-600 hover:text-amber-800 transition text-sm font-bold flex items-center justify-center">
-                    <i class="fas fa-paper-plane mr-1.5"></i> Invite Pending
-                </button>
 
                 <div class="overflow-hidden">
                     <div class="overflow-x-auto lg:overflow-x-visible">
@@ -455,9 +474,20 @@
                                                 </div>
 
                                                 <div class="min-w-0 flex-1">
-                                                    <p class="text-sm font-bold text-gray-900 break-all leading-tight">
-                                                        {{ $access->email }}
-                                                    </p>
+                                                    @php
+                                                        $hasGrade = $access->student && $access->current_enrollment && in_array($access->current_enrollment->status, ['completed', 'failed']) && ($hasExams || $hasQuizzes);
+                                                    @endphp
+
+                                                    @if($hasGrade)
+                                                        <a href="{{ url('/dashboard/materials/' . $material->id . '/student-result/' . $access->student->id) }}"
+                                                            class="text-sm font-bold text-[#a52a2a] break-all leading-tight hover:underline transition">
+                                                            {{ $access->email }}
+                                                        </a>
+                                                    @else
+                                                        <p class="text-sm font-bold text-gray-900 break-all leading-tight">
+                                                            {{ $access->email }}
+                                                        </p>
+                                                    @endif
 
                                                     @if($access->student && $access->current_enrollment)
                                                         <p class="text-[10px] text-gray-500 uppercase tracking-wider mt-1">
@@ -468,15 +498,30 @@
 
                                                     {{-- MOBILE PROGRESS --}}
                                                     @if($access->current_enrollment)
-                                                        <div class="md:hidden mt-2">
-                                                            <div class="flex items-center justify-between text-[11px]">
-                                                                <span class="font-semibold text-gray-700">
+                                                        <div class="md:hidden mt-3">
+                                                            <div class="flex items-center justify-between text-xs mb-1.5">
+                                                                <span class="font-bold text-gray-700">
                                                                     {{ ucwords(str_replace('_', ' ', $access->current_enrollment->status)) }}
                                                                 </span>
 
-                                                                <span class="text-gray-400 font-mono">
-                                                                    {{ $access->current_enrollment->score ?? '0' }}%
-                                                                </span>
+                                                                @if(($hasExams || $hasQuizzes) && in_array($access->current_enrollment->status, ['completed', 'failed']))
+                                                                    <span
+                                                                        class="px-2 py-0.5 bg-blue-50 text-blue-700 rounded border border-blue-100 text-[10px] font-black tracking-wide">
+                                                                        Score: {{ $access->current_enrollment->score ?? '0' }}%
+                                                                    </span>
+                                                                @endif
+                                                            </div>
+
+                                                            <div
+                                                                class="w-full h-2 bg-gray-100 rounded-full overflow-hidden mb-1">
+                                                                <div class="h-full bg-blue-500 rounded-full transition-all duration-500"
+                                                                    style="width: {{ $access->current_enrollment->progress_percentage ?? 0 }}%">
+                                                                </div>
+                                                            </div>
+
+                                                            <div class="text-[10px] text-gray-500 font-medium">
+                                                                Progress:
+                                                                {{ $access->current_enrollment->progress_percentage ?? 0 }}%
                                                             </div>
                                                         </div>
                                                     @endif
@@ -515,23 +560,30 @@
                                         {{-- PROGRESS --}}
                                         <td class="px-4 py-4 hidden md:table-cell">
                                             @if($access->current_enrollment)
-                                                <div class="flex flex-col gap-1 min-w-[140px]">
+                                                <div class="flex flex-col min-w-[140px]">
 
-                                                    <div class="flex items-center justify-between text-xs">
-                                                        <span class="font-bold text-gray-700">
-                                                            {{ ucwords(str_replace('_', ' ', $access->current_enrollment->status)) }}
-                                                        </span>
+                                                    <span class="font-bold text-gray-700 text-xs!">
+                                                        {{ ucwords(str_replace('_', ' ', $access->current_enrollment->status)) }}
+                                                    </span>
 
-                                                        <span class="text-gray-400 font-mono">
-                                                            {{ $access->current_enrollment->score ?? '0' }}%
-                                                        </span>
-                                                    </div>
 
-                                                    <div class="w-full h-2 bg-gray-100 rounded-full overflow-hidden">
-                                                        <div class="h-full bg-blue-500 rounded-full"
-                                                            style="width: {{ $access->current_enrollment->score ?? 0 }}%">
+                                                    <div class="w-full h-2 bg-gray-100 rounded-full overflow-hidden mb-1">
+                                                        <div class="h-full bg-blue-500 rounded-full transition-all duration-500"
+                                                            style="width: {{ $access->current_enrollment->progress_percentage ?? 0 }}%">
                                                         </div>
                                                     </div>
+
+                                                    <div class="text-[10px] text-gray-500 font-medium">
+                                                        Progress: {{ $access->current_enrollment->progress_percentage ?? 0 }}%
+                                                    </div>
+
+
+                                                    @if(($hasExams || $hasQuizzes) && in_array($access->current_enrollment->status, ['completed', 'failed']))
+                                                        <span
+                                                            class="p-0.5 bg-blue-50 text-blue-700 rounded border border-blue-100 w-min text-nowrap text-[10px] font-black shadow-sm">
+                                                            Score: {{ $access->current_enrollment->score ?? '0' }}%
+                                                        </span>
+                                                    @endif
                                                 </div>
                                             @else
                                                 <span class="text-xs text-gray-400 font-medium">
@@ -785,6 +837,40 @@
                 </div>
             </div>
 
+            {{-- DOWNLOAD SETTINGS --}}
+            <div class="bg-white rounded-3xl shadow-sm border border-gray-100 p-6">
+                <h3 class="text-sm font-black text-gray-900 uppercase tracking-wider mb-6 flex items-center gap-2">
+                    <i class="fas fa-download text-[#a52a2a]"></i> Download Settings
+                </h3>
+
+                <div>
+                    <label class="flex items-center justify-between cursor-pointer group">
+                        <div>
+                            <span
+                                class="text-sm font-bold text-gray-900 block group-hover:text-[#a52a2a] transition-colors">Media
+                                & Resources Download</span>
+                            <span class="text-[10px] text-gray-500 uppercase tracking-wider">Enable module downloads for
+                                students</span>
+                        </div>
+                        <label class="relative toggle-container cursor-pointer">
+                            <input type="checkbox" id="downloadToggle" class="sr-only peer"
+                                onchange="toggleDownloadable(this)" {{ $material->is_downloadable ?? true ? 'checked' : '' }} {{ $isLocked ? 'disabled' : '' }}>
+
+                            <div class="w-14 h-8 rounded-full border border-gray-200 transition-colors
+                            peer-checked:bg-[#a52a2a] bg-gray-300
+                            peer-disabled:bg-red-200 peer-disabled:opacity-50
+                            peer-disabled:cursor-not-allowed">
+                            </div>
+
+                            <div class="absolute left-1 top-1 w-6 h-6 bg-white rounded-full shadow-sm transition-transform
+                                peer-checked:translate-x-6
+                                peer-disabled:bg-gray-100">
+                            </div>
+                        </label>
+                    </label>
+                </div>
+            </div>
+
             {{-- TAGS & CATEGORIZATION --}}
             <div id="tags-section" class="bg-white rounded-3xl shadow-sm border border-gray-100 p-6">
                 <h3 class="text-sm font-black text-gray-900 uppercase tracking-wider mb-2 flex items-center gap-2">
@@ -860,7 +946,7 @@
 
                             <button type="button" onclick="removeTag('{{ $tag->name }}')" {{ $isLocked ? 'disabled' : '' }}
                                 class="text-[#a52a2a]/60 hover:text-[#a52a2a] hover:bg-[#a52a2a]/10 rounded-full h-4 w-4 flex items-center justify-center transition-colors
-                                                            disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent disabled:hover:text-[#a52a2a]/60">
+                                                                        disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent disabled:hover:text-[#a52a2a]/60">
                                 <i class="fas fa-times text-[10px]"></i>
                             </button>
 
@@ -1188,7 +1274,100 @@
     </div>
 </div>
 
-{{-- 4. Import Students Modal --}}
+{{-- 4. Export List Modal --}}
+<div id="exportListModal"
+    class="fixed inset-0 z-[9999] hidden opacity-0 transition-opacity duration-300 flex items-center justify-center p-4">
+    <div class="absolute inset-0 bg-gray-900/60 backdrop-blur-sm"
+        onclick="closeModal('exportListModal', 'exportListBox')"></div>
+    <div id="exportListBox"
+        class="bg-white rounded-3xl max-w-md w-full p-8 shadow-2xl relative z-10 transform scale-95 transition-all duration-300">
+
+        <div class="flex justify-between items-center mb-6">
+            <div>
+                <h3 class="text-xl font-black text-gray-900">Export Student Report</h3>
+                <p class="text-xs text-gray-400 mt-0.5">Choose the report type to download.</p>
+            </div>
+            <button onclick="closeModal('exportListModal', 'exportListBox')"
+                class="text-gray-400 hover:text-gray-600 transition"><i class="fas fa-times"></i></button>
+        </div>
+
+        <form method="GET" action="{{ url('/dashboard/materials/' . $material->id . '/export-students') }}"
+            id="exportForm">
+            <div class="mb-6 space-y-3">
+
+                {{-- Option 1: Summary --}}
+                <label class="flex items-start gap-3 cursor-pointer" id="export-summary-label">
+                    <input type="radio" name="export_type" value="summary" id="export_summary" checked
+                        class="w-4 h-4 mt-1 text-[#a52a2a] focus:ring-[#a52a2a] shrink-0" onchange="updateExportCard()">
+                    <div id="card-summary"
+                        class="flex-1 p-3 rounded-xl border-2 border-[#a52a2a] bg-red-50/40 transition cursor-pointer">
+                        <div class="flex items-center gap-2 mb-1">
+                            <i class="fas fa-file-csv text-[#a52a2a] text-sm"></i>
+                            <span class="text-sm font-bold text-gray-800">Summary Report</span>
+                            <span
+                                class="text-[10px] bg-gray-100 text-gray-500 font-bold px-2 py-0.5 rounded-full uppercase">.CSV</span>
+                        </div>
+                        <p class="text-xs text-gray-500 leading-relaxed">Exports student information, progress, and
+                            scores (Quiz &amp; Exam) in a single spreadsheet.</p>
+                    </div>
+                </label>
+
+                {{-- Option 2: Detailed --}}
+                <label
+                    class="flex items-start gap-3 {{ (!$hasExams && !$hasQuizzes) ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer' }}"
+                    id="export-detailed-label">
+                    <input type="radio" name="export_type" value="detailed" id="export_detailed"
+                        class="w-4 h-4 mt-1 text-[#a52a2a] focus:ring-[#a52a2a] shrink-0" {{ (!$hasExams && !$hasQuizzes) ? 'disabled' : '' }} onchange="updateExportCard()">
+                    <div id="card-detailed"
+                        class="flex-1 p-3 rounded-xl border-2 border-gray-100 transition {{ (!$hasExams && !$hasQuizzes) ? '' : 'cursor-pointer' }}">
+                        <div class="flex items-center gap-2 mb-1">
+                            <i class="fas fa-file-excel text-green-600 text-sm"></i>
+                            <span class="text-sm font-bold text-gray-800">Detailed Report</span>
+                            <span
+                                class="text-[10px] bg-green-50 text-green-600 font-bold px-2 py-0.5 rounded-full uppercase">.XLSX</span>
+                        </div>
+                        @if(!$hasExams && !$hasQuizzes)
+                            <p class="text-xs text-amber-600 leading-relaxed"><i
+                                    class="fas fa-exclamation-triangle mr-1"></i>This module has no quizzes or exams.
+                                Assessments are required.</p>
+                        @else
+                            <p class="text-xs text-gray-500 leading-relaxed">Multi-sheet Excel: student summary,
+                                per-question answers with results, and question metadata.</p>
+                        @endif
+                    </div>
+                </label>
+
+            </div>
+
+            <button type="submit" onclick="setTimeout(() => closeModal('exportListModal', 'exportListBox'), 800)"
+                class="w-full py-3 bg-gray-900 text-white font-bold rounded-xl hover:bg-gray-800 transition flex justify-center items-center gap-2 shadow-lg">
+                <i class="fas fa-download"></i> Export Now
+            </button>
+        </form>
+    </div>
+</div>
+
+<script>
+    function updateExportCard() {
+        const summary = document.getElementById('export_summary');
+        const detailed = document.getElementById('export_detailed');
+        const cS = document.getElementById('card-summary');
+        const cD = document.getElementById('card-detailed');
+        if (summary.checked) {
+            cS.classList.add('border-[#a52a2a]', 'bg-red-50/40');
+            cS.classList.remove('border-gray-100');
+            cD.classList.remove('border-[#a52a2a]', 'bg-red-50/40');
+            cD.classList.add('border-gray-100');
+        } else {
+            cD.classList.add('border-[#a52a2a]', 'bg-red-50/40');
+            cD.classList.remove('border-gray-100');
+            cS.classList.remove('border-[#a52a2a]', 'bg-red-50/40');
+            cS.classList.add('border-gray-100');
+        }
+    }
+</script>
+
+{{-- 5. Import Students Modal --}}
 <div id="importStudentModal"
     class="fixed inset-0 z-[9999] hidden opacity-0 transition-opacity duration-300 flex items-center justify-center p-4">
     <div class="absolute inset-0 bg-gray-900/60 backdrop-blur-sm"
@@ -1760,6 +1939,27 @@
                 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
             },
             body: JSON.stringify({ is_shuffled: checkbox.checked })
+        })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showSnackbar(data.message, 'success');
+                } else {
+                    checkbox.checked = !checkbox.checked;
+                    showCustomAlert('Error', data.message, 'error');
+                }
+            });
+    }
+
+    // --- TOGGLE DOWNLOADABLE ---
+    window.toggleDownloadable = function (checkbox) {
+        fetch(`{{ url('/dashboard/materials/' . $material->id . '/downloadable') }}`, {
+            method: 'PATCH',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+            },
+            body: JSON.stringify({ is_downloadable: checkbox.checked })
         })
             .then(response => response.json())
             .then(data => {

@@ -334,6 +334,27 @@ class MaterialsController extends Controller
 
         $passCount = 0;
         $evaluatedCount = 0;
+        
+        // Build unified timeline to calculate accurate progress
+        $timeline = collect();
+        $lessons = DB::table('lessons')->where('material_id', $material->id)->get();
+        foreach ($lessons as $lesson) {
+            $count = DB::table('lesson_contents')->where('lesson_id', $lesson->id)->count();
+            $timeline->push((object)[
+                'items_count' => $count,
+                'timestamp' => $lesson->created_at ? \Carbon\Carbon::parse($lesson->created_at)->timestamp : 0
+            ]);
+        }
+        if ($hasExams) {
+            $examCount = DB::table('exams')->where('material_id', $material->id)->count();
+            $firstExam = DB::table('exams')->where('material_id', $material->id)->first();
+            $timeline->push((object)[
+                'items_count' => $examCount,
+                'timestamp' => $firstExam && $firstExam->created_at ? \Carbon\Carbon::parse($firstExam->created_at)->timestamp : 0
+            ]);
+        }
+        $timeline = $timeline->sortBy('timestamp')->values();
+        $totalContents = $timeline->sum('items_count');
 
         foreach ($enrollments as $enrollment) {
             $quizCorrect = $quizAnswers->get($enrollment->user_id, 0);
@@ -357,6 +378,29 @@ class MaterialsController extends Controller
                 if (round($totalScore, 2) >= $passingScore) {
                     $passCount++;
                 }
+            }
+            // Calculate true progress
+            // Calculate true progress
+            if (in_array($enrollment->status, ['completed', 'read']) || !is_null($enrollment->completed_at)) {
+                $enrollment->progress_percentage = 100;
+            } else {
+                $progressData = is_string($enrollment->progress_data) ? json_decode($enrollment->progress_data) : $enrollment->progress_data;
+                $highestUnlocked = isset($progressData->highest_unlocked) ? (int) $progressData->highest_unlocked : 0;
+                $currentContent = isset($progressData->content) ? (int) $progressData->content : 0;
+                $currentLesson = isset($progressData->lesson) ? (int) $progressData->lesson : 0;
+
+                $contentsPassed = 0;
+                for ($i = 0; $i < $highestUnlocked; $i++) {
+                    if (isset($timeline[$i])) {
+                        $contentsPassed += $timeline[$i]->items_count;
+                    }
+                }
+
+                if ($currentLesson === $highestUnlocked) {
+                    $contentsPassed += $currentContent;
+                }
+
+                $enrollment->progress_percentage = $totalContents > 0 ? min(100, round(($contentsPassed / $totalContents) * 100)) : 0;
             }
         }
 
@@ -1487,6 +1531,27 @@ class MaterialsController extends Controller
         }
     }
 
+    public function toggleDownloadable(Request $request, $id)
+    {
+        try {
+            $material = DB::table('materials')->where('id', $id)->first();
+
+            // Toggle the boolean
+            $newDownloadable = !$material->is_downloadable;
+
+            DB::table('materials')
+                ->where('id', $id)
+                ->update(['is_downloadable' => $newDownloadable, 'updated_at' => now()]);
+
+            return response()->json([
+                'success' => true,
+                'is_downloadable' => $newDownloadable,
+                'message' => 'Downloads are now ' . ($newDownloadable ? 'enabled' : 'disabled')
+            ]);
+        } catch (\Exception $e) {
+            return response()->json(['success' => false, 'message' => 'Error updating download setting: ' . $e->getMessage()], 500);
+        }
+    }
 
     public function sendIndividualInvite(Request $request, $accessId)
     {
@@ -3130,4 +3195,225 @@ class MaterialsController extends Controller
      * Bulk send invitations ONLY to pending students.
      */
 
+    public function studentResult($id, $student_id)
+    {
+        $material = Material::findOrFail($id);
+        $user = \Illuminate\Support\Facades\Auth::user();
+        if ($user->role !== 'admin' && $user->role !== 'cid' && $material->instructor_id !== $user->id) {
+            abort(403, 'Unauthorized access.');
+        }
+
+        $student = \App\Models\User::findOrFail($student_id);
+
+        $hasExams = \Illuminate\Support\Facades\DB::table('exams')->where('material_id', $material->id)->exists();
+        $quizTypes = ['mcq', 'checkbox', 'true_false', 'text'];
+        $hasQuizzes = \Illuminate\Support\Facades\DB::table('lesson_contents')
+            ->join('lessons', 'lessons.id', '=', 'lesson_contents.lesson_id')
+            ->where('lessons.material_id', $material->id)
+            ->whereIn('lesson_contents.type', $quizTypes)
+            ->exists();
+
+        $score = 0;
+        $totalQuestions = 0;
+        
+        $quizScore = 0;
+        $quizTotalQuestions = 0;
+        $examScore = 0;
+        $examTotalQuestions = 0;
+
+        $quizLessons = [];   // array of {title, items[]}
+        $examItems = [];     // flat array of items
+
+        if ($hasQuizzes) {
+            $lessons = \App\Models\Lesson::where('material_id', $material->id)->orderBy('sort_order')->get();
+            foreach ($lessons as $lesson) {
+                $quizzes = \App\Models\LessonContent::where('lesson_id', $lesson->id)
+                    ->whereIn('type', $quizTypes)
+                    ->orderBy('sort_order')->get();
+                if ($quizzes->isEmpty()) continue;
+
+                $lessonItems = [];
+
+                foreach ($quizzes as $q) {
+                    $totalQuestions++;
+                    $quizTotalQuestions++;
+                    $ans = \App\Models\QuizAnswer::where('user_id', $student->id)->where('lesson_content_id', $q->id)->first();
+                    
+                    $isCorrect = $ans ? (bool)$ans->is_correct : false;
+                    if ($isCorrect) {
+                        $score++;
+                        $quizScore++;
+                    }
+
+                    $questionObj = (object)[
+                        'type' => $q->type,
+                        'question_text' => strip_tags($q->question_text)
+                    ];
+
+                    $studentAnswerText = 'No answer provided';
+                    if ($ans) {
+                        if ($ans->text_answer) {
+                            if ($q->type === 'checkbox') {
+                                $selectedIds = array_filter(array_map('trim', explode(',', $ans->text_answer)));
+                                $opts = \App\Models\QuizOption::whereIn('id', $selectedIds)->get();
+                                $studentAnswerText = $opts->pluck('option_text')->map(fn($o) => strip_tags($o))->implode(', ');
+                            } else {
+                                $studentAnswerText = $ans->text_answer;
+                            }
+                        } elseif ($ans->quiz_option_id) {
+                            $opt = \App\Models\QuizOption::find($ans->quiz_option_id);
+                            $studentAnswerText = $opt ? strip_tags($opt->option_text) : 'Selected Option';
+                        }
+                    }
+
+                    $correctOptions = \App\Models\QuizOption::where('quiz_id', $q->id)->where('is_correct', true)->get();
+                    $correctAnswerText = $correctOptions->pluck('option_text')->map(fn($o) => strip_tags($o))->implode(', ');
+
+                    $lessonItems[] = (object) [
+                        'question' => clone $questionObj,
+                        'is_correct' => $isCorrect,
+                        'is_pending' => false,
+                        'student_answer_text' => $studentAnswerText,
+                        'correct_answer_text' => $correctAnswerText,
+                    ];
+                }
+                $quizLessons[] = (object) ['title' => $lesson->title, 'items' => $lessonItems];
+            }
+        }
+
+        if ($hasExams) {
+            $exams = \App\Models\Exam::where('material_id', $material->id)->orderBy('sort_order')->get();
+            foreach ($exams as $e) {
+                $totalQuestions++;
+                $examTotalQuestions++;
+                $ans = \App\Models\ExamAnswer::where('user_id', $student->id)->where('exam_id', $e->id)->first();
+                
+                $isCorrect = $ans ? (bool)$ans->is_correct : false;
+                if ($isCorrect) {
+                    $score++;
+                    $examScore++;
+                }
+
+                $questionObj = (object)[
+                    'type' => $e->type,
+                    'question_text' => strip_tags($e->question_text)
+                ];
+
+                $studentAnswerText = 'No answer provided';
+                if ($ans) {
+                    if ($ans->text_answer) {
+                        if ($e->type === 'checkbox') {
+                            $selectedIds = array_filter(array_map('trim', explode(',', $ans->text_answer)));
+                            $opts = \App\Models\ExamOption::whereIn('id', $selectedIds)->get();
+                            $studentAnswerText = $opts->pluck('option_text')->map(fn($o) => strip_tags($o))->implode(', ');
+                        } else {
+                            $studentAnswerText = $ans->text_answer;
+                        }
+                    } elseif ($ans->exam_option_id) {
+                        $opt = \App\Models\ExamOption::find($ans->exam_option_id);
+                        $studentAnswerText = $opt ? strip_tags($opt->option_text) : 'Selected Option';
+                    }
+                }
+
+                $correctOptions = \App\Models\ExamOption::where('exam_id', $e->id)->where('is_correct', true)->get();
+                $correctAnswerText = $correctOptions->pluck('option_text')->map(fn($o) => strip_tags($o))->implode(', ');
+
+                $examItems[] = (object) [
+                    'question' => clone $questionObj,
+                    'is_correct' => $isCorrect,
+                    'is_pending' => false,
+                    'student_answer_text' => $studentAnswerText,
+                    'correct_answer_text' => $correctAnswerText,
+                ];
+            }
+        }
+
+        $assessment = (object)[
+            'title' => $material->title,
+        ];
+
+        $quizWeight = $material->quiz_weight ?? 40;
+        $examWeight = $material->exam_weight ?? 60;
+
+        $qPct = $quizTotalQuestions > 0 ? ($quizScore / $quizTotalQuestions) * 100 : 100;
+        $ePct = $examTotalQuestions > 0 ? ($examScore / $examTotalQuestions) * 100 : 100;
+
+        if (!$hasExams && !$hasQuizzes) {
+            $finalPercentage = 0;
+        } else {
+            $finalPercentage = ($qPct * ($quizWeight / 100)) + ($ePct * ($examWeight / 100));
+        }
+
+        $finalPercentage = round($finalPercentage);
+
+        return view('dashboard.partials.student.assessmentExam.student-result', compact(
+            'assessment', 'score', 'totalQuestions', 'quizLessons', 'examItems',
+            'hasQuizzes', 'hasExams', 'student', 'material', 'finalPercentage',
+            'quizScore', 'quizTotalQuestions', 'examScore', 'examTotalQuestions',
+            'quizWeight', 'examWeight'
+        ));
+    }
+
+    public function exportStudents(Request $request, $id)
+    {
+        $material = Material::findOrFail($id);
+        $user = \Illuminate\Support\Facades\Auth::user();
+        if ($user->role !== 'admin' && $user->role !== 'cid' && $material->instructor_id !== $user->id) {
+            abort(403, 'Unauthorized access.');
+        }
+
+        $exportType = $request->input('export_type', 'info');
+        $singleStudentId = $request->input('student_id');
+
+        $hasExams = \Illuminate\Support\Facades\DB::table('exams')->where('material_id', $material->id)->exists();
+        $quizTypes = ['mcq', 'checkbox', 'true_false', 'text'];
+        $hasQuizzes = \Illuminate\Support\Facades\DB::table('lesson_contents')
+            ->join('lessons', 'lessons.id', '=', 'lesson_contents.lesson_id')
+            ->where('lessons.material_id', $material->id)
+            ->whereIn('lesson_contents.type', $quizTypes)
+            ->exists();
+
+        $exportType = $request->input('export_type', 'summary'); // summary | detailed
+        $service    = new \App\Services\MaterialExportService();
+
+        if ($exportType === 'detailed') {
+            if (!$hasExams && !$hasQuizzes) {
+                abort(400, 'No assessments found for detailed export.');
+            }
+
+            $spreadsheet = $service->exportDetailedAsExcel($material);
+            $filename    = 'detailed_report_' . date('Ymd_His') . '.xlsx';
+
+            $writer = new \PhpOffice\PhpSpreadsheet\Writer\Xlsx($spreadsheet);
+
+            return response()->streamDownload(function () use ($writer) {
+                $writer->save('php://output');
+            }, $filename, [
+                'Content-Type'        => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                'Cache-Control'       => 'no-cache, no-store, must-revalidate',
+                'Pragma'              => 'no-cache',
+                'Expires'             => '0',
+                'Content-Disposition' => 'attachment; filename="' . $filename . '"',
+            ]);
+        }
+
+        // --- Summary (CSV) ---
+        $data     = $service->exportSummaryAsCsv($material);
+        $filename = 'summary_report_' . date('Ymd_His') . '.csv';
+
+        return response()->streamDownload(function () use ($data) {
+            $file = fopen('php://output', 'w');
+            fputs($file, chr(0xEF) . chr(0xBB) . chr(0xBF)); // BOM
+            fputcsv($file, $data['headers']);
+            foreach ($data['rows'] as $row) {
+                fputcsv($file, $row);
+            }
+            fclose($file);
+        }, $filename, [
+            'Content-Type'  => 'text/csv; charset=UTF-8',
+            'Cache-Control' => 'no-cache, no-store, must-revalidate',
+            'Pragma'        => 'no-cache',
+            'Expires'       => '0',
+        ]);
+    }
 }

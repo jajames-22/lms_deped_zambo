@@ -619,17 +619,18 @@
                         class="fas fa-times"></i></button>
             </div>
 
+            <div class="bg-white p-4 border-b border-gray-200 shadow-sm text-center shrink-0 z-10">
+                <p class="text-xs font-bold text-gray-500 uppercase tracking-widest mb-1">Total Score</p>
+                <div class="text-3xl font-black text-gray-300 transition-colors duration-300"
+                    id="live-score-display">0%</div>
+                <div id="score-status-badge"
+                    class="mt-2 inline-block px-3 py-1 rounded text-[10px] font-black uppercase tracking-widest bg-gray-100 text-gray-400">
+                    Pending Evaluation</div>
+            </div>
+
             <div class="flex-1 overflow-y-auto sidebar-scroll p-4 bg-gray-50 border-l border-gray-200">
 
-                {{-- SCORE DISPLAY --}}
-                <div class="bg-white p-4 rounded-xl border border-gray-200 shadow-sm text-center mb-6">
-                    <p class="text-xs font-bold text-gray-500 uppercase tracking-widest mb-1">Total Score</p>
-                    <div class="text-3xl font-black text-gray-300 transition-colors duration-300"
-                        id="live-score-display">0%</div>
-                    <div id="score-status-badge"
-                        class="mt-2 inline-block px-3 py-1 rounded text-[10px] font-black uppercase tracking-widest bg-gray-100 text-gray-400">
-                        Pending Evaluation</div>
-                </div>
+
 
                 {{-- CLEANER RATING GUIDE --}}
                 <div class="bg-white p-3 rounded-xl border border-gray-200 shadow-sm mb-6">

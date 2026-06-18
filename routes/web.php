@@ -154,6 +154,8 @@ Route::middleware(['auth', 'verified', CheckAccountStatus::class])->group(functi
         Route::get('/materials/{hashid}/evaluation-result', [MaterialsController::class, 'evaluationResult'])->name('dashboard.materials.evaluation-result');
         Route::get('/materials/{id}/analytics', [MaterialsController::class, 'analytics'])->name('dashboard.materials.analytics');
         Route::get('/materials/{id}/report', [MaterialsController::class, 'exportMaterialAnalyticsPdf'])->name('dashboard.materials.report');
+        Route::get('/materials/{id}/export-students', [MaterialsController::class, 'exportStudents'])->name('dashboard.materials.export-students');
+        Route::get('/materials/{id}/student-result/{student_id}', [MaterialsController::class, 'studentResult'])->name('dashboard.materials.student-result');
 
         Route::patch('/materials/{material}/toggle-featured', [MaterialsController::class, 'toggleFeatured'])->name('dashboard.materials.toggle-featured');
         Route::post('/materials/{material}/tags', [MaterialsController::class, 'addTag'])->name('dashboard.materials.tags.add');
@@ -166,6 +168,7 @@ Route::middleware(['auth', 'verified', CheckAccountStatus::class])->group(functi
         Route::patch('/materials/{id}/status', [MaterialsController::class, 'toggleStatus'])->name('dashboard.materials.status');
         Route::patch('/materials/{id}/visibility', [MaterialsController::class, 'toggleVisibility'])->name('dashboard.materials.visibility');
         Route::patch('/materials/{id}/shuffle', [MaterialsController::class, 'toggleShuffle'])->name('dashboard.materials.shuffle');
+        Route::patch('/materials/{id}/downloadable', [MaterialsController::class, 'toggleDownloadable'])->name('dashboard.materials.downloadable');
         Route::post('/materials/{id}/grading', [MaterialsController::class, 'updateGrading'])->name('dashboard.materials.grading');
 
         // Access Management Routes
