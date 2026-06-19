@@ -228,13 +228,35 @@ class StudentEnrollmentController extends Controller
         $url = route('student.materials.achieved', ['hashid' => $hashid]);
         $qrCode = base64_encode(QrCode::format('svg')->size(100)->generate($url));
 
+        $duration = '';
+        if ($enrollment->calculated_time > 0) {
+            $totalSeconds = $enrollment->calculated_time;
+            $hours = intdiv($totalSeconds, 3600);
+            $minutes = intdiv($totalSeconds % 3600, 60);
+            $seconds = $totalSeconds % 60;
+
+            $durationParts = [];
+            if ($hours > 0) {
+                $durationParts[] = $hours . ' hour' . ($hours > 1 ? 's' : '');
+            }
+            if ($minutes > 0) {
+                $durationParts[] = $minutes . ' min' . ($minutes > 1 ? 's' : '');
+            }
+            if ($seconds > 0 || empty($durationParts)) {
+                $durationParts[] = $seconds . ' sec' . ($seconds > 1 ? 's' : '');
+            }
+
+            $duration = implode(' ', $durationParts);
+        }
+
         $data = [
             'studentName' => $enrollment->user->first_name . ' ' . $enrollment->user->last_name,
             'courseName' => $enrollment->material->title,
             'instructorName' => $enrollment->material->instructor->first_name . ' ' . $enrollment->material->instructor->last_name,
             'date' => $enrollment->completed_at ? $enrollment->completed_at->format('F j, Y') : $enrollment->updated_at->format('F j, Y'),
             'certificateId' => 'CERT-' . str_pad($enrollment->id, 6, '0', STR_PAD_LEFT),
-            'qrCode' => $qrCode
+            'qrCode' => $qrCode,
+            'duration' => $duration
         ];
 
         $pdf = Pdf::loadView('dashboard.partials.student.certificate-template', $data)
@@ -301,13 +323,35 @@ class StudentEnrollmentController extends Controller
         $url = route('student.materials.achieved', ['hashid' => $hashid]);
         $qrCode = base64_encode(QrCode::format('svg')->size(100)->generate($url));
 
+        $duration = '';
+        if ($enrollment->calculated_time > 0) {
+            $totalSeconds = $enrollment->calculated_time;
+            $hours = intdiv($totalSeconds, 3600);
+            $minutes = intdiv($totalSeconds % 3600, 60);
+            $seconds = $totalSeconds % 60;
+
+            $durationParts = [];
+            if ($hours > 0) {
+                $durationParts[] = $hours . ' hour' . ($hours > 1 ? 's' : '');
+            }
+            if ($minutes > 0) {
+                $durationParts[] = $minutes . ' min' . ($minutes > 1 ? 's' : '');
+            }
+            if ($seconds > 0 || empty($durationParts)) {
+                $durationParts[] = $seconds . ' sec' . ($seconds > 1 ? 's' : '');
+            }
+
+            $duration = implode(' ', $durationParts);
+        }
+
         $data = [
             'studentName' => $enrollment->user->first_name . ' ' . $enrollment->user->last_name,
             'courseName' => $enrollment->material->title,
             'instructorName' => $enrollment->material->instructor->first_name . ' ' . $enrollment->material->instructor->last_name,
             'date' => $enrollment->completed_at ? $enrollment->completed_at->format('F j, Y') : $enrollment->updated_at->format('F j, Y'),
             'certificateId' => 'CERT-' . str_pad($enrollment->id, 6, '0', STR_PAD_LEFT),
-            'qrCode' => $qrCode
+            'qrCode' => $qrCode,
+            'duration' => $duration
         ];
 
         // 4. Return the view directly to the browser

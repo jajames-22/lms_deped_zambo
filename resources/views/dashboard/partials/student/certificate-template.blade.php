@@ -127,7 +127,12 @@
 
                 <div class="course-label">for successfully completing the learning module</div>
 
-                <div class="course-name">"{{ $courseName }}"</div>
+                <div class="course-name" style="margin-bottom: 5px;">"{{ $courseName }}"</div>
+                @if(isset($duration) && $duration)
+                    <div style="color: #555; font-size: 18px; font-style: italic; margin-bottom: 20px;">Completed in {{ $duration }}</div>
+                @else
+                    <div style="margin-bottom: 30px;"></div>
+                @endif
 
         <table class="footer-table">
             <tr>

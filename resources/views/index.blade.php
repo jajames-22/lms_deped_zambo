@@ -22,9 +22,10 @@
             font-family: 'Cinzel', serif;
         }
     </style>
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
 </head>
 
-<body class="bg-gray-50 text-gray-800 font-sans selection:bg-red-900 selection:text-white">
+<body class="bg-gray-50 text-gray-800 font-sans selection:bg-red-900 selection:text-white" x-data="{ sidebarOpen: false, infoModalOpen: false }">
     {{-- Responsive Header --}}
         <header class="bg-[#a52a2a] text-white flex justify-center shadow-lg fixed top-0 z-50 w-full no-print">
             <div class="px-4 py-3 md:px-8 md:py-6 max-w-[1200px] w-full">
@@ -453,13 +454,102 @@
         </div>
         <div
             class="w-full mx-auto border-t border-gray-800 pt-8 flex flex-col md:flex-row justify-between items-center text-sm">
-            <p>&copy; {{ date('Y') }} Department of Education - Zamboanga City. All rights reserved.</p>
-            <div class="mt-4 md:mt-0 flex space-x-4">
+            <p>&copy; {{ date('Y') }} Western Mindanao State University. All rights reserved.</p>
+            <div class="mt-4 md:mt-0 flex items-center space-x-4">
+                <button type="button" @click="infoModalOpen = true" class="hover:text-white text-gray-400 transition-colors focus:outline-none" title="Developer Information">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                    </svg>
+                </button>
                 <a href="#" class="hover:text-white transition-colors">Privacy Policy</a>
                 <a href="#" class="hover:text-white transition-colors">Terms of Service</a>
             </div>
         </div>
     </footer>
+
+    {{-- Information Modal --}}
+    <div x-show="infoModalOpen" style="display: none;" class="relative z-[100]" aria-labelledby="modal-title" role="dialog" aria-modal="true">
+        
+        {{-- Backdrop --}}
+        <div x-show="infoModalOpen"
+             x-transition:enter="ease-out duration-300"
+             x-transition:enter-start="opacity-0"
+             x-transition:enter-end="opacity-100"
+             x-transition:leave="ease-in duration-200"
+             x-transition:leave-start="opacity-100"
+             x-transition:leave-end="opacity-0"
+             class="fixed inset-0 bg-black/60 backdrop-blur-sm transition-opacity"></div>
+
+        <div class="fixed inset-0 z-10 w-screen overflow-y-auto">
+            <div class="flex min-h-full items-center justify-center p-4 text-center sm:p-0">
+                
+                {{-- Modal Panel --}}
+                <div x-show="infoModalOpen"
+                     x-transition:enter="ease-out duration-300"
+                     x-transition:enter-start="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95"
+                     x-transition:enter-end="opacity-100 translate-y-0 sm:scale-100"
+                     x-transition:leave="ease-in duration-200"
+                     x-transition:leave-start="opacity-100 translate-y-0 sm:scale-100"
+                     x-transition:leave-end="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95"
+                     @click.away="infoModalOpen = false"
+                     class="relative transform overflow-hidden bg-white rounded-2xl shadow-2xl max-w-lg w-full border border-gray-100 text-left transition-all">
+            
+            {{-- Header --}}
+            <div class="bg-red-900 px-6 py-4 flex justify-between items-center text-white">
+                <h3 class="text-xl font-bold tracking-wide">About the Developer</h3>
+                <button @click="infoModalOpen = false" class="text-white hover:text-red-200 transition-colors rounded-full p-1 focus:outline-none">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                </button>
+            </div>
+            
+            {{-- Content --}}
+            <div class="p-6 text-gray-700">
+                <div class="space-y-4">
+                    <div class="flex items-start">
+                        <div class="bg-red-50 p-2 rounded-lg mr-4 flex-shrink-0 text-red-800">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path></svg>
+                        </div>
+                        <div>
+                            <p class="font-bold text-gray-900 text-lg">Sir Salimar B. Tahil MEnggED</p>
+                            <p class="text-sm text-gray-500 font-medium">Project Manager</p>
+                        </div>
+                    </div>
+                    
+                    <div class="flex items-start">
+                        <div class="bg-blue-50 p-2 rounded-lg mr-4 flex-shrink-0 text-blue-800">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"></path></svg>
+                        </div>
+                        <div>
+                            <p class="font-bold text-gray-900 text-lg">Graziella Marife S. Saavedra</p>
+                            <p class="font-bold text-gray-900 text-lg mt-1">James Benedict A. Rojas</p>
+                            <p class="text-sm text-gray-500 font-medium mt-1">Systems Developers</p>
+                        </div>
+                    </div>
+                    
+                    <div class="flex items-start">
+                        <div class="bg-green-50 p-2 rounded-lg mr-4 flex-shrink-0 text-green-800">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"></path></svg>
+                        </div>
+                        <div>
+                            <p class="font-bold text-gray-900 text-lg">Genevieve G. Kulong</p>
+                            <p class="text-sm text-gray-500 font-medium">Project Adviser</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            {{-- Footer --}}
+            <div class="bg-gray-50 px-6 py-4 flex justify-end rounded-b-2xl">
+                <button @click="infoModalOpen = false" class="px-5 py-2 bg-gray-200 hover:bg-gray-300 text-gray-800 font-semibold rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-gray-400 focus:ring-opacity-50">
+                    Close
+                </button>
+            </div>
+        </div>
+            </div>
+        </div>
+    </div>
 </body>
 
 </html>

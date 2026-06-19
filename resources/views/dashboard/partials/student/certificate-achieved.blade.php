@@ -123,7 +123,32 @@
 
                         <p class="text-gray-500 text-[20px] mb-4">for successfully completing the learning module</p>
 
-                        <h4 class="text-[34px] font-bold text-[#a52a2a] mb-12">"{{ $enrollment->material->title }}"</h4>
+                        <h4 class="text-[34px] font-bold text-[#a52a2a] mb-2">"{{ $enrollment->material->title }}"</h4>
+                        
+                        @if($enrollment->calculated_time > 0)
+                            @php
+                                $totalSeconds = $enrollment->calculated_time;
+                                $hours = intdiv($totalSeconds, 3600);
+                                $minutes = intdiv($totalSeconds % 3600, 60);
+                                $seconds = $totalSeconds % 60;
+                                
+                                $durationParts = [];
+                                if ($hours > 0) {
+                                    $durationParts[] = $hours . ' hr' . ($hours > 1 ? 's' : '');
+                                }
+                                if ($minutes > 0) {
+                                    $durationParts[] = $minutes . ' min' . ($minutes > 1 ? 's' : '');
+                                }
+                                if ($seconds > 0 || empty($durationParts)) {
+                                    $durationParts[] = $seconds . ' sec' . ($seconds > 1 ? 's' : '');
+                                }
+                                
+                                $duration = implode(' ', $durationParts);
+                            @endphp
+                            <p class="text-gray-500 text-[18px] mb-8 italic">Completed in {{ $duration }}</p>
+                        @else
+                            <div class="mb-12"></div>
+                        @endif
 
                         {{-- Footer Table (Matches PDF) --}}
                         <table class="w-full text-center mt-auto border-collapse">
