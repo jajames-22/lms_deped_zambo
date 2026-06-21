@@ -4,13 +4,13 @@
 @php
     $isEdit = isset($template);
     $defaultElements = [
-        ['id' => 'student_name',    'label' => 'Student Name',       'x' => 10,  'y' => 35,  'fontSize' => 48, 'fontWeight' => 'bold',   'color' => '#222222', 'align' => 'center'],
-        ['id' => 'course_name',     'label' => 'Module / Course',    'x' => 10,  'y' => 52,  'fontSize' => 34, 'fontWeight' => 'bold',   'color' => '#a52a2a', 'align' => 'center'],
-        ['id' => 'duration',        'label' => 'Completion Time',    'x' => 10,  'y' => 63,  'fontSize' => 18, 'fontWeight' => 'normal', 'color' => '#555555', 'align' => 'center'],
-        ['id' => 'instructor_name', 'label' => 'Instructor Name',    'x' => 5,   'y' => 80,  'fontSize' => 20, 'fontWeight' => 'bold',   'color' => '#222222', 'align' => 'center'],
-        ['id' => 'date',            'label' => 'Date of Completion', 'x' => 65,  'y' => 80,  'fontSize' => 20, 'fontWeight' => 'bold',   'color' => '#222222', 'align' => 'center'],
+        ['id' => 'student_name',    'label' => 'Student Name',       'x' => 50,  'y' => 35,  'fontSize' => 48, 'fontWeight' => 'bold',   'color' => '#222222', 'align' => 'center'],
+        ['id' => 'course_name',     'label' => 'Module / Course',    'x' => 50,  'y' => 52,  'fontSize' => 34, 'fontWeight' => 'bold',   'color' => '#a52a2a', 'align' => 'center'],
+        ['id' => 'duration',        'label' => 'Completion Time',    'x' => 50,  'y' => 63,  'fontSize' => 18, 'fontWeight' => 'normal', 'color' => '#555555', 'align' => 'center'],
+        ['id' => 'instructor_name', 'label' => 'Instructor Name',    'x' => 25,  'y' => 80,  'fontSize' => 20, 'fontWeight' => 'bold',   'color' => '#222222', 'align' => 'center'],
+        ['id' => 'date',            'label' => 'Date of Completion', 'x' => 75,  'y' => 80,  'fontSize' => 20, 'fontWeight' => 'bold',   'color' => '#222222', 'align' => 'center'],
         ['id' => 'certificate_id',  'label' => 'Certificate ID',     'x' => 70,  'y' => 93,  'fontSize' => 11, 'fontWeight' => 'normal', 'color' => '#888888', 'align' => 'left'],
-        ['id' => 'qr_code',         'label' => 'QR Code',            'x' => 44,  'y' => 74,  'fontSize' => 0,  'fontWeight' => 'normal', 'color' => '#000000', 'align' => 'center', 'size' => 110],
+        ['id' => 'qr_code',         'label' => 'QR Code',            'x' => 50,  'y' => 74,  'fontSize' => 0,  'fontWeight' => 'normal', 'color' => '#000000', 'align' => 'center', 'size' => 110],
     ];
     $initialElements = $isEdit && $template->elements ? $template->elements : $defaultElements;
 @endphp
@@ -30,7 +30,7 @@
     {{-- HEADER --}}
     <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
         <div class="flex items-center gap-3">
-            <button onclick="loadPartial('{{ route('dashboard.cert-templates.index') }}', document.getElementById('nav-certificates-btn'))"
+            <button onclick="handleBackClick()"
                 class="w-9 h-9 flex items-center justify-center rounded-xl bg-gray-100 text-gray-600 hover:bg-gray-200 transition">
                 <i class="fas fa-arrow-left text-sm"></i>
             </button>
@@ -53,6 +53,37 @@
         <span id="editor-toast-msg"></span>
     </div>
 
+    {{-- UNSAVED CHANGES MODAL --}}
+    <div id="unsaved-modal" class="fixed inset-0 z-[9999] hidden flex items-center justify-center">
+        <!-- Backdrop -->
+        <div id="unsaved-backdrop" class="absolute inset-0 bg-black/50 backdrop-blur-sm opacity-0 transition-opacity duration-300"></div>
+        
+        <!-- Modal Panel -->
+        <div id="unsaved-panel" class="relative bg-white rounded-2xl shadow-2xl max-w-sm w-full p-6 text-center transform scale-95 opacity-0 transition-all duration-300">
+            <div class="w-16 h-16 bg-amber-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <i class="fas fa-exclamation-triangle text-2xl text-amber-600"></i>
+            </div>
+            <h3 class="text-xl font-bold text-gray-900 mb-2">Unsaved Changes</h3>
+            <p class="text-sm text-gray-500 mb-6">You have unsaved changes. Are you sure you want to discard them?</p>
+            <div class="flex gap-3 w-full">
+                <button onclick="closeUnsavedModal()" class="flex-1 px-4 py-2 bg-gray-100 text-gray-700 font-bold rounded-xl hover:bg-gray-200 transition">Cancel</button>
+                <button onclick="goBack()" class="flex-1 px-4 py-2 bg-amber-600 text-white font-bold rounded-xl hover:bg-amber-700 transition shadow-lg shadow-amber-600/20">Discard</button>
+            </div>
+        </div>
+    </div>
+
+    {{-- RENDER WARNING TOAST --}}
+    <div id="render-warning-toast" class="fixed bottom-6 right-6 z-[9998] bg-white border-l-4 border-amber-500 shadow-xl rounded-xl p-4 max-w-sm flex gap-3 animate-float-in transition-all duration-300 transform">
+        <i class="fas fa-info-circle text-amber-500 text-xl mt-0.5"></i>
+        <div>
+            <h4 class="text-sm font-bold text-gray-800">Missing Elements?</h4>
+            <p class="text-xs text-gray-600 mt-1">If you don't see the draggable fields, please click the reload button <i class="fas fa-redo-alt mx-1 text-gray-800"></i> on your browser or <button onclick="location.reload()" class="text-[#a52a2a] hover:underline font-bold">reload this page</button>.</p>
+        </div>
+        <button onclick="dismissWarningToast(this)" class="absolute top-2 right-2 text-gray-400 hover:text-gray-600">
+            <i class="fas fa-times"></i>
+        </button>
+    </div>
+
     <div class="flex flex-col xl:flex-row gap-6">
 
         {{-- LEFT — Controls --}}
@@ -62,7 +93,8 @@
             <div class="bg-white rounded-2xl border border-gray-200 p-5 shadow-sm">
                 <label class="block text-xs font-black text-gray-700 uppercase tracking-wider mb-2">Template Name</label>
                 <input id="tpl-name" type="text" value="{{ $isEdit ? $template->name : '' }}" placeholder="e.g. 2025 Design"
-                    class="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-[#a52a2a]/30 focus:border-[#a52a2a] outline-none">
+                    class="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-[#a52a2a]/30 focus:border-[#a52a2a] outline-none"
+                    oninput="markChanged()">
             </div>
 
             {{-- Background Image --}}
@@ -165,7 +197,7 @@
 
                 {{-- Outer scaler — makes the fixed 1122px canvas fit any screen --}}
                 <div id="canvas-scaler" class="w-full overflow-hidden rounded-xl border border-gray-300 shadow-inner">
-                    <div id="cert-canvas" style="width:1122px; height:794px; background:#fff;">
+                    <div id="cert-canvas" style="width:1122px; height:794px; background:#fff; position:relative;">
                         <img id="canvas-bg" 
                              src="{{ ($isEdit && $template->background_image) ? asset('storage/' . $template->background_image) : '' }}" 
                              alt="" 
@@ -183,31 +215,100 @@
 
 <script>
 // ─── STATE ────────────────────────────────────────────────────────────────────
-const CANVAS_W = 1122, CANVAS_H = 794;
-const CSRF = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
-const isEdit = {{ $isEdit ? 'true' : 'false' }};
-const editId  = {{ $isEdit ? $template->id : 'null' }};
+var CANVAS_W = 1122, CANVAS_H = 794;
+var CSRF = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+var isEdit = {{ $isEdit ? 'true' : 'false' }};
+var editId = {{ $isEdit ? $template->id : 'null' }};
 
-let elements = @json($initialElements);
-let selectedId = null;
+var elements = @json($initialElements);
+var selectedId = null;
+var hasChanges = false;
+
+function markChanged() { hasChanges = true; }
+
+function openUnsavedModal() {
+    const modal = document.getElementById('unsaved-modal');
+    const backdrop = document.getElementById('unsaved-backdrop');
+    const panel = document.getElementById('unsaved-panel');
+    
+    modal.classList.remove('hidden');
+    // Force browser reflow to allow transition from display:none
+    void modal.offsetWidth;
+    
+    backdrop.classList.remove('opacity-0');
+    backdrop.classList.add('opacity-100');
+    panel.classList.remove('scale-95', 'opacity-0');
+    panel.classList.add('scale-100', 'opacity-100');
+}
+
+function closeUnsavedModal() {
+    const modal = document.getElementById('unsaved-modal');
+    const backdrop = document.getElementById('unsaved-backdrop');
+    const panel = document.getElementById('unsaved-panel');
+    
+    backdrop.classList.remove('opacity-100');
+    backdrop.classList.add('opacity-0');
+    panel.classList.remove('scale-100', 'opacity-100');
+    panel.classList.add('scale-95', 'opacity-0');
+    
+    setTimeout(() => {
+        modal.classList.add('hidden');
+    }, 300);
+}
+
+function dismissWarningToast(btn) {
+    const toast = btn.closest('#render-warning-toast');
+    if (!toast) return;
+    
+    // Remove the entrance animation class so it doesn't override the exit transform
+    toast.classList.remove('animate-float-in');
+    
+    // Force a browser reflow so it registers the removed animation before transitioning
+    void toast.offsetWidth;
+    
+    // Apply exit transitions
+    toast.classList.add('opacity-0', 'translate-x-8');
+    
+    setTimeout(() => toast.remove(), 300);
+}
+
+function handleBackClick() {
+    if (hasChanges) {
+        openUnsavedModal();
+    } else {
+        goBack();
+    }
+}
+
+function goBack() {
+    loadPartial('{{ route('dashboard.cert-templates.index') }}', document.getElementById('nav-certificates-btn'));
+}
 
 // ─── CANVAS SCALE ─────────────────────────────────────────────────────────────
+// Uses a polling approach to handle partial/SPA injection where clientWidth
+// may still be 0 when the script first executes.
 function applyScale() {
-    const scaler  = document.getElementById('canvas-scaler');
-    const canvas  = document.getElementById('cert-canvas');
-    const available = scaler.clientWidth;
-    const scale   = available / CANVAS_W;
+    var scaler = document.getElementById('canvas-scaler');
+    var canvas = document.getElementById('cert-canvas');
+    if (!scaler || !canvas) return;
+    var available = scaler.clientWidth;
+    if (!available) return; // will be called again by ResizeObserver / resize event
+    var scale = available / CANVAS_W;
     canvas.style.transform       = `scale(${scale})`;
     canvas.style.transformOrigin = 'top left';
     scaler.style.height          = Math.round(CANVAS_H * scale) + 'px';
 }
-window.addEventListener('resize', applyScale);
-applyScale();
-setTimeout(applyScale, 200);
+
+if (window.certResizeListener) {
+    window.removeEventListener('resize', window.certResizeListener);
+}
+window.certResizeListener = applyScale;
+window.addEventListener('resize', window.certResizeListener);
 
 // ─── RENDER ───────────────────────────────────────────────────────────────────
 function renderAll() {
     const canvas = document.getElementById('cert-canvas');
+    if (!canvas) return;
     // Remove old elements (keep bg img)
     canvas.querySelectorAll('.cert-elem').forEach(el => el.remove());
 
@@ -223,28 +324,28 @@ function renderAll() {
         handle.textContent = el.label;
         div.appendChild(handle);
 
-            // Apply alignment
-            if (el.align === 'center') {
-                div.style.transform = 'translateX(-50%)';
-            } else if (el.align === 'right') {
-                div.style.transform = 'translateX(-100%)';
-            } else {
-                div.style.transform = 'none';
-            }
+        // Apply alignment
+        if (el.align === 'center') {
+            div.style.transform = 'translateX(-50%)';
+        } else if (el.align === 'right') {
+            div.style.transform = 'translateX(-100%)';
+        } else {
+            div.style.transform = 'none';
+        }
 
-            if (el.id === 'qr_code') {
-                const qrImg = document.createElement('div');
-                qrImg.style.cssText = `width:${el.size || 110}px;height:${el.size || 110}px;background:#f3f4f6;border:2px dashed #ccc;border-radius:8px;display:flex;align-items:center;justify-content:center;color:#aaa;font-size:11px;font-weight:bold;`;
-                qrImg.textContent = 'QR Code';
-                div.appendChild(qrImg);
-            } else {
-                const span = document.createElement('span');
-                span.style.fontSize   = (el.fontSize || 16) + 'px';
-                span.style.fontWeight = el.fontWeight || 'normal';
-                span.style.color      = el.color || '#222';
-                span.textContent      = el.label;
-                div.appendChild(span);
-            }
+        if (el.id === 'qr_code') {
+            const qrImg = document.createElement('div');
+            qrImg.style.cssText = `width:${el.size || 110}px;height:${el.size || 110}px;background:#f3f4f6;border:2px dashed #ccc;border-radius:8px;display:flex;align-items:center;justify-content:center;color:#aaa;font-size:11px;font-weight:bold;`;
+            qrImg.textContent = 'QR Code';
+            div.appendChild(qrImg);
+        } else {
+            const span = document.createElement('span');
+            span.style.fontSize   = (el.fontSize || 16) + 'px';
+            span.style.fontWeight = el.fontWeight || 'normal';
+            span.style.color      = el.color || '#222';
+            span.textContent      = el.label;
+            div.appendChild(span);
+        }
 
         makeDraggable(div, el.id);
         div.addEventListener('click', (e) => { e.stopPropagation(); selectElement(el.id); });
@@ -281,6 +382,7 @@ function makeDraggable(div, id) {
         div.style.cursor = 'grabbing';
 
         function onMove(ev) {
+            markChanged();
             const dx = (ev.clientX - startX) / scale;
             const dy = (ev.clientY - startY) / scale;
             const newLeft = Math.min(Math.max(0, origLeft + dx), CANVAS_W - 10);
@@ -305,7 +407,7 @@ function makeDraggable(div, id) {
 // ─── SELECT ───────────────────────────────────────────────────────────────────
 function selectElement(id) {
     selectedId = id;
-    
+
     // Visually update the canvas elements without recreating them
     document.querySelectorAll('.cert-elem').forEach(el => {
         el.classList.toggle('selected', el.id === 'elem-' + id);
@@ -328,7 +430,7 @@ function selectElement(id) {
     document.getElementById('prop-font-size').value = el.fontSize || 16;
     document.getElementById('prop-color').value     = el.color || '#222222';
     document.getElementById('prop-weight').value    = el.fontWeight || 'normal';
-    
+
     const pAlign = document.getElementById('prop-align');
     if (pAlign) pAlign.value = el.align || 'left';
 
@@ -358,6 +460,7 @@ document.addEventListener('click', e => {
 // ─── UPDATE PROP ──────────────────────────────────────────────────────────────
 function updateSelectedProp(prop, value) {
     if (!selectedId) return;
+    markChanged();
     const el = elements.find(e => e.id === selectedId);
     if (el) { el[prop] = value; renderAll(); }
 }
@@ -366,6 +469,7 @@ function updateSelectedProp(prop, value) {
 function onBgImageChange(input) {
     const file = input.files[0];
     if (!file) return;
+    markChanged();
     document.getElementById('bg-file-label').textContent = file.name;
     const reader = new FileReader();
     reader.onload = e => {
@@ -378,6 +482,7 @@ function onBgImageChange(input) {
 
 // ─── RESET ────────────────────────────────────────────────────────────────────
 function resetElements() {
+    markChanged();
     elements = @json($defaultElements);
     selectedId = null;
     renderAll();
@@ -402,8 +507,15 @@ async function saveTemplate() {
         formData.append('background_image', fileInput.files[0]);
     }
 
-    const url    = isEdit ? `/dashboard/certificate-templates/${editId}` : '/dashboard/certificate-templates';
-    const method = isEdit ? 'POST' : 'POST';   // Both use POST; controller differentiates by route
+    const url    = isEdit
+        ? `/dashboard/certificate-templates/${editId}`
+        : '/dashboard/certificate-templates';
+    // Both create and update use POST (update route in web.php is also POST)
+    const method = 'POST';
+
+    if (isEdit) {
+        formData.append('_method', 'POST'); // no spoofing needed, route is POST
+    }
 
     try {
         const resp = await fetch(url, {
@@ -412,14 +524,14 @@ async function saveTemplate() {
             body: formData
         });
         const data = await resp.json();
-        
+
         if (resp.ok && data.success) {
+            hasChanges = false;
             showEditorToast(data.message, true);
-            setTimeout(() => loadPartial('{{ route('dashboard.cert-templates.index') }}', document.getElementById('nav-certificates-btn')), 1200);
+            setTimeout(() => goBack(), 1200);
         } else {
             let errorMsg = data.message || 'Error saving template.';
             if (data.errors) {
-                // Get the first validation error
                 const firstError = Object.values(data.errors)[0][0];
                 errorMsg = firstError;
             }
@@ -437,18 +549,50 @@ function showEditorToast(message, success = true) {
     const t = document.getElementById('editor-toast');
     document.getElementById('editor-toast-msg').textContent = message;
     document.getElementById('editor-toast-icon').className  = `fas ${success ? 'fa-check-circle' : 'fa-exclamation-circle'} text-lg`;
-    
-    // Clear previous color classes
+
     t.classList.remove('bg-green-600', 'bg-[#a52a2a]', 'bg-gray-900');
     t.classList.add(success ? 'bg-green-600' : 'bg-[#a52a2a]');
-    
     t.classList.remove('translate-y-24', 'opacity-0');
-    
+
     setTimeout(() => {
         t.classList.add('translate-y-24', 'opacity-0');
     }, 3500);
 }
 
 // ─── INIT ─────────────────────────────────────────────────────────────────────
-renderAll();
+// Use setInterval polling because this script is re-injected synchronously by
+// loadPartial() before the browser has had a chance to compute flex layout.
+// requestAnimationFrame is not sufficient here — it fires in the same task queue.
+(function() {
+    // Clear any previous poll that may still be running from a prior partial load
+    if (window._certInitPoll) clearInterval(window._certInitPoll);
+
+    var attempts = 0;
+    window._certInitPoll = setInterval(function() {
+        attempts++;
+        var scaler = document.getElementById('canvas-scaler');
+
+        // Stop if DOM was removed (navigated away) or we've waited too long (3s)
+        if (!scaler || attempts > 150) {
+            clearInterval(window._certInitPoll);
+            return;
+        }
+
+        // Must use clientWidth because offsetWidth includes borders and would 
+        // return 2px even before layout is fully computed.
+        var w = scaler.clientWidth;
+        if (w > 0) {
+            clearInterval(window._certInitPoll);
+
+            applyScale();
+            renderAll();
+
+            if (window._certRObs) window._certRObs.disconnect();
+            if (window.ResizeObserver) {
+                window._certRObs = new ResizeObserver(function() { applyScale(); });
+                window._certRObs.observe(scaler);
+            }
+        }
+    }, 20);
+})();
 </script>

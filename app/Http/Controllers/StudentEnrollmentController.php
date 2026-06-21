@@ -256,7 +256,8 @@ class StudentEnrollmentController extends Controller
             'date' => $enrollment->completed_at ? $enrollment->completed_at->format('F j, Y') : $enrollment->updated_at->format('F j, Y'),
             'certificateId' => 'CERT-' . str_pad($enrollment->id, 6, '0', STR_PAD_LEFT),
             'qrCode' => $qrCode,
-            'duration' => $duration
+            'duration' => $duration,
+            'activeTemplate' => \App\Models\CertificateTemplate::getActive()
         ];
 
         $pdf = Pdf::loadView('dashboard.partials.student.certificate-template', $data)
@@ -282,8 +283,8 @@ class StudentEnrollmentController extends Controller
             abort(403, 'This certificate is not valid or incomplete.');
         }
 
-        // You MUST include 'hashid' here
-        return view('dashboard.partials.student.certificate-achieved', compact('enrollment', 'hashid'));
+        $activeTemplate = \App\Models\CertificateTemplate::getActive();
+        return view('dashboard.partials.student.certificate-achieved', compact('enrollment', 'hashid', 'activeTemplate'));
     }
 
 
@@ -351,7 +352,8 @@ class StudentEnrollmentController extends Controller
             'date' => $enrollment->completed_at ? $enrollment->completed_at->format('F j, Y') : $enrollment->updated_at->format('F j, Y'),
             'certificateId' => 'CERT-' . str_pad($enrollment->id, 6, '0', STR_PAD_LEFT),
             'qrCode' => $qrCode,
-            'duration' => $duration
+            'duration' => $duration,
+            'activeTemplate' => \App\Models\CertificateTemplate::getActive()
         ];
 
         // 4. Return the view directly to the browser

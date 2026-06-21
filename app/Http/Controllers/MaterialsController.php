@@ -2394,8 +2394,8 @@ class MaterialsController extends Controller
         // ADD THIS LINE TO ENCODE THE HASHID
         $hashid = \Vinkla\Hashids\Facades\Hashids::encode($enrollment->id);
 
-
-        return view('dashboard.partials.student.certificate-achieved', compact('enrollment', 'hashid'));
+        $activeTemplate = \App\Models\CertificateTemplate::getActive();
+        return view('dashboard.partials.student.certificate-achieved', compact('enrollment', 'hashid', 'activeTemplate'));
     }
 
     public function downloadCertificate($hashid)
@@ -2410,7 +2410,7 @@ class MaterialsController extends Controller
         $enrollment = \App\Models\Enrollment::with(['user', 'material.instructor'])
             ->findOrFail($enrollmentId);
 
-        $url = route('dashboard.materials.certificate', ['hashid' => $hashid]);
+        $url = route('student.materials.achieved', ['hashid' => $hashid]);
         $qrCode = base64_encode(\SimpleSoftwareIO\QrCode\Facades\QrCode::format('svg')->size(100)->generate($url));
 
         $duration = '';
@@ -2441,7 +2441,8 @@ class MaterialsController extends Controller
             'date' => $enrollment->completed_at ? $enrollment->completed_at->format('F j, Y') : now()->format('F j, Y'),
             'certificateId' => 'CERT-' . str_pad($enrollment->id, 6, '0', STR_PAD_LEFT),
             'qrCode' => $qrCode,
-            'duration' => $duration
+            'duration' => $duration,
+            'activeTemplate' => \App\Models\CertificateTemplate::getActive()
         ];
 
         $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('dashboard.partials.student.certificate-template', $data)

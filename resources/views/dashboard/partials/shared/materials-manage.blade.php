@@ -2607,9 +2607,16 @@
     }
 
     // --- TAGS LOGIC ---
+    // Initialize a JS-side tag array once from the server-rendered DOM.
+    // This avoids fragile re-reads where whitespace or case mismatches
+    // in Blade-rendered spans caused the duplicate check to fail and
+    // new tags to be silently dropped from the UI.
+    var _activeTags = Array.from(
+        document.querySelectorAll('#active-tags-container span')
+    ).map(function(s) { return s.textContent.trim(); }).filter(Boolean);
+
     window.getActiveTags = function () {
-        const spans = document.querySelectorAll('#active-tags-container span');
-        return Array.from(spans).map(span => span.textContent.trim());
+        return _activeTags.slice();
     }
 
     window.submitTag = function (value) {
@@ -2620,6 +2627,12 @@
         tagValue = tagValue.trim().toUpperCase();
         if (!tagValue) return;
 
+        // Prevent duplicate before even hitting the server
+        if (_activeTags.indexOf(tagValue) !== -1) {
+            document.getElementById('tag-input').value = '';
+            return;
+        }
+
         fetch(`{{ url('/dashboard/materials/' . $material->id . '/tags') }}`, {
             method: 'POST',
             headers: {
@@ -2627,12 +2640,10 @@
                 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
             },
             body: JSON.stringify({ tag: tagValue })
-        }).then(r => r.json()).then(data => {
+        }).then(function(r) { return r.json(); }).then(function(data) {
             if (data.success) {
-                const currentTags = window.getActiveTags();
-                if (!currentTags.includes(tagValue)) {
-                    renderActiveTags([...currentTags, tagValue]);
-                }
+                _activeTags.push(tagValue);
+                renderActiveTags(_activeTags);
                 document.getElementById('tag-input').value = '';
             } else {
                 showCustomAlert('Error', data.message, 'error');
@@ -2653,10 +2664,10 @@
             headers: {
                 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
             }
-        }).then(r => r.json()).then(data => {
+        }).then(function(r) { return r.json(); }).then(function(data) {
             if (data.success) {
-                const currentTags = window.getActiveTags();
-                renderActiveTags(currentTags.filter(t => t !== tag));
+                _activeTags = _activeTags.filter(function(t) { return t !== tag; });
+                renderActiveTags(_activeTags);
             } else {
                 showSnackbar('Failed to remove tag.', 'error');
             }
@@ -2667,8 +2678,9 @@
         const activeTagsContainer = document.getElementById('active-tags-container');
         activeTagsContainer.innerHTML = '';
         const uniqueTags = [...new Set(tags)];
+        _activeTags = uniqueTags.slice(); // keep JS state in sync
 
-        uniqueTags.forEach(tag => {
+        uniqueTags.forEach(function(tag) {
             const tagEl = document.createElement('div');
             tagEl.className = 'inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#a52a2a]/10 border border-[#a52a2a]/20 text-[#a52a2a] text-xs font-black uppercase tracking-wider rounded-lg shadow-sm';
 

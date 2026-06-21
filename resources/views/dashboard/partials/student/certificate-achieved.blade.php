@@ -96,8 +96,63 @@
             <div class="cert-wrapper w-full flex justify-center">
                 <div class="cert-content relative bg-white shrink-0 origin-top flex flex-col items-center">
 
-                    <div
-                        class="w-full h-full border-[16px] border-[#a52a2a] p-10 flex flex-col items-center justify-between text-center bg-[url('https://www.transparenttextures.com/patterns/cream-paper.png')] relative box-border">
+                    @php
+                        // Calculate duration
+                        $durationStr = '';
+                        if($enrollment->calculated_time > 0) {
+                            $totalSeconds = $enrollment->calculated_time;
+                            $hours = intdiv($totalSeconds, 3600);
+                            $minutes = intdiv($totalSeconds % 3600, 60);
+                            $seconds = $totalSeconds % 60;
+                            $durationParts = [];
+                            if ($hours > 0) $durationParts[] = $hours . ' hr' . ($hours > 1 ? 's' : '');
+                            if ($minutes > 0) $durationParts[] = $minutes . ' min' . ($minutes > 1 ? 's' : '');
+                            if ($seconds > 0 || empty($durationParts)) $durationParts[] = $seconds . ' sec' . ($seconds > 1 ? 's' : '');
+                            $durationStr = 'Completed in ' . implode(' ', $durationParts);
+                        }
+                    @endphp
+
+                    @if(isset($activeTemplate) && !$activeTemplate->is_default)
+                        {{-- NEW DESIGN --}}
+                        <div class="w-[1122px] h-[794px] relative overflow-hidden bg-white shadow-sm border border-gray-200">
+                            @if($activeTemplate->background_image)
+                                <img src="{{ asset('storage/' . $activeTemplate->background_image) }}" class="absolute inset-0 w-full h-full object-cover z-0" alt="Background">
+                            @endif
+                            <div class="absolute inset-0 z-10">
+                                @foreach($activeTemplate->elements as $el)
+                                    @php
+                                        $value = '';
+                                        $isQr = false;
+                                        if ($el['id'] === 'student_name') $value = trim($enrollment->user->first_name . ' ' . $enrollment->user->last_name);
+                                        elseif ($el['id'] === 'course_name') $value = $enrollment->material->title;
+                                        elseif ($el['id'] === 'duration') $value = $durationStr;
+                                        elseif ($el['id'] === 'instructor_name') $value = trim(($enrollment->material->instructor->first_name ?? '') . ' ' . ($enrollment->material->instructor->last_name ?? ''));
+                                        elseif ($el['id'] === 'date') $value = $enrollment->completed_at ? $enrollment->completed_at->format('F j, Y') : now()->format('F j, Y');
+                                        elseif ($el['id'] === 'certificate_id') $value = 'CERT-' . str_pad($enrollment->id, 6, '0', STR_PAD_LEFT);
+                                        elseif ($el['id'] === 'qr_code') $isQr = true;
+                                        
+                                        $align = $el['align'] ?? 'left';
+                                        $transform = 'none';
+                                        if($align === 'center') $transform = 'translateX(-50%)';
+                                        elseif($align === 'right') $transform = 'translateX(-100%)';
+                                    @endphp
+                                    <div style="position:absolute; left:{{ $el['x'] }}%; top:{{ $el['y'] }}%; transform: {{ $transform }};">
+                                        @if($isQr)
+                                            <div style="width:{{ $el['size'] ?? 110 }}px; height:{{ $el['size'] ?? 110 }}px; background:#f3f4f6; border:2px dashed #ccc; border-radius:8px; display:flex; align-items:center; justify-content:center; overflow:hidden;">
+                                                <img src="data:image/svg+xml;base64,{{ base64_encode(\SimpleSoftwareIO\QrCode\Facades\QrCode::format('svg')->size(($el['size'] ?? 110) - 10)->generate(route('student.materials.achieved', ['hashid' => $hashid]))) }}" alt="QR Code">
+                                            </div>
+                                        @elseif($value)
+                                            <span style="font-size:{{ $el['fontSize'] ?? 16 }}px; font-weight:{{ $el['fontWeight'] ?? 'normal' }}; color:{{ $el['color'] ?? '#222' }}; white-space:nowrap;">
+                                                {{ $value }}
+                                            </span>
+                                        @endif
+                                    </div>
+                                @endforeach
+                            </div>
+                        </div>
+                    @else
+                        {{-- OLD DESIGN --}}
+                        <div class="w-full h-full border-[16px] border-[#a52a2a] p-10 flex flex-col items-center justify-between text-center bg-[url('https://www.transparenttextures.com/patterns/cream-paper.png')] relative box-border">
 
                         {{-- Header Image --}}
                         <div class="w-full h-[150px] flex items-center justify-center mb-2">
@@ -125,27 +180,8 @@
 
                         <h4 class="text-[34px] font-bold text-[#a52a2a] mb-2">"{{ $enrollment->material->title }}"</h4>
                         
-                        @if($enrollment->calculated_time > 0)
-                            @php
-                                $totalSeconds = $enrollment->calculated_time;
-                                $hours = intdiv($totalSeconds, 3600);
-                                $minutes = intdiv($totalSeconds % 3600, 60);
-                                $seconds = $totalSeconds % 60;
-                                
-                                $durationParts = [];
-                                if ($hours > 0) {
-                                    $durationParts[] = $hours . ' hr' . ($hours > 1 ? 's' : '');
-                                }
-                                if ($minutes > 0) {
-                                    $durationParts[] = $minutes . ' min' . ($minutes > 1 ? 's' : '');
-                                }
-                                if ($seconds > 0 || empty($durationParts)) {
-                                    $durationParts[] = $seconds . ' sec' . ($seconds > 1 ? 's' : '');
-                                }
-                                
-                                $duration = implode(' ', $durationParts);
-                            @endphp
-                            <p class="text-gray-500 text-[18px] mb-8 italic">Completed in {{ $duration }}</p>
+                        @if($durationStr)
+                            <p class="text-gray-500 text-[18px] mb-8 italic">{{ $durationStr }}</p>
                         @else
                             <div class="mb-12"></div>
                         @endif
@@ -192,7 +228,8 @@
                             Certificate ID: CERT-{{ str_pad($enrollment->id, 6, '0', STR_PAD_LEFT) }}
                         </div>
 
-                    </div>
+                        </div>
+                    @endif
                 </div>
             </div>
 

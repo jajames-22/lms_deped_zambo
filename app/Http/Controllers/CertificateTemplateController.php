@@ -11,7 +11,7 @@ class CertificateTemplateController extends Controller
     // ─── INDEX ─────────────────────────────────────────────────────────────────
     public function index(Request $request)
     {
-        $templates = CertificateTemplate::latest()->get();
+        $templates = CertificateTemplate::orderBy('is_default', 'desc')->latest()->get();
 
         // Seed the built-in default if the table is empty
         if ($templates->isEmpty()) {
@@ -136,13 +136,13 @@ class CertificateTemplateController extends Controller
     private function defaultElements(): array
     {
         return [
-            ['id' => 'student_name',    'label' => 'Student Name',      'x' => 10, 'y' => 35, 'fontSize' => 48, 'fontWeight' => 'bold',   'color' => '#222222', 'align' => 'center'],
-            ['id' => 'course_name',     'label' => 'Module / Course',   'x' => 10, 'y' => 52, 'fontSize' => 34, 'fontWeight' => 'bold',   'color' => '#a52a2a', 'align' => 'center'],
-            ['id' => 'duration',        'label' => 'Completion Time',   'x' => 10, 'y' => 63, 'fontSize' => 18, 'fontWeight' => 'normal', 'color' => '#555555', 'align' => 'center'],
-            ['id' => 'instructor_name', 'label' => 'Instructor Name',   'x' => 5,  'y' => 80, 'fontSize' => 20, 'fontWeight' => 'bold',   'color' => '#222222', 'align' => 'center'],
-            ['id' => 'date',            'label' => 'Date of Completion', 'x' => 65, 'y' => 80, 'fontSize' => 20, 'fontWeight' => 'bold',   'color' => '#222222', 'align' => 'center'],
+            ['id' => 'student_name',    'label' => 'Student Name',      'x' => 50, 'y' => 35, 'fontSize' => 48, 'fontWeight' => 'bold',   'color' => '#222222', 'align' => 'center'],
+            ['id' => 'course_name',     'label' => 'Module / Course',   'x' => 50, 'y' => 52, 'fontSize' => 34, 'fontWeight' => 'bold',   'color' => '#a52a2a', 'align' => 'center'],
+            ['id' => 'duration',        'label' => 'Completion Time',   'x' => 50, 'y' => 63, 'fontSize' => 18, 'fontWeight' => 'normal', 'color' => '#555555', 'align' => 'center'],
+            ['id' => 'instructor_name', 'label' => 'Instructor Name',   'x' => 25, 'y' => 80, 'fontSize' => 20, 'fontWeight' => 'bold',   'color' => '#222222', 'align' => 'center'],
+            ['id' => 'date',            'label' => 'Date of Completion', 'x' => 75, 'y' => 80, 'fontSize' => 20, 'fontWeight' => 'bold',   'color' => '#222222', 'align' => 'center'],
             ['id' => 'certificate_id',  'label' => 'Certificate ID',    'x' => 70, 'y' => 93, 'fontSize' => 11, 'fontWeight' => 'normal', 'color' => '#888888', 'align' => 'left'],
-            ['id' => 'qr_code',         'label' => 'QR Code',           'x' => 44, 'y' => 74, 'fontSize' => 0,  'fontWeight' => 'normal', 'color' => '#000000', 'align' => 'center', 'size' => 110],
+            ['id' => 'qr_code',         'label' => 'QR Code',           'x' => 50, 'y' => 74, 'fontSize' => 0,  'fontWeight' => 'normal', 'color' => '#000000', 'align' => 'center', 'size' => 110],
         ];
     }
 }

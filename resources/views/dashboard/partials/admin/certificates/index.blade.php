@@ -110,8 +110,8 @@
 </div>
 
 <script>
-const CSRF = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
-let _pendingDeleteId = null;
+var CSRF_INDEX = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+var _pendingDeleteId = null;
 
 function showToast(message, success = true) {
     const toast = document.getElementById('cert-toast');
@@ -135,7 +135,7 @@ function showToast(message, success = true) {
 function setActive(id) {
     fetch(`/dashboard/certificate-templates/${id}/activate`, {
         method: 'PATCH',
-        headers: { 'X-CSRF-TOKEN': CSRF, 'Accept': 'application/json' }
+        headers: { 'X-CSRF-TOKEN': CSRF_INDEX, 'Accept': 'application/json' }
     }).then(r => r.json()).then(data => {
         showToast(data.message, data.success);
         if (data.success) setTimeout(() => loadPartial('{{ route('dashboard.cert-templates.index') }}', document.getElementById('nav-certificates-btn')), 1000);
@@ -157,7 +157,7 @@ function confirmDelete() {
     if (!_pendingDeleteId) return;
     fetch(`/dashboard/certificate-templates/${_pendingDeleteId}`, {
         method: 'DELETE',
-        headers: { 'X-CSRF-TOKEN': CSRF, 'Accept': 'application/json' }
+        headers: { 'X-CSRF-TOKEN': CSRF_INDEX, 'Accept': 'application/json' }
     }).then(r => r.json()).then(data => {
         closeDeleteModal();
         showToast(data.message, data.success);

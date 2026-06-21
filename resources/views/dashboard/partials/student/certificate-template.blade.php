@@ -6,10 +6,17 @@
     <title>Certificate of Completion</title>
     <style>
         /* Lock the PDF size and margins to prevent any extra pages */
+        @if(isset($activeTemplate) && !$activeTemplate->is_default)
+        @page {
+            size: A4 landscape;
+            margin: 0px; 
+        }
+        @else
         @page {
             size: A4 landscape;
             margin: 30px; 
         }
+        @endif
 
         body {
             font-family: 'Arial', sans-serif;
@@ -115,10 +122,67 @@
     </style>
 </head>
 <body>
-    <div class="certificate-container">
-        <div class="detailed-header">
-            <img src="{{ public_path('images/lms-cert-header.png') }}" class="header-img" alt="Header">
+    @if(isset($activeTemplate) && !$activeTemplate->is_default)
+        <div style="position:absolute; left:0; top:0; width:100%; height:100%; background:#ffffff; overflow:hidden; z-index: 1;">
+            @if($activeTemplate->background_image)
+                <img src="{{ public_path('storage/' . $activeTemplate->background_image) }}" style="position:absolute; left:0; top:0; width:100%; height:100%; z-index:-1;" alt="Background">
+            @endif
+
+            @foreach($activeTemplate->elements as $el)
+                @php
+                    $value = '';
+                    $isQr = false;
+                    if ($el['id'] === 'student_name') $value = $studentName;
+                    elseif ($el['id'] === 'course_name') $value = $courseName;
+                    elseif ($el['id'] === 'duration') $value = $duration ? 'Completed in ' . $duration : '';
+                    elseif ($el['id'] === 'instructor_name') $value = $instructorName;
+                    elseif ($el['id'] === 'date') $value = $date;
+                    elseif ($el['id'] === 'certificate_id') $value = $certificateId;
+                    elseif ($el['id'] === 'qr_code') $isQr = true;
+                    
+                    $align = $el['align'] ?? 'left';
+                @endphp
+                
+                @if($isQr)
+                    @php
+                        $qrSize = $el['size'] ?? 110;
+                        $marginLeft = 0;
+                        if ($align === 'center') $marginLeft = -($qrSize / 2);
+                        elseif ($align === 'right') $marginLeft = -$qrSize;
+                    @endphp
+                    <div style="position:absolute; left:{{ $el['x'] }}%; top:{{ $el['y'] }}%; margin-left:{{ $marginLeft }}px; width:{{ $qrSize }}px; height:{{ $qrSize }}px; background:#fff; padding:5px; border-radius:8px; box-sizing:border-box;">
+                        <img src="data:image/svg+xml;base64,{{ $qrCode }}" alt="QR Code" style="width:100%; height:100%;">
+                    </div>
+                @elseif($value)
+                    @php
+                        $cssPos = "left: {$el['x']}%;";
+                        $cssWidth = "white-space: nowrap;";
+                        $cssAlign = "";
+                        if ($align === 'center') {
+                            if ($el['x'] <= 50) {
+                                $cssPos = "left: 0;";
+                                $cssWidth = "width: " . ($el['x'] * 2) . "%;";
+                            } else {
+                                $cssPos = "right: 0;";
+                                $cssWidth = "width: " . ((100 - $el['x']) * 2) . "%;";
+                            }
+                            $cssAlign = "text-align: center;";
+                        } elseif ($align === 'right') {
+                            $cssPos = "right: " . (100 - $el['x']) . "%;";
+                            $cssAlign = "text-align: right;";
+                        }
+                    @endphp
+                    <div style="position:absolute; top:{{ $el['y'] }}%; {{ $cssPos }} {{ $cssWidth }} {{ $cssAlign }} font-size:{{ $el['fontSize'] ?? 16 }}px; font-weight:{{ $el['fontWeight'] ?? 'normal' }}; color:{{ $el['color'] ?? '#222' }}; line-height: 1;">
+                        {{ $value }}
+                    </div>
+                @endif
+            @endforeach
         </div>
+    @else
+        <div class="certificate-container">
+            <div class="detailed-header">
+                <img src="{{ public_path('images/lms-cert-header.png') }}" class="header-img" alt="Header">
+            </div>
         
         <div class="header">Certificate of Completion</div>
         <div class="sub-header">This is proudly presented to</div>
@@ -161,5 +225,6 @@
 
         <div class="cert-id">Certificate ID: {{ $certificateId }}</div>
     </div>
+    @endif
 </body>
 </html>
