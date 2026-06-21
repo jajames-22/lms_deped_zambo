@@ -142,6 +142,10 @@ Route::middleware(['auth', 'verified', CheckAccountStatus::class])->group(functi
         Route::post('/certificate-templates/{template}', [CertificateTemplateController::class, 'update'])->name('dashboard.cert-templates.update');
         Route::patch('/certificate-templates/{template}/activate', [CertificateTemplateController::class, 'setActive'])->name('dashboard.cert-templates.activate');
         Route::delete('/certificate-templates/{template}', [CertificateTemplateController::class, 'destroy'])->name('dashboard.cert-templates.destroy');
+        // Module exclusivity assignment
+        Route::get('/certificate-templates/{template}/search-modules', [CertificateTemplateController::class, 'searchModules'])->name('dashboard.cert-templates.search-modules');
+        Route::post('/certificate-templates/{template}/assign-module', [CertificateTemplateController::class, 'assignModule'])->name('dashboard.cert-templates.assign-module');
+        Route::delete('/certificate-templates/{template}/unassign-module/{material}', [CertificateTemplateController::class, 'unassignModule'])->name('dashboard.cert-templates.unassign-module');
 
         /*
         |--------------------------------------------------------------------------

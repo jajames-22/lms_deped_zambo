@@ -25,6 +25,7 @@ class Material extends Model
         'is_shuffled',
         'is_downloadable',
         'is_featured',
+        'exclusive_template_id',
         'draft_json',
         'admin_remarks',     
         'evaluation_json'
@@ -74,5 +75,15 @@ class Material extends Model
     public function exams()
     {
         return $this->hasMany(Exam::class, 'material_id');
+    }
+
+    /**
+     * The exclusive certificate template for this module.
+     * When set, students' certificates for this module use this template
+     * instead of the globally active one.
+     */
+    public function exclusiveTemplate()
+    {
+        return $this->belongsTo(CertificateTemplate::class, 'exclusive_template_id');
     }
 }

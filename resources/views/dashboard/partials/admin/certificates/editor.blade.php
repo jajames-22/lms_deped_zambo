@@ -185,6 +185,41 @@
                     @endforeach
                 </div>
             </div>
+
+            {{-- Exclusive Modules --}}
+            @if($isEdit)
+            <div class="bg-white rounded-2xl border border-gray-200 p-5 shadow-sm" id="exclusive-modules-panel">
+                <label class="block text-xs font-black text-gray-700 uppercase tracking-wider mb-1">
+                    <i class="fas fa-lock text-[#a52a2a] mr-1"></i> Exclusive Modules
+                </label>
+                <p class="text-xs text-gray-500 mb-3">Modules added here will use <strong>this template</strong> for their certificate instead of the active global template.</p>
+
+                <button type="button" onclick="openModuleSearchModal()" class="w-full mb-4 px-4 py-2 border border-[#a52a2a] text-[#a52a2a] hover:bg-[#a52a2a] hover:text-white rounded-xl text-xs font-bold transition">
+                    <i class="fas fa-search mr-1"></i> Add Exclusive Module
+                </button>
+
+                {{-- Assigned modules list --}}
+                <div id="exclusive-module-tags" class="flex flex-wrap gap-1.5">
+                    @forelse($template->exclusiveMaterials as $em)
+                        <span class="exclusive-tag flex items-center gap-1 px-2.5 py-1 bg-[#a52a2a]/10 border border-[#a52a2a]/30 text-[#a52a2a] rounded-full text-[11px] font-bold"
+                            data-id="{{ $em->id }}">
+                            {{ Str::limit($em->title, 28) }}
+                            <button type="button"
+                                onclick="unassignModule({{ $em->id }}, this)"
+                                class="ml-1 text-[#a52a2a]/60 hover:text-[#a52a2a] transition">
+                                <i class="fas fa-times text-[10px]"></i>
+                            </button>
+                        </span>
+                    @empty
+                        <p class="text-xs text-gray-400 italic" id="no-exclusive-msg">No modules assigned yet.</p>
+                    @endforelse
+                </div>
+            </div>
+            @else
+            <div class="bg-amber-50 border border-amber-200 rounded-2xl p-4 text-xs text-amber-700">
+                <i class="fas fa-info-circle mr-1"></i> <strong>Exclusive Modules</strong> can be assigned after you save this template for the first time.
+            </div>
+            @endif
         </div>
 
         {{-- RIGHT — Canvas --}}
@@ -212,6 +247,46 @@
         </div>
     </div>
 </div>
+
+{{-- MODULE SEARCH MODAL --}}
+@if($isEdit)
+<div id="module-search-modal" class="fixed inset-0 z-[9999] hidden flex items-center justify-center p-4">
+    <!-- Backdrop -->
+    <div id="module-search-backdrop" onclick="closeModuleSearchModal()" class="absolute inset-0 bg-black/50 backdrop-blur-sm opacity-0 transition-opacity duration-300"></div>
+    
+    <!-- Modal Panel -->
+    <div id="module-search-panel" class="relative bg-white rounded-2xl shadow-2xl max-w-2xl w-full p-6 transform scale-95 opacity-0 transition-all duration-300 flex flex-col max-h-[80vh]">
+        <div class="flex justify-between items-center mb-4">
+            <h3 class="text-xl font-bold text-gray-900"><i class="fas fa-search text-[#a52a2a] mr-2"></i> Find Module</h3>
+            <button onclick="closeModuleSearchModal()" class="text-gray-400 hover:text-gray-600 transition"><i class="fas fa-times text-lg"></i></button>
+        </div>
+        
+        <p class="text-sm text-gray-500 mb-4">Search for published modules to assign this certificate template to.</p>
+        
+        <div class="relative mb-4 shrink-0">
+            <input type="text" id="modal-module-search-input" placeholder="Search by module title..."
+                class="w-full border border-gray-200 rounded-xl pl-10 pr-3 py-3 text-sm focus:ring-2 focus:ring-[#a52a2a]/30 focus:border-[#a52a2a] outline-none shadow-sm"
+                oninput="moduleSearchDebounce(this.value)">
+            <i class="fas fa-search absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400 text-sm"></i>
+        </div>
+        
+        <div id="modal-module-results" class="flex-1 overflow-y-auto space-y-2 pr-2 custom-scrollbar">
+            <!-- Results injected here -->
+            <div class="flex flex-col items-center justify-center py-8 text-gray-400">
+                <i class="fas fa-search text-3xl mb-2 opacity-50"></i>
+                <p class="text-sm">Type to start searching...</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.custom-scrollbar::-webkit-scrollbar { width: 6px; }
+.custom-scrollbar::-webkit-scrollbar-track { background: #f1f1f1; border-radius: 4px; }
+.custom-scrollbar::-webkit-scrollbar-thumb { background: #ccc; border-radius: 4px; }
+.custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #999; }
+</style>
+@endif
 
 <script>
 // ─── STATE ────────────────────────────────────────────────────────────────────
@@ -595,4 +670,241 @@ function showEditorToast(message, success = true) {
         }
     }, 20);
 })();
+
+@if($isEdit)
+// ─── EXCLUSIVE MODULES ────────────────────────────────────────────────────────
+var _moduleSearchTimer = null;
+var _templateId = {{ $template->id }};
+
+function openModuleSearchModal() {
+    const modal = document.getElementById('module-search-modal');
+    const backdrop = document.getElementById('module-search-backdrop');
+    const panel = document.getElementById('module-search-panel');
+    const input = document.getElementById('modal-module-search-input');
+    
+    modal.classList.remove('hidden');
+    void modal.offsetWidth; // Reflow
+    
+    backdrop.classList.remove('opacity-0');
+    backdrop.classList.add('opacity-100');
+    panel.classList.remove('scale-95', 'opacity-0');
+    panel.classList.add('scale-100', 'opacity-100');
+
+    input.value = '';
+    document.getElementById('modal-module-results').innerHTML = `
+        <div class="flex flex-col items-center justify-center py-8 text-gray-400">
+            <i class="fas fa-search text-3xl mb-2 opacity-50"></i>
+            <p class="text-sm">Type to start searching...</p>
+        </div>
+    `;
+    input.focus();
+}
+
+function closeModuleSearchModal() {
+    const modal = document.getElementById('module-search-modal');
+    const backdrop = document.getElementById('module-search-backdrop');
+    const panel = document.getElementById('module-search-panel');
+    
+    backdrop.classList.remove('opacity-100');
+    backdrop.classList.add('opacity-0');
+    panel.classList.remove('scale-100', 'opacity-100');
+    panel.classList.add('scale-95', 'opacity-0');
+    
+    setTimeout(() => {
+        modal.classList.add('hidden');
+    }, 300);
+}
+
+function moduleSearchDebounce(val) {
+    clearTimeout(_moduleSearchTimer);
+    _moduleSearchTimer = setTimeout(() => moduleSearch(val), 300);
+}
+
+async function moduleSearch(q) {
+    const resultsContainer = document.getElementById('modal-module-results');
+    if (!resultsContainer) return;
+
+    if (q.trim() === '') {
+        resultsContainer.innerHTML = `
+            <div class="flex flex-col items-center justify-center py-8 text-gray-400">
+                <i class="fas fa-search text-3xl mb-2 opacity-50"></i>
+                <p class="text-sm">Type to start searching...</p>
+            </div>
+        `;
+        return;
+    }
+
+    resultsContainer.innerHTML = '<p class="text-sm text-gray-400 py-4 text-center"><i class="fas fa-spinner fa-spin mr-2"></i> Searching…</p>';
+
+    try {
+        const res  = await fetch(`/dashboard/certificate-templates/${_templateId}/search-modules?q=${encodeURIComponent(q)}`, {
+            headers: { 'Accept': 'application/json', 'X-CSRF-TOKEN': CSRF }
+        });
+        const data = await res.json();
+
+        if (!data.length) {
+            resultsContainer.innerHTML = '<p class="text-sm text-gray-400 py-4 text-center italic">No modules found matching your query.</p>';
+            return;
+        }
+
+        const assignedIds = new Set(
+            [...document.querySelectorAll('#exclusive-module-tags .exclusive-tag')].map(t => +t.dataset.id)
+        );
+
+        resultsContainer.innerHTML = '';
+        data.forEach(m => {
+            const isAssignedHere    = assignedIds.has(m.id);
+            const isAssignedElsewhere = m.exclusive_template_id && m.exclusive_template_id !== _templateId;
+
+            const div = document.createElement('div');
+            div.className = 'flex items-center gap-3 p-3 rounded-xl border ' + (isAssignedHere ? 'bg-[#a52a2a]/5 border-[#a52a2a]/30' : 'bg-white border-gray-100 hover:border-gray-200 shadow-sm');
+            
+            // Thumbnail
+            const thumbDiv = document.createElement('div');
+            thumbDiv.className = 'w-12 h-12 rounded-lg bg-gray-100 overflow-hidden shrink-0 flex items-center justify-center';
+            if (m.thumbnail) {
+                const img = document.createElement('img');
+                img.src = m.thumbnail;
+                img.className = 'w-full h-full object-cover';
+                thumbDiv.appendChild(img);
+            } else {
+                thumbDiv.innerHTML = '<i class="fas fa-image text-gray-300 text-lg"></i>';
+            }
+            
+            // Info
+            const infoDiv = document.createElement('div');
+            infoDiv.className = 'flex-1 min-w-0';
+            
+            const title = document.createElement('h4');
+            title.className = 'text-sm font-bold text-gray-900 truncate';
+            title.textContent = m.title;
+            
+            const instructor = document.createElement('p');
+            instructor.className = 'text-xs text-gray-500 truncate mt-0.5';
+            instructor.innerHTML = `<i class="fas fa-chalkboard-teacher mr-1"></i> ${m.instructor_name}`;
+            
+            infoDiv.appendChild(title);
+            infoDiv.appendChild(instructor);
+
+            // Action
+            const actionDiv = document.createElement('div');
+            actionDiv.className = 'shrink-0 ml-2';
+
+            if (isAssignedHere) {
+                const btn = document.createElement('button');
+                btn.type = 'button';
+                btn.className = 'px-3 py-1.5 rounded-lg text-xs font-bold bg-[#a52a2a] text-white flex items-center gap-1.5 hover:bg-red-900 transition';
+                btn.innerHTML = '<i class="fas fa-check"></i> Added';
+                btn.onclick = () => {
+                    unassignModule(m.id, document.querySelector(`.exclusive-tag[data-id="${m.id}"] button`));
+                    // Update search result item state after unassign
+                    setTimeout(() => moduleSearch(document.getElementById('modal-module-search-input').value), 300);
+                };
+                actionDiv.appendChild(btn);
+            } else if (isAssignedElsewhere) {
+                const badge = document.createElement('span');
+                badge.className = 'px-3 py-1.5 rounded-lg text-xs font-bold bg-amber-100 text-amber-700 flex items-center gap-1.5';
+                badge.innerHTML = '<i class="fas fa-exclamation-triangle"></i> Used Elsewhere';
+                
+                // Allow overriding? Sure, we can add a small override button
+                const overrideBtn = document.createElement('button');
+                overrideBtn.className = 'ml-2 text-xs text-amber-600 hover:text-amber-800 underline font-medium';
+                overrideBtn.textContent = 'Steal';
+                overrideBtn.onclick = () => {
+                    assignModule(m.id, m.title);
+                    setTimeout(() => moduleSearch(document.getElementById('modal-module-search-input').value), 300);
+                };
+                
+                actionDiv.appendChild(badge);
+                actionDiv.appendChild(overrideBtn);
+            } else {
+                const btn = document.createElement('button');
+                btn.type = 'button';
+                btn.className = 'px-3 py-1.5 rounded-lg text-xs font-bold bg-gray-100 text-gray-700 hover:bg-gray-200 transition flex items-center gap-1.5';
+                btn.innerHTML = '<i class="fas fa-plus"></i> Add';
+                btn.onclick = () => {
+                    assignModule(m.id, m.title);
+                    setTimeout(() => moduleSearch(document.getElementById('modal-module-search-input').value), 300);
+                };
+                actionDiv.appendChild(btn);
+            }
+
+            div.appendChild(thumbDiv);
+            div.appendChild(infoDiv);
+            div.appendChild(actionDiv);
+
+            resultsContainer.appendChild(div);
+        });
+    } catch(e) {
+        resultsContainer.innerHTML = '<p class="text-sm text-red-500 py-4 text-center">Error fetching modules.</p>';
+    }
+}
+
+async function assignModule(materialId, materialTitle) {
+    try {
+        const res  = await fetch(`/dashboard/certificate-templates/${_templateId}/assign-module`, {
+            method: 'POST',
+            headers: { 'Accept': 'application/json', 'Content-Type': 'application/json', 'X-CSRF-TOKEN': CSRF },
+            body: JSON.stringify({ material_id: materialId })
+        });
+        const data = await res.json();
+
+        if (res.ok && data.success) {
+            // Remove "no modules" placeholder if present
+            const noMsg = document.getElementById('no-exclusive-msg');
+            if (noMsg) noMsg.remove();
+
+            // Add tag to the list if not already there
+            const tags = document.getElementById('exclusive-module-tags');
+            if (tags && !tags.querySelector(`.exclusive-tag[data-id="${materialId}"]`)) {
+                const tag = document.createElement('span');
+                tag.className = 'exclusive-tag flex items-center gap-1 px-2.5 py-1 bg-[#a52a2a]/10 border border-[#a52a2a]/30 text-[#a52a2a] rounded-full text-[11px] font-bold animate-[fadeIn_.2s_ease]';
+                tag.dataset.id = materialId;
+                const maxLen = 28;
+                const displayTitle = materialTitle.length > maxLen ? materialTitle.substring(0, maxLen) + '…' : materialTitle;
+                tag.innerHTML = `${displayTitle} <button type="button" onclick="unassignModule(${materialId}, this)" class="ml-1 text-[#a52a2a]/60 hover:text-[#a52a2a] transition"><i class="fas fa-times text-[10px]"></i></button>`;
+                tags.appendChild(tag);
+            }
+            showEditorToast(data.message, true);
+        } else {
+            showEditorToast(data.message || 'Failed to assign module.', false);
+        }
+    } catch(e) {
+        showEditorToast('Network error assigning module.', false);
+    }
+}
+
+async function unassignModule(materialId, btnEl) {
+    try {
+        const res  = await fetch(`/dashboard/certificate-templates/${_templateId}/unassign-module/${materialId}`, {
+            method: 'DELETE',
+            headers: { 'Accept': 'application/json', 'X-CSRF-TOKEN': CSRF }
+        });
+        const data = await res.json();
+
+        if (res.ok && data.success) {
+            // Remove the tag
+            if (btnEl) {
+                const tag = btnEl.closest('.exclusive-tag');
+                if (tag) tag.remove();
+            }
+
+            // If no tags remain, show placeholder
+            const tags = document.getElementById('exclusive-module-tags');
+            if (tags && !tags.querySelector('.exclusive-tag')) {
+                const p = document.createElement('p');
+                p.id = 'no-exclusive-msg';
+                p.className = 'text-xs text-gray-400 italic';
+                p.textContent = 'No modules assigned yet.';
+                tags.appendChild(p);
+            }
+            showEditorToast(data.message, true);
+        } else {
+            showEditorToast(data.message || 'Failed to remove module.', false);
+        }
+    } catch(e) {
+        showEditorToast('Network error removing module.', false);
+    }
+}
+@endif
 </script>

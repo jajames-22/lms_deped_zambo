@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\CertificateTemplate;
+use App\Models\Material;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 
@@ -66,6 +67,7 @@ class CertificateTemplateController extends Controller
     // ─── EDIT (editor pre-filled) ──────────────────────────────────────────────
     public function edit(CertificateTemplate $template)
     {
+        $template->load('exclusiveMaterials');
         return view('dashboard.partials.admin.certificates.editor', compact('template'));
     }
 
@@ -126,6 +128,65 @@ class CertificateTemplateController extends Controller
         $template->delete();
 
         return response()->json(['success' => true, 'message' => 'Template deleted.']);
+    }
+
+    // ─── MODULE SEARCH ─────────────────────────────────────────────────────────
+    /**
+     * Typeahead search: returns published modules whose title contains the query.
+     */
+    public function searchModules(Request $request)
+    {
+        $q = trim($request->get('q', ''));
+
+        $modules = Material::with('instructor:id,first_name,last_name')
+            ->where('status', 'published')
+            ->when($q !== '', fn($query) => $query->where('title', 'like', "%{$q}%"))
+            ->select('id', 'title', 'thumbnail', 'instructor_id', 'exclusive_template_id')
+            ->orderBy('title')
+            ->limit(15)
+            ->get()
+            ->map(fn($m) => [
+                'id'                    => $m->id,
+                'title'                 => $m->title,
+                'thumbnail'             => $m->thumbnail ? asset('storage/' . $m->thumbnail) : null,
+                'instructor_name'       => $m->instructor ? $m->instructor->first_name . ' ' . $m->instructor->last_name : 'Unknown',
+                'exclusive_template_id' => $m->exclusive_template_id,
+            ]);
+
+        return response()->json($modules);
+    }
+
+    // ─── ASSIGN MODULE ─────────────────────────────────────────────────────────
+    /**
+     * Set a module's exclusive template to this template.
+     */
+    public function assignModule(Request $request, CertificateTemplate $template)
+    {
+        $request->validate(['material_id' => 'required|integer|exists:materials,id']);
+
+        $material = Material::findOrFail($request->material_id);
+        $material->update(['exclusive_template_id' => $template->id]);
+
+        return response()->json([
+            'success' => true,
+            'message' => "'{$material->title}' is now exclusively using this template.",
+            'module'  => ['id' => $material->id, 'title' => $material->title],
+        ]);
+    }
+
+    // ─── UNASSIGN MODULE ───────────────────────────────────────────────────────
+    /**
+     * Remove the exclusive template assignment from a module.
+     */
+    public function unassignModule(CertificateTemplate $template, Material $material)
+    {
+        if ((int)$material->exclusive_template_id !== (int)$template->id) {
+            return response()->json(['success' => false, 'message' => 'This module is not assigned to this template.'], 422);
+        }
+
+        $material->update(['exclusive_template_id' => null]);
+
+        return response()->json(['success' => true, 'message' => "'{$material->title}' removed from exclusive list."]);
     }
 
     // ─── DEFAULT ELEMENT LAYOUT ────────────────────────────────────────────────

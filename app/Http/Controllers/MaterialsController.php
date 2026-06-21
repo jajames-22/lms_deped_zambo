@@ -2394,7 +2394,7 @@ class MaterialsController extends Controller
         // ADD THIS LINE TO ENCODE THE HASHID
         $hashid = \Vinkla\Hashids\Facades\Hashids::encode($enrollment->id);
 
-        $activeTemplate = \App\Models\CertificateTemplate::getActive();
+        $activeTemplate = \App\Models\CertificateTemplate::getForMaterial($enrollment->material);
         return view('dashboard.partials.student.certificate-achieved', compact('enrollment', 'hashid', 'activeTemplate'));
     }
 
@@ -2442,7 +2442,7 @@ class MaterialsController extends Controller
             'certificateId' => 'CERT-' . str_pad($enrollment->id, 6, '0', STR_PAD_LEFT),
             'qrCode' => $qrCode,
             'duration' => $duration,
-            'activeTemplate' => \App\Models\CertificateTemplate::getActive()
+            'activeTemplate' => \App\Models\CertificateTemplate::getForMaterial($enrollment->material)
         ];
 
         $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('dashboard.partials.student.certificate-template', $data)

@@ -257,7 +257,7 @@ class StudentEnrollmentController extends Controller
             'certificateId' => 'CERT-' . str_pad($enrollment->id, 6, '0', STR_PAD_LEFT),
             'qrCode' => $qrCode,
             'duration' => $duration,
-            'activeTemplate' => \App\Models\CertificateTemplate::getActive()
+            'activeTemplate' => \App\Models\CertificateTemplate::getForMaterial($enrollment->material)
         ];
 
         $pdf = Pdf::loadView('dashboard.partials.student.certificate-template', $data)
@@ -283,7 +283,7 @@ class StudentEnrollmentController extends Controller
             abort(403, 'This certificate is not valid or incomplete.');
         }
 
-        $activeTemplate = \App\Models\CertificateTemplate::getActive();
+        $activeTemplate = \App\Models\CertificateTemplate::getForMaterial($enrollment->material);
         return view('dashboard.partials.student.certificate-achieved', compact('enrollment', 'hashid', 'activeTemplate'));
     }
 
@@ -353,7 +353,7 @@ class StudentEnrollmentController extends Controller
             'certificateId' => 'CERT-' . str_pad($enrollment->id, 6, '0', STR_PAD_LEFT),
             'qrCode' => $qrCode,
             'duration' => $duration,
-            'activeTemplate' => \App\Models\CertificateTemplate::getActive()
+            'activeTemplate' => \App\Models\CertificateTemplate::getForMaterial($enrollment->material)
         ];
 
         // 4. Return the view directly to the browser
