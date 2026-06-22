@@ -31,6 +31,12 @@
         <span class="group-hover:text-[#a52a2a] transition-colors">Explore Layout</span> 
     </button>
 
+    <button id="nav-certificates-btn" onclick="loadPartial('{{ url('/dashboard/certificate-templates') }}', this)"
+        class="nav-btn w-full flex items-center px-4 py-3 text-gray-600 hover:bg-gray-100 transition-all group">
+        <i class="fas fa-award w-5 mr-3 group-hover:text-[#a52a2a] transition-colors"></i>
+        <span class="group-hover:text-[#a52a2a] transition-colors">Certificates</span> 
+    </button>
+
     <button id="nav-feedback-btn" onclick="loadPartial('{{ url('/dashboard/feedback') }}', this)"
         class="nav-btn w-full flex items-center px-4 py-3 text-gray-600 hover:bg-gray-100 transition group">
         <i class="fas fa-comment w-5 mr-3 group-hover:text-[#a52a2a] transition-colors"></i>

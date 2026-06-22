@@ -9,6 +9,7 @@ use App\Http\Controllers\AssessmentController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\MaterialsController;
 use App\Http\Controllers\ExploreLayoutController;
+use App\Http\Controllers\CertificateTemplateController;
 
 // Import the middleware
 use App\Http\Middleware\CheckAccountStatus;
@@ -131,6 +132,23 @@ Route::middleware(['auth', 'verified', CheckAccountStatus::class])->group(functi
 
         /*
         |--------------------------------------------------------------------------
+        | CERTIFICATE TEMPLATE MANAGEMENT (Admin)
+        |--------------------------------------------------------------------------
+        */
+        Route::get('/certificate-templates', [CertificateTemplateController::class, 'index'])->name('dashboard.cert-templates.index');
+        Route::get('/certificate-templates/create', [CertificateTemplateController::class, 'create'])->name('dashboard.cert-templates.create');
+        Route::post('/certificate-templates', [CertificateTemplateController::class, 'store'])->name('dashboard.cert-templates.store');
+        Route::get('/certificate-templates/{template}/edit', [CertificateTemplateController::class, 'edit'])->name('dashboard.cert-templates.edit');
+        Route::post('/certificate-templates/{template}', [CertificateTemplateController::class, 'update'])->name('dashboard.cert-templates.update');
+        Route::patch('/certificate-templates/{template}/activate', [CertificateTemplateController::class, 'setActive'])->name('dashboard.cert-templates.activate');
+        Route::delete('/certificate-templates/{template}', [CertificateTemplateController::class, 'destroy'])->name('dashboard.cert-templates.destroy');
+        // Module exclusivity assignment
+        Route::get('/certificate-templates/{template}/search-modules', [CertificateTemplateController::class, 'searchModules'])->name('dashboard.cert-templates.search-modules');
+        Route::post('/certificate-templates/{template}/assign-module', [CertificateTemplateController::class, 'assignModule'])->name('dashboard.cert-templates.assign-module');
+        Route::delete('/certificate-templates/{template}/unassign-module/{material}', [CertificateTemplateController::class, 'unassignModule'])->name('dashboard.cert-templates.unassign-module');
+
+        /*
+        |--------------------------------------------------------------------------
         | MATERIALS MANAGEMENT & STUDYING
         |--------------------------------------------------------------------------
         */
@@ -145,6 +163,8 @@ Route::middleware(['auth', 'verified', CheckAccountStatus::class])->group(functi
         Route::post('/materials/{material}/enroll', [MaterialsController::class, 'enroll'])->name('materials.enroll');
         Route::post('/materials/{material}/unenroll', [MaterialsController::class, 'unenroll'])->name('dashboard.materials.unenroll');
         Route::post('/materials/{material}/progress', [MaterialsController::class, 'saveProgress'])->name('dashboard.materials.progress');
+        Route::post('/materials/{material}/study-start', [MaterialsController::class, 'studySessionStart'])->name('dashboard.materials.study.start');
+        Route::post('/materials/{material}/study-flush', [MaterialsController::class, 'studySessionFlush'])->name('dashboard.materials.study.flush');
         Route::post('/materials/{material}/complete', [MaterialsController::class, 'complete'])->name('dashboard.materials.complete');
         Route::post('/materials/{hashid}/retake', [MaterialsController::class, 'retake'])->name('dashboard.materials.retake');
         Route::post('/materials/{material}/download-count', [StudentController::class, 'incrementDownload']);

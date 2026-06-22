@@ -1983,23 +1983,69 @@ class MaterialsController extends Controller
         }
     }
 
+    /**
+     * Called when a student enters the study page.
+     * Records the current timestamp as the session start.
+     */
+    public function studySessionStart(Request $request, \App\Models\Material $material)
+    {
+        $enrollment = \App\Models\Enrollment::where('material_id', $material->id)
+            ->where('user_id', auth()->id())
+            ->first();
 
+        if (!$enrollment) {
+            return response()->json(['success' => false]);
+        }
+
+        $enrollment->update(['study_session_started_at' => now()]);
+
+        return response()->json(['success' => true]);
+    }
+
+    /**
+     * Called when a student exits, idles, or closes the study page.
+     * Receives the total elapsed seconds measured by the client-side stopwatch
+     * and adds them directly to calculated_time — no server-side timestamp needed.
+     */
+    public function studySessionFlush(Request $request, \App\Models\Material $material)
+    {
+        $enrollment = \App\Models\Enrollment::where('material_id', $material->id)
+            ->where('user_id', auth()->id())
+            ->first();
+
+        if (!$enrollment) {
+            return response()->json(['success' => false, 'reason' => 'no_enrollment']);
+        }
+
+        // Seconds measured entirely on the client
+        $seconds = (int) $request->input('seconds', 0);
+
+        // Sanity cap: no single session should exceed 3 hours (10800 seconds)
+        $seconds = max(0, min($seconds, 10800));
+
+        if ($seconds > 0) {
+            $enrollment->increment('calculated_time', $seconds);
+        }
+
+        return response()->json(['success' => true, 'seconds_added' => $seconds]);
+    }
 
     public function saveProgress(Request $request, \App\Models\Material $material)
     {
         $user = auth()->user();
 
-        // 1. Save Position Progress to Enrollment
-        \App\Models\Enrollment::updateOrCreate(
-            ['material_id' => $material->id, 'user_id' => $user->id],
-            [
-                'progress_data' => json_encode([
-                    'lesson' => $request->lesson_index,
-                    'content' => $request->content_index,
-                    'highest_unlocked' => $request->highest_unlocked
-                ])
-            ]
+        // 1. Save Position Progress
+        $enrollment = \App\Models\Enrollment::firstOrCreate(
+            ['material_id' => $material->id, 'user_id' => $user->id]
         );
+
+        $enrollment->update([
+            'progress_data' => json_encode([
+                'lesson' => $request->lesson_index,
+                'content' => $request->content_index,
+                'highest_unlocked' => $request->highest_unlocked
+            ])
+        ]);
 
         $validQuestionTypes = ['mcq', 'true_false', 'checkbox', 'text'];
         $type = $request->question_type;
@@ -2348,8 +2394,8 @@ class MaterialsController extends Controller
         // ADD THIS LINE TO ENCODE THE HASHID
         $hashid = \Vinkla\Hashids\Facades\Hashids::encode($enrollment->id);
 
-
-        return view('dashboard.partials.student.certificate-achieved', compact('enrollment', 'hashid'));
+        $activeTemplate = \App\Models\CertificateTemplate::getForMaterial($enrollment->material);
+        return view('dashboard.partials.student.certificate-achieved', compact('enrollment', 'hashid', 'activeTemplate'));
     }
 
     public function downloadCertificate($hashid)
@@ -2364,8 +2410,29 @@ class MaterialsController extends Controller
         $enrollment = \App\Models\Enrollment::with(['user', 'material.instructor'])
             ->findOrFail($enrollmentId);
 
-        $url = route('dashboard.materials.certificate', ['hashid' => $hashid]);
+        $url = route('student.materials.achieved', ['hashid' => $hashid]);
         $qrCode = base64_encode(\SimpleSoftwareIO\QrCode\Facades\QrCode::format('svg')->size(100)->generate($url));
+
+        $duration = '';
+        if ($enrollment->calculated_time > 0) {
+            $totalSeconds = $enrollment->calculated_time;
+            $hours = intdiv($totalSeconds, 3600);
+            $minutes = intdiv($totalSeconds % 3600, 60);
+            $seconds = $totalSeconds % 60;
+
+            $durationParts = [];
+            if ($hours > 0) {
+                $durationParts[] = $hours . ' hour' . ($hours > 1 ? 's' : '');
+            }
+            if ($minutes > 0) {
+                $durationParts[] = $minutes . ' min' . ($minutes > 1 ? 's' : '');
+            }
+            if ($seconds > 0 || empty($durationParts)) {
+                $durationParts[] = $seconds . ' sec' . ($seconds > 1 ? 's' : '');
+            }
+
+            $duration = implode(' ', $durationParts);
+        }
 
         $data = [
             'studentName' => trim($enrollment->user->first_name . ' ' . $enrollment->user->last_name),
@@ -2373,7 +2440,9 @@ class MaterialsController extends Controller
             'instructorName' => trim(($enrollment->material->instructor->first_name ?? 'Instructor') . ' ' . ($enrollment->material->instructor->last_name ?? '')),
             'date' => $enrollment->completed_at ? $enrollment->completed_at->format('F j, Y') : now()->format('F j, Y'),
             'certificateId' => 'CERT-' . str_pad($enrollment->id, 6, '0', STR_PAD_LEFT),
-            'qrCode' => $qrCode
+            'qrCode' => $qrCode,
+            'duration' => $duration,
+            'activeTemplate' => \App\Models\CertificateTemplate::getForMaterial($enrollment->material)
         ];
 
         $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('dashboard.partials.student.certificate-template', $data)

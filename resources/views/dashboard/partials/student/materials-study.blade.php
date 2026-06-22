@@ -279,7 +279,8 @@
     <header
         class="bg-white border-b border-gray-200 h-16 shrink-0 flex items-center justify-between px-4 lg:px-6 z-50 shadow-sm relative">
         <div class="flex items-center gap-4 w-1/4 lg:w-1/3 shrink-0">
-            <a href="{{ route('dashboard.materials.show', $material->hashid) }}"
+            <a href="#" id="exit-study-btn"
+                onclick="exitStudyPage(event)"
                 class="flex items-center text-gray-500 hover:text-[#a52a2a] font-bold transition-colors group px-2 lg:px-3 py-2 rounded-xl hover:bg-red-50">
                 <i class="fas fa-arrow-left mr-2 group-hover:-translate-x-1 transition-transform"></i>
                 <span class="hidden sm:inline">Exit</span>
@@ -1016,7 +1017,93 @@
         document.addEventListener('DOMContentLoaded', () => {
             initVideoPlayers();
             renderState();
+            startClientTimer();
         });
+
+        // =============================================
+        // STUDY TIME TRACKING (Client-Side Stopwatch)
+        // =============================================
+        const STUDY_FLUSH_URL  = '{{ route("dashboard.materials.study.flush", $material->id) }}';
+        const EXIT_URL         = '{{ route("dashboard.materials.show", $material->hashid) }}';
+        const CSRF             = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+
+        // The stopwatch: counts seconds entirely on the client side
+        let _timerStart = Date.now();
+        let _accumulatedSeconds = 0;
+        let _timerFlushed = false;
+
+        function getElapsedSeconds() {
+            return _accumulatedSeconds + Math.floor((Date.now() - _timerStart) / 1000);
+        }
+
+        function startClientTimer() {
+            _timerStart = Date.now();
+            _accumulatedSeconds = 0;
+            _timerFlushed = false;
+        }
+
+        function exitStudyPage(event) {
+            if (event) event.preventDefault();
+            flushStudySession(true);
+        }
+
+        /**
+         * Send the total accumulated seconds to the server.
+         * Uses keepalive: true so it fires even during page unload.
+         * @param {boolean} shouldNavigate - whether to redirect after flushing
+         * @param {string}  navigateTo     - URL to navigate to
+         */
+        function flushStudySession(shouldNavigate = false, navigateTo = EXIT_URL) {
+            if (_timerFlushed) {
+                if (shouldNavigate) window.location.href = navigateTo;
+                return;
+            }
+            _timerFlushed = true;
+
+            const seconds = getElapsedSeconds();
+            if (seconds <= 0) {
+                if (shouldNavigate) window.location.href = navigateTo;
+                return;
+            }
+
+            fetch(STUDY_FLUSH_URL, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': CSRF,
+                    'Accept': 'application/json'
+                },
+                body: JSON.stringify({ seconds: seconds }),
+                keepalive: true  // critical: keeps the request alive during page close
+            }).then(() => {
+                if (shouldNavigate) window.location.href = navigateTo;
+                else {
+                    // After idle flush, restart the client timer for the next session chunk
+                    startClientTimer();
+                }
+            }).catch(() => {
+                if (shouldNavigate) window.location.href = navigateTo;
+            });
+        }
+
+        // Flush when tab is closed or browser is closed
+        window.addEventListener('pagehide', () => flushStudySession(false));
+
+        // Idle detection: if no interaction for 30 minutes, flush silently then restart
+        let idleFlushTimer = null;
+        const IDLE_LIMIT_MS = 30 * 60 * 1000;
+
+        function resetIdleTimer() {
+            clearTimeout(idleFlushTimer);
+            idleFlushTimer = setTimeout(() => flushStudySession(false), IDLE_LIMIT_MS);
+        }
+
+        ['mousemove', 'keydown', 'touchstart', 'scroll', 'click'].forEach(evt => {
+            document.addEventListener(evt, resetIdleTimer, { passive: true });
+        });
+
+        resetIdleTimer(); // Start the idle watchdog immediately
+        // =============================================
 
         let isMobileTocOpen = false;
         function toggleMobileTOC() {
@@ -1354,8 +1441,8 @@
                 const data = await response.json();
 
                 if (data.success) {
-                    // Instantly redirect to the results page (It will dynamically show pass/fail/certificate!)
-                    window.location.href = data.redirect_url;
+                    // Flush accumulated study time before leaving
+                    flushStudySession(true, data.redirect_url);
                 } else {
                     showCustomAlert("Error", data.message || "Failed to process completion.");
                     btn.innerHTML = originalHtml;
