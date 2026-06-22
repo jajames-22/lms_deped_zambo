@@ -105,22 +105,34 @@
 
         <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
             <h3 class="font-bold text-gray-900 mb-4">Recent Enrollments (Last 7 Days)</h3>
-            <div class="relative h-64 flex justify-center items-center">
+            <div class="relative h-64 flex justify-center items-center w-full">
                 @if(array_sum($activityTrend ?? []) > 0)
                     <canvas id="teacherActivityChart"></canvas>
                 @else
-                    <p class="text-gray-400 text-sm">No recent enrollments to display.</p>
+                    <div class="absolute inset-0 flex flex-col items-center justify-center bg-gray-50/50 rounded-xl z-10 border border-dashed border-gray-200">
+                        <div class="w-12 h-12 bg-gray-100 text-gray-400 rounded-full flex items-center justify-center mb-3">
+                            <i class="fas fa-chart-line text-xl"></i>
+                        </div>
+                        <p class="text-sm font-bold text-gray-600">No Activity Yet</p>
+                        <p class="text-xs text-gray-400 mt-1">Check back later for enrollment trends.</p>
+                    </div>
                 @endif
             </div>
         </div>
 
         <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
             <h3 class="font-bold text-gray-900 mb-4">Most Viewed Modules</h3>
-            <div class="relative h-64 flex items-center justify-center">
-                @if(array_sum($topMaterialsData) > 0)
+            <div class="relative h-64 flex items-center justify-center w-full">
+                @if(array_sum($topMaterialsData ?? []) > 0)
                     <canvas id="teacherMaterialsChart"></canvas>
                 @else
-                    <p class="text-gray-400 text-sm">Not enough data to display chart.</p>
+                    <div class="absolute inset-0 flex flex-col items-center justify-center bg-gray-50/50 rounded-xl z-10 border border-dashed border-gray-200">
+                        <div class="w-12 h-12 bg-gray-100 text-gray-400 rounded-full flex items-center justify-center mb-3">
+                            <i class="fas fa-chart-pie text-xl"></i>
+                        </div>
+                        <p class="text-sm font-bold text-gray-600">No Views Recorded</p>
+                        <p class="text-xs text-gray-400 mt-1">Publish modules to start tracking views.</p>
+                    </div>
                 @endif
             </div>
         </div>
@@ -154,7 +166,13 @@
                                 class="text-[10px] text-gray-400 whitespace-nowrap">{{ $enrollment->updated_at->diffForHumans(null, true, true) }}</span>
                         </div>
                     @empty
-                        <div class="p-6 text-center text-gray-400 text-sm">No recent student activity found.</div>
+                        <div class="p-8 flex flex-col items-center justify-center text-center border-t border-gray-50 border-dashed">
+                            <div class="w-12 h-12 bg-gray-50 text-gray-400 rounded-full flex items-center justify-center mb-3">
+                                <i class="fas fa-user-graduate text-xl"></i>
+                            </div>
+                            <h4 class="font-bold text-gray-700 text-sm">No Student Activity</h4>
+                            <p class="text-xs text-gray-400 mt-1 max-w-[200px]">Students haven't accessed your materials recently.</p>
+                        </div>
                     @endforelse
                 </div>
             </div>

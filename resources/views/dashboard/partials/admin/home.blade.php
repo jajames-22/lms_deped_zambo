@@ -60,7 +60,17 @@
             </div>
         </div>
         <div class="relative h-64 w-full">
-            <canvas id="activityChart"></canvas>
+            @if(array_sum($activityTrend ?? []) > 0)
+                <canvas id="activityChart"></canvas>
+            @else
+                <div class="absolute inset-0 flex flex-col items-center justify-center bg-gray-50/50 rounded-xl z-10 border border-dashed border-gray-200">
+                    <div class="w-12 h-12 bg-gray-100 text-gray-400 rounded-full flex items-center justify-center mb-3">
+                        <i class="fas fa-chart-line text-xl"></i>
+                    </div>
+                    <p class="text-sm font-bold text-gray-600">No Activity Yet</p>
+                    <p class="text-xs text-gray-400 mt-1">No user activity recorded in the last 7 days.</p>
+                </div>
+            @endif
         </div>
     </div>
 </div>
@@ -70,7 +80,17 @@
         <h3 class="font-bold text-gray-900 mb-2">Most Popular Views</h3>
         <p class="text-xs text-gray-500 mb-4">Top 5 modules based on student views.</p>
         <div class="relative flex-1 flex items-center justify-center min-h-[200px]">
-            <canvas id="materialsChart"></canvas>
+            @if(array_sum($topMaterialsData ?? []) > 0)
+                <canvas id="materialsChart"></canvas>
+            @else
+                <div class="absolute inset-0 flex flex-col items-center justify-center bg-gray-50/50 rounded-xl z-10 border border-dashed border-gray-200">
+                    <div class="w-12 h-12 bg-gray-100 text-gray-400 rounded-full flex items-center justify-center mb-3">
+                        <i class="fas fa-eye text-xl"></i>
+                    </div>
+                    <p class="text-sm font-bold text-gray-600">No Views Recorded</p>
+                    <p class="text-xs text-gray-400 mt-1">Modules have not been viewed yet.</p>
+                </div>
+            @endif
         </div>
     </div>
 
@@ -78,7 +98,17 @@
         <h3 class="font-bold text-gray-900 mb-2">Most Popular Downloads</h3>
         <p class="text-xs text-gray-500 mb-4">Top 5 modules based on student downloads.</p>
         <div class="relative flex-1 flex items-center justify-center min-h-[200px]">
-            <canvas id="downloadsChart"></canvas>
+            @if(array_sum($topDownloadedMaterialsData ?? []) > 0)
+                <canvas id="downloadsChart"></canvas>
+            @else
+                <div class="absolute inset-0 flex flex-col items-center justify-center bg-gray-50/50 rounded-xl z-10 border border-dashed border-gray-200">
+                    <div class="w-12 h-12 bg-gray-100 text-gray-400 rounded-full flex items-center justify-center mb-3">
+                        <i class="fas fa-download text-xl"></i>
+                    </div>
+                    <p class="text-sm font-bold text-gray-600">No Downloads Recorded</p>
+                    <p class="text-xs text-gray-400 mt-1">Modules have not been downloaded yet.</p>
+                </div>
+            @endif
         </div>
     </div>
 </div>
@@ -91,7 +121,17 @@
             <i class="fas fa-school text-gray-300 text-xl"></i>
         </div>
         <div class="relative h-64 w-full">
-            <canvas id="schoolsChart"></canvas>
+            @if(array_sum($topSchoolData ?? []) > 0)
+                <canvas id="schoolsChart"></canvas>
+            @else
+                <div class="absolute inset-0 flex flex-col items-center justify-center bg-gray-50/50 rounded-xl z-10 border border-dashed border-gray-200">
+                    <div class="w-12 h-12 bg-gray-100 text-gray-400 rounded-full flex items-center justify-center mb-3">
+                        <i class="fas fa-school text-xl"></i>
+                    </div>
+                    <p class="text-sm font-bold text-gray-600">No School Enrollments</p>
+                    <p class="text-xs text-gray-400 mt-1">Students haven't enrolled yet.</p>
+                </div>
+            @endif
         </div>
     </div>
 

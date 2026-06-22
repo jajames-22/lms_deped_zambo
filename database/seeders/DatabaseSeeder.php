@@ -15,11 +15,24 @@ class DatabaseSeeder extends Seeder
      */
     public function run(): void
     {
-        // User::factory(10)->create();
+        $school = \App\Models\School::firstOrCreate([
+            'school_id' => 'SCH-001',
+            'name' => 'Default Test School'
+        ]);
 
-        User::factory()->create([
-            'name' => 'Test User',
-            'email' => 'test@example.com',
+        if (User::where('email', 'test@example.com')->doesntExist()) {
+            User::factory()->create([
+                'first_name' => 'Test',
+                'last_name' => 'User',
+                'username' => 'testuser',
+                'email' => 'test@example.com',
+                'school_id' => $school->id,
+            ]);
+        }
+
+        $this->call([
+            AdminSeeder::class,
+            QuadrantAndDistrictSeeder::class,
         ]);
     }
 }

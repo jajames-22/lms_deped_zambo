@@ -70,7 +70,17 @@
             <button class="text-gray-400 hover:text-[#a52a2a] transition"><i class="fas fa-ellipsis-v"></i></button>
         </div>
         <div class="h-72 w-full relative">
-            <canvas id="masteryChart"></canvas>
+            @if(array_sum($masteryData ?? []) > 0)
+                <canvas id="masteryChart"></canvas>
+            @else
+                <div class="absolute inset-0 flex flex-col items-center justify-center bg-gray-50/50 rounded-xl z-10 border border-dashed border-gray-200">
+                    <div class="w-12 h-12 bg-gray-100 text-gray-400 rounded-full flex items-center justify-center mb-3">
+                        <i class="fas fa-chart-area text-xl"></i>
+                    </div>
+                    <p class="text-sm font-bold text-gray-600">No Mastery Data</p>
+                    <p class="text-xs text-gray-400 mt-1">Assessments need to be completed first.</p>
+                </div>
+            @endif
         </div>
     </div>
 
@@ -79,7 +89,17 @@
         <h3 class="font-bold text-gray-900 mb-1">Approved Material Types</h3>
         <p class="text-xs text-gray-500 mb-6">Distribution of published curriculum resources</p>
         <div class="flex-1 relative w-full flex justify-center items-center min-h-[200px]">
-            <canvas id="materialTypeChart"></canvas>
+            @if(array_sum($materialTypeData ?? []) > 0)
+                <canvas id="materialTypeChart"></canvas>
+            @else
+                <div class="absolute inset-0 flex flex-col items-center justify-center bg-gray-50/50 rounded-xl z-10 border border-dashed border-gray-200">
+                    <div class="w-12 h-12 bg-gray-100 text-gray-400 rounded-full flex items-center justify-center mb-3">
+                        <i class="fas fa-cubes text-xl"></i>
+                    </div>
+                    <p class="text-sm font-bold text-gray-600">No Published Materials</p>
+                    <p class="text-xs text-gray-400 mt-1">Approve materials to see distribution.</p>
+                </div>
+            @endif
         </div>
     </div>
 </div>
@@ -113,10 +133,13 @@
                         </div>
                     </li>
                 @empty
-                    <li class="p-8 text-center text-gray-500 text-sm">
-                        <i class="fas fa-clipboard text-3xl text-gray-300 mb-3 block"></i>
-                        No recent evaluations found.
-                    </li>
+                    <div class="p-8 flex flex-col items-center justify-center text-center">
+                        <div class="w-12 h-12 bg-gray-50 text-gray-400 rounded-full flex items-center justify-center mb-3">
+                            <i class="fas fa-clipboard-check text-xl"></i>
+                        </div>
+                        <h4 class="font-bold text-gray-700 text-sm">No Recent Evaluations</h4>
+                        <p class="text-xs text-gray-400 mt-1">There are no material evaluations to show.</p>
+                    </div>
                 @endforelse
             </ul>
         </div>
@@ -131,7 +154,17 @@
             </div>
         </div>
         <div class="h-80 w-full relative">
-            <canvas id="schoolsChart"></canvas>
+            @if(array_sum($topSchoolData ?? []) > 0)
+                <canvas id="schoolsChart"></canvas>
+            @else
+                <div class="absolute inset-0 flex flex-col items-center justify-center bg-gray-50/50 rounded-xl z-10 border border-dashed border-gray-200">
+                    <div class="w-12 h-12 bg-gray-100 text-gray-400 rounded-full flex items-center justify-center mb-3">
+                        <i class="fas fa-school text-xl"></i>
+                    </div>
+                    <p class="text-sm font-bold text-gray-600">No School Performance Data</p>
+                    <p class="text-xs text-gray-400 mt-1">Assessment scores are required to rank schools.</p>
+                </div>
+            @endif
         </div>
     </div>
 </div>
