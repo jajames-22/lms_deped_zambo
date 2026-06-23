@@ -50,6 +50,7 @@ class StudentController extends Controller
             'middle_name' => 'nullable|string|max:255',
             'last_name' => 'required|string|max:255',
             'suffix' => 'nullable|string|max:50',
+            'username' => 'required|string|max:255|unique:users,username',
             'lrn' => 'nullable|string|max:255|unique:users,lrn',
             'email' => 'nullable|email|max:255|unique:users,email',
             'password' => 'required|string|min:6',
@@ -91,6 +92,7 @@ class StudentController extends Controller
             'middle_name' => 'nullable|string|max:255',
             'last_name' => 'required|string|max:255',
             'suffix' => 'nullable|string|max:50',
+            'username' => 'required|string|max:255|unique:users,username,' . $student->id,
             'lrn' => 'nullable|string|max:255|unique:users,lrn,' . $student->id,
             'email' => 'nullable|email|max:255|unique:users,email,' . $student->id,
             'password' => 'nullable|string|min:6',
@@ -146,7 +148,7 @@ class StudentController extends Controller
 
                 $section->materials = Material::with('instructor')
                     ->whereHas('tags', function ($q) use ($tagsArray) {
-                        $q->whereIn('name', $tagsArray); 
+                        $q->whereIn('name', $tagsArray);
                     })
                     ->where('status', 'published')
                     ->where('is_public', true)
@@ -206,7 +208,7 @@ class StudentController extends Controller
     {
         $request->validate([
             // Added 'txt' because Laravel often reads CSVs as text/plain
-            'file' => 'required|file|mimes:xlsx,xls,csv,txt|max:5120', 
+            'file' => 'required|file|mimes:xlsx,xls,csv,txt|max:5120',
             'strategy' => 'nullable|in:skip,update',
             'check_only' => 'nullable|boolean'
         ]);
@@ -235,8 +237,8 @@ class StudentController extends Controller
 
                     return [
                         'lrn' => $lrn ?? 'Unknown',
-                        'name' => $incomingName, 
-                        
+                        'name' => $incomingName,
+
                         // Populate the existing database record
                         'existing' => [
                             'name' => $existingName,
@@ -244,7 +246,7 @@ class StudentController extends Controller
                             'section' => $existingUser->section ?? 'N/A',
                             'gender' => $existingUser->gender ?? 'N/A',
                         ],
-                        
+
                         // Populate the new spreadsheet record
                         'incoming' => [
                             'name' => $incomingName,
@@ -272,17 +274,17 @@ class StudentController extends Controller
             }
 
             return response()->json(['message' => $message]);
-            
+
         } catch (\Exception $e) {
             return response()->json(['message' => 'Import failed: ' . $e->getMessage()], 500);
         }
     }
 
-public function downloadTemplate()
+    public function downloadTemplate()
     {
         $headers = [
             'Content-Type' => 'text/csv',
-            'Content-Disposition' => 'attachment; filename="Student_Import_Template.csv"', 
+            'Content-Disposition' => 'attachment; filename="Student_Import_Template.csv"',
         ];
 
         $columns = [
@@ -302,7 +304,7 @@ public function downloadTemplate()
 
         $callback = function () use ($columns) {
             $file = fopen('php://output', 'w');
-            
+
             // 1. Add the headers (Row 1)
             fputcsv($file, $columns);
 
@@ -319,7 +321,7 @@ public function downloadTemplate()
                 'Grade 10',             // I2: Grade Level
                 '',                     // J2: School ID (Left blank so backend uses default school)
                 'pending',              // K2: Status
-                
+
                 // 👈 L2: The Instruction Cell
                 'INSTRUCTIONS: Only first_name and last_name are strictly required. You can safely leave username, password, email, and school_id BLANK to use system defaults. IMPORTANT: Delete this entire sample row before importing.'
             ]);
@@ -328,11 +330,12 @@ public function downloadTemplate()
         };
 
         return response()->stream($callback, 200, $headers);
-    }    public function bulkDestroy(\Illuminate\Http\Request $request)
+    }
+    public function bulkDestroy(\Illuminate\Http\Request $request)
     {
         $request->validate([
             'ids' => 'required|array',
-            'ids.*' => 'exists:users,id' 
+            'ids.*' => 'exists:users,id'
         ]);
 
         \App\Models\User::whereIn('id', $request->ids)->delete();
@@ -342,7 +345,7 @@ public function downloadTemplate()
             'message' => 'The selected students have been successfully removed.'
         ]);
     }
-    
+
     public function report(Request $request)
     {
         // Start building the query
@@ -354,14 +357,14 @@ public function downloadTemplate()
             // Do nothing, fetch all records
         } elseif ($request->has('statuses') && is_array($request->statuses)) {
             $query->whereIn('status', $request->statuses);
-            
+
             $formattedStatuses = array_map('ucfirst', $request->statuses);
             $titleStatus = implode(' & ', $formattedStatuses) . ' ';
         }
 
         // Execute the query
         $students = $query->orderBy('last_name', 'asc')->get();
-        
+
         $data = [
             'title' => $titleStatus . 'Student Directory Report',
             'type' => 'students',

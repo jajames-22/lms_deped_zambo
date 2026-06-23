@@ -93,9 +93,9 @@
         </div>
     </form>
 
-    <div id="successModal" class="fixed inset-0 z-50 hidden flex items-center justify-center">
-        <div class="absolute inset-0 bg-gray-900/60 backdrop-blur-sm"></div>
-        <div class="relative bg-white rounded-3xl shadow-2xl max-w-sm w-full p-8 text-center transform transition-all border border-gray-100 z-10 animate-fade-in-up">
+    <div id="successModal" class="fixed inset-0 z-[9999] hidden flex items-center justify-center p-4">
+        <div class="absolute inset-0 bg-gray-900/60 backdrop-blur-sm transition-opacity"></div>
+        <div id="successModalBox" class="relative bg-white rounded-3xl shadow-2xl max-w-sm w-full p-8 text-center transform scale-95 opacity-0 transition-all duration-300 border border-gray-100 z-10">
             <div class="w-20 h-20 bg-green-50 text-green-500 rounded-full flex items-center justify-center mx-auto mb-5 shadow-inner">
                 <i class="fas fa-check text-4xl"></i>
             </div>
@@ -115,25 +115,27 @@
 </div>
 
 <script>
+(function() {
     console.log("School Create Script Loaded");
 
     // 1. Image Preview
     function previewImage(event) {
-        const reader = new FileReader();
+        var reader = new FileReader();
         reader.onload = function() {
-            const output = document.getElementById('logo-preview');
+            var output = document.getElementById('logo-preview');
             output.innerHTML = `<img src="${reader.result}" class="w-full h-full object-cover">`;
         };
         reader.readAsDataURL(event.target.files[0]);
     }
+    window.previewImage = previewImage;
 
     // 2. AJAX District Loading
-    const qSelect = document.getElementById('quadrant_id');
-    const dSelect = document.getElementById('district_id');
+    var qSelect = document.getElementById('quadrant_id');
+    var dSelect = document.getElementById('district_id');
 
     if (qSelect) {
         qSelect.addEventListener('change', function() {
-            const qId = this.value;
+            var qId = this.value;
             dSelect.disabled = true;
             dSelect.innerHTML = '<option>Loading districts...</option>';
 
@@ -143,7 +145,7 @@
                     dSelect.innerHTML = '<option value="" disabled selected>Select District</option>';
                     if (data.length > 0) {
                         data.forEach(d => {
-                            const option = document.createElement('option');
+                            var option = document.createElement('option');
                             option.value = d.id;
                             option.textContent = d.name;
                             dSelect.appendChild(option);
@@ -158,64 +160,83 @@
     }
 
     // 3. AJAX Form Submission
-    const form = document.getElementById('createSchoolForm');
-    const submitBtn = document.getElementById('submitBtn');
-    const submitIcon = submitBtn.querySelector('i');
-    const submitText = submitBtn.querySelector('span');
+    var form = document.getElementById('createSchoolForm');
+    var submitBtn = document.getElementById('submitBtn');
 
-    form.addEventListener('submit', function(e) {
-        e.preventDefault(); // Stop page reload
+    if (form && submitBtn) {
+        form.addEventListener('submit', function(e) {
+            e.preventDefault(); // Stop page reload
 
-        // Loading State
-        submitBtn.disabled = true;
-        submitIcon.className = 'fas fa-spinner fa-spin';
-        submitText.textContent = 'Saving to database...';
+            var submitIcon = submitBtn.querySelector('i');
+            var submitText = submitBtn.querySelector('span');
 
-        const formData = new FormData(this);
+            // Loading State
+            submitBtn.disabled = true;
+            submitIcon.className = 'fas fa-spinner fa-spin';
+            submitText.textContent = 'Saving to database...';
 
-        fetch(this.action, {
-            method: 'POST',
-            body: formData,
-            headers: {
-                'X-Requested-With': 'XMLHttpRequest',
-                'Accept': 'application/json' // Forces Laravel to return JSON errors instead of redirecting
-            }
-        })
-        .then(response => {
-            if (!response.ok) {
-                return response.json().then(err => { throw err; });
-            }
-            return response.json();
-        })
-        .then(data => {
-            // Show Success Modal
-            document.getElementById('successModal').classList.remove('hidden');
-            
-            // Reset the form in the background
-            form.reset();
-            document.getElementById('logo-preview').innerHTML = '<i class="fas fa-university text-3xl text-gray-300"></i>';
-            dSelect.disabled = true;
-            dSelect.innerHTML = '<option value="">Select Quadrant first</option>';
-        })
-        .catch(error => {
-            console.error("Submission error:", error);
-            // Quick error handling for validation
-            let errorMsg = "An error occurred while saving.";
-            if(error.errors) {
-                errorMsg = Object.values(error.errors).flat().join('\n');
-            }
-            alert(errorMsg);
-        })
-        .finally(() => {
-            // Revert Loading State
-            submitBtn.disabled = false;
-            submitIcon.className = 'fas fa-check-circle';
-            submitText.textContent = 'Complete Registration';
+            var formData = new FormData(this);
+
+            fetch(this.action, {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'Accept': 'application/json' // Forces Laravel to return JSON errors instead of redirecting
+                }
+            })
+            .then(response => {
+                if (!response.ok) {
+                    return response.json().then(err => { throw err; });
+                }
+                return response.json();
+            })
+            .then(data => {
+                // Show Success Modal
+                var modal = document.getElementById('successModal');
+                var modalBox = document.getElementById('successModalBox');
+                modal.classList.remove('hidden');
+                setTimeout(() => {
+                    modalBox.classList.remove('scale-95', 'opacity-0');
+                    modalBox.classList.add('scale-100', 'opacity-100');
+                }, 10);
+                
+                // Reset the form in the background
+                form.reset();
+                document.getElementById('logo-preview').innerHTML = '<i class="fas fa-university text-3xl text-gray-300"></i>';
+                dSelect.disabled = true;
+                dSelect.innerHTML = '<option value="">Select Quadrant first</option>';
+            })
+            .catch(error => {
+                console.error("Submission error:", error);
+                // Quick error handling for validation
+                var errorMsg = "An error occurred while saving.";
+                if(error.errors) {
+                    errorMsg = Object.values(error.errors).flat().join('\n');
+                }
+                showSnackbar(errorMsg, 'error');
+            })
+            .finally(() => {
+                // Revert Loading State
+                submitBtn.disabled = false;
+                submitIcon.className = 'fas fa-check-circle';
+                submitText.textContent = 'Complete Registration';
+            });
         });
-    });
+    }
 
     // 4. Close Modal Logic
     function closeSuccessModal() {
-        document.getElementById('successModal').classList.add('hidden');
+        var modal = document.getElementById('successModal');
+        var modalBox = document.getElementById('successModalBox');
+        
+        modalBox.classList.remove('scale-100', 'opacity-100');
+        modalBox.classList.add('scale-95', 'opacity-0');
+        
+        setTimeout(() => {
+            modal.classList.add('hidden');
+        }, 300);
     }
+    window.closeSuccessModal = closeSuccessModal;
+})();
 </script>

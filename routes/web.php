@@ -79,6 +79,12 @@ Route::middleware(['auth', 'verified', CheckAccountStatus::class])->group(functi
         Route::get('/schools/{school}/edit', [DashboardController::class, 'editSchoolPartial'])->name('schools.edit');
         Route::put('/schools/{school}', [DashboardController::class, 'updateSchool'])->name('schools.update');
         Route::delete('/schools/{school}', [DashboardController::class, 'destroySchool'])->name('schools.destroy');
+        Route::post('/quadrants/store', [DashboardController::class, 'storeQuadrant'])->name('quadrants.store');
+        Route::put('/quadrants/{id}', [DashboardController::class, 'updateQuadrant'])->name('quadrants.update');
+        Route::delete('/quadrants/{id}', [DashboardController::class, 'destroyQuadrant'])->name('quadrants.destroy');
+        Route::post('/districts/store', [DashboardController::class, 'storeDistrict'])->name('districts.store');
+        Route::put('/districts/{id}', [DashboardController::class, 'updateDistrict'])->name('districts.update');
+        Route::delete('/districts/{id}', [DashboardController::class, 'destroyDistrict'])->name('districts.destroy');
 
         Route::post('/admin/broadcast', [ProfileController::class, 'broadcastNotification'])->name('admin.broadcast');
 

@@ -212,9 +212,9 @@
             </div>
         </form>
 
-        <div id="successModal" class="fixed inset-0 z-50 hidden flex items-center justify-center">
-            <div class="absolute inset-0 bg-gray-900/60"></div>
-            <div class="relative bg-white rounded-3xl shadow-2xl max-w-sm w-full p-8 text-center transform transition-all border border-gray-100 z-10 animate-fade-in-up">
+        <div id="successModal" class="fixed inset-0 z-[9999] hidden flex items-center justify-center p-4">
+            <div class="absolute inset-0 bg-gray-900/60 transition-opacity duration-300"></div>
+            <div id="successModalBox" class="relative bg-white rounded-3xl shadow-2xl max-w-sm w-full p-8 text-center transform scale-95 opacity-0 transition-all duration-300 border border-gray-100 z-10">
                 <div class="w-20 h-20 bg-green-50 text-green-500 rounded-full flex items-center justify-center mx-auto mb-5 shadow-inner">
                     <i class="fas fa-check text-4xl"></i>
                 </div>
@@ -230,6 +230,7 @@
 </div>
 
 <script>
+(function() {
     // --- Password Toggle Logic ---
     function togglePassword() {
         var pwdInput = document.getElementById('passwordInput');
@@ -244,23 +245,20 @@
             eyeIcon.classList.add('fa-eye');
         }
     }
+    window.togglePassword = togglePassword;
 
     // --- AJAX Form Submission Logic ---
     var studentEditForm = document.getElementById('editStudentForm');
     var studentSubmitBtn = document.getElementById('submitBtn');
     
     if (studentEditForm && studentSubmitBtn) {
-        var newStudentEditForm = studentEditForm.cloneNode(true);
-        studentEditForm.parentNode.replaceChild(newStudentEditForm, studentEditForm);
-
-        newStudentEditForm.addEventListener('submit', function(e) {
+        studentEditForm.addEventListener('submit', function(e) {
             e.preventDefault();
 
-            var currentSubmitBtn = document.getElementById('submitBtn');
             var submitIcon = document.getElementById('submitIcon');
             var submitText = document.getElementById('submitText');
 
-            currentSubmitBtn.disabled = true;
+            studentSubmitBtn.disabled = true;
             submitIcon.className = 'fas fa-spinner fa-spin';
             submitText.textContent = 'Updating database...';
 
@@ -280,7 +278,14 @@
                 return response.json();
             })
             .then(data => {
-                document.getElementById('successModal').classList.remove('hidden');
+                var modal = document.getElementById('successModal');
+                var box = document.getElementById('successModalBox');
+                modal.classList.remove('hidden');
+                setTimeout(() => {
+                    box.classList.remove('scale-95', 'opacity-0');
+                    box.classList.add('scale-100', 'opacity-100');
+                }, 10);
+
                 setTimeout(() => {
                     loadPartial('{{ route('dashboard.students') }}', document.getElementById('nav-students-btn'));
                 }, 2000);
@@ -291,13 +296,14 @@
                 if(error.errors) {
                     errorMsg = Object.values(error.errors).flat().join('\n');
                 }
-                alert(errorMsg);
+                showSnackbar(errorMsg, 'error');
             })
             .finally(() => {
-                currentSubmitBtn.disabled = false;
+                studentSubmitBtn.disabled = false;
                 submitIcon.className = 'fas fa-save';
                 submitText.textContent = 'Save Changes';
             });
         });
     }
+})();
 </script>

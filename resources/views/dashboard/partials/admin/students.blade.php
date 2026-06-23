@@ -63,8 +63,20 @@
                 class="status-tab px-6 py-2 text-sm font-bold rounded-lg transition-all text-gray-500 hover:text-gray-700"
                 data-status="verified">Verified</button>
             <button
-                class="status-tab px-6 py-2 text-sm font-bold rounded-lg transition-all text-gray-500 hover:text-gray-700"
-                data-status="pending">Pending</button>
+                class="status-tab flex items-center gap-1 px-6 py-2 text-sm font-bold rounded-lg transition-all text-gray-500 hover:text-gray-700"
+                data-status="pending">
+                <span>Pending</span>
+
+                @php 
+                    $pendingCount = collect($students)->filter(fn($s) => strtolower($s->status ?? 'pending') === 'pending')->count();
+                @endphp
+
+                @if($pendingCount > 0)
+                    <span class="flex items-center justify-center min-w-[20px] h-[20px] px-1.5 bg-red-500 text-white text-[11px] font-bold rounded-full">
+                        {{ $pendingCount }}
+                    </span>
+                @endif
+            </button>
             <button
                 class="status-tab px-6 py-2 text-sm font-bold rounded-lg transition-all text-gray-500 hover:text-gray-700"
                 data-status="suspended">Suspended</button>

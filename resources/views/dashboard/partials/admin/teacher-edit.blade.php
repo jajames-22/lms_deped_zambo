@@ -242,6 +242,7 @@
 </div>
 
 <script>
+(function() {
     function togglePassword() {
         var pwdInput = document.getElementById('passwordInput');
         var eyeIcon = document.getElementById('eyeIcon');
@@ -255,6 +256,7 @@
             eyeIcon.classList.add('fa-eye');
         }
     }
+    window.togglePassword = togglePassword;
 
     function closeSuccessModal() {
         var modal = document.getElementById('successModal');
@@ -267,22 +269,19 @@
             modal.classList.add('hidden');
         }, 300);
     }
+    window.closeSuccessModal = closeSuccessModal;
 
     var teacherEditForm = document.getElementById('editTeacherForm');
     var teacherSubmitBtn = document.getElementById('submitBtn');
     
     if (teacherEditForm && teacherSubmitBtn) {
-        var newTeacherEditForm = teacherEditForm.cloneNode(true);
-        teacherEditForm.parentNode.replaceChild(newTeacherEditForm, teacherEditForm);
-
-        newTeacherEditForm.addEventListener('submit', function(e) {
+        teacherEditForm.addEventListener('submit', function(e) {
             e.preventDefault();
 
-            var currentSubmitBtn = document.getElementById('submitBtn');
             var submitIcon = document.getElementById('submitIcon');
             var submitText = document.getElementById('submitText');
 
-            currentSubmitBtn.disabled = true;
+            teacherSubmitBtn.disabled = true;
             submitIcon.className = 'fas fa-spinner fa-spin';
             submitText.textContent = 'Updating account...';
 
@@ -311,6 +310,10 @@
                     box.classList.remove('scale-95', 'opacity-0');
                     box.classList.add('scale-100', 'opacity-100');
                 }, 10);
+
+                setTimeout(() => {
+                    loadPartial('{{ route('dashboard.teachers') }}', document.getElementById('nav-teachers-btn'));
+                }, 2000);
             })
             .catch(error => {
                 console.error("Submission error:", error);
@@ -318,13 +321,14 @@
                 if(error.errors) {
                     errorMsg = Object.values(error.errors).flat().join('\n');
                 }
-                alert(errorMsg);
+                showSnackbar(errorMsg, 'error');
             })
             .finally(() => {
-                currentSubmitBtn.disabled = false;
+                teacherSubmitBtn.disabled = false;
                 submitIcon.className = 'fas fa-save';
                 submitText.textContent = 'Save Changes';
             });
         });
     }
+})();
 </script>

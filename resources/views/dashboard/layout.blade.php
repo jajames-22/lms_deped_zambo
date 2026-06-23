@@ -1092,6 +1092,37 @@
 
 
     </script>
-</body>
+    <!-- GLOBAL SNACKBAR (TOAST) -->
+    <div id="snackbar" class="fixed bottom-6 right-6 transform translate-y-24 opacity-0 transition-all duration-300 z-[9999] flex items-center gap-3 px-6 py-4 rounded-2xl shadow-2xl font-bold text-sm border pointer-events-none">
+        <i id="snackbar-icon" class="fas fa-check-circle text-xl"></i>
+        <span id="snackbar-message"></span>
+    </div>
 
+    <script>
+        window.showSnackbar = function (message, type = 'success') {
+            const snackbar = document.getElementById('snackbar');
+            const icon = document.getElementById('snackbar-icon');
+            document.getElementById('snackbar-message').textContent = message;
+
+            snackbar.className = `fixed bottom-6 right-6 transform translate-y-0 opacity-100 transition-all duration-300 z-[9999] flex items-center gap-3 px-6 py-4 rounded-2xl shadow-2xl font-bold text-sm border`;
+
+            if (type === 'success') {
+                snackbar.classList.add('bg-white', 'text-gray-800', 'border-gray-100');
+                icon.className = 'fas fa-check-circle text-green-500 text-xl';
+            } else if (type === 'info') {
+                snackbar.classList.add('bg-gray-800', 'text-white', 'border-gray-700');
+                icon.className = 'fas fa-info-circle text-blue-400 text-xl';
+            } else {
+                snackbar.classList.add('bg-red-600', 'text-white', 'border-red-700');
+                icon.className = 'fas fa-exclamation-circle text-white text-xl';
+            }
+
+            if (window.snackbarTimer) clearTimeout(window.snackbarTimer);
+            window.snackbarTimer = setTimeout(() => {
+                snackbar.classList.replace('translate-y-0', 'translate-y-24');
+                snackbar.classList.replace('opacity-100', 'opacity-0');
+            }, 4000);
+        }
+    </script>
+</body>
 </html>

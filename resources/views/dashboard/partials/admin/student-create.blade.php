@@ -314,7 +314,7 @@
                 if(error.errors) {
                     errorMsg = Object.values(error.errors).flat().join('\n');
                 }
-                alert(errorMsg);
+                showSnackbar(errorMsg, 'error');
             })
             .finally(() => {
                 currentSubmitBtn.disabled = false;

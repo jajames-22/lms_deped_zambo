@@ -619,12 +619,13 @@
                         class="fas fa-times"></i></button>
             </div>
 
-            <div class="bg-white p-4 border-b border-gray-200 shadow-sm text-center shrink-0 z-10">
-                <p class="text-xs font-bold text-gray-500 uppercase tracking-widest mb-1">Total Score</p>
-                <div class="text-3xl font-black text-gray-300 transition-colors duration-300"
-                    id="live-score-display">0%</div>
+            <div id="score-container" class="bg-white p-4 border-b border-gray-200 shadow-sm flex flex-col items-center justify-center shrink-0 z-20 transition-all duration-300">
+                <div id="score-text-wrapper" class="flex flex-col items-center transition-all duration-300">
+                    <p id="score-label" class="text-xs font-bold text-gray-500 uppercase tracking-widest mb-1 transition-all duration-300">Total Score</p>
+                    <div class="text-3xl font-black text-gray-300 transition-all duration-300" id="live-score-display">0%</div>
+                </div>
                 <div id="score-status-badge"
-                    class="mt-2 inline-block px-3 py-1 rounded text-[10px] font-black uppercase tracking-widest bg-gray-100 text-gray-400">
+                    class="mt-2 inline-block px-3 py-1 rounded text-[10px] font-black uppercase tracking-widest bg-gray-100 text-gray-400 transition-all duration-300">
                     Pending Evaluation</div>
             </div>
 
@@ -774,11 +775,14 @@
             const badge = document.getElementById('score-status-badge');
             const approveBtn = document.getElementById('btn-approve');
 
+            scoreDisplay.classList.remove('text-gray-300', 'text-green-500', 'text-red-500');
+            badge.classList.remove('bg-gray-100', 'text-gray-400', 'bg-green-100', 'text-green-700', 'bg-red-100', 'text-red-700');
+
             if (answeredItems === 0 || maxScore === 0) {
                 scoreDisplay.innerText = '0%';
-                scoreDisplay.className = 'text-3xl font-black text-gray-300 transition-colors duration-300';
+                scoreDisplay.classList.add('text-gray-300');
                 badge.innerText = 'Pending Evaluation';
-                badge.className = 'mt-2 inline-block px-3 py-1 rounded text-[10px] font-black uppercase tracking-widest bg-gray-100 text-gray-400';
+                badge.classList.add('bg-gray-100', 'text-gray-400');
                 approveBtn.disabled = true;
                 return;
             }
@@ -787,14 +791,14 @@
             scoreDisplay.innerText = percentage + '%';
 
             if (percentage >= requiredPassingRate) {
-                scoreDisplay.className = 'text-3xl font-black text-green-500 transition-colors duration-300';
+                scoreDisplay.classList.add('text-green-500');
                 badge.innerText = 'Passing Standard Met';
-                badge.className = 'mt-2 inline-block px-3 py-1 rounded text-[10px] font-black uppercase tracking-widest bg-green-100 text-green-700';
+                badge.classList.add('bg-green-100', 'text-green-700');
                 approveBtn.disabled = (answeredItems < totalItems); // Only enable if ALL items are graded
             } else {
-                scoreDisplay.className = 'text-3xl font-black text-red-500 transition-colors duration-300';
+                scoreDisplay.classList.add('text-red-500');
                 badge.innerText = 'Below Minimum Standard';
-                badge.className = 'mt-2 inline-block px-3 py-1 rounded text-[10px] font-black uppercase tracking-widest bg-red-100 text-red-700';
+                badge.classList.add('bg-red-100', 'text-red-700');
                 approveBtn.disabled = true;
             }
         }
@@ -1123,6 +1127,54 @@
 
         function pdfZoomIn(id) { if (pdfInstances[id]) { pdfInstances[id].scale += 0.2; renderAllPdfPages(id); } }
         function pdfZoomOut(id) { if (pdfInstances[id] && pdfInstances[id].scale > 0.4) { pdfInstances[id].scale -= 0.2; renderAllPdfPages(id); } }
+
+        // Setup evaluation scroll watcher
+        const evalScrollArea = document.querySelector('#evaluation-sidebar .sidebar-scroll');
+        if (evalScrollArea) {
+            evalScrollArea.addEventListener('scroll', function() {
+                const isScrolled = this.scrollTop > 10;
+                
+                const container = document.getElementById('score-container');
+                const textWrapper = document.getElementById('score-text-wrapper');
+                const label = document.getElementById('score-label');
+                const display = document.getElementById('live-score-display');
+                const badge = document.getElementById('score-status-badge');
+
+                if (!container || !textWrapper) return;
+
+                if (isScrolled) {
+                    container.classList.replace('p-4', 'p-3');
+                    
+                    textWrapper.classList.replace('flex-col', 'flex-row');
+                    textWrapper.classList.remove('items-center');
+                    textWrapper.classList.add('justify-between', 'items-baseline', 'w-full');
+                    
+                    label.classList.replace('mb-1', 'mb-0');
+                    label.innerHTML = 'Total Score:';
+                    
+                    display.classList.replace('text-3xl', 'text-xl');
+                    
+                    badge.classList.replace('inline-block', 'block');
+                    badge.classList.replace('mt-2', 'mt-1');
+                    badge.classList.add('w-full', 'text-center');
+                } else {
+                    container.classList.replace('p-3', 'p-4');
+                    
+                    textWrapper.classList.replace('flex-row', 'flex-col');
+                    textWrapper.classList.add('items-center');
+                    textWrapper.classList.remove('justify-between', 'items-baseline', 'w-full');
+                    
+                    label.classList.replace('mb-0', 'mb-1');
+                    label.innerHTML = 'Total Score';
+                    
+                    display.classList.replace('text-xl', 'text-3xl');
+                    
+                    badge.classList.replace('block', 'inline-block');
+                    badge.classList.replace('mt-1', 'mt-2');
+                    badge.classList.remove('w-full', 'text-center');
+                }
+            });
+        }
 
         // Initialize
         document.addEventListener('DOMContentLoaded', () => { renderState(); });

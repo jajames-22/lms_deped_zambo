@@ -19,9 +19,126 @@ class DashboardController extends Controller
     public function loadSchoolsPartial()
     {
         // Eager load district and quadrant to prevent errors
-        $schools = School::with('district.quadrant')->get();
+        $schools = School::withCount('users')->with('district.quadrant')->get();
+        $quadrants = Quadrant::withCount('districts')->with('districts')->orderBy('name', 'asc')->get();
+        $districts = \App\Models\District::withCount('schools')->with('quadrant')->orderBy('name', 'asc')->get();
 
-        return view('dashboard.partials.admin.schools', compact('schools'));
+        return view('dashboard.partials.admin.schools', compact('schools', 'quadrants', 'districts'));
+    }
+
+    public function storeQuadrant(Request $request)
+    {
+        $validated = $request->validate([
+            'name' => 'required|string|max:255|unique:quadrants,name',
+        ]);
+
+        Quadrant::create($validated);
+
+        return response()->json(['success' => 'Quadrant added successfully!']);
+    }
+
+    public function storeDistrict(Request $request)
+    {
+        $validated = $request->validate([
+            'name' => 'required|string|max:255|unique:districts,name',
+            'quadrant_id' => 'required|exists:quadrants,id',
+        ]);
+
+        \App\Models\District::create($validated);
+
+        return response()->json(['success' => 'District added successfully!']);
+    }
+
+    public function updateQuadrant(Request $request, $id)
+    {
+        $quadrant = Quadrant::findOrFail($id);
+        $validated = $request->validate([
+            'name' => 'required|string|max:255|unique:quadrants,name,' . $quadrant->id,
+        ]);
+        $quadrant->update($validated);
+        return response()->json(['success' => 'Quadrant updated successfully!']);
+    }
+
+    public function destroyQuadrant(Request $request, $id)
+    {
+        $quadrant = Quadrant::findOrFail($id);
+        $transferToId = $request->input('transfer_to_quadrant_id');
+
+        if ($quadrant->districts()->exists()) {
+            if (!$transferToId) {
+                return response()->json([
+                    'success' => false, 
+                    'message' => 'Quadrant has districts and requires a transfer.',
+                    'requires_transfer' => true,
+                    'type' => 'quadrant'
+                ], 422);
+            }
+
+            if ($transferToId == $quadrant->id) {
+                return response()->json(['success' => false, 'message' => 'Cannot transfer to the same quadrant.'], 422);
+            }
+
+            $destinationQuadrant = Quadrant::find($transferToId);
+            if (!$destinationQuadrant) {
+                return response()->json(['success' => false, 'message' => 'Destination quadrant does not exist.'], 422);
+            }
+
+            \Illuminate\Support\Facades\DB::transaction(function() use ($quadrant, $transferToId) {
+                $quadrant->districts()->update(['quadrant_id' => $transferToId]);
+                $quadrant->delete();
+            });
+            
+            return response()->json(['success' => true, 'message' => 'Districts transferred and Quadrant deleted successfully!']);
+        }
+
+        $quadrant->delete();
+        return response()->json(['success' => true, 'message' => 'Quadrant deleted successfully!']);
+    }
+
+    public function updateDistrict(Request $request, $id)
+    {
+        $district = \App\Models\District::findOrFail($id);
+        $validated = $request->validate([
+            'name' => 'required|string|max:255|unique:districts,name,' . $district->id,
+        ]);
+        $district->update($validated);
+        return response()->json(['success' => 'District updated successfully!']);
+    }
+
+    public function destroyDistrict(Request $request, $id)
+    {
+        $district = \App\Models\District::findOrFail($id);
+        $transferToId = $request->input('transfer_to_district_id');
+
+        if ($district->schools()->exists()) {
+            if (!$transferToId) {
+                return response()->json([
+                    'success' => false, 
+                    'message' => 'District has schools and requires a transfer.',
+                    'requires_transfer' => true,
+                    'type' => 'district'
+                ], 422);
+            }
+
+            if ($transferToId == $district->id) {
+                return response()->json(['success' => false, 'message' => 'Cannot transfer to the same district.'], 422);
+            }
+
+            $destinationDistrict = \App\Models\District::find($transferToId);
+            if (!$destinationDistrict) {
+                return response()->json(['success' => false, 'message' => 'Destination district does not exist.'], 422);
+            }
+
+            \Illuminate\Support\Facades\DB::transaction(function() use ($district, $transferToId) {
+                $district->schools()->update(['district_id' => $transferToId]);
+                $district->delete();
+            });
+
+            return response()->json(['success' => true, 'message' => 'Schools transferred and District deleted successfully!']);
+        }
+
+        $district->delete();
+        return response()->json(['success' => true, 'message' => 'District deleted successfully!']);
     }
 
     public function loadSchoolCreatePartial()
@@ -43,12 +160,34 @@ class DashboardController extends Controller
 
     public function report(Request $request)
     {
-        $schools = \App\Models\School::with('district')->orderBy('name', 'asc')->get();
+        $listType = $request->input('list_type');
+        if ($listType === 'all') {
+            $lists = ['schools', 'quadrants', 'districts'];
+        } else {
+            $lists = $request->input('lists', ['schools']);
+        }
+
+        $records = [];
+        $totalRecords = 0;
+
+        if (in_array('schools', $lists)) {
+            $records['schools'] = \App\Models\School::with('district')->orderBy('name', 'asc')->get();
+            $totalRecords += $records['schools']->count();
+        }
+        if (in_array('quadrants', $lists)) {
+            $records['quadrants'] = \App\Models\Quadrant::orderBy('name', 'asc')->get();
+            $totalRecords += $records['quadrants']->count();
+        }
+        if (in_array('districts', $lists)) {
+            $records['districts'] = \App\Models\District::with('quadrant')->orderBy('name', 'asc')->get();
+            $totalRecords += $records['districts']->count();
+        }
 
         $data = [
-            'title' => 'School Directory Report',
-            'type' => 'schools',
-            'records' => $schools,
+            'title' => 'Division Directory Report',
+            'type' => 'school_directory',
+            'records' => $records,
+            'totalRecords' => $totalRecords,
             'isPrint' => $request->action === 'print'
         ];
 
@@ -57,7 +196,7 @@ class DashboardController extends Controller
         }
 
         $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('dashboard.partials.shared.list-report', $data);
-        return $pdf->download('School_Directory_' . now()->format('Y_m_d') . '.pdf');
+        return $pdf->download('Division_Directory_' . now()->format('Y_m_d') . '.pdf');
     }
 
     public function getDistricts($quadrantId)
@@ -73,7 +212,7 @@ class DashboardController extends Controller
         $validated = $request->validate([
             'name' => 'required|string|max:255',
             'school_id' => 'required|unique:schools,school_id',
-            'level' => 'required|in:elementary,highschool,seniorHighschool,integrated',
+            'level' => 'required|in:elementary,highschool,seniorhighschool,integrated',
             'district_id' => 'required|exists:districts,id',
             'address' => 'nullable|string',
             'logo' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
@@ -442,16 +581,21 @@ class DashboardController extends Controller
             $studentId = Auth::id();
 
             // --- A. AT-A-GLANCE STATISTICS ---
-            $totalEnrollments = \App\Models\Enrollment::where('user_id', $studentId)->count();
+            $totalEnrollments = \App\Models\Enrollment::where('user_id', $studentId)
+                ->whereHas('material', function($q) { $q->where('status', 'published'); })
+                ->count();
 
             $completedModulesCount = \App\Models\Enrollment::where('user_id', $studentId)
                 ->where('status', 'completed')
+                ->whereHas('material', function($q) { $q->where('status', 'published'); })
                 ->count();
 
             $activeModulesCount = \App\Models\Enrollment::where('user_id', $studentId)
                 ->where(function ($q) {
                     $q->where('status', 'in_progress')->orWhereNull('status');
-                })->count();
+                })
+                ->whereHas('material', function($q) { $q->where('status', 'published'); })
+                ->count();
 
             // Calculate personal Average Exam Score
             $totalAnswers = $this->getCompletedExamAnswersQuery()->where('exam_answers.user_id', $studentId)->count();
@@ -472,6 +616,7 @@ class DashboardController extends Controller
             $continueLearning = \App\Models\Enrollment::with('material')
                 ->where('user_id', $studentId)
                 ->where('status', '!=', 'completed')
+                ->whereHas('material', function($q) { $q->where('status', 'published'); })
                 ->orderBy('updated_at', 'desc')
                 ->take(2)
                 ->get();
@@ -615,22 +760,66 @@ class DashboardController extends Controller
         return response()->json(['success' => 'School updated successfully!']);
     }
 
-    public function destroySchool($id)
+    public function destroySchool(Request $request, $id)
     {
-        $school = \App\Models\School::findOrFail($id);
+        try {
+            $school = \App\Models\School::findOrFail($id);
+            $transferToId = $request->input('transfer_to_school_id');
 
-        // Delete the logo file from the public/storage folder if it exists
-        if ($school->logo) {
-            $logoPath = public_path('storage/' . $school->logo);
-            if (file_exists($logoPath)) {
-                unlink($logoPath); // This deletes the physical file
+            // Find all users attached to this school that are not admin or cid
+            $assignedUsers = $school->users()->whereNotIn('role', ['admin', 'cid']);
+
+            if ($assignedUsers->exists()) {
+                if (!$transferToId) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'School has assigned users and requires a transfer.',
+                        'requires_transfer' => true,
+                        'type' => 'school'
+                    ], 422);
+                }
+
+                if ($transferToId == $school->id) {
+                    return response()->json(['success' => false, 'message' => 'Cannot transfer to the same school.'], 422);
+                }
+
+                $destinationSchool = \App\Models\School::find($transferToId);
+                if (!$destinationSchool) {
+                    return response()->json(['success' => false, 'message' => 'Destination school does not exist.'], 422);
+                }
+
+                \Illuminate\Support\Facades\DB::transaction(function() use ($school, $transferToId, $assignedUsers) {
+                    $assignedUsers->update(['school_id' => $transferToId]);
+                    
+                    if ($school->logo) {
+                        $logoPath = public_path('storage/' . $school->logo);
+                        if (file_exists($logoPath)) {
+                            unlink($logoPath);
+                        }
+                    }
+                    $school->delete();
+                });
+
+                return response()->json(['success' => true, 'message' => 'Users transferred and School deleted successfully!']);
             }
+
+            // No users, simply delete
+            if ($school->logo) {
+                $logoPath = public_path('storage/' . $school->logo);
+                if (file_exists($logoPath)) {
+                    unlink($logoPath);
+                }
+            }
+            $school->delete();
+
+            return response()->json(['success' => true, 'message' => 'School deleted successfully!']);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Server error: ' . $e->getMessage()
+            ], 500);
         }
-
-        // Delete the database record
-        $school->delete();
-
-        return response()->json(['success' => 'School deleted successfully!']);
     }
 
     public function loadExplorePartial(\Illuminate\Http\Request $request)
@@ -1050,89 +1239,175 @@ class DashboardController extends Controller
         return $pdf->download('Admin_Analytics_Report_' . now()->format('Y_m_d') . '.pdf');
     }
 
-    private function loadTeacherAnalytics()
+    private function getTeacherAnalyticsData($teacherId)
     {
-        $teacherId = Auth::id();
+        $myMaterials = \App\Models\Material::where('instructor_id', $teacherId)->get();
+        $myMaterialIds = $myMaterials->pluck('id');
 
-        // 1. CLASS OVERVIEW
-        $myMaterialIds = \App\Models\Material::where('instructor_id', $teacherId)->pluck('id');
+        // --- 1. TEACHING OVERVIEW ---
+        $totalModules = $myMaterials->count();
+        $publishedModules = $myMaterials->where('status', 'published')->count();
+        $draftModules = $myMaterials->where('status', 'draft')->count();
 
-        $totalLearners = \App\Models\Enrollment::whereIn('material_id', $myMaterialIds)
+        $uniqueLearners = \App\Models\Enrollment::whereIn('material_id', $myMaterialIds)
             ->distinct('user_id')
+            ->count('user_id');
+
+        $totalEnrollments = \App\Models\Enrollment::whereIn('material_id', $myMaterialIds)->count();
+        $completedEnrollmentsCount = \App\Models\Enrollment::whereIn('material_id', $myMaterialIds)
+            ->where('status', 'completed')
             ->count();
+            
+        $overallCompletionRate = $totalEnrollments > 0 ? round(($completedEnrollmentsCount / $totalEnrollments) * 100) : 0;
 
-        $activeLearners = \App\Models\Enrollment::whereIn('material_id', $myMaterialIds)
-            ->where('updated_at', '>=', now()->subDays(7))
-            ->distinct('user_id')
-            ->count();
+        // --- 2. LEARNING OUTCOMES ---
+        $teacherLessonContentIds = \App\Models\LessonContent::whereIn('lesson_id', function ($query) use ($myMaterialIds) {
+            $query->select('id')->from('lessons')->whereIn('material_id', $myMaterialIds);
+        })->pluck('id');
 
-        $pendingRequests = \App\Models\MaterialAccess::whereIn('material_id', $myMaterialIds)
-            ->where('status', 'pending')
-            ->count();
+        $totalQuizAnswers = \App\Models\QuizAnswer::whereIn('lesson_content_id', $teacherLessonContentIds)->count();
+        $correctQuizAnswers = \App\Models\QuizAnswer::whereIn('lesson_content_id', $teacherLessonContentIds)->where('is_correct', true)->count();
+        $quizMPS = $totalQuizAnswers > 0 ? round(($correctQuizAnswers / $totalQuizAnswers) * 100) : 0;
 
-        // 2. MATERIAL ENGAGEMENT
-        $totalMaterials = \App\Models\MaterialAccess::whereIn('material_id', $myMaterialIds)
-            ->where('status', 'published')
-            ->count();
-
-        $totalViews = \App\Models\Material::where('instructor_id', $teacherId)->sum('views');
-
-        $topMaterials = \App\Models\Material::where('instructor_id', $teacherId)
-            ->orderBy('views', 'desc')
-            ->take(5)
-            ->get();
-
-        $materialLabels = $topMaterials->pluck('title')->map(fn($t) => \Illuminate\Support\Str::limit($t, 20))->toArray();
-        $materialViews = $topMaterials->pluck('views')->toArray();
-
-        $topDownloadedMaterials = \App\Models\Material::where('instructor_id', $teacherId)
-            ->orderBy('downloads', 'desc')
-            ->take(5)
-            ->get();
-
-        $downloadedMaterialLabels = $topDownloadedMaterials->pluck('title')->map(fn($t) => \Illuminate\Support\Str::limit($t, 20))->toArray();
-        $materialDownloads = $topDownloadedMaterials->pluck('downloads')->toArray();
-
-        $completedCount = \App\Models\Enrollment::whereIn('material_id', $myMaterialIds)->where('status', 'completed')->count();
-        $inProgressCount = \App\Models\Enrollment::whereIn('material_id', $myMaterialIds)->where('status', 'in_progress')->count();
-
-        // 3. ASSESSMENT & PERFORMANCE
         $teacherExamIds = \App\Models\Exam::whereIn('material_id', $myMaterialIds)->pluck('id');
-        $totalAnswers = $this->getCompletedExamAnswersQuery()->whereIn('exam_id', $teacherExamIds)->count();
-        $correctAnswers = $this->getCompletedExamAnswersQuery()->whereIn('exam_id', $teacherExamIds)->where('is_correct', true)->count();
+        $totalExamAnswers = \App\Models\ExamAnswer::whereIn('exam_id', $teacherExamIds)->count();
+        $correctExamAnswers = \App\Models\ExamAnswer::whereIn('exam_id', $teacherExamIds)->where('is_correct', true)->count();
+        $examMPS = $totalExamAnswers > 0 ? round(($correctExamAnswers / $totalExamAnswers) * 100) : 0;
 
-        $averageScore = $totalAnswers > 0 ? round(($correctAnswers / $totalAnswers) * 100, 1) : 0;
-        $incorrectAnswers = $totalAnswers - $correctAnswers;
+        $totalCompletedAttempts = \App\Models\Enrollment::whereIn('material_id', $myMaterialIds)
+            ->whereIn('status', ['completed', 'failed'])
+            ->count();
+        $passedAttempts = \App\Models\Enrollment::whereIn('material_id', $myMaterialIds)
+            ->where('status', 'completed')
+            ->count();
+        $overallPassRate = $totalCompletedAttempts > 0 ? round(($passedAttempts / $totalCompletedAttempts) * 100) : 0;
 
-        // 4. RECENT ACTIVITY TREND (Last 7 days of Enrollments)
+        // --- 3. MODULE PERFORMANCE INSIGHTS & 4. ENGAGEMENT ANALYTICS ---
+        $materialsStats = \App\Models\Material::where('instructor_id', $teacherId)
+            ->withCount([
+                'enrollments as total_enrollments',
+                'enrollments as completed_enrollments' => function ($q) {
+                    $q->where('status', 'completed');
+                }
+            ])
+            ->get()
+            ->map(function ($material) {
+                $examIds = \App\Models\Exam::where('material_id', $material->id)->pluck('id');
+                $lessonIds = \App\Models\Lesson::where('material_id', $material->id)->pluck('id');
+                $quizIds = \App\Models\LessonContent::whereIn('lesson_id', $lessonIds)->where('type', '!=', 'content')->pluck('id');
+
+                $tAnswers = \App\Models\ExamAnswer::whereIn('exam_id', $examIds)->count() + \App\Models\QuizAnswer::whereIn('lesson_content_id', $quizIds)->count();
+                $cAnswers = \App\Models\ExamAnswer::whereIn('exam_id', $examIds)->where('is_correct', true)->count() + \App\Models\QuizAnswer::whereIn('lesson_content_id', $quizIds)->where('is_correct', true)->count();
+
+                $material->completion_rate = $material->total_enrollments > 0
+                    ? round(($material->completed_enrollments / $material->total_enrollments) * 100)
+                    : 0;
+
+                $material->assessment_mps = $tAnswers > 0
+                    ? round(($cAnswers / $tAnswers) * 100)
+                    : 0;
+
+                $material->engagement_score = ($material->views * 1) + ($material->downloads * 2) + ($material->total_enrollments * 3);
+                $material->has_assessment_data = $tAnswers > 0;
+                return $material;
+            });
+
+        $publishedWithAssessments = $materialsStats->where('status', 'published')->where('has_assessment_data', true);
+
+        $bestPerformingModule = $publishedWithAssessments
+            ->filter(function($mat) {
+                return $mat->completion_rate >= 50 && $mat->assessment_mps >= 50;
+            })
+            ->sortByDesc(function ($mat) {
+                return $mat->completion_rate * 1000 + $mat->assessment_mps; // Primary: Completion, Secondary: MPS
+            })
+            ->first();
+
+        $lowestPerformingModule = $publishedWithAssessments
+            ->filter(function($mat) {
+                return $mat->completion_rate < 50 && $mat->assessment_mps < 50;
+            })
+            ->sortBy(function ($mat) {
+                return $mat->completion_rate * 1000 + $mat->assessment_mps;
+            })
+            ->first();
+
+        $mostEngagingModule = $materialsStats->sortByDesc('engagement_score')->first();
+
+        // Top Modules for Engagement table
+        $topModules = $materialsStats->sortByDesc(function($mat) {
+            return $mat->completion_rate * 1000000 + $mat->total_enrollments;
+        })->take(5);
+
+        // --- 6. ACTIVITY TRENDS (Last 30 Days) ---
+        $thirtyDaysAgo = now()->subDays(29)->startOfDay();
+
+        $enrollmentsTrendRaw = \App\Models\Enrollment::whereIn('material_id', $myMaterialIds)
+            ->where('created_at', '>=', $thirtyDaysAgo)
+            ->selectRaw('DATE(created_at) as date, count(*) as count')
+            ->groupBy('date')
+            ->pluck('count', 'date');
+
+        $completionsTrendRaw = \App\Models\Enrollment::whereIn('material_id', $myMaterialIds)
+            ->where('status', 'completed')
+            ->where('updated_at', '>=', $thirtyDaysAgo)
+            ->selectRaw('DATE(updated_at) as date, count(*) as count')
+            ->groupBy('date')
+            ->pluck('count', 'date');
+
+        $examTrendRaw = \App\Models\ExamAnswer::whereIn('exam_id', $teacherExamIds)
+            ->where('created_at', '>=', $thirtyDaysAgo)
+            ->selectRaw('DATE(created_at) as date, count(*) as count')
+            ->groupBy('date')
+            ->pluck('count', 'date');
+
+        $quizTrendRaw = \App\Models\QuizAnswer::whereIn('lesson_content_id', $teacherLessonContentIds)
+            ->where('created_at', '>=', $thirtyDaysAgo)
+            ->selectRaw('DATE(created_at) as date, count(*) as count')
+            ->groupBy('date')
+            ->pluck('count', 'date');
+
         $activityDates = [];
-        $activityTrend = [];
-        for ($i = 6; $i >= 0; $i--) {
-            $date = now()->subDays($i)->format('Y-m-d');
-            $activityDates[] = now()->subDays($i)->format('M d');
-            $activityTrend[] = \App\Models\Enrollment::whereDate('created_at', $date)
-                ->whereIn('material_id', $myMaterialIds)
-                ->count();
+        $trendEnrollments = [];
+        $trendCompletions = [];
+        $trendAssessments = [];
+
+        for ($i = 29; $i >= 0; $i--) {
+            $dateObj = now()->subDays($i);
+            $date = $dateObj->format('Y-m-d');
+            $activityDates[] = $dateObj->format('M d');
+
+            $trendEnrollments[] = $enrollmentsTrendRaw->get($date, 0);
+            $trendCompletions[] = $completionsTrendRaw->get($date, 0);
+            $trendAssessments[] = $examTrendRaw->get($date, 0) + $quizTrendRaw->get($date, 0);
         }
 
-        return view('dashboard.partials.teacher.analytics', compact(
-            'totalLearners',
-            'activeLearners',
-            'pendingRequests',
-            'totalMaterials',
-            'totalViews',
-            'materialLabels',
-            'materialViews',
-            'downloadedMaterialLabels',
-            'materialDownloads',
-            'completedCount',
-            'inProgressCount',
-            'averageScore',
-            'correctAnswers',
-            'incorrectAnswers',
+        return compact(
+            'totalModules',
+            'publishedModules',
+            'draftModules',
+            'uniqueLearners',
+            'totalEnrollments',
+            'overallCompletionRate',
+            'quizMPS',
+            'examMPS',
+            'overallPassRate',
+            'bestPerformingModule',
+            'lowestPerformingModule',
+            'mostEngagingModule',
+            'topModules',
             'activityDates',
-            'activityTrend'
-        ));
+            'trendEnrollments',
+            'trendCompletions',
+            'trendAssessments'
+        );
+    }
+
+    private function loadTeacherAnalytics()
+    {
+        $teacherId = \Illuminate\Support\Facades\Auth::id();
+        $data = $this->getTeacherAnalyticsData($teacherId);
+        return view('dashboard.partials.teacher.analytics', $data);
     }
 
     public function exportTeacherAnalyticsPdf(Request $request)
@@ -1143,99 +1418,22 @@ class DashboardController extends Controller
         }
 
         $teacherId = \Illuminate\Support\Facades\Auth::id();
-
-        // 2. CLASS OVERVIEW
-        $myMaterialIds = \App\Models\Material::where('instructor_id', $teacherId)->pluck('id');
-
-        $totalLearners = \App\Models\Enrollment::whereIn('material_id', $myMaterialIds)
-            ->distinct('user_id')
-            ->count();
-
-        $activeLearners = \App\Models\Enrollment::whereIn('material_id', $myMaterialIds)
-            ->where('updated_at', '>=', now()->subDays(7))
-            ->distinct('user_id')
-            ->count();
-
-        $pendingRequests = \App\Models\MaterialAccess::whereIn('material_id', $myMaterialIds)
-            ->where('status', 'pending')
-            ->count();
-
-        $totalMaterials = \App\Models\MaterialAccess::whereIn('material_id', $myMaterialIds)
-            ->where('status', 'published')
-            ->count();
-
-        $totalViews = \App\Models\Material::where('instructor_id', $teacherId)->sum('views');
-
-        $topMaterials = \App\Models\Material::where('instructor_id', $teacherId)
-            ->orderBy('views', 'desc')
-            ->take(5)
-            ->get();
-
-        $materialLabels = $topMaterials->pluck('title')->map(fn($t) => \Illuminate\Support\Str::limit($t, 20))->toArray();
-        $materialViews = $topMaterials->pluck('views')->toArray();
-
-        $topDownloadedMaterials = \App\Models\Material::where('instructor_id', $teacherId)
-            ->orderBy('downloads', 'desc')
-            ->take(5)
-            ->get();
-
-        $downloadedMaterialLabels = $topDownloadedMaterials->pluck('title')->map(fn($t) => \Illuminate\Support\Str::limit($t, 20))->toArray();
-        $materialDownloads = $topDownloadedMaterials->pluck('downloads')->toArray();
-
-        $completedCount = \App\Models\Enrollment::whereIn('material_id', $myMaterialIds)->where('status', 'completed')->count();
-        $inProgressCount = \App\Models\Enrollment::whereIn('material_id', $myMaterialIds)->where('status', 'in_progress')->count();
-
-        $teacherExamIds = \App\Models\Exam::whereIn('material_id', $myMaterialIds)->pluck('id');
-        $totalAnswers = $this->getCompletedExamAnswersQuery()->whereIn('exam_id', $teacherExamIds)->count();
-        $correctAnswers = $this->getCompletedExamAnswersQuery()->whereIn('exam_id', $teacherExamIds)->where('is_correct', true)->count();
-
-        $averageScore = $totalAnswers > 0 ? round(($correctAnswers / $totalAnswers) * 100, 1) : 0;
-        $incorrectAnswers = $totalAnswers - $correctAnswers;
-
-        $activityDates = [];
-        $activityTrend = [];
-        for ($i = 6; $i >= 0; $i--) {
-            $date = now()->subDays($i)->format('Y-m-d');
-            $activityDates[] = now()->subDays($i)->format('M d');
-            $activityTrend[] = \App\Models\Enrollment::whereDate('created_at', $date)
-                ->whereIn('material_id', $myMaterialIds)
-                ->count();
-        }
+        $data = $this->getTeacherAnalyticsData($teacherId);
 
         $isPrint = $request->input('action') === 'print';
-
-        $data = compact(
-            'totalLearners',
-            'activeLearners',
-            'pendingRequests',
-            'totalMaterials',
-            'totalViews',
-            'materialLabels',
-            'materialViews',
-            'downloadedMaterialLabels',
-            'materialDownloads',
-            'completedCount',
-            'inProgressCount',
-            'averageScore',
-            'correctAnswers',
-            'incorrectAnswers',
-            'activityDates',
-            'activityTrend'
-        );
-
-        $data['showOverview'] = $request->has('check_overview');
-        $data['showEngagement'] = $request->has('check_engagement');
-        $data['showPerformance'] = $request->has('check_performance');
-        $data['showTrends'] = $request->has('check_trends');
         $data['isPrint'] = $isPrint;
+        $data['showOverview'] = $request->has('check_overview');
+        $data['showOutcomes'] = $request->has('check_outcomes');
+        $data['showInsights'] = $request->has('check_insights');
+        $data['showEngagement'] = $request->has('check_engagement');
+        $data['showTrends'] = $request->has('check_trends');
 
-        // 7. IF PRINT: Return HTML directly. IF PDF: Download DomPDF
         if ($isPrint) {
             return view('dashboard.partials.teacher.analytics-report', $data);
         }
 
         $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('dashboard.partials.teacher.analytics-report', $data);
-        return $pdf->download('Class_Analytics_Report_' . now()->format('Y_m_d') . '.pdf');
+        return $pdf->download('Teacher_Analytics_Report_' . now()->format('Y_m_d') . '.pdf');
     }
 
     private function loadStudentAnalytics()

@@ -37,7 +37,7 @@
                     @endphp
                     <img src="{{ $logoPath }}" height="35" alt="Logo" style="margin-bottom: 5px;">
                     <div class="title">{{ config('app.name', 'LMS') }} - {{ $title }}</div>
-                    <div class="subtitle">Generated on: {{ now()->format('F j, Y - g:i A') }} | Total Records: {{ $records->count() }}</div>
+                    <div class="subtitle">Generated on: {{ now()->format('F j, Y - g:i A') }} | Total Records: {{ isset($totalRecords) ? $totalRecords : $records->count() }}</div>
                 </td>
                 <td style="width: 40%; text-align: right; vertical-align: bottom; padding-bottom: 8px;">
                     <strong style="font-size: 14px; color: #111;">{{ auth()->user()->first_name ?? 'Admin' }} {{ auth()->user()->last_name ?? '' }}</strong><br>
@@ -48,6 +48,81 @@
     </header>
 
     <main>
+        @if($type === 'school_directory')
+            @if(isset($records['schools']))
+            <h3 style="margin-top: 10px; margin-bottom: 5px; color: #a52a2a; text-transform: uppercase; font-size: 14px;">List of Schools</h3>
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th style="width: 5%;">#</th>
+                        <th style="width: 35%;">School Name</th>
+                        <th style="width: 15%;">School ID</th>
+                        <th style="width: 15%;">Level</th>
+                        <th style="width: 30%;">District</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @forelse($records['schools'] as $index => $record)
+                        <tr>
+                            <td style="color: #888;">{{ $index + 1 }}</td>
+                            <td><strong>{{ $record->name }}</strong></td>
+                            <td>{{ $record->school_id }}</td>
+                            <td>{{ ucfirst($record->level) }}</td>
+                            <td>{{ $record->district->name ?? 'N/A' }}</td>
+                        </tr>
+                    @empty
+                        <tr><td colspan="5" style="text-align: center; font-style: italic; color: #888; padding: 20px;">No schools found.</td></tr>
+                    @endforelse
+                </tbody>
+            </table>
+            @endif
+
+            @if(isset($records['quadrants']))
+            <h3 style="margin-top: 25px; margin-bottom: 5px; color: #a52a2a; text-transform: uppercase; font-size: 14px;">List of Quadrants</h3>
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th style="width: 5%;">#</th>
+                        <th style="width: 95%;">Quadrant Name</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @forelse($records['quadrants'] as $index => $record)
+                        <tr>
+                            <td style="color: #888;">{{ $index + 1 }}</td>
+                            <td><strong>{{ $record->name }}</strong></td>
+                        </tr>
+                    @empty
+                        <tr><td colspan="2" style="text-align: center; font-style: italic; color: #888; padding: 20px;">No quadrants found.</td></tr>
+                    @endforelse
+                </tbody>
+            </table>
+            @endif
+
+            @if(isset($records['districts']))
+            <h3 style="margin-top: 25px; margin-bottom: 5px; color: #a52a2a; text-transform: uppercase; font-size: 14px;">List of Districts</h3>
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th style="width: 5%;">#</th>
+                        <th style="width: 55%;">District Name</th>
+                        <th style="width: 40%;">Quadrant</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @forelse($records['districts'] as $index => $record)
+                        <tr>
+                            <td style="color: #888;">{{ $index + 1 }}</td>
+                            <td><strong>{{ $record->name }}</strong></td>
+                            <td>{{ $record->quadrant->name ?? 'N/A' }}</td>
+                        </tr>
+                    @empty
+                        <tr><td colspan="3" style="text-align: center; font-style: italic; color: #888; padding: 20px;">No districts found.</td></tr>
+                    @endforelse
+                </tbody>
+            </table>
+            @endif
+        @else
         <table class="data-table">
             <thead>
                 <tr>
@@ -105,6 +180,7 @@
                 @endforelse
             </tbody>
         </table>
+        @endif
     </main>
 
     @if(isset($isPrint) && $isPrint)

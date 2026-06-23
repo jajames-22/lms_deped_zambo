@@ -27,4 +27,12 @@ class School extends Model
     {
         return $this->belongsTo(District::class);
     }
+
+    /**
+     * A School has many Users
+     */
+    public function users()
+    {
+        return $this->hasMany(User::class);
+    }
 }

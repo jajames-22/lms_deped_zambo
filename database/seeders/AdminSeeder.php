@@ -13,12 +13,6 @@ class AdminSeeder extends Seeder
      */
     public function run(): void
     {
-        // Check if an admin already exists to prevent duplicate master accounts
-        $school = \App\Models\School::firstOrCreate([
-            'school_id' => 'SCH-001',
-            'name' => 'Default Test School'
-        ]);
-
         if (User::where('email', 'adminlms@deped.gov.ph')->doesntExist()) {
             User::create([
                 'username' => 'superadmin',
@@ -27,7 +21,7 @@ class AdminSeeder extends Seeder
                 'suffix' => null,
                 'email' => 'adminlms@deped.gov.ph',
                 'password' => Hash::make('Admin456'), 
-                'school_id' => $school->id,
+                'school_id' => null,
                 'grade_level' => null,
                 'role' => 'admin',
                 'status' => 'verified',

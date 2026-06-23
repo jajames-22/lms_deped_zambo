@@ -6,23 +6,11 @@
         </div>
 
         <div class="flex-shrink-0 flex flex-wrap items-center gap-2 relative">
-            <div class="relative group z-50">
-                <button
-                    class="flex items-center justify-center gap-2 px-6 py-3 bg-gray-800 text-white font-bold rounded-xl shadow-sm hover:bg-gray-900 transition-all text-sm">
-                    <i class="fas fa-file-alt"></i>
-                    <span>Report</span>
-                    <i class="fas fa-chevron-down text-xs ml-1 opacity-70"></i>
-                </button>
-                <div
-                    class="absolute right-0 mt-2 w-48 bg-white border border-gray-100 rounded-xl shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all transform origin-top-right">
-                    <a href="{{ route('schools.report', ['action' => 'print']) }}" target="_blank"
-                        class="block px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 hover:text-[#a52a2a] rounded-t-xl transition-colors"><i
-                            class="fas fa-print w-5 text-gray-400"></i> Print List</a>
-                    <a href="{{ route('schools.report', ['action' => 'download']) }}" target="_blank"
-                        class="block px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 hover:text-[#a52a2a] rounded-b-xl transition-colors"><i
-                            class="fas fa-download w-5 text-gray-400"></i> Download PDF</a>
-                </div>
-            </div>
+            <button onclick="toggleSchoolExportModal()"
+                class="flex items-center justify-center gap-2 px-6 py-3 bg-gray-800 text-white font-bold rounded-xl shadow-sm hover:bg-gray-900 transition-all text-sm">
+                <i class="fas fa-file-export"></i>
+                <span>Generate Report</span>
+            </button>
 
             <button onclick="loadPartial('{{ route('schools.create') }}', document.getElementById('nav-schools-btn'))"
                 class="flex items-center justify-center gap-2 px-6 py-3 bg-[#a52a2a] text-white font-bold rounded-xl shadow-lg hover:bg-red-800 transition-all">
@@ -32,6 +20,22 @@
         </div>
     </div>
 
+    <!-- Tabs -->
+    <div class="flex flex-wrap items-center gap-3">
+        <div class="flex items-center bg-gray-200/50 p-1 rounded-xl">
+            <button class="nav-tab px-4 py-2 text-sm font-bold rounded-lg bg-white text-[#a52a2a] shadow-sm pointer-events-none" data-target="tab-schools" onclick="switchSchoolTab(this)">
+                Schools
+            </button>
+            <button class="nav-tab px-4 py-2 text-sm font-bold rounded-lg text-gray-500 hover:text-gray-700 transition" data-target="tab-quadrants" onclick="switchSchoolTab(this)">
+                Quadrants
+            </button>
+            <button class="nav-tab px-4 py-2 text-sm font-bold rounded-lg text-gray-500 hover:text-gray-700 transition" data-target="tab-districts" onclick="switchSchoolTab(this)">
+                Districts
+            </button>
+        </div>
+    </div>
+
+    <div id="tab-schools" class="tab-pane block space-y-6">
     <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div
             class="bg-white border border-gray-100 p-5 rounded-2xl shadow-sm flex items-center justify-between md:col-span-1">
@@ -146,7 +150,7 @@
                                         title="Edit">
                                         <i class="fas fa-edit text-xs"></i>
                                     </button>
-                                    <button onclick="confirmDelete({{ $school->id }})"
+                                    <button onclick="confirmDelete({{ $school->id }}, {{ $school->users_count ?? 0 }})"
                                         class="w-7 h-7 flex items-center justify-center text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition shadow-none"
                                         title="Delete">
                                         <i class="fas fa-trash-alt text-xs"></i>
@@ -183,10 +187,268 @@
         </div>
 
     </div>
+    </div> <!-- Close tab-schools -->
+
+    <!-- Quadrants Tab -->
+    <div id="tab-quadrants" class="tab-pane hidden space-y-6">
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div class="bg-white border border-gray-100 p-5 rounded-2xl shadow-sm flex items-center justify-between md:col-span-1">
+                <div>
+                    <p class="text-gray-400 text-[10px] font-bold uppercase tracking-widest">Total Quadrants</p>
+                    <h3 class="text-2xl font-black text-gray-900">{{ $quadrants->count() }}</h3>
+                </div>
+                <div class="w-10 h-10 bg-blue-50 text-blue-600 rounded-lg flex items-center justify-center">
+                    <i class="fas fa-layer-group text-lg"></i>
+                </div>
+            </div>
+            <div class="bg-white border border-gray-100 p-5 rounded-2xl shadow-sm flex items-center md:col-span-2">
+                <div class="relative w-full">
+                    <i class="fas fa-search absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400"></i>
+                    <input type="text" id="quadrantSearchInput" placeholder="Search quadrants..."
+                        class="w-full pl-11 pr-4 py-3 bg-gray-50 border border-transparent focus:border-[#a52a2a] focus:bg-white rounded-xl outline-none transition-all text-sm text-gray-700" oninput="filterQuadrants()">
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-white rounded-2xl border border-gray-100 p-6 shadow-sm">
+            <form id="addQuadrantForm" onsubmit="event.preventDefault(); storeQuadrant();" class="flex flex-col sm:flex-row items-end gap-4">
+                <div class="flex-1 w-full">
+                    <label class="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-2">Quadrant Name</label>
+                    <input type="text" id="quadrantNameInput" class="w-full px-4 py-3 bg-gray-50 border border-transparent focus:border-[#a52a2a] focus:bg-white rounded-xl transition-all text-sm outline-none" required placeholder="e.g. Quadrant 1.1" oninput="toggleSubmitBtn('quadrantNameInput', 'addQuadrantBtn')">
+                </div>
+                <button type="submit" id="addQuadrantBtn" class="px-6 py-3 bg-[#a52a2a] text-white font-bold rounded-xl shadow-lg hover:bg-red-800 transition-all disabled:opacity-50 disabled:cursor-not-allowed w-full sm:w-auto flex items-center justify-center" disabled>
+                    <i class="fas fa-plus mr-2"></i> Add Quadrant
+                </button>
+            </form>
+        </div>
+
+        <div class="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden flex flex-col">
+            <div class="overflow-x-auto">
+                <table class="w-full text-left border-collapse" id="quadrantsTable">
+                    <thead class="bg-gray-50/50 text-xs uppercase text-gray-500 font-bold border-b border-gray-100">
+                        <tr>
+                            <th class="px-6 py-4">Quadrant Details</th>
+                            <th class="px-6 py-4 text-center">Districts Count</th>
+                            <th class="px-6 py-4 text-center w-32">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-50">
+                        @forelse($quadrants as $quadrant)
+                            <tr class="hover:bg-gray-50/50 transition quadrant-row" data-id="{{ $quadrant->id }}">
+                                <td class="px-6 py-4 font-bold text-gray-900 text-sm">
+                                    <div class="flex items-center gap-3">
+                                        <div class="w-8 h-8 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center text-xs shadow-inner shrink-0">
+                                            <i class="fas fa-layer-group"></i>
+                                        </div>
+                                        <span class="quadrant-name-text">{{ $quadrant->name }}</span>
+                                        <input type="text" class="quadrant-name-input hidden w-full max-w-xs px-3 py-1.5 bg-white border border-gray-300 focus:border-[#a52a2a] outline-none rounded-lg text-sm" value="{{ $quadrant->name }}">
+                                    </div>
+                                </td>
+                                <td class="px-6 py-4 text-center">
+                                    <span class="bg-gray-100 text-gray-700 px-3 py-1 rounded-full text-xs font-bold">{{ $quadrant->districts_count ?? $quadrant->districts->count() }}</span>
+                                </td>
+                                <td class="px-6 py-4 text-center">
+                                    <div class="flex items-center justify-center gap-2 quadrant-actions-default">
+                                        <button onclick="editQuadrant(this)" class="w-7 h-7 flex items-center justify-center text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition" title="Edit">
+                                            <i class="fas fa-edit text-xs"></i>
+                                        </button>
+                                        <button onclick="confirmDeleteQuadrant({{ $quadrant->id }}, {{ $quadrant->districts_count ?? $quadrant->districts->count() }})" class="w-7 h-7 flex items-center justify-center text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition" title="Delete">
+                                            <i class="fas fa-trash-alt text-xs"></i>
+                                        </button>
+                                    </div>
+                                    <div class="flex items-center justify-center gap-2 quadrant-actions-edit hidden">
+                                        <button onclick="saveQuadrant({{ $quadrant->id }}, this)" class="px-3 py-1 bg-green-100 text-green-700 text-xs font-bold rounded hover:bg-green-200 transition shadow-sm">Save</button>
+                                        <button onclick="cancelEditQuadrant(this)" class="px-3 py-1 bg-gray-100 text-gray-700 text-xs font-bold rounded hover:bg-gray-200 transition shadow-sm">Cancel</button>
+                                    </div>
+                                </td>
+                            </tr>
+                        @empty
+                            <tr id="emptyQuadrantState">
+                                <td colspan="3" class="px-6 py-12 text-center">
+                                    <div class="flex flex-col items-center">
+                                        <div class="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center mb-4">
+                                            <i class="fas fa-layer-group text-gray-200 text-2xl"></i>
+                                        </div>
+                                        <p class="text-gray-500 font-medium">No quadrants found.</p>
+                                        <p class="text-gray-400 text-xs mt-1">Add a quadrant using the form above.</p>
+                                    </div>
+                                </td>
+                            </tr>
+                        @endforelse
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Districts Tab -->
+    <div id="tab-districts" class="tab-pane hidden space-y-6">
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div class="bg-white border border-gray-100 p-5 rounded-2xl shadow-sm flex items-center justify-between md:col-span-1">
+                <div>
+                    <p class="text-gray-400 text-[10px] font-bold uppercase tracking-widest">Total Districts</p>
+                    <h3 class="text-2xl font-black text-gray-900">{{ $districts->count() }}</h3>
+                </div>
+                <div class="w-10 h-10 bg-amber-50 text-amber-600 rounded-lg flex items-center justify-center">
+                    <i class="fas fa-map-marker-alt text-lg"></i>
+                </div>
+            </div>
+            <div class="bg-white border border-gray-100 p-5 rounded-2xl shadow-sm flex items-center md:col-span-2">
+                <div class="relative w-full">
+                    <i class="fas fa-search absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400"></i>
+                    <input type="text" id="districtSearchInput" placeholder="Search districts..."
+                        class="w-full pl-11 pr-4 py-3 bg-gray-50 border border-transparent focus:border-[#a52a2a] focus:bg-white rounded-xl outline-none transition-all text-sm text-gray-700" oninput="filterDistricts()">
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-white rounded-2xl border border-gray-100 p-6 shadow-sm">
+            <form id="addDistrictForm" onsubmit="event.preventDefault(); storeDistrict();" class="grid grid-cols-1 md:grid-cols-5 gap-4 items-end">
+                <div class="md:col-span-2 w-full">
+                    <label class="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-2">Quadrant</label>
+                    <select id="districtQuadrantInput" class="w-full px-4 py-3 bg-gray-50 border border-transparent focus:border-[#a52a2a] focus:bg-white rounded-xl transition-all text-sm outline-none" required onchange="checkDistrictForm()">
+                        <option value="">Select Quadrant...</option>
+                        @foreach($quadrants as $q)
+                            <option value="{{ $q->id }}">{{ $q->name }}</option>
+                        @endforeach
+                    </select>
+                </div>
+                <div class="md:col-span-2 w-full">
+                    <label class="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-2">District Name</label>
+                    <input type="text" id="districtNameInput" class="w-full px-4 py-3 bg-gray-50 border border-transparent focus:border-[#a52a2a] focus:bg-white rounded-xl transition-all text-sm outline-none" required placeholder="e.g. Ayala District" oninput="checkDistrictForm()">
+                </div>
+                <button type="submit" id="addDistrictBtn" class="px-6 py-3 bg-[#a52a2a] text-white font-bold rounded-xl shadow-lg hover:bg-red-800 transition-all disabled:opacity-50 disabled:cursor-not-allowed w-full flex items-center justify-center h-[46px]" disabled>
+                    <i class="fas fa-plus mr-2"></i> Add
+                </button>
+            </form>
+        </div>
+
+        <div class="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden flex flex-col">
+            <div class="overflow-x-auto">
+                <table class="w-full text-left border-collapse" id="districtsTable">
+                    <thead class="bg-gray-50/50 text-xs uppercase text-gray-500 font-bold border-b border-gray-100">
+                        <tr>
+                            <th class="px-6 py-4">District Details</th>
+                            <th class="px-6 py-4 text-center w-32">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-50">
+                        @forelse($quadrants as $quadrant)
+                            <tr class="bg-gray-50/80 border-b border-gray-100 district-group-header">
+                                <td class="px-6 py-3" colspan="2">
+                                    <div class="flex items-center gap-2">
+                                        <i class="fas fa-layer-group text-gray-400 text-xs"></i>
+                                        <span class="font-bold text-gray-700 text-xs uppercase tracking-wider quadrant-label">{{ $quadrant->name }}</span>
+                                    </div>
+                                </td>
+                            </tr>
+                            @forelse($quadrant->districts as $district)
+                                <tr class="hover:bg-gray-50/50 transition district-row" data-id="{{ $district->id }}">
+                                    <td class="px-6 py-3.5 pl-12 text-sm text-gray-800 font-medium w-full">
+                                        <span class="district-name-text">{{ $district->name }}</span>
+                                        <input type="text" class="district-name-input hidden w-full max-w-xs px-3 py-1.5 bg-white border border-gray-300 focus:border-[#a52a2a] outline-none rounded-lg text-sm" value="{{ $district->name }}">
+                                    </td>
+                                    <td class="px-6 py-3.5 text-center">
+                                        <div class="flex items-center justify-center gap-2 district-actions-default">
+                                            <button onclick="editDistrict(this)" class="w-7 h-7 flex items-center justify-center text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition" title="Edit">
+                                                <i class="fas fa-edit text-xs"></i>
+                                            </button>
+                                            <button onclick="confirmDeleteDistrict({{ $district->id }}, {{ $district->schools_count ?? $district->schools->count() }})" class="w-7 h-7 flex items-center justify-center text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition" title="Delete">
+                                                <i class="fas fa-trash-alt text-xs"></i>
+                                            </button>
+                                        </div>
+                                        <div class="flex items-center justify-center gap-2 district-actions-edit hidden">
+                                            <button onclick="saveDistrict({{ $district->id }}, this)" class="px-3 py-1 bg-green-100 text-green-700 text-xs font-bold rounded hover:bg-green-200 transition shadow-sm">Save</button>
+                                            <button onclick="cancelEditDistrict(this)" class="px-3 py-1 bg-gray-100 text-gray-700 text-xs font-bold rounded hover:bg-gray-200 transition shadow-sm">Cancel</button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            @empty
+                                <tr class="district-empty-row">
+                                    <td class="px-6 py-6 text-center bg-gray-50/30" colspan="2">
+                                        <div class="flex flex-col items-center">
+                                            <p class="text-gray-400 text-xs italic">No districts assigned to this quadrant yet.</p>
+                                        </div>
+                                    </td>
+                                </tr>
+                            @endforelse
+                        @empty
+                            <tr id="emptyDistrictState">
+                                <td class="px-6 py-12 text-center" colspan="2">
+                                    <div class="flex flex-col items-center">
+                                        <div class="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center mb-4">
+                                            <i class="fas fa-map-marker-alt text-gray-200 text-2xl"></i>
+                                        </div>
+                                        <p class="text-gray-500 font-medium">No districts found.</p>
+                                    </div>
+                                </td>
+                            </tr>
+                        @endforelse
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
 </div>
 
-<div id="deleteModal" class="fixed inset-0 z-100 hidden flex items-center justify-center">
-    <div class="absolute inset-0 bg-gray-900/60"></div>
+<div id="deleteQuadrantModal" class="fixed inset-0 z-[100] hidden flex items-center justify-center">
+    <div class="absolute inset-0 bg-gray-900/60" onclick="closeDeleteQuadrantModal()"></div>
+    <div class="relative bg-white rounded-3xl shadow-2xl max-w-sm w-full p-8 text-center transform transition-all border border-gray-100 z-10 animate-fade-in-up">
+        <div class="w-20 h-20 bg-red-50 text-red-500 rounded-full flex items-center justify-center mx-auto mb-5 shadow-inner">
+            <i class="fas fa-exclamation-triangle text-4xl"></i>
+        </div>
+        <h3 class="text-2xl font-black text-gray-900 mb-2">Delete Quadrant?</h3>
+        <p id="deleteQuadrantWarningText" class="text-gray-500 mb-8 text-sm">This action cannot be undone.</p>
+        
+        <div id="quadrantTransferSection" class="hidden mb-6 text-left">
+            <label class="block text-xs font-bold text-gray-700 mb-2">Transfer Districts To <span class="text-red-500">*</span></label>
+            <select id="transferQuadrantSelect" class="w-full border border-gray-200 bg-gray-50 rounded-xl p-3 text-sm outline-none focus:ring-2 focus:ring-[#a52a2a]/20 focus:border-[#a52a2a]">
+                <option value="">-- Select Destination Quadrant --</option>
+                @foreach($quadrants as $q)
+                    <option value="{{ $q->id }}">{{ $q->name }}</option>
+                @endforeach
+            </select>
+        </div>
+
+        <div class="flex gap-3">
+            <button type="button" onclick="closeDeleteQuadrantModal()" class="flex-1 px-4 py-3 bg-gray-100 text-gray-700 font-bold rounded-xl hover:bg-gray-200 transition">Cancel</button>
+            <button type="button" id="confirmDeleteQuadrantBtn" onclick="executeDeleteQuadrant()" class="flex-1 px-4 py-3 bg-red-600 text-white font-bold rounded-xl shadow-lg shadow-red-900/20 hover:bg-red-700 transition flex items-center justify-center">
+                <span>Delete</span>
+            </button>
+        </div>
+    </div>
+</div>
+
+<div id="deleteDistrictModal" class="fixed inset-0 z-[100] hidden flex items-center justify-center">
+    <div class="absolute inset-0 bg-gray-900/60" onclick="closeDeleteDistrictModal()"></div>
+    <div class="relative bg-white rounded-3xl shadow-2xl max-w-sm w-full p-8 text-center transform transition-all border border-gray-100 z-10 animate-fade-in-up">
+        <div class="w-20 h-20 bg-red-50 text-red-500 rounded-full flex items-center justify-center mx-auto mb-5 shadow-inner">
+            <i class="fas fa-exclamation-triangle text-4xl"></i>
+        </div>
+        <h3 class="text-2xl font-black text-gray-900 mb-2">Delete District?</h3>
+        <p id="deleteDistrictWarningText" class="text-gray-500 mb-8 text-sm">This action cannot be undone. Are you sure you want to permanently remove this district?</p>
+        
+        <div id="districtTransferSection" class="hidden mb-6 text-left">
+            <label class="block text-xs font-bold text-gray-700 mb-2">Transfer Schools To <span class="text-red-500">*</span></label>
+            <select id="transferDistrictSelect" class="w-full border border-gray-200 bg-gray-50 rounded-xl p-3 text-sm outline-none focus:ring-2 focus:ring-[#a52a2a]/20 focus:border-[#a52a2a]">
+                <option value="">-- Select Destination District --</option>
+                @foreach($districts as $d)
+                    <option value="{{ $d->id }}">{{ $d->name }} ({{ $d->quadrant->name ?? 'N/A' }})</option>
+                @endforeach
+            </select>
+        </div>
+
+        <div class="flex gap-3">
+            <button type="button" onclick="closeDeleteDistrictModal()" class="flex-1 px-4 py-3 bg-gray-100 text-gray-700 font-bold rounded-xl hover:bg-gray-200 transition">Cancel</button>
+            <button type="button" id="confirmDeleteDistrictBtn" onclick="executeDeleteDistrict()" class="flex-1 px-4 py-3 bg-red-600 text-white font-bold rounded-xl shadow-lg shadow-red-900/20 hover:bg-red-700 transition flex items-center justify-center">
+                <span>Delete</span>
+            </button>
+        </div>
+    </div>
+</div>
+
+<div id="deleteModal" class="fixed inset-0 z-[100] hidden flex items-center justify-center">
+    <div class="absolute inset-0 bg-gray-900/60" onclick="closeDeleteModal()"></div>
     <div
         class="relative bg-white rounded-3xl shadow-2xl max-w-sm w-full p-8 text-center transform transition-all border border-gray-100 z-10 animate-fade-in-up">
         <div
@@ -194,8 +456,19 @@
             <i class="fas fa-exclamation-triangle text-4xl"></i>
         </div>
         <h3 class="text-2xl font-black text-gray-900 mb-2">Delete School?</h3>
-        <p class="text-gray-500 mb-8 text-sm">This action cannot be undone. Are you sure you want to permanently remove
+        <p id="deleteSchoolWarningText" class="text-gray-500 mb-6 text-sm">This action cannot be undone. Are you sure you want to permanently remove
             this institution?</p>
+            
+        <div id="schoolTransferSection" class="hidden mb-6 text-left">
+            <label class="block text-xs font-bold text-gray-700 mb-2">Transfer Users To <span class="text-red-500">*</span></label>
+            <select id="transferSchoolSelect" class="w-full border border-gray-200 bg-gray-50 rounded-xl p-3 text-sm outline-none focus:ring-2 focus:ring-[#a52a2a]/20 focus:border-[#a52a2a]">
+                <option value="">-- Select Destination School --</option>
+                @foreach($schools as $s)
+                    <option value="{{ $s->id }}">{{ $s->name }}</option>
+                @endforeach
+            </select>
+        </div>
+
         <div class="flex gap-3">
             <button type="button" onclick="closeDeleteModal()"
                 class="flex-1 px-4 py-3 bg-gray-100 text-gray-700 font-bold rounded-xl hover:bg-gray-200 transition">
@@ -209,12 +482,223 @@
     </div>
 </div>
 
+{{-- EXPORT MODAL --}}
+<div id="schoolExportModal"
+    class="fixed inset-0 bg-gray-900/60 backdrop-blur-sm z-[110] hidden flex items-center justify-center opacity-0 transition-opacity duration-300 p-4">
+    <div class="bg-white rounded-3xl shadow-2xl w-full max-w-md p-6 md:p-8 transform scale-95 transition-transform duration-300 border border-gray-100"
+        id="schoolExportModalContent">
+        <div class="flex justify-between items-center mb-6">
+            <h3 class="text-xl font-black text-gray-900">Export School Report</h3>
+            <button type="button" onclick="toggleSchoolExportModal()" class="text-gray-400 hover:text-gray-600 border-0 bg-transparent"><i
+                    class="fas fa-times text-lg"></i></button>
+        </div>
+
+        <form action="{{ route('schools.report') }}" method="GET" target="_blank">
+            <div class="mb-8">
+                <p class="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3">Select Lists to Include</p>
+                <div class="space-y-2">
+                    <label class="flex items-center gap-3 p-3 border border-gray-200 rounded-xl cursor-pointer hover:bg-gray-50 transition-colors">
+                        <input type="radio" id="export_list_all_schools" name="list_type" value="all" checked
+                            class="w-5 h-5 text-[#a52a2a] border-gray-300 focus:ring-[#a52a2a]">
+                        <span class="text-gray-700 font-bold">All Lists</span>
+                    </label>
+                    <label class="flex items-center gap-3 p-3 border border-gray-200 rounded-xl cursor-pointer hover:bg-orange-50 transition-colors">
+                        <input type="checkbox" name="lists[]" value="schools"
+                            class="export-list-cb-school w-5 h-5 text-orange-600 rounded border-gray-300 focus:ring-orange-600">
+                        <span class="text-gray-700 font-bold">List of Schools</span>
+                    </label>
+                    <label class="flex items-center gap-3 p-3 border border-gray-200 rounded-xl cursor-pointer hover:bg-blue-50 transition-colors">
+                        <input type="checkbox" name="lists[]" value="quadrants"
+                            class="export-list-cb-school w-5 h-5 text-blue-600 rounded border-gray-300 focus:ring-blue-600">
+                        <span class="text-gray-700 font-bold">List of Quadrants</span>
+                    </label>
+                    <label class="flex items-center gap-3 p-3 border border-gray-200 rounded-xl cursor-pointer hover:bg-green-50 transition-colors">
+                        <input type="checkbox" name="lists[]" value="districts"
+                            class="export-list-cb-school w-5 h-5 text-green-600 rounded border-gray-300 focus:ring-green-600">
+                        <span class="text-gray-700 font-bold">List of Districts</span>
+                    </label>
+                </div>
+            </div>
+
+            <div class="flex gap-3">
+                <button type="button" onclick="toggleSchoolExportModal()"
+                    class="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-800 py-3 rounded-xl font-bold border-0 transition-colors">Cancel</button>
+                <button type="submit" name="action" value="print" onclick="setTimeout(toggleSchoolExportModal, 500)"
+                    class="flex-1 bg-gray-800 hover:bg-gray-900 text-white py-3 rounded-xl font-bold border-0 transition-colors flex items-center justify-center gap-2"><i
+                        class="fas fa-print"></i> Print</button>
+                <button type="submit" name="action" value="download" onclick="setTimeout(toggleSchoolExportModal, 500)"
+                    class="flex-1 bg-orange-600 hover:bg-orange-700 text-white py-3 rounded-xl font-bold border-0 transition-colors flex items-center justify-center gap-2"><i
+                        class="fas fa-file-pdf"></i> PDF</button>
+            </div>
+        </form>
+    </div>
+</div>
+
 <script>
+    // --- EXPORT MODAL LOGIC ---
+    (function () {
+        var listAllRadio = document.getElementById('export_list_all_schools');
+        var listCheckboxes = document.querySelectorAll('.export-list-cb-school');
+
+        if (listAllRadio && listCheckboxes.length > 0) {
+            listAllRadio.addEventListener('change', function () {
+                if (this.checked) {
+                    listCheckboxes.forEach(cb => cb.checked = false);
+                }
+            });
+
+            listCheckboxes.forEach(cb => {
+                cb.addEventListener('change', function () {
+                    var checkedCount = document.querySelectorAll('.export-list-cb-school:checked').length;
+                    if (checkedCount === 3) {
+                        listAllRadio.checked = true;
+                        listCheckboxes.forEach(c => c.checked = false);
+                    } else if (checkedCount > 0) {
+                        listAllRadio.checked = false;
+                    } else {
+                        listAllRadio.checked = true;
+                    }
+                });
+            });
+        }
+    })();
+
+    function toggleSchoolExportModal() {
+        var modal = document.getElementById('schoolExportModal');
+        var content = document.getElementById('schoolExportModalContent');
+        if (modal.classList.contains('hidden')) {
+            modal.classList.remove('hidden');
+            setTimeout(() => { 
+                modal.classList.remove('opacity-0'); 
+                content.classList.remove('scale-95'); 
+            }, 10);
+        } else {
+            modal.classList.add('opacity-0');
+            content.classList.add('scale-95');
+            setTimeout(() => { modal.classList.add('hidden'); }, 300);
+        }
+    }
+
+    function switchSchoolTab(btn) {
+        document.querySelectorAll('.nav-tab').forEach(t => {
+            t.classList.remove('bg-white', 'text-[#a52a2a]', 'shadow-sm', 'pointer-events-none');
+            t.classList.add('text-gray-500');
+        });
+        btn.classList.add('bg-white', 'text-[#a52a2a]', 'shadow-sm', 'pointer-events-none');
+        btn.classList.remove('text-gray-500');
+
+        document.querySelectorAll('.tab-pane').forEach(p => p.classList.add('hidden'));
+        document.getElementById(btn.dataset.target).classList.remove('hidden');
+    }
+
+    function toggleSubmitBtn(inputId, btnId) {
+        const input = document.getElementById(inputId);
+        const btn = document.getElementById(btnId);
+        btn.disabled = input.value.trim() === '';
+    }
+
+    function checkDistrictForm() {
+        const quadrant = document.getElementById('districtQuadrantInput').value;
+        const name = document.getElementById('districtNameInput').value.trim();
+        document.getElementById('addDistrictBtn').disabled = (quadrant === '' || name === '');
+    }
+
+    function storeQuadrant() {
+        const name = document.getElementById('quadrantNameInput').value.trim();
+        const btn = document.getElementById('addQuadrantBtn');
+        const originalContent = btn.innerHTML;
+        
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Saving...';
+
+        fetch('{{ route('quadrants.store') }}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                'Accept': 'application/json'
+            },
+            body: JSON.stringify({ name: name })
+        })
+        .then(async response => {
+            if (!response.ok) {
+                const data = await response.json();
+                throw new Error(data.message || 'Error saving quadrant.');
+            }
+            return response.json();
+        })
+        .then(data => {
+            loadPartial('{{ route('schools') }}', document.getElementById('nav-schools-btn'));
+        })
+        .catch(error => {
+            alert(error.message);
+            btn.disabled = false;
+            btn.innerHTML = originalContent;
+        });
+    }
+
+    function storeDistrict() {
+        const quadrant_id = document.getElementById('districtQuadrantInput').value;
+        const name = document.getElementById('districtNameInput').value.trim();
+        const btn = document.getElementById('addDistrictBtn');
+        const originalContent = btn.innerHTML;
+        
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Saving...';
+
+        fetch('{{ route('districts.store') }}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                'Accept': 'application/json'
+            },
+            body: JSON.stringify({ name: name, quadrant_id: quadrant_id })
+        })
+        .then(async response => {
+            if (!response.ok) {
+                const data = await response.json();
+                throw new Error(data.message || 'Error saving district.');
+            }
+            return response.json();
+        })
+        .then(data => {
+            loadPartial('{{ route('schools') }}', document.getElementById('nav-schools-btn'));
+        })
+        .catch(error => {
+            alert(error.message);
+            btn.disabled = false;
+            btn.innerHTML = originalContent;
+        });
+    }
+
     // --- DELETE LOGIC ---
     var deleteSchoolId = null;
 
-    function confirmDelete(id) {
+    function confirmDelete(id, userCount = 0) {
         deleteSchoolId = id;
+        const warningText = document.getElementById('deleteSchoolWarningText');
+        const transferSection = document.getElementById('schoolTransferSection');
+        
+        if (warningText) {
+            if (userCount > 0) {
+                warningText.innerHTML = `This school currently has <b class="text-red-600">${userCount} user(s)</b> assigned to it.<br><br>Before deleting the school, transfer all users to another school.`;
+                if(transferSection) transferSection.classList.remove('hidden');
+                
+                // Hide current school from dropdown
+                const select = document.getElementById('transferSchoolSelect');
+                if(select) {
+                    select.value = '';
+                    Array.from(select.options).forEach(opt => {
+                        if(opt.value == id) opt.style.display = 'none';
+                        else opt.style.display = '';
+                    });
+                }
+            } else {
+                warningText.innerHTML = `This action cannot be undone. Are you sure you want to permanently remove this institution?`;
+                if(transferSection) transferSection.classList.add('hidden');
+            }
+        }
         document.getElementById('deleteModal').classList.remove('hidden');
     }
 
@@ -230,6 +714,18 @@
 
         newConfirmBtn.addEventListener('click', function () {
             if (!deleteSchoolId) return;
+            
+            const transferSelect = document.getElementById('transferSchoolSelect');
+            const transferSection = document.getElementById('schoolTransferSection');
+            let transferToId = null;
+            
+            if (transferSection && !transferSection.classList.contains('hidden')) {
+                transferToId = transferSelect.value;
+                if (!transferToId) {
+                    showSnackbar("Please select a destination school for the users.", 'error');
+                    return;
+                }
+            }
 
             var btnText = this.querySelector('span');
             var originalText = btnText.textContent;
@@ -237,17 +733,25 @@
             this.disabled = true;
             btnText.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
 
+            let requestBody = {};
+            if (transferToId) requestBody.transfer_to_school_id = transferToId;
+
             fetch(`/dashboard/schools/${deleteSchoolId}`, {
                 method: 'DELETE',
                 headers: {
                     'X-CSRF-TOKEN': '{{ csrf_token() }}',
                     'X-Requested-With': 'XMLHttpRequest',
+                    'Content-Type': 'application/json',
                     'Accept': 'application/json'
-                }
+                },
+                body: JSON.stringify(requestBody)
             })
-                .then(response => {
-                    if (!response.ok) throw new Error('Network response was not ok');
-                    return response.json();
+                .then(async response => {
+                    const data = await response.json();
+                    if (!response.ok || data.success === false) {
+                        throw new Error(data.message || 'Network response was not ok');
+                    }
+                    return data;
                 })
                 .then(data => {
                     closeDeleteModal();
@@ -255,7 +759,7 @@
                 })
                 .catch(error => {
                     console.error("Deletion error:", error);
-                    alert("An error occurred while trying to delete the school.");
+                    showSnackbar(error.message || "An error occurred while trying to delete the school.", 'error');
                 })
                 .finally(() => {
                     this.disabled = false;
@@ -433,4 +937,308 @@
             applyPagination();
         });
     });
+    // --- QUADRANT ACTIONS ---
+    function filterQuadrants() {
+        const filter = document.getElementById('quadrantSearchInput').value.toLowerCase();
+        const rows = document.querySelectorAll('.quadrant-row');
+        let count = 0;
+        rows.forEach(row => {
+            const text = row.querySelector('.quadrant-name-text').textContent.toLowerCase();
+            if (text.includes(filter)) {
+                row.style.display = '';
+                count++;
+            } else {
+                row.style.display = 'none';
+            }
+        });
+        const emptyState = document.getElementById('emptyQuadrantState');
+        if (emptyState) {
+            emptyState.style.display = count === 0 ? '' : 'none';
+        }
+    }
+
+    function editQuadrant(btn) {
+        const row = btn.closest('.quadrant-row');
+        row.querySelector('.quadrant-name-text').classList.add('hidden');
+        row.querySelector('.quadrant-name-input').classList.remove('hidden');
+        row.querySelector('.quadrant-actions-default').classList.add('hidden');
+        row.querySelector('.quadrant-actions-edit').classList.remove('hidden');
+    }
+
+    function cancelEditQuadrant(btn) {
+        const row = btn.closest('.quadrant-row');
+        row.querySelector('.quadrant-name-text').classList.remove('hidden');
+        row.querySelector('.quadrant-name-input').classList.add('hidden');
+        row.querySelector('.quadrant-actions-default').classList.remove('hidden');
+        row.querySelector('.quadrant-actions-edit').classList.add('hidden');
+        // Reset input value
+        row.querySelector('.quadrant-name-input').value = row.querySelector('.quadrant-name-text').textContent;
+    }
+
+    function saveQuadrant(id, btn) {
+        const row = btn.closest('.quadrant-row');
+        const name = row.querySelector('.quadrant-name-input').value.trim();
+        const originalContent = btn.innerHTML;
+
+        if (!name) return;
+
+        btn.disabled = true;
+        btn.innerHTML = '...';
+
+        fetch(`/dashboard/quadrants/${id}`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                'Accept': 'application/json'
+            },
+            body: JSON.stringify({ name: name })
+        })
+        .then(async response => {
+            if (!response.ok) {
+                const data = await response.json();
+                throw new Error(data.message || 'Error updating quadrant.');
+            }
+            return response.json();
+        })
+        .then(data => {
+            loadPartial('{{ route('schools') }}', document.getElementById('nav-schools-btn'));
+        })
+        .catch(error => {
+            alert(error.message);
+            btn.disabled = false;
+            btn.innerHTML = originalContent;
+        });
+    }
+
+    let deleteQuadrantId = null;
+    function confirmDeleteQuadrant(id, districtsCount = 0) {
+        deleteQuadrantId = id;
+        const warningText = document.getElementById('deleteQuadrantWarningText');
+        const transferSection = document.getElementById('quadrantTransferSection');
+        
+        if (warningText) {
+            if (districtsCount > 0) {
+                warningText.innerHTML = `This quadrant currently has <b class="text-red-600">${districtsCount} district(s)</b>.<br><br>Before deleting, transfer all districts to another quadrant.`;
+                if(transferSection) transferSection.classList.remove('hidden');
+                
+                const select = document.getElementById('transferQuadrantSelect');
+                if(select) {
+                    select.value = '';
+                    Array.from(select.options).forEach(opt => {
+                        if(opt.value == id) opt.style.display = 'none';
+                        else opt.style.display = '';
+                    });
+                }
+            } else {
+                warningText.innerHTML = `This action cannot be undone. Are you sure you want to permanently remove this quadrant?`;
+                if(transferSection) transferSection.classList.add('hidden');
+            }
+        }
+        document.getElementById('deleteQuadrantModal').classList.remove('hidden');
+    }
+    function closeDeleteQuadrantModal() {
+        deleteQuadrantId = null;
+        document.getElementById('deleteQuadrantModal').classList.add('hidden');
+    }
+
+    function executeDeleteQuadrant() {
+        if (!deleteQuadrantId) return;
+        
+        const transferSelect = document.getElementById('transferQuadrantSelect');
+        const transferSection = document.getElementById('quadrantTransferSection');
+        let transferToId = null;
+        
+        if (transferSection && !transferSection.classList.contains('hidden')) {
+            transferToId = transferSelect.value;
+            if (!transferToId) {
+                showSnackbar("Please select a destination quadrant.", 'error');
+                return;
+            }
+        }
+        
+        const btn = document.getElementById('confirmDeleteQuadrantBtn');
+        const btnText = btn.querySelector('span');
+        const originalText = btnText.textContent;
+        btn.disabled = true;
+        btnText.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+
+        let requestBody = {};
+        if (transferToId) requestBody.transfer_to_quadrant_id = transferToId;
+
+        fetch(`/dashboard/quadrants/${deleteQuadrantId}`, {
+            method: 'DELETE',
+            headers: {
+                'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                'Content-Type': 'application/json',
+                'Accept': 'application/json'
+            },
+            body: JSON.stringify(requestBody)
+        })
+        .then(async response => {
+            if (!response.ok) throw new Error('Error deleting quadrant.');
+            return response.json();
+        })
+        .then(data => {
+            closeDeleteQuadrantModal();
+            loadPartial('{{ route('schools') }}', document.getElementById('nav-schools-btn'));
+        })
+        .catch(error => {
+            alert(error.message);
+            btn.disabled = false;
+            btnText.textContent = originalText;
+        });
+    }
+
+    // --- DISTRICT ACTIONS ---
+    function filterDistricts() {
+        const filter = document.getElementById('districtSearchInput').value.toLowerCase();
+        const rows = document.querySelectorAll('.district-row');
+        let count = 0;
+        rows.forEach(row => {
+            const text = row.querySelector('.district-name-text').textContent.toLowerCase();
+            if (text.includes(filter)) {
+                row.style.display = '';
+                count++;
+            } else {
+                row.style.display = 'none';
+            }
+        });
+        const emptyState = document.getElementById('emptyDistrictState');
+        if (emptyState) {
+            emptyState.style.display = count === 0 ? '' : 'none';
+        }
+    }
+
+    function editDistrict(btn) {
+        const row = btn.closest('.district-row');
+        row.querySelector('.district-name-text').classList.add('hidden');
+        row.querySelector('.district-name-input').classList.remove('hidden');
+        row.querySelector('.district-actions-default').classList.add('hidden');
+        row.querySelector('.district-actions-edit').classList.remove('hidden');
+    }
+
+    function cancelEditDistrict(btn) {
+        const row = btn.closest('.district-row');
+        row.querySelector('.district-name-text').classList.remove('hidden');
+        row.querySelector('.district-name-input').classList.add('hidden');
+        row.querySelector('.district-actions-default').classList.remove('hidden');
+        row.querySelector('.district-actions-edit').classList.add('hidden');
+        row.querySelector('.district-name-input').value = row.querySelector('.district-name-text').textContent;
+    }
+
+    function saveDistrict(id, btn) {
+        const row = btn.closest('.district-row');
+        const name = row.querySelector('.district-name-input').value.trim();
+        const originalContent = btn.innerHTML;
+
+        if (!name) return;
+
+        btn.disabled = true;
+        btn.innerHTML = '...';
+
+        fetch(`/dashboard/districts/${id}`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                'Accept': 'application/json'
+            },
+            body: JSON.stringify({ name: name })
+        })
+        .then(async response => {
+            if (!response.ok) {
+                const data = await response.json();
+                throw new Error(data.message || 'Error updating district.');
+            }
+            return response.json();
+        })
+        .then(data => {
+            loadPartial('{{ route('schools') }}', document.getElementById('nav-schools-btn'));
+        })
+        .catch(error => {
+            alert(error.message);
+            btn.disabled = false;
+            btn.innerHTML = originalContent;
+        });
+    }
+
+    let deleteDistrictId = null;
+    function confirmDeleteDistrict(id, schoolsCount = 0) {
+        deleteDistrictId = id;
+        const warningText = document.getElementById('deleteDistrictWarningText');
+        const transferSection = document.getElementById('districtTransferSection');
+        
+        if (warningText) {
+            if (schoolsCount > 0) {
+                warningText.innerHTML = `This district currently has <b class="text-red-600">${schoolsCount} school(s)</b>.<br><br>Before deleting, transfer all schools to another district.`;
+                if(transferSection) transferSection.classList.remove('hidden');
+                
+                const select = document.getElementById('transferDistrictSelect');
+                if(select) {
+                    select.value = '';
+                    Array.from(select.options).forEach(opt => {
+                        if(opt.value == id) opt.style.display = 'none';
+                        else opt.style.display = '';
+                    });
+                }
+            } else {
+                warningText.innerHTML = `This action cannot be undone. Are you sure you want to permanently remove this district?`;
+                if(transferSection) transferSection.classList.add('hidden');
+            }
+        }
+        document.getElementById('deleteDistrictModal').classList.remove('hidden');
+    }
+    function closeDeleteDistrictModal() {
+        deleteDistrictId = null;
+        document.getElementById('deleteDistrictModal').classList.add('hidden');
+    }
+
+    function executeDeleteDistrict() {
+        if (!deleteDistrictId) return;
+        
+        const transferSelect = document.getElementById('transferDistrictSelect');
+        const transferSection = document.getElementById('districtTransferSection');
+        let transferToId = null;
+        
+        if (transferSection && !transferSection.classList.contains('hidden')) {
+            transferToId = transferSelect.value;
+            if (!transferToId) {
+                showSnackbar("Please select a destination district.", 'error');
+                return;
+            }
+        }
+        
+        const btn = document.getElementById('confirmDeleteDistrictBtn');
+        const btnText = btn.querySelector('span');
+        const originalText = btnText.textContent;
+        btn.disabled = true;
+        btnText.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+
+        let requestBody = {};
+        if (transferToId) requestBody.transfer_to_district_id = transferToId;
+
+        fetch(`/dashboard/districts/${deleteDistrictId}`, {
+            method: 'DELETE',
+            headers: {
+                'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                'Content-Type': 'application/json',
+                'Accept': 'application/json'
+            },
+            body: JSON.stringify(requestBody)
+        })
+        .then(async response => {
+            if (!response.ok) throw new Error('Error deleting district.');
+            return response.json();
+        })
+        .then(data => {
+            closeDeleteDistrictModal();
+            loadPartial('{{ route('schools') }}', document.getElementById('nav-schools-btn'));
+        })
+        .catch(error => {
+            alert(error.message);
+            btn.disabled = false;
+            btnText.textContent = originalText;
+        });
+    }
 </script>

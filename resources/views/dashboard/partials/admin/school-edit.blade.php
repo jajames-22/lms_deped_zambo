@@ -102,9 +102,9 @@
         </div>
     </form>
 
-    <div id="successModal" class="fixed inset-0 z-50 hidden flex items-center justify-center">
-        <div class="absolute inset-0 bg-gray-900/60 backdrop-blur-sm"></div>
-        <div class="relative bg-white rounded-3xl shadow-2xl max-w-sm w-full p-8 text-center transform transition-all border border-gray-100 z-10 animate-fade-in-up">
+    <div id="successModal" class="fixed inset-0 z-[9999] hidden flex items-center justify-center p-4">
+        <div class="absolute inset-0 bg-gray-900/60 backdrop-blur-sm transition-opacity"></div>
+        <div id="successModalBox" class="relative bg-white rounded-3xl shadow-2xl max-w-sm w-full p-8 text-center transform scale-95 opacity-0 transition-all duration-300 border border-gray-100 z-10">
             <div class="w-20 h-20 bg-green-50 text-green-500 rounded-full flex items-center justify-center mx-auto mb-5 shadow-inner">
                 <i class="fas fa-check text-4xl"></i>
             </div>
@@ -121,6 +121,7 @@
 
 
 <script>
+(function() {
     function previewImage(event) {
         var reader = new FileReader();
         reader.onload = function() {
@@ -129,67 +130,54 @@
         };
         reader.readAsDataURL(event.target.files[0]);
     }
+    // Expose previewImage to global scope for the inline onchange event
+    window.previewImage = previewImage;
 
-    // Changed 'const' to 'var' to prevent redeclaration crashes on partial reloads
     var qSelect = document.getElementById('quadrant_id');
     var dSelect = document.getElementById('district_id');
 
     if (qSelect) {
-        // Remove old listener if it exists to prevent duplicates, then add new one
-        var newQSelect = qSelect.cloneNode(true);
-        qSelect.parentNode.replaceChild(newQSelect, qSelect);
-        
-        newQSelect.addEventListener('change', function() {
+        qSelect.addEventListener('change', function() {
             var qId = this.value;
-            var dSelectCurrent = document.getElementById('district_id');
-            dSelectCurrent.disabled = true;
-            dSelectCurrent.innerHTML = '<option>Loading districts...</option>';
+            dSelect.disabled = true;
+            dSelect.innerHTML = '<option>Loading districts...</option>';
 
             fetch(`/get-districts/${qId}`)
                 .then(res => res.json())
                 .then(data => {
-                    dSelectCurrent.innerHTML = '<option value="" disabled selected>Select District</option>';
+                    dSelect.innerHTML = '<option value="" disabled selected>Select District</option>';
                     if (data.length > 0) {
                         data.forEach(d => {
                             var option = document.createElement('option');
                             option.value = d.id;
                             option.textContent = d.name;
-                            dSelectCurrent.appendChild(option);
+                            dSelect.appendChild(option);
                         });
-                        dSelectCurrent.disabled = false;
+                        dSelect.disabled = false;
                     } else {
-                        dSelectCurrent.innerHTML = '<option>No districts found</option>';
+                        dSelect.innerHTML = '<option>No districts found</option>';
                     }
                 })
                 .catch(err => console.error("Fetch error:", err));
         });
     }
 
-    // Changed 'const' to 'var' here as well
     var editForm = document.getElementById('editSchoolForm');
     var submitBtn = document.getElementById('submitBtn');
     
     if (editForm && submitBtn) {
-        var submitIcon = submitBtn.querySelector('i');
-        var submitText = submitBtn.querySelector('span');
-
-        // We clone and replace the form to strip away old event listeners from previous loads
-        var newEditForm = editForm.cloneNode(true);
-        editForm.parentNode.replaceChild(newEditForm, editForm);
-
-        newEditForm.addEventListener('submit', function(e) {
+        editForm.addEventListener('submit', function(e) {
             e.preventDefault();
 
-            var currentSubmitBtn = document.getElementById('submitBtn');
-            var currentSubmitIcon = currentSubmitBtn.querySelector('i');
-            var currentSubmitText = currentSubmitBtn.querySelector('span');
+            var currentSubmitIcon = submitBtn.querySelector('i');
+            var currentSubmitText = submitBtn.querySelector('span');
 
-            currentSubmitBtn.disabled = true;
+            submitBtn.disabled = true;
             currentSubmitIcon.className = 'fas fa-spinner fa-spin';
             currentSubmitText.textContent = 'Updating database...';
 
             var formData = new FormData(this);
-            formData.append('_method', 'PUT'); 
+            formData.append('_method', 'PUT');
 
             fetch(this.action, {
                 method: 'POST', 
@@ -204,7 +192,13 @@
                 return response.json();
             })
             .then(data => {
-                document.getElementById('successModal').classList.remove('hidden');
+                var modal = document.getElementById('successModal');
+                var modalBox = document.getElementById('successModalBox');
+                modal.classList.remove('hidden');
+                setTimeout(() => {
+                    modalBox.classList.remove('scale-95', 'opacity-0');
+                    modalBox.classList.add('scale-100', 'opacity-100');
+                }, 10);
                 
                 setTimeout(() => {
                     loadPartial('{{ route('schools') }}', document.getElementById('nav-schools-btn'));
@@ -216,13 +210,14 @@
                 if(error.errors) {
                     errorMsg = Object.values(error.errors).flat().join('\n');
                 }
-                alert(errorMsg);
+                showSnackbar(errorMsg, 'error');
             })
             .finally(() => {
-                currentSubmitBtn.disabled = false;
+                submitBtn.disabled = false;
                 currentSubmitIcon.className = 'fas fa-save';
                 currentSubmitText.textContent = 'Save Changes';
             });
         });
     }
+})();
 </script>

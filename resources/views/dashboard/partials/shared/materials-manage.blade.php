@@ -109,8 +109,16 @@
     // Draft Lock Check
     $isLocked = $material->status !== 'draft';
 
-    // Check for Student Activity
-    $studentActivityCount = \App\Models\Enrollment::where('material_id', $material->id)->count();
+    // Check for Student Activity (only if they have actual progress or scores)
+    $studentActivityCount = $whitelistedStudents->filter(function($access) {
+        $e = $access->current_enrollment;
+        return $e && (($e->progress_percentage ?? 0) > 0 || ($e->score ?? 0) > 0 || !in_array($e->status, ['enrolled', 'pending']));
+    })->count();
+
+    // Parse Revert Reason JSON if it exists
+    $revertData = !empty($material->revert_reason) ? json_decode($material->revert_reason, true) : null;
+    $displayReason = is_array($revertData) && isset($revertData['reason']) ? $revertData['reason'] : $material->revert_reason;
+    $displayOption = is_array($revertData) && isset($revertData['data_option']) ? $revertData['data_option'] : 'keep';
 @endphp
 
 <div class="animate-float-in">
@@ -205,7 +213,7 @@
                             <i class="fas fa-undo"></i> Force Revert to Draft
                         </button>
                     @else
-                        <button onclick="openModal('requestUnpublishModal', 'requestUnpublishBox')"
+                        <button onclick="requestUnpublish()"
                             class="px-4 py-2.5 bg-amber-50 border border-amber-200 text-amber-700 font-bold rounded-xl hover:bg-amber-100 transition flex items-center justify-center gap-2 text-sm">
                             <i class="fas fa-arrow-circle-down"></i> Request Unpublish
                         </button>
@@ -258,7 +266,7 @@
                             <div class="bg-white/80 p-4 rounded-xl border border-amber-200/60 shadow-sm">
                                 <p class="text-[10px] font-black text-amber-800 uppercase tracking-wider mb-1">
                                     Administrator's Reason:</p>
-                                <p class="text-sm text-amber-900 font-medium italic">"{{ $material->revert_reason }}"</p>
+                                <p class="text-sm text-amber-900 font-medium italic">"{{ $displayReason }}"</p>
                             </div>
                         </div>
                     </div>
@@ -402,7 +410,7 @@
                     </div>
 
                     <div class="mt-6 pt-6 border-t border-gray-100 flex justify-end">
-                        <button type="button" onclick="window.saveGradingSettings(this)"
+                        <button type="button" id="saveGradingBtn" onclick="window.saveGradingSettings(this)"
                             class="px-6 py-2.5 bg-gray-900 text-white text-sm font-bold rounded-xl transition-all shadow-sm flex items-center gap-2 {{ $isLocked ? 'opacity-50 cursor-not-allowed' : 'hover:bg-gray-800' }}"
                             {{ $isLocked ? 'disabled title="Revert to draft to edit grading"' : '' }}>
                             <i class="fas fa-save"></i> Save Grading
@@ -1197,17 +1205,35 @@
 
         <div class="p-4 bg-gray-50 border border-gray-200 rounded-xl mb-4">
             <p class="text-[10px] text-gray-400 font-bold uppercase tracking-wider mb-2">Teacher's Reason:</p>
-            <p class="text-sm text-gray-700 font-medium italic">
-                "{{ $material->revert_reason ?? 'No reason provided.' }}"</p>
+            <p class="text-sm text-gray-700 font-medium italic mb-3">
+                "{{ $displayReason ?? 'No reason provided.' }}"</p>
+
+            <p class="text-[10px] text-gray-400 font-bold uppercase tracking-wider mb-2 pt-3 border-t border-gray-200">Teacher's Data Decision:</p>
+            @if($displayOption === 'clear')
+                <div class="flex items-start gap-2 bg-red-50 text-red-700 p-2 rounded-lg border border-red-100">
+                    <i class="fas fa-trash-alt mt-0.5 text-xs"></i>
+                    <div>
+                        <p class="text-xs font-bold">Clear Progress</p>
+                        <p class="text-[10px] opacity-80">Teacher requested to wipe all student data.</p>
+                    </div>
+                </div>
+            @else
+                <div class="flex items-start gap-2 bg-amber-50 text-amber-700 p-2 rounded-lg border border-amber-100">
+                    <i class="fas fa-save mt-0.5 text-xs"></i>
+                    <div>
+                        <p class="text-xs font-bold">Keep Progress</p>
+                        <p class="text-[10px] opacity-80">Teacher requested to preserve student data.</p>
+                    </div>
+                </div>
+            @endif
         </div>
 
         {{-- NEW WARNING BANNER --}}
         <div class="mb-6 p-3 bg-red-50 border border-red-200 rounded-xl flex items-start gap-3 text-left">
             <i class="fas fa-exclamation-triangle text-red-500 mt-0.5"></i>
             <div>
-                <p class="text-xs font-black text-red-800 uppercase tracking-wider">Warning: Data Loss</p>
-                <p class="text-xs text-red-600 mt-1">Approving this request will <b>permanently delete all student
-                        progress</b> and notify enrolled students of the revision.</p>
+                <p class="text-xs font-black text-red-800 uppercase tracking-wider">Warning: Impact of Approval</p>
+                <p class="text-xs text-red-600 mt-1">Approving this request will revert the module to draft and notify enrolled students. @if($displayOption === 'clear') <b>Since the teacher chose 'Clear Progress', all student data will be permanently deleted.</b>@endif</p>
             </div>
         </div>
 
@@ -1291,8 +1317,8 @@
         
         {{-- Sticky Header --}}
         <div class="shrink-0 p-8 pb-6 border-b border-gray-100 bg-white relative z-20">
-            <h3 class="text-2xl font-black text-gray-900 mb-2">Student Data Found</h3>
-            <p class="text-gray-500 text-sm leading-relaxed mb-0">This module contains student enrollments, progress records, and/or assessment results. When reverting this module to Draft, choose how existing student data should be handled. You may also export the current student records before continuing.</p>
+            <h3 class="text-2xl font-black text-gray-900 mb-2" id="studentActivityTitle">Student Data Found</h3>
+            <p id="studentActivityDescription" class="text-gray-500 text-sm leading-relaxed mb-0">This module contains active student data. Choose how to handle existing records before reverting to Draft.</p>
         </div>
 
         {{-- Scrollable Body --}}
@@ -1444,7 +1470,7 @@
 </div>
 
 <script>
-    function updateExportCard() {
+    window.updateExportCard = function() {
         const summary = document.getElementById('export_summary');
         const detailed = document.getElementById('export_detailed');
         const cS = document.getElementById('card-summary');
@@ -1706,6 +1732,90 @@
     window.addEventListener('pageshow', window.initializeGradingSliders);
     window.addEventListener('popstate', () => setTimeout(window.initializeGradingSliders, 50));
 
+    // --- TRACK CHANGES TO ENABLE/DISABLE SAVE BUTTONS ---
+    window.initializeChangeTracking = function () {
+        // Track Basic Info changes
+        const titleInput = document.getElementById('materialTitle');
+        const descInput = document.getElementById('materialDescription');
+        const thumbInput = document.getElementById('thumbnailInput');
+        const saveDetailsBtn = document.getElementById('saveDetailsBtn');
+        
+        if (titleInput && !titleInput.disabled && saveDetailsBtn) {
+            if (typeof titleInput.dataset.initialValue === 'undefined') {
+                titleInput.dataset.initialValue = titleInput.value;
+                descInput.dataset.initialValue = descInput.value;
+                
+                saveDetailsBtn.disabled = true;
+                saveDetailsBtn.classList.add('opacity-50', 'grayscale');
+            }
+            
+            const checkBasicInfoChanges = () => {
+                const hasChanges = titleInput.value !== titleInput.dataset.initialValue || 
+                                   descInput.value !== descInput.dataset.initialValue || 
+                                   (thumbInput && thumbInput.files.length > 0);
+                                   
+                saveDetailsBtn.disabled = !hasChanges;
+                if (hasChanges) {
+                    saveDetailsBtn.classList.remove('opacity-50', 'grayscale');
+                } else {
+                    saveDetailsBtn.classList.add('opacity-50', 'grayscale');
+                }
+            };
+            
+            titleInput.addEventListener('input', checkBasicInfoChanges);
+            descInput.addEventListener('input', checkBasicInfoChanges);
+            if (thumbInput) thumbInput.addEventListener('change', checkBasicInfoChanges);
+            
+            window.resetBasicInfoState = () => {
+                titleInput.dataset.initialValue = titleInput.value;
+                descInput.dataset.initialValue = descInput.value;
+                if (thumbInput) thumbInput.value = ''; // clear file input
+                checkBasicInfoChanges();
+            };
+        }
+        
+        // Track Grading Settings changes
+        const weightSlider = document.getElementById('weight-slider');
+        const passingSlider = document.getElementById('passing-slider');
+        const saveGradingBtn = document.getElementById('saveGradingBtn');
+        
+        if (weightSlider && !weightSlider.disabled && saveGradingBtn) {
+            if (typeof weightSlider.dataset.initialValue === 'undefined') {
+                weightSlider.dataset.initialValue = weightSlider.value;
+                passingSlider.dataset.initialValue = passingSlider.value;
+                
+                saveGradingBtn.disabled = true;
+                saveGradingBtn.classList.add('opacity-50', 'grayscale');
+            }
+            
+            const checkGradingChanges = () => {
+                const hasChanges = weightSlider.value !== weightSlider.dataset.initialValue || 
+                                   passingSlider.value !== passingSlider.dataset.initialValue;
+                                   
+                saveGradingBtn.disabled = !hasChanges;
+                if (hasChanges) {
+                    saveGradingBtn.classList.remove('opacity-50', 'grayscale');
+                } else {
+                    saveGradingBtn.classList.add('opacity-50', 'grayscale');
+                }
+            };
+            
+            weightSlider.addEventListener('input', checkGradingChanges);
+            passingSlider.addEventListener('input', checkGradingChanges);
+            
+            window.resetGradingState = () => {
+                weightSlider.dataset.initialValue = weightSlider.value;
+                passingSlider.dataset.initialValue = passingSlider.value;
+                checkGradingChanges();
+            };
+        }
+    };
+
+    window.initializeChangeTracking();
+    setTimeout(window.initializeChangeTracking, 50);
+    document.addEventListener('DOMContentLoaded', window.initializeChangeTracking);
+    window.addEventListener('pageshow', window.initializeChangeTracking);
+
     window.saveGradingSettings = async function (btn = null) {
         const quizWeight = document.getElementById('weight-slider') ? parseInt(document.getElementById('weight-slider').value) : 0;
         const passingScore = document.getElementById('passing-slider') ? parseInt(document.getElementById('passing-slider').value) : 0;
@@ -1727,19 +1837,29 @@
             const data = await response.json();
 
             if (response.ok && data.success) {
-                showCustomAlert('Success', 'Grading settings saved successfully!', 'success');
+                showSnackbar('Grading settings saved successfully!', 'success');
+                if (window.resetGradingState) window.resetGradingState();
             } else {
                 throw new Error(data.message || "Failed to save.");
             }
         } catch (e) {
             showCustomAlert('Error', e.message, 'error');
         } finally {
-            if (btn) { btn.innerHTML = originalHtml; btn.disabled = false; }
+            if (btn) { 
+                btn.innerHTML = originalHtml; 
+                // Only re-enable if there are still changes (handled by the input listener)
+                // but let's just trigger the check to be safe
+                if (window.resetGradingState) {
+                    // resetGradingState already disables the button if no changes
+                } else {
+                    btn.disabled = false; 
+                }
+            }
         }
     };
 
     // --- MODAL ANIMATION HELPERS ---
-    function openModal(modalId, boxId) {
+    window.openModal = function(modalId, boxId) {
         const modal = document.getElementById(modalId);
         const box = document.getElementById(boxId);
         modal.classList.remove('hidden');
@@ -1751,7 +1871,7 @@
         }, 10);
     }
 
-    function closeModal(modalId, boxId) {
+    window.closeModal = function(modalId, boxId) {
         const modal = document.getElementById(modalId);
         const box = document.getElementById(boxId);
         modal.classList.remove('opacity-100');
@@ -1886,7 +2006,7 @@
         formData.append('description', document.getElementById('materialDescription').value);
 
         const thumbnailInput = document.getElementById('thumbnailInput');
-        if (thumbnailInput.files.length > 0) {
+        if (thumbnailInput && thumbnailInput.files.length > 0) {
             formData.append('thumbnail', thumbnailInput.files[0]);
         }
 
@@ -1903,6 +2023,7 @@
             if (response.ok) {
                 showSnackbar('Details updated successfully!', 'success');
                 document.getElementById('header-title-display').textContent = document.getElementById('materialTitle').value;
+                if (window.resetBasicInfoState) window.resetBasicInfoState();
             } else {
                 // Read exact Laravel validation errors
                 const data = await response.json().catch(() => null);
@@ -1913,12 +2034,13 @@
                     errorMsg = data.message;
                 }
                 showCustomAlert('Update Failed', errorMsg, 'error');
+                btn.disabled = false; // Re-enable so they can try again
             }
         } catch (error) {
             // Handle complete network failure or unexpected redirect crash
             showCustomAlert('Error', 'An unexpected error occurred while saving.', 'error');
-        } finally {
             btn.disabled = false;
+        } finally {
             btn.innerHTML = originalHtml;
         }
     }
@@ -1989,9 +2111,28 @@
     window.revertToDraft = function () {
         const hasActivity = {{ $studentActivityCount > 0 ? 'true' : 'false' }};
         if (hasActivity) {
+            document.getElementById('studentActivityTitle').innerText = "Student Data Found";
+            document.getElementById('studentActivityDescription').innerText = "This module contains active student data. Choose how to handle existing records before reverting to Draft.";
+            document.getElementById('activityRevertReasonInput').placeholder = "Provide a reason for forcing this revert (Required)...";
+            document.getElementById('executeActivityRevertBtn').innerHTML = "Proceed & Revert";
+            document.getElementById('executeActivityRevertBtn').onclick = executeActivityRevertToDraft;
             openModal('studentActivityModal', 'studentActivityBox');
         } else {
             openModal('revertConfirmModal', 'revertConfirmBox');
+        }
+    }
+
+    window.requestUnpublish = function () {
+        const hasActivity = {{ $studentActivityCount > 0 ? 'true' : 'false' }};
+        if (hasActivity) {
+            document.getElementById('studentActivityTitle').innerText = "Student Data Found";
+            document.getElementById('studentActivityDescription').innerText = "This module contains active student data. Choose how to handle existing records before requesting to unpublish.";
+            document.getElementById('activityRevertReasonInput').placeholder = "Provide a reason for unpublishing this module (Required)...";
+            document.getElementById('executeActivityRevertBtn').innerHTML = "Send Request";
+            document.getElementById('executeActivityRevertBtn').onclick = submitUnpublishRequestFromActivity;
+            openModal('studentActivityModal', 'studentActivityBox');
+        } else {
+            openModal('requestUnpublishModal', 'requestUnpublishBox');
         }
     }
 
@@ -2353,7 +2494,7 @@
         }, 300);
     };
 
-    function renderMaterialEmailDuplicates(data) {
+    window.renderMaterialEmailDuplicates = function(data) {
         const list = document.getElementById('emailDuplicateList');
         const count = document.getElementById('emailDuplicateCountLabel');
         list.innerHTML = '';
@@ -2769,7 +2910,7 @@
                 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
                 'Accept': 'application/json'
             },
-            body: JSON.stringify({ status: 'revert_requested', revert_reason: reason })
+            body: JSON.stringify({ status: 'revert_requested', revert_reason: reason, data_option: 'keep' })
         })
             .then(r => r.json())
             .then(data => {
@@ -2782,6 +2923,50 @@
                     btn.disabled = false;
                     btn.innerHTML = originalHtml;
                 }
+            });
+    }
+
+    window.submitUnpublishRequestFromActivity = function () {
+        const reasonInput = document.getElementById('activityRevertReasonInput');
+        const reason = reasonInput ? reasonInput.value.trim() : '';
+
+        if (!reason) {
+            showSnackbar('Please provide a reason for the request.', 'error');
+            return;
+        }
+
+        const dataOption = document.querySelector('input[name="revert_data_option"]:checked').value;
+
+        const btn = document.getElementById('executeActivityRevertBtn');
+        const originalHtml = btn.innerHTML;
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Sending...';
+
+        fetch(`{{ url('/dashboard/materials/' . $material->id . '/status') }}`, {
+            method: 'PATCH',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+                'Accept': 'application/json'
+            },
+            body: JSON.stringify({ status: 'revert_requested', revert_reason: reason, data_option: dataOption })
+        })
+            .then(r => r.json())
+            .then(data => {
+                if (data.success) {
+                    closeModal('studentActivityModal', 'studentActivityBox');
+                    showSnackbar('Unpublish request sent to admin.', 'success');
+                    setTimeout(() => loadPartial('{{ url('/dashboard/materials') }}', document.getElementById('nav-materials-btn')), 500);
+                } else {
+                    showCustomAlert('Error', data.message || 'Failed to send request.', 'error');
+                    btn.disabled = false;
+                    btn.innerHTML = originalHtml;
+                }
+            })
+            .catch(error => {
+                showCustomAlert('Error', 'An error occurred while processing the request.', 'error');
+                btn.disabled = false;
+                btn.innerHTML = originalHtml;
             });
     }
 

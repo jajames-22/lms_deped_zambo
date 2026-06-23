@@ -20,17 +20,23 @@ class StudentEnrollmentController extends Controller
     {
         $user = Auth::user();
 
-        // 1. Get Active Enrollments (In Progress, Completed, Failed)
+        // 1. Get Active Enrollments (In Progress, Completed, Failed) -> ONLY published modules
         $activeEnrollments = Enrollment::with(['material.instructor', 'material.tags'])
             ->where('user_id', $user->id)
             ->where('status', '!=', 'dropped')
+            ->whereHas('material', function($q) {
+                $q->where('status', 'published');
+            })
             ->latest()
             ->get();
 
-        // 2. Get Dropped Materials (REMOVED public filter so all show up)
+        // 2. Get Dropped Materials (ONLY published modules)
         $droppedAccesses = MaterialAccess::with(['material.instructor', 'material.tags'])
             ->where('email', $user->email)
             ->where('status', 'dropped')
+            ->whereHas('material', function($q) {
+                $q->where('status', 'published');
+            })
             ->latest()
             ->get();
 
@@ -153,6 +159,11 @@ class StudentEnrollmentController extends Controller
         $material = Material::findOrFail($id);
         $user = Auth::user();
 
+        // 🚨 NEW CHECK: Prevent accessing draft/pending modules for students
+        if ($user->role === 'student' && $material->status !== 'published') {
+            abort(403, 'This module is temporarily unavailable or in draft mode.');
+        }
+
         // 1. Check if the user has an ACTIVE enrollment (Used to toggle the Enroll/Resume buttons)
         $isEnrolled = Enrollment::where('material_id', $id)
             ->where('user_id', $user->id)
@@ -219,6 +230,11 @@ class StudentEnrollmentController extends Controller
         $enrollment = Enrollment::with(['material.instructor', 'user'])
             ->findOrFail($enrollment_id);
 
+        // 🚨 NEW CHECK: Prevent students from accessing draft/pending modules
+        if (Auth::user()->role === 'student' && $enrollment->material->status !== 'published') {
+            abort(403, 'This module is temporarily unavailable or in draft mode.');
+        }
+
         if ($enrollment->status !== 'completed') {
             abort(403, 'This certificate is not valid or incomplete.');
         }
@@ -279,6 +295,11 @@ class StudentEnrollmentController extends Controller
         $enrollment = Enrollment::with(['material.instructor', 'user'])
             ->findOrFail($enrollment_id);
 
+        // 🚨 NEW CHECK: Prevent students from accessing draft/pending modules
+        if (Auth::user()->role === 'student' && $enrollment->material->status !== 'published') {
+            abort(403, 'This module is temporarily unavailable or in draft mode.');
+        }
+
         if ($enrollment->status !== 'completed') {
             abort(403, 'This certificate is not valid or incomplete.');
         }
@@ -314,6 +335,11 @@ class StudentEnrollmentController extends Controller
         // 1. Fetch the enrollment with necessary relationships
         $enrollment = Enrollment::with(['material.instructor', 'user'])
             ->findOrFail($enrollment_id);
+
+        // 🚨 NEW CHECK: Prevent students from accessing draft/pending modules
+        if (Auth::user()->role === 'student' && $enrollment->material->status !== 'published') {
+            abort(403, 'This module is temporarily unavailable or in draft mode.');
+        }
 
         // 2. Security: Ensure the user owns this certificate (unless admin)
         if (Auth::id() !== $enrollment->user_id && !in_array(Auth::user()->role, ['teacher', 'admin', 'superadmin'])) {

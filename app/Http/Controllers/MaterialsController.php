@@ -255,8 +255,12 @@ class MaterialsController extends Controller
     public function manage($id)
     {
         $material = Material::findOrFail($id);
+        $user = Auth::user();
 
-        $user = auth()->user();
+        // 🚨 NEW CHECK: Prevent students from accessing draft/pending modules
+        if ($user->role === 'student' && $material->status !== 'published') {
+            abort(403, 'This module is temporarily unavailable or in draft mode.');
+        }
 
         if (in_array($user->role, ['admin', 'cid']) && $material->status === 'draft' && $material->instructor_id !== $user->id) {
             return response('
@@ -575,18 +579,20 @@ class MaterialsController extends Controller
             }
 
             // Fetch the material BEFORE updating so we can check ownership and titles
-            $material =
-
-                // Fetch the material BEFORE updating so we can check ownership and titles
-                $material = \App\Models\Material::with('instructor')->findOrFail($id);
+            $material = \App\Models\Material::with('instructor')->findOrFail($id);
 
             // ==========================================
             // NEW: Handle Unpublish Request (Stays Published)
             // ==========================================
             if ($targetStatus === 'revert_requested') {
+                $reasonData = json_encode([
+                    'reason' => $request->revert_reason,
+                    'data_option' => $request->data_option ?? 'keep'
+                ]);
+
                 \Illuminate\Support\Facades\DB::table('materials')->where('id', $id)->update([
                     // We DO NOT change 'status' here so it remains 'published'
-                    'revert_reason' => $request->revert_reason,
+                    'revert_reason' => $reasonData,
                     'updated_at' => now()
                 ]);
 
@@ -609,14 +615,15 @@ class MaterialsController extends Controller
             // NEW: Handle Admin Review of Unpublish Request
             // ==========================================
             // Check if there is an active request via the revert_reason column
-            // ==========================================
-            // NEW: Handle Admin Review of Unpublish Request
-            // ==========================================
             if (!empty($material->revert_reason) && in_array($currentUser->role, ['admin', 'cid'])) {
                 if ($targetStatus === 'draft') {
 
-                    // 🚨 NEW: Clear progress if requested!
-                    if ($request->data_option === 'clear') {
+                    // Read the teacher's requested data_option
+                    $revertData = json_decode($material->revert_reason, true);
+                    $dataOption = is_array($revertData) && isset($revertData['data_option']) ? $revertData['data_option'] : 'keep';
+
+                    // 🚨 NEW: Clear progress if requested by teacher!
+                    if ($dataOption === 'clear') {
                         $this->clearStudentProgressAndResults($material);
                     }
 
@@ -655,11 +662,6 @@ class MaterialsController extends Controller
                     }
                     return response()->json(['success' => true, 'message' => 'Request declined. Module remains Published.']);
                 }
-            }
-
-            // Force teachers to go through 'pending' instead of direct publish
-            if ($currentUser->role === 'teacher' && $targetStatus === 'published') {
-                $targetStatus = 'pending';
             }
 
             // Force teachers to go through 'pending' instead of direct publish
@@ -756,6 +758,43 @@ class MaterialsController extends Controller
                         $notifIcon,
                         $notifColor
                     ));
+                }
+            }
+
+            // 5. --- STUDENT NOTIFICATION LOGIC ---
+            if ($targetStatus === 'draft' && in_array($material->status, ['published', 'pending'])) {
+                // Notify students that module is temporarily unavailable
+                $enrolledStudentIds = \Illuminate\Support\Facades\DB::table('enrollments')
+                    ->where('material_id', $material->id)
+                    ->pluck('user_id');
+                if ($enrolledStudentIds->isNotEmpty()) {
+                    $studentsToNotify = \App\Models\User::whereIn('id', $enrolledStudentIds)->get();
+                    foreach ($studentsToNotify as $student) {
+                        $student->notify(new \App\Notifications\LmsAlertNotification(
+                            'Module Temporarily Unavailable',
+                            'The module "' . $material->title . '" has been reverted to Draft by the instructor and is currently unavailable. You will regain access once the module is published again.',
+                            '#',
+                            'fas fa-clock',
+                            'text-amber-600'
+                        ));
+                    }
+                }
+            } elseif ($targetStatus === 'published' && in_array($material->status, ['draft', 'pending'])) {
+                // Notify students that module is available again
+                $enrolledStudentIds = \Illuminate\Support\Facades\DB::table('enrollments')
+                    ->where('material_id', $material->id)
+                    ->pluck('user_id');
+                if ($enrolledStudentIds->isNotEmpty()) {
+                    $studentsToNotify = \App\Models\User::whereIn('id', $enrolledStudentIds)->get();
+                    foreach ($studentsToNotify as $student) {
+                        $student->notify(new \App\Notifications\LmsAlertNotification(
+                            'Module Available Again',
+                            'The module "' . $material->title . '" has been published and is now available again. You may continue or begin your learning activities.',
+                            route('dashboard.materials.study', $material->hashid),
+                            'fas fa-book-open',
+                            'text-green-600'
+                        ));
+                    }
                 }
             }
 
@@ -1873,6 +1912,11 @@ class MaterialsController extends Controller
         $material = Material::findOrFail($decoded[0]);
         $user = auth()->user();
 
+        // 🚨 NEW CHECK: Prevent students from studying draft/pending modules
+        if ($user->role === 'student' && $material->status !== 'published') {
+            abort(403, 'This module is temporarily unavailable or in draft mode.');
+        }
+
         // 1. Fetch Enrollment to get Saved Progress
         $enrollment = \App\Models\Enrollment::where('material_id', $material->id)
             ->where('user_id', $user->id)
@@ -2311,6 +2355,12 @@ class MaterialsController extends Controller
             abort(404, 'Invalid link.');
         $material = Material::findOrFail($decoded[0]);
         $user = auth()->user();
+
+        // 🚨 NEW CHECK: Prevent students from accessing draft/pending modules
+        if ($user->role === 'student' && $material->status !== 'published') {
+            abort(403, 'This module is temporarily unavailable or in draft mode.');
+        }
+
         $grades = $this->calculateGrades($material, $user);
 
         // Calculate if a perfect exam score is mathematically enough to pass
@@ -2327,6 +2377,11 @@ class MaterialsController extends Controller
             abort(404, 'Invalid link.');
         $material = Material::findOrFail($decoded[0]);
         $user = auth()->user();
+
+        // 🚨 NEW CHECK: Prevent students from accessing draft/pending modules
+        if ($user->role === 'student' && $material->status !== 'published') {
+            abort(403, 'This module is temporarily unavailable or in draft mode.');
+        }
 
         // --- NEW: Block action if max retakes reached ---
         $access = \App\Models\MaterialAccess::where('material_id', $material->id)
@@ -2385,6 +2440,12 @@ class MaterialsController extends Controller
             abort(404, 'Invalid link.');
         }
         $material = Material::findOrFail($decoded[0]);
+        $user = Auth::user();
+
+        // 🚨 NEW CHECK: Prevent students from accessing draft/pending modules
+        if ($user->role === 'student' && $material->status !== 'published') {
+            abort(403, 'This module is temporarily unavailable or in draft mode.');
+        }
 
         // 2. Fetch the enrollment
         $enrollment = \App\Models\Enrollment::with(['user', 'material.instructor'])
@@ -3344,23 +3405,25 @@ class MaterialsController extends Controller
             ->where('material_id', $material->id)
             ->pluck('user_id');
 
-        // 3. Delete all submitted student answers
-        if ($examIds->isNotEmpty()) {
-            \Illuminate\Support\Facades\DB::table('exam_answers')->whereIn('exam_id', $examIds)->delete();
-        }
-        if ($quizIds->isNotEmpty()) {
-            \Illuminate\Support\Facades\DB::table('quiz_answers')->whereIn('lesson_content_id', $quizIds)->delete();
-        }
+        \Illuminate\Support\Facades\DB::transaction(function () use ($material, $examIds, $quizIds) {
+            // 3. Delete all submitted student answers
+            if ($examIds->isNotEmpty()) {
+                \Illuminate\Support\Facades\DB::table('exam_answers')->whereIn('exam_id', $examIds)->delete();
+            }
+            if ($quizIds->isNotEmpty()) {
+                \Illuminate\Support\Facades\DB::table('quiz_answers')->whereIn('lesson_content_id', $quizIds)->delete();
+            }
 
-        // 4. RESET Enrollments (Do not delete them!)
-        \Illuminate\Support\Facades\DB::table('enrollments')
-            ->where('material_id', $material->id)
-            ->update([
-                'status' => 'in_progress',
-                'progress_data' => json_encode(['lesson' => 0, 'content' => 0, 'highest_unlocked' => 0]),
-                'completed_at' => null,
-                'updated_at' => now()
-            ]);
+            // 4. Delete progress and completion records (Reset Enrollments)
+            \Illuminate\Support\Facades\DB::table('enrollments')
+                ->where('material_id', $material->id)
+                ->update([
+                    'status' => 'enrolled', // It should be enrolled not in_progress because they lost all progress
+                    'progress_data' => null,
+                    'completed_at' => null,
+                    'updated_at' => now()
+                ]);
+        });
 
         // 5. Notify the students who were enrolled
         if ($enrolledStudentIds->isNotEmpty()) {
@@ -3369,10 +3432,10 @@ class MaterialsController extends Controller
             foreach ($studentsToNotify as $student) {
                 $student->notify(new \App\Notifications\LmsAlertNotification(
                     'Module Progress Reset',
-                    'The module "' . $material->title . '" has been reverted to draft and your progress has been reset by the instructor.',
+                    'Your progress, assessment attempts, scores, and submitted answers for "' . $material->title . '" have been cleared by the instructor. The module is currently in Draft status and cannot be accessed. You will be able to start again when the module is republished.',
                     '#',
-                    'fas fa-tools',
-                    'text-amber-600'
+                    'fas fa-exclamation-triangle',
+                    'text-red-600'
                 ));
             }
         }
