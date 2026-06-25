@@ -31,4 +31,8 @@ Route::middleware(['auth', 'verified'])->prefix('dashboard/assessments')->name('
     
     // ADD THIS NEW LINE FOR THE EXPORT:
     Route::get('/{assessment}/export', [AssessmentController::class, 'exportReport'])->name('export');
+
+    // Student Access & Results Management Routes:
+    Route::get('/{assessment}/students/export', [AssessmentController::class, 'exportStudentResults'])->name('students.export');
+    Route::get('/{assessment}/students/{student}/results', [AssessmentController::class, 'studentResult'])->name('students.results');
 });

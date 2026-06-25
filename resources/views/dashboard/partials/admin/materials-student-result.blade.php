@@ -27,7 +27,7 @@
             
             <div class="relative z-10">
                 <span class="inline-block px-3 py-1 bg-white/20 text-white text-xs font-bold uppercase tracking-widest rounded-full mb-4">
-                    Assessment Completed
+                    Material Completed
                 </span>
                 <h1 class="text-3xl font-black text-white mb-2">{{ $assessment->title }}</h1>
                 <p class="text-white/80 text-sm font-medium">Your responses have been successfully recorded.</p>
@@ -107,7 +107,7 @@
                                 <div id="content-quiz-{{ $lIdx }}" class="hidden px-5 py-5 border-t border-blue-100 space-y-4">
                                     @foreach($lesson->items as $result)
                                         @php $globalQ++; @endphp
-                                        @include('dashboard.partials.student.assessmentExam._result_item', ['result' => $result, 'num' => $globalQ])
+                                        @include('dashboard.partials.admin._result_item', ['result' => $result, 'num' => $globalQ])
                                     @endforeach
                                 </div>
                             </div>
@@ -131,7 +131,7 @@
                     <div class="space-y-4 ml-2">
                         @foreach($examItems as $result)
                             @php $globalQ++; @endphp
-                            @include('dashboard.partials.student.assessmentExam._result_item', ['result' => $result, 'num' => $globalQ])
+                            @include('dashboard.partials.admin._result_item', ['result' => $result, 'num' => $globalQ])
                         @endforeach
                     </div>
                 </div>

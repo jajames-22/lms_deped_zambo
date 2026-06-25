@@ -414,11 +414,10 @@ class DashboardController extends Controller
             }
 
             // --- D. CHART DATA: MATERIAL TYPES (By Status) ---
-            $materialTypeLabels = ['Published', 'Pending Review', 'Drafts'];
+            $materialTypeLabels = ['Published', 'Pending Review'];
             $materialTypeData = [
                 $publishedMaterials,
-                $pendingMaterials,
-                \App\Models\Material::where('status', 'draft')->count()
+                $pendingMaterials
             ];
 
             // --- E. CHART DATA: TOP SCHOOLS (By Enrollment Volume) ---
@@ -464,28 +463,29 @@ class DashboardController extends Controller
             $teacherId = Auth::id();
 
             // --- A. CORE MODULE METRICS ---
-            $myMaterialsCount = \App\Models\Material::where('instructor_id', $teacherId)->count();
-            $totalViews = \App\Models\Material::where('instructor_id', $teacherId)->sum('views');
+            $myMaterialsCount = \App\Models\Material::where('instructor_id', $teacherId)->where('status', 'published')->count();
+            $totalViews = \App\Models\Material::where('instructor_id', $teacherId)->where('status', 'published')->sum('views');
 
             // Most Popular Views
-            $topViewedModule = \App\Models\Material::where('instructor_id', $teacherId)
+            $topViewedModule = \App\Models\Material::where('instructor_id', $teacherId)->where('status', 'published')
                 ->orderBy('views', 'desc')
                 ->first();
 
             // Most Popular Downloads
-            $topDownloadedModule = \App\Models\Material::where('instructor_id', $teacherId)
+            $topDownloadedModule = \App\Models\Material::where('instructor_id', $teacherId)->where('status', 'published')
                 ->orderBy('downloads', 'desc')
                 ->first();
 
-            // Total unique students across all the teacher's modules
-            $totalLearners = \App\Models\Enrollment::whereIn('material_id', function ($query) use ($teacherId) {
-                $query->select('id')->from('materials')->where('instructor_id', $teacherId);
-            })->distinct('user_id')->count();
+            // Total unique students across all the teacher's published modules
+            $totalLearners = \App\Models\Enrollment::where('status', '!=', 'dropped')
+                ->whereIn('material_id', function ($query) use ($teacherId) {
+                    $query->select('id')->from('materials')->where('instructor_id', $teacherId)->where('status', 'published');
+                })->distinct('user_id')->count();
 
             // --- B. PERFORMANCE & EXAM PASSING RATE ---
-            // Find all exam IDs belonging to this teacher's materials
+            // Find all exam IDs belonging to this teacher's published materials
             $teacherExamIds = \App\Models\Exam::whereIn('material_id', function ($query) use ($teacherId) {
-                $query->select('id')->from('materials')->where('instructor_id', $teacherId);
+                $query->select('id')->from('materials')->where('instructor_id', $teacherId)->where('status', 'published');
             })->pluck('id');
 
             $totalTeacherExamAnswers = $this->getCompletedExamAnswersQuery()->whereIn('exam_id', $teacherExamIds)->count();
@@ -499,37 +499,39 @@ class DashboardController extends Controller
             // --- C. MODULE COMPLETION RATE ---
             $completedMyModules = \App\Models\Enrollment::where('status', 'completed')
                 ->whereIn('material_id', function ($q) use ($teacherId) {
-                    $q->select('id')->from('materials')->where('instructor_id', $teacherId);
+                    $q->select('id')->from('materials')->where('instructor_id', $teacherId)->where('status', 'published');
                 })->count();
 
-            $totalMyEnrollments = \App\Models\Enrollment::whereIn('material_id', function ($q) use ($teacherId) {
-                $q->select('id')->from('materials')->where('instructor_id', $teacherId);
-            })->count();
+            $totalMyEnrollments = \App\Models\Enrollment::where('status', '!=', 'dropped')
+                ->whereIn('material_id', function ($q) use ($teacherId) {
+                    $q->select('id')->from('materials')->where('instructor_id', $teacherId)->where('status', 'published');
+                })->count();
 
             $moduleCompletionRate = $totalMyEnrollments > 0
                 ? round(($completedMyModules / $totalMyEnrollments) * 100)
                 : 0;
 
             // --- D. CHART DATA: MODULE ENGAGEMENT TREND ---
-            // Tracks *New Enrollments* into your modules over the last 7 days
+            // Tracks *New Enrollments* into your published modules over the last 7 days
             $activityDates = [];
             $activityTrend = [];
             for ($i = 6; $i >= 0; $i--) {
                 $date = now()->subDays($i)->format('Y-m-d');
                 $activityDates[] = now()->subDays($i)->format('M d');
                 $activityTrend[] = \App\Models\Enrollment::whereDate('created_at', $date)
+                    ->where('status', '!=', 'dropped')
                     ->whereIn('material_id', function ($q) use ($teacherId) {
-                        $q->select('id')->from('materials')->where('instructor_id', $teacherId);
+                        $q->select('id')->from('materials')->where('instructor_id', $teacherId)->where('status', 'published');
                     })->count();
             }
 
-            $topMaterialsRaw = \App\Models\Material::where('instructor_id', $teacherId)
+            $topMaterialsRaw = \App\Models\Material::where('instructor_id', $teacherId)->where('status', 'published')
                 ->orderBy('views', 'desc')->take(5)->get();
             $topMaterialsLabels = $topMaterialsRaw->pluck('title')->map(fn($t) => \Illuminate\Support\Str::limit($t, 15))->toArray();
             $topMaterialsData = $topMaterialsRaw->pluck('views')->toArray();
 
             // Top 5 Modules by Downloads
-            $topDownloadedMaterialsRaw = \App\Models\Material::where('instructor_id', $teacherId)
+            $topDownloadedMaterialsRaw = \App\Models\Material::where('instructor_id', $teacherId)->where('status', 'published')
                 ->orderBy('downloads', 'desc')->take(5)->get();
             $topDownloadedMaterialsLabels = $topDownloadedMaterialsRaw->pluck('title')->map(fn($t) => \Illuminate\Support\Str::limit($t, 15))->toArray();
             $topDownloadedMaterialsData = $topDownloadedMaterialsRaw->pluck('downloads')->toArray();
@@ -545,10 +547,11 @@ class DashboardController extends Controller
             $pendingInvitesCount = $pendingInvitesQuery->count();
             $pendingInvitesList = $pendingInvitesQuery->latest()->take(5)->get();
 
-            // Most Active/Recent Students interacting with your modules
+            // Most Active/Recent Students interacting with your published modules
             $activeStudentsList = \App\Models\Enrollment::with(['user', 'material'])
+                ->where('status', '!=', 'dropped')
                 ->whereIn('material_id', function ($q) use ($teacherId) {
-                    $q->select('id')->from('materials')->where('instructor_id', $teacherId);
+                    $q->select('id')->from('materials')->where('instructor_id', $teacherId)->where('status', 'published');
                 })
                 ->orderBy('updated_at', 'desc')
                 ->take(10)->get()->unique('user_id')->take(5); // Get top 5 unique recent users
@@ -1243,61 +1246,75 @@ class DashboardController extends Controller
     {
         $myMaterials = \App\Models\Material::where('instructor_id', $teacherId)->get();
         $myMaterialIds = $myMaterials->pluck('id');
+        $publishedMaterialIds = $myMaterials->where('status', 'published')->pluck('id');
 
         // --- 1. TEACHING OVERVIEW ---
         $totalModules = $myMaterials->count();
         $publishedModules = $myMaterials->where('status', 'published')->count();
         $draftModules = $myMaterials->where('status', 'draft')->count();
+        $activeModules = $publishedModules;
 
-        $uniqueLearners = \App\Models\Enrollment::whereIn('material_id', $myMaterialIds)
+        $uniqueLearners = \App\Models\Enrollment::whereIn('material_id', $publishedMaterialIds)
+            ->where('status', '!=', 'dropped')
             ->distinct('user_id')
             ->count('user_id');
 
-        $totalEnrollments = \App\Models\Enrollment::whereIn('material_id', $myMaterialIds)->count();
-        $completedEnrollmentsCount = \App\Models\Enrollment::whereIn('material_id', $myMaterialIds)
+        $totalEnrollments = \App\Models\Enrollment::whereIn('material_id', $publishedMaterialIds)
+            ->where('status', '!=', 'dropped')
+            ->count();
+            
+        $completedEnrollmentsCount = \App\Models\Enrollment::whereIn('material_id', $publishedMaterialIds)
             ->where('status', 'completed')
             ->count();
             
         $overallCompletionRate = $totalEnrollments > 0 ? round(($completedEnrollmentsCount / $totalEnrollments) * 100) : 0;
 
         // --- 2. LEARNING OUTCOMES ---
-        $teacherLessonContentIds = \App\Models\LessonContent::whereIn('lesson_id', function ($query) use ($myMaterialIds) {
-            $query->select('id')->from('lessons')->whereIn('material_id', $myMaterialIds);
+        $teacherLessonContentIds = \App\Models\LessonContent::whereIn('lesson_id', function ($query) use ($publishedMaterialIds) {
+            $query->select('id')->from('lessons')->whereIn('material_id', $publishedMaterialIds);
         })->pluck('id');
 
-        $totalQuizAnswers = \App\Models\QuizAnswer::whereIn('lesson_content_id', $teacherLessonContentIds)->count();
-        $correctQuizAnswers = \App\Models\QuizAnswer::whereIn('lesson_content_id', $teacherLessonContentIds)->where('is_correct', true)->count();
+        $activeUserIds = \App\Models\Enrollment::whereIn('material_id', $publishedMaterialIds)
+            ->where('status', '!=', 'dropped')
+            ->pluck('user_id')->unique();
+
+        $totalQuizAnswers = \App\Models\QuizAnswer::whereIn('lesson_content_id', $teacherLessonContentIds)->whereIn('user_id', $activeUserIds)->count();
+        $correctQuizAnswers = \App\Models\QuizAnswer::whereIn('lesson_content_id', $teacherLessonContentIds)->whereIn('user_id', $activeUserIds)->where('is_correct', true)->count();
         $quizMPS = $totalQuizAnswers > 0 ? round(($correctQuizAnswers / $totalQuizAnswers) * 100) : 0;
 
-        $teacherExamIds = \App\Models\Exam::whereIn('material_id', $myMaterialIds)->pluck('id');
-        $totalExamAnswers = \App\Models\ExamAnswer::whereIn('exam_id', $teacherExamIds)->count();
-        $correctExamAnswers = \App\Models\ExamAnswer::whereIn('exam_id', $teacherExamIds)->where('is_correct', true)->count();
+        $teacherExamIds = \App\Models\Exam::whereIn('material_id', $publishedMaterialIds)->pluck('id');
+        $totalExamAnswers = \App\Models\ExamAnswer::whereIn('exam_id', $teacherExamIds)->whereIn('user_id', $activeUserIds)->count();
+        $correctExamAnswers = \App\Models\ExamAnswer::whereIn('exam_id', $teacherExamIds)->whereIn('user_id', $activeUserIds)->where('is_correct', true)->count();
         $examMPS = $totalExamAnswers > 0 ? round(($correctExamAnswers / $totalExamAnswers) * 100) : 0;
 
-        $totalCompletedAttempts = \App\Models\Enrollment::whereIn('material_id', $myMaterialIds)
+        $totalCompletedAttempts = \App\Models\Enrollment::whereIn('material_id', $publishedMaterialIds)
+            ->where('status', '!=', 'dropped')
             ->whereIn('status', ['completed', 'failed'])
             ->count();
-        $passedAttempts = \App\Models\Enrollment::whereIn('material_id', $myMaterialIds)
+        $passedAttempts = \App\Models\Enrollment::whereIn('material_id', $publishedMaterialIds)
             ->where('status', 'completed')
             ->count();
         $overallPassRate = $totalCompletedAttempts > 0 ? round(($passedAttempts / $totalCompletedAttempts) * 100) : 0;
 
         // --- 3. MODULE PERFORMANCE INSIGHTS & 4. ENGAGEMENT ANALYTICS ---
         $materialsStats = \App\Models\Material::where('instructor_id', $teacherId)
+            ->where('status', 'published')
             ->withCount([
-                'enrollments as total_enrollments',
+                'enrollments as total_enrollments' => function ($q) {
+                    $q->where('status', '!=', 'dropped');
+                },
                 'enrollments as completed_enrollments' => function ($q) {
                     $q->where('status', 'completed');
                 }
             ])
             ->get()
-            ->map(function ($material) {
+            ->map(function ($material) use ($activeUserIds) {
                 $examIds = \App\Models\Exam::where('material_id', $material->id)->pluck('id');
                 $lessonIds = \App\Models\Lesson::where('material_id', $material->id)->pluck('id');
                 $quizIds = \App\Models\LessonContent::whereIn('lesson_id', $lessonIds)->where('type', '!=', 'content')->pluck('id');
 
-                $tAnswers = \App\Models\ExamAnswer::whereIn('exam_id', $examIds)->count() + \App\Models\QuizAnswer::whereIn('lesson_content_id', $quizIds)->count();
-                $cAnswers = \App\Models\ExamAnswer::whereIn('exam_id', $examIds)->where('is_correct', true)->count() + \App\Models\QuizAnswer::whereIn('lesson_content_id', $quizIds)->where('is_correct', true)->count();
+                $tAnswers = \App\Models\ExamAnswer::whereIn('exam_id', $examIds)->whereIn('user_id', $activeUserIds)->count() + \App\Models\QuizAnswer::whereIn('lesson_content_id', $quizIds)->whereIn('user_id', $activeUserIds)->count();
+                $cAnswers = \App\Models\ExamAnswer::whereIn('exam_id', $examIds)->whereIn('user_id', $activeUserIds)->where('is_correct', true)->count() + \App\Models\QuizAnswer::whereIn('lesson_content_id', $quizIds)->whereIn('user_id', $activeUserIds)->where('is_correct', true)->count();
 
                 $material->completion_rate = $material->total_enrollments > 0
                     ? round(($material->completed_enrollments / $material->total_enrollments) * 100)
@@ -1312,7 +1329,7 @@ class DashboardController extends Controller
                 return $material;
             });
 
-        $publishedWithAssessments = $materialsStats->where('status', 'published')->where('has_assessment_data', true);
+        $publishedWithAssessments = $materialsStats->where('has_assessment_data', true);
 
         $bestPerformingModule = $publishedWithAssessments
             ->filter(function($mat) {
@@ -1342,13 +1359,14 @@ class DashboardController extends Controller
         // --- 6. ACTIVITY TRENDS (Last 30 Days) ---
         $thirtyDaysAgo = now()->subDays(29)->startOfDay();
 
-        $enrollmentsTrendRaw = \App\Models\Enrollment::whereIn('material_id', $myMaterialIds)
+        $enrollmentsTrendRaw = \App\Models\Enrollment::whereIn('material_id', $publishedMaterialIds)
+            ->where('status', '!=', 'dropped')
             ->where('created_at', '>=', $thirtyDaysAgo)
             ->selectRaw('DATE(created_at) as date, count(*) as count')
             ->groupBy('date')
             ->pluck('count', 'date');
 
-        $completionsTrendRaw = \App\Models\Enrollment::whereIn('material_id', $myMaterialIds)
+        $completionsTrendRaw = \App\Models\Enrollment::whereIn('material_id', $publishedMaterialIds)
             ->where('status', 'completed')
             ->where('updated_at', '>=', $thirtyDaysAgo)
             ->selectRaw('DATE(updated_at) as date, count(*) as count')
@@ -1356,12 +1374,14 @@ class DashboardController extends Controller
             ->pluck('count', 'date');
 
         $examTrendRaw = \App\Models\ExamAnswer::whereIn('exam_id', $teacherExamIds)
+            ->whereIn('user_id', $activeUserIds)
             ->where('created_at', '>=', $thirtyDaysAgo)
             ->selectRaw('DATE(created_at) as date, count(*) as count')
             ->groupBy('date')
             ->pluck('count', 'date');
 
         $quizTrendRaw = \App\Models\QuizAnswer::whereIn('lesson_content_id', $teacherLessonContentIds)
+            ->whereIn('user_id', $activeUserIds)
             ->where('created_at', '>=', $thirtyDaysAgo)
             ->selectRaw('DATE(created_at) as date, count(*) as count')
             ->groupBy('date')
@@ -1386,6 +1406,7 @@ class DashboardController extends Controller
             'totalModules',
             'publishedModules',
             'draftModules',
+            'activeModules',
             'uniqueLearners',
             'totalEnrollments',
             'overallCompletionRate',
@@ -1446,32 +1467,26 @@ class DashboardController extends Controller
 
         $completionRate = $totalEnrollments > 0 ? round(($completedCount / $totalEnrollments) * 100) : 0;
 
-        // NEW: Accurate Total Time Based on Actual Progress
-        $enrollmentsForTime = \App\Models\Enrollment::where('user_id', $studentId)->get();
-        $materialMinutes = 0;
-
-        foreach ($enrollmentsForTime as $enrollment) {
-            if ($enrollment->status === 'completed') {
-                $materialMinutes += \App\Models\Lesson::where('material_id', $enrollment->material_id)->sum('time_limit');
-            } elseif ($enrollment->status === 'in_progress' && !empty($enrollment->progress_data)) {
-                $progress = is_string($enrollment->progress_data) ? json_decode($enrollment->progress_data, true) : $enrollment->progress_data;
-                if (is_array($progress) && isset($progress['highest_unlocked']) && $progress['highest_unlocked'] > 0) {
-                    $materialMinutes += \App\Models\Lesson::where('material_id', $enrollment->material_id)
-                        ->orderBy('sort_order')
-                        ->take($progress['highest_unlocked'])
-                        ->get()
-                        ->sum('time_limit');
-                }
-            }
-        }
-
+        // Accurate Total Time Based on Actual Elapsed Stopwatch Calculation (like Certificate)
+        $moduleSeconds = \App\Models\Enrollment::where('user_id', $studentId)->sum('calculated_time') ?? 0;
         $assessmentSeconds = \Illuminate\Support\Facades\DB::table('assessment_sessions')
             ->where('user_id', $studentId)
             ->selectRaw('SUM(TIMESTAMPDIFF(SECOND, created_at, updated_at)) as total')
             ->value('total') ?? 0;
 
-        // Convert assessment seconds to minutes, add to material minutes, convert to hours
-        $totalHours = round(($materialMinutes + ($assessmentSeconds / 60)) / 60, 1);
+        $totalSecondsInvested = (int) ($moduleSeconds + $assessmentSeconds);
+
+        $hours = intdiv($totalSecondsInvested, 3600);
+        $minutes = intdiv($totalSecondsInvested % 3600, 60);
+        $seconds = $totalSecondsInvested % 60;
+
+        $durationParts = [];
+        if ($hours > 0) $durationParts[] = $hours . ' hr' . ($hours > 1 ? 's' : '');
+        if ($minutes > 0) $durationParts[] = $minutes . ' min' . ($minutes > 1 ? 's' : '');
+        if ($seconds > 0 || empty($durationParts)) $durationParts[] = $seconds . ' sec' . ($seconds > 1 ? 's' : '');
+
+        $totalTimeInvested = implode(' ', $durationParts);
+        $totalHours = round($totalSecondsInvested / 3600, 1);
 
         // 2. ALL-TIME QUIZ PERFORMANCE
         $totalAnswers = $this->getCompletedExamAnswersQuery()->where('exam_answers.user_id', $studentId)->count();
@@ -1529,6 +1544,7 @@ class DashboardController extends Controller
             'correctAnswers',
             'incorrectAnswers',
             'totalHours',
+            'totalTimeInvested',
             'examDates',
             'examScores',
             'streak',
@@ -1548,30 +1564,26 @@ class DashboardController extends Controller
 
         $completionRate = $totalEnrollments > 0 ? round(($completedCount / $totalEnrollments) * 100) : 0;
 
-        $enrollmentsForTime = \App\Models\Enrollment::where('user_id', $studentId)->get();
-        $materialMinutes = 0;
-
-        foreach ($enrollmentsForTime as $enrollment) {
-            if ($enrollment->status === 'completed') {
-                $materialMinutes += \App\Models\Lesson::where('material_id', $enrollment->material_id)->sum('time_limit');
-            } elseif ($enrollment->status === 'in_progress' && !empty($enrollment->progress_data)) {
-                $progress = is_string($enrollment->progress_data) ? json_decode($enrollment->progress_data, true) : $enrollment->progress_data;
-                if (is_array($progress) && isset($progress['highest_unlocked']) && $progress['highest_unlocked'] > 0) {
-                    $materialMinutes += \App\Models\Lesson::where('material_id', $enrollment->material_id)
-                        ->orderBy('sort_order')
-                        ->take($progress['highest_unlocked'])
-                        ->get()
-                        ->sum('time_limit');
-                }
-            }
-        }
-
+        // Accurate Total Time Based on Actual Elapsed Stopwatch Calculation (like Certificate)
+        $moduleSeconds = \App\Models\Enrollment::where('user_id', $studentId)->sum('calculated_time') ?? 0;
         $assessmentSeconds = \Illuminate\Support\Facades\DB::table('assessment_sessions')
             ->where('user_id', $studentId)
             ->selectRaw('SUM(TIMESTAMPDIFF(SECOND, created_at, updated_at)) as total')
             ->value('total') ?? 0;
 
-        $totalHours = round(($materialMinutes + ($assessmentSeconds / 60)) / 60, 1);
+        $totalSecondsInvested = (int) ($moduleSeconds + $assessmentSeconds);
+
+        $hours = intdiv($totalSecondsInvested, 3600);
+        $minutes = intdiv($totalSecondsInvested % 3600, 60);
+        $seconds = $totalSecondsInvested % 60;
+
+        $durationParts = [];
+        if ($hours > 0) $durationParts[] = $hours . ' hr' . ($hours > 1 ? 's' : '');
+        if ($minutes > 0) $durationParts[] = $minutes . ' min' . ($minutes > 1 ? 's' : '');
+        if ($seconds > 0 || empty($durationParts)) $durationParts[] = $seconds . ' sec' . ($seconds > 1 ? 's' : '');
+
+        $totalTimeInvested = implode(' ', $durationParts);
+        $totalHours = round($totalSecondsInvested / 3600, 1);
 
         // 2. EXAM PERFORMANCE
         $totalAnswers = \App\Models\ExamAnswer::where('user_id', $studentId)->count();
@@ -1626,6 +1638,7 @@ class DashboardController extends Controller
             'correctAnswers',
             'incorrectAnswers',
             'totalHours',
+            'totalTimeInvested',
             'examDates',
             'examScores',
             'streak',

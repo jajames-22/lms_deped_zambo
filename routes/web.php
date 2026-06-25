@@ -10,6 +10,7 @@ use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\MaterialsController;
 use App\Http\Controllers\ExploreLayoutController;
 use App\Http\Controllers\CertificateTemplateController;
+use App\Http\Controllers\SchoolController;
 
 // Import the middleware
 use App\Http\Middleware\CheckAccountStatus;
@@ -79,6 +80,8 @@ Route::middleware(['auth', 'verified', CheckAccountStatus::class])->group(functi
         Route::get('/schools/{school}/edit', [DashboardController::class, 'editSchoolPartial'])->name('schools.edit');
         Route::put('/schools/{school}', [DashboardController::class, 'updateSchool'])->name('schools.update');
         Route::delete('/schools/{school}', [DashboardController::class, 'destroySchool'])->name('schools.destroy');
+        Route::get('/schools/import-template', [SchoolController::class, 'downloadTemplate'])->name('schools.import.template');
+        Route::post('/schools/import', [SchoolController::class, 'import'])->name('schools.import');
         Route::post('/quadrants/store', [DashboardController::class, 'storeQuadrant'])->name('quadrants.store');
         Route::put('/quadrants/{id}', [DashboardController::class, 'updateQuadrant'])->name('quadrants.update');
         Route::delete('/quadrants/{id}', [DashboardController::class, 'destroyQuadrant'])->name('quadrants.destroy');
@@ -201,8 +204,12 @@ Route::middleware(['auth', 'verified', CheckAccountStatus::class])->group(functi
         // Access Management Routes
         Route::post('/materials/{id}/access', [MaterialsController::class, 'addAccess'])->name('dashboard.materials.access.add');
         Route::post('/materials/{id}/import-access', [MaterialsController::class, 'importAccess'])->name('dashboard.materials.access.import');
-        Route::delete('/materials/access/{id}', [MaterialsController::class, 'removeAccess'])->name('dashboard.materials.access.remove');
-        Route::delete('/materials/access-bulk', [MaterialsController::class, 'removeBulkAccess'])->name('dashboard.materials.access.removeBulk');
+        Route::post('/materials/access/{id}/drop', [MaterialsController::class, 'dropAccess'])->name('dashboard.materials.access.drop');
+        Route::post('/materials/access-bulk/drop', [MaterialsController::class, 'bulkDropAccess'])->name('dashboard.materials.access.bulkDrop');
+        Route::post('/materials/access/{id}/reenroll', [MaterialsController::class, 'reenrollAccess'])->name('dashboard.materials.access.reenroll');
+        Route::post('/materials/access-bulk/reenroll', [MaterialsController::class, 'bulkReenrollAccess'])->name('dashboard.materials.access.bulkReenroll');
+        Route::delete('/materials/access/{id}/delete', [MaterialsController::class, 'deleteAccess'])->name('dashboard.materials.access.delete');
+        Route::delete('/materials/access-bulk/delete', [MaterialsController::class, 'bulkDeleteAccess'])->name('dashboard.materials.access.bulkDelete');
         Route::post('/materials/access/{id}/invite', [MaterialsController::class, 'sendIndividualInvite'])->name('dashboard.materials.access.invite');
         Route::post('/materials/{id}/generate-code', [MaterialsController::class, 'generateAccessCode']);
 

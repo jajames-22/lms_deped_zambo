@@ -79,7 +79,7 @@
         @if($showPerformance)
         <div class="section-title">3. Detailed Performance Stats</div>
         <table class="data-table">
-            <tr><th>Total Time Invested</th><td class="text-right" style="color: #3b82f6;">{{ $totalHours }} Hours</td></tr>
+            <tr><th>Total Time Invested</th><td class="text-right" style="color: #3b82f6;">{{ $totalTimeInvested ?? ($totalHours . ' Hours') }}</td></tr>
             <tr><th>Overall Accuracy</th><td class="text-right">{{ $totalAnswers > 0 ? round(($correctAnswers / $totalAnswers) * 100) : 0 }}%</td></tr>
             <tr><th>Total Correct Answers</th><td class="text-right">{{ number_format($correctAnswers) }}</td></tr>
         </table>

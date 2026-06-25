@@ -94,9 +94,43 @@
                 @endphp
 
                 <div class="p-5 rounded-2xl shadow-sm border border-l-4 {{ $passBg }}">
-                    <p class="text-gray-500 text-sm font-medium mb-1">
-                        Passing Rate
-                    </p>
+                    <div class="flex justify-between items-start">
+                        <p class="text-gray-500 text-sm font-medium mb-1">Passing Rate</p>
+                        @if($hasQuizzes || $hasExams)
+                        <div class="relative group cursor-help">
+                            <i class="fas fa-info-circle text-gray-400 transition-colors group-hover:text-[#a52a2a]"></i>
+                            <div class="absolute right-0 bottom-full mb-2 w-80 bg-white rounded-xl shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-[100] border border-gray-100 text-left font-normal normal-case tracking-normal">
+                                <div class="p-3 max-h-40 overflow-y-auto custom-scrollbar text-gray-700 text-[11px] leading-relaxed">
+                                    <strong class="text-gray-900 block mb-1">Passing Rate Formula</strong>
+                                    <p class="m-0 mb-2 font-mono text-[10px] bg-gray-50 p-1.5 rounded text-gray-600 border border-gray-100">Pass Rate = (Passed Students &divide; Evaluated Students) &times; 100</p>
+
+                                    <div class="space-y-1 mb-2 border-t border-gray-100 pt-2">
+                                        <div><strong class="text-gray-900">Passed Students:</strong> Students whose score is equal to or greater than the passing score ({{ $passingScore ?? 80 }}%).</div>
+                                        <div><strong class="text-gray-900">Evaluated Students:</strong> Students who have completed the assessment and received a score.</div>
+                                    </div>
+
+                                    <div class="bg-gray-50 p-2.5 rounded border border-gray-100 mt-2">
+                                        <strong class="text-gray-900 block mb-1 border-b border-gray-200 pb-1">Current Computation</strong>
+                                        @if(($evaluatedCount ?? 0) > 0)
+                                            <div class="grid grid-cols-2 gap-1 my-1.5 text-[10px]">
+                                                <div>Passing Score: <strong class="text-gray-900">{{ $passingScore ?? 80 }}</strong></div>
+                                                <div>Students Evaluated: <strong class="text-gray-900">{{ $evaluatedCount ?? 0 }}</strong></div>
+                                                <div class="col-span-2">Students Who Passed: <strong class="text-gray-900">{{ $passCount ?? 0 }}</strong></div>
+                                            </div>
+                                            <div class="pt-1.5 border-t border-gray-200">
+                                                <p class="text-[10px] text-gray-600 m-0">Formula: ({{ $passCount ?? 0 }} &divide; {{ $evaluatedCount ?? 0 }}) &times; 100</p>
+                                                <p class="font-bold text-gray-900 mt-0.5 mb-0">Result: {{ $passRate }}%</p>
+                                            </div>
+                                        @else
+                                            <p class="text-gray-500 italic text-[10px] m-0 py-1">No evaluated students yet.<br>Pass Rate cannot be calculated.</p>
+                                        @endif
+                                    </div>
+                                </div>
+                                <div class="absolute top-full right-2 w-0 h-0 border-x-[6px] border-x-transparent border-t-[8px] border-t-white"></div>
+                            </div>
+                        </div>
+                        @endif
+                    </div>
 
                     @if($hasQuizzes || $hasExams)
                         <h3 class="text-3xl font-bold {{ $passText }}">
@@ -124,7 +158,7 @@
                 <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
                     <h4 class="text-gray-700 font-semibold mb-4 border-b pb-2">Student Progress</h4>
                     <div class="relative h-64 w-full flex justify-center items-center">
-                        @if($completedCount == 0 && $inProgressCount == 0)
+                        @if($completedCount == 0 && $inProgressCount == 0 && ($failedCount ?? 0) == 0 && ($droppedWithProgressCount ?? 0) == 0)
                             <p class="text-gray-400 text-sm">No enrollment data available.</p>
                         @else
                             <canvas id="studentProgressChart"></canvas>
@@ -142,26 +176,40 @@
                 {{-- Competency Table --}}
                 <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden flex flex-col">
                     <div class="p-6 border-b border-gray-100">
-                        <div class="flex gap-3">
-                            <h4 class="text-gray-700 font-semibold mb-1">Competency Breakdown </h4>
+                        <div class="flex gap-2 items-center mb-1">
+                            <h4 class="text-gray-700 font-semibold">Competency Breakdown</h4>
                             <div class="relative group cursor-help">
-                                <i
-                                    class="fas fa-info-circle text-gray-400 transition-colors group-hover:text-[#a52a2a]"></i>
-                                <div
-                                    class="absolute top-full left-1/2 -translate-x-1/2 mt-2 w-60 p-3 bg-gray-900 text-white text-[11px] rounded-xl shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-[100] pointer-events-none">
-                                    <strong class="text-green-700 block mb-1">Advanced (90% - 100%)</strong>
-                                    <p class="text-gray-400 mb-2">Excellent mastery; near-perfect accuracy.</p>
-                                    <strong class="text-green-500 block mb-1">Upper Intermediate (75% - 89%)</strong>
-                                    <p class="text-gray-400 mb-2">Strong understanding with minor errors.</p>
-                                    <strong class="text-blue-600 block mb-1">Intermediate (60% - 74%)</strong>
-                                    <p class="text-gray-400 mb-2">Solid understanding but needs refinement.</p>
-                                    <strong class="text-amber-600 block mb-1">Basic (40% - 59%)</strong>
-                                    <p class="text-gray-400 mb-2">Basic understanding; inconsistent performance.</p>
-                                    <strong class="text-red-600 block mb-1">Beginner (0% - 39%)</strong>
-                                    <p class="text-gray-400">Limited understanding; requires support.</p>
-                                    <div
-                                        class="absolute bottom-full left-1/2 -translate-x-1/2 border-4 border-transparent border-b-gray-900">
+                                <i class="fas fa-question-circle text-gray-400 transition-colors group-hover:text-[#a52a2a]"></i>
+                                <div class="absolute top-full left-1/2 -translate-x-1/2 mt-2 w-80 bg-white rounded-xl shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-[100] border border-gray-100">
+                                    <div class="p-3 max-h-40 overflow-y-auto custom-scrollbar text-gray-700 text-[11px] leading-relaxed font-normal tracking-normal text-left">
+                                        <strong class="text-gray-900 block mb-1">Competency Mean Percentage Score (MPS)</strong>
+                                        The Competency MPS shows how well students performed on a specific topic or subject area.
+
+                                        <div class="mt-2 pt-2 border-t border-gray-100">
+                                            <strong class="text-gray-900 block mb-1">How it's calculated:</strong>
+                                            <ol class="list-decimal pl-4 space-y-1">
+                                                <li>Count all correct answers for questions under this specific topic.</li>
+                                                <li>Count the total possible answers (Total students &times; Questions in topic).</li>
+                                                <li>Divide correct answers by total possible answers and multiply by 100.<br>
+                                                    <span class="text-gray-500 italic text-[10px]">Competency MPS = (Correct Answers &divide; Total Possible Answers) &times; 100</span>
+                                                </li>
+                                            </ol>
+                                        </div>
+
+                                        <div class="mt-2 bg-gray-50 p-2.5 rounded border border-gray-100">
+                                            <strong class="text-gray-900 block mb-1">Example:</strong>
+                                            <p class="mb-1 text-gray-600">"Topic A" has 5 questions. 10 students took the test.</p>
+                                            <ul class="list-disc pl-4 space-y-0.5 text-[10px] text-gray-600">
+                                                <li>Total Possible Answers: 5 &times; 10 = 50</li>
+                                                <li>Total Correct Answers by all students: 35</li>
+                                            </ul>
+                                            <div class="mt-2 pt-2 border-t border-gray-200">
+                                                <p class="text-[10px] text-gray-600">Competency MPS: (35 &divide; 50) &times; 100 = 70%</p>
+                                                <p class="font-bold text-gray-900 mt-0.5">Result: The Competency MPS is 70%.</p>
+                                            </div>
+                                        </div>
                                     </div>
+                                    <div class="absolute bottom-full left-1/2 -translate-x-1/2 w-0 h-0 border-x-[6px] border-x-transparent border-b-[8px] border-b-white"></div>
                                 </div>
                             </div>
                         </div>
@@ -172,8 +220,33 @@
                             <thead
                                 class="bg-gray-50 text-xs uppercase text-gray-500 font-bold border-b border-gray-100 sticky top-0 z-10 shadow-sm">
                                 <tr>
-                                    <th class="px-6 py-4 w-1/2">Section / Topic Name</th>
-                                    <th class="px-6 py-4 text-center">MPS (Accuracy)</th>
+                                    <th class="px-6 py-4 w-1/4">Section / Topic Name</th>
+                                    <th class="px-4 py-4 text-center">Questions</th>
+                                    <th class="px-4 py-4 text-center" title="Total Correct Answers across all students">Total Correct</th>
+                                    <th class="px-4 py-4 text-center" title="Total Possible Answers (Questions x Students)">Total Possible</th>
+                                    <th class="px-6 py-4 text-center">
+                                        <div class="flex items-center justify-center gap-1">
+                                            MPS (Accuracy)
+                                            <div class="relative group cursor-help">
+                                                <i class="fas fa-info-circle text-gray-400 transition-colors group-hover:text-[#a52a2a]"></i>
+                                                <div class="absolute top-full right-0 sm:left-1/2 sm:-translate-x-1/2 mt-2 w-64 bg-white rounded-xl shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-[100] border border-gray-100">
+                                                    <div class="p-3 max-h-60 overflow-y-auto custom-scrollbar text-gray-700 text-[11px] leading-relaxed font-normal tracking-normal text-left">
+                                                        <strong class="text-green-700 block mb-1">Advanced (90% - 100%)</strong>
+                                                        <p class="text-gray-600 mb-2 normal-case">Excellent mastery; near-perfect accuracy.</p>
+                                                        <strong class="text-green-500 block mb-1">Upper Intermediate (75% - 89%)</strong>
+                                                        <p class="text-gray-600 mb-2 normal-case">Strong understanding with minor errors.</p>
+                                                        <strong class="text-blue-600 block mb-1">Intermediate (60% - 74%)</strong>
+                                                        <p class="text-gray-600 mb-2 normal-case">Solid understanding but needs refinement.</p>
+                                                        <strong class="text-amber-600 block mb-1">Basic (40% - 59%)</strong>
+                                                        <p class="text-gray-600 mb-2 normal-case">Basic understanding; inconsistent performance.</p>
+                                                        <strong class="text-red-600 block mb-1">Beginner (0% - 39%)</strong>
+                                                        <p class="text-gray-600 normal-case">Limited understanding; requires support.</p>
+                                                    </div>
+                                                    <div class="absolute bottom-full right-2 sm:left-1/2 sm:-translate-x-1/2 w-0 h-0 border-x-[6px] border-x-transparent border-b-[8px] border-b-white"></div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </th>
                                     <th class="px-6 py-4 text-center">Status</th>
                                 </tr>
                             </thead>
@@ -183,6 +256,9 @@
                                         <td class="px-6 py-4 font-medium text-gray-900">{{ $cat->title }}</td>
 
                                         @if($cat->has_quiz)
+                                            <td class="px-4 py-4 text-center text-gray-600 font-medium">{{ $cat->items_count }}</td>
+                                            <td class="px-4 py-4 text-center text-gray-600 font-medium">{{ $cat->correct_answers }}</td>
+                                            <td class="px-4 py-4 text-center text-gray-600 font-medium">{{ $cat->total_answers }}</td>
                                             <td class="px-6 py-4 text-center">
                                                 @if(($cat->total_answers ?? 0) == 0)
                                                     <span
@@ -214,14 +290,14 @@
                                                 @endif
                                             </td>
                                         @else
-                                            <td class="px-6 py-4 text-center text-gray-400 italic text-xs" colspan="2">
+                                            <td class="px-6 py-4 text-center text-gray-400 italic text-xs" colspan="5">
                                                 Section does not have a quiz
                                             </td>
                                         @endif
                                     </tr>
                                 @empty
                                     <tr>
-                                        <td colspan="3" class="px-6 py-8 text-center text-gray-400">No competency data
+                                        <td colspan="6" class="px-6 py-8 text-center text-gray-400">No competency data
                                             available.</td>
                                     </tr>
                                 @endforelse
@@ -236,25 +312,40 @@
                         class="p-6 border-b border-gray-100 flex flex-col md:flex-row md:items-center justify-between gap-4 bg-gradient-to-r from-[#a52a2a] to-red-900 text-white">
                         <div>
                             <div class="flex">
-                                <div class="flex gap-3 ">
-                                    <h4 class="font-semibold mb-1">Top 10 Performing Students</h4>
-                                    <div class="relative group cursor-help">
-                                        <i
-                                            class="fas fa-question-circle text-white transition-colors group-hover:text-white"></i>
-                                        <div
-                                            class="absolute top-full left-1/2 -translate-x-1/2 mt-2 w-100 p-4 bg-gray-900 text-white text-[11px] rounded-xl shadow-2xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-[100] font-normal normal-case tracking-normal pointer-events-none text-left">
-                                            <strong
-                                                class="text-white block mb-2 border-b border-gray-700 pb-1">Calculation
-                                                Method</strong>
-                                            <p class="mb-2 leading-relaxed">The Overall score is the final weighted average of the student's quiz and exam performance:</p>
-                                            <div class="bg-black/30 p-2 rounded font-mono text-center mb-2">
-                                                (Quiz% × {{ $quizWeight }}%) + (Exam% × {{ $examWeight }}%)
+                                <div class="flex items-center gap-2 relative group w-fit cursor-help">
+                                    <h4 class="font-semibold mb-0">Top 10 Performing Students</h4>
+                                    <i class="fas fa-question-circle text-white/70 transition-colors group-hover:text-white"></i>
+                                    <div class="absolute top-full left-1/2 -translate-x-1/2 mt-2 w-70 bg-white rounded-xl shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-[100] border border-gray-100 font-normal normal-case tracking-normal text-left">
+                                        <div class="p-3 max-h-60 overflow-y-auto custom-scrollbar text-gray-700 text-[11px] leading-relaxed">
+                                            <strong class="text-gray-900 block mb-1">Overall Student Score</strong>
+                                            The Overall score is the final weighted average of a student's quiz and exam performance.
+                                            
+                                            <div class="mt-2 pt-2 border-t border-gray-100">
+                                                <strong class="text-gray-900 block mb-1">How it's calculated:</strong>
+                                                <ol class="list-decimal pl-4 space-y-1">
+                                                    <li>Calculate the total Quiz Score percentage and apply the Quiz Weight ({{ $quizWeight }}%).</li>
+                                                    <li>Calculate the total Exam Score percentage and apply the Exam Weight ({{ $examWeight }}%).</li>
+                                                    <li>Add both weighted scores to get the final Overall Score.<br>
+                                                        <span class="text-gray-500 italic text-[10px]">Overall = (Quiz% &times; {{ $quizWeight }}%) + (Exam% &times; {{ $examWeight }}%)</span>
+                                                    </li>
+                                                </ol>
                                             </div>
-                                            <p class="text-amber-400 italic font-bold">Note: Students currently "In Progress" are strictly excluded from all scoring metrics until they finish the module.</p>
-                                            <div
-                                                class="absolute bottom-full left-1/2 -translate-x-1/2 border-4 border-transparent border-b-gray-900">
+                                            
+                                            <div class="mt-2 bg-gray-50 p-2.5 rounded border border-gray-100">
+                                                <strong class="text-gray-900 block mb-1">Example:</strong>
+                                                <p class="mb-1 text-gray-600">A student gets 80% on quizzes and 90% on exams.</p>
+                                                <ul class="list-disc pl-4 space-y-0.5 text-[10px] text-gray-600">
+                                                    <li>Weighted Quiz: 80% &times; {{ $quizWeight / 100 }} = {{ 80 * ($quizWeight / 100) }}%</li>
+                                                    <li>Weighted Exam: 90% &times; {{ $examWeight / 100 }} = {{ 90 * ($examWeight / 100) }}%</li>
+                                                </ul>
+                                                <div class="mt-2 pt-2 border-t border-gray-200">
+                                                    <p class="text-[10px] text-gray-600">Overall Score: {{ 80 * ($quizWeight / 100) }} + {{ 90 * ($examWeight / 100) }} = {{ (80 * ($quizWeight / 100)) + (90 * ($examWeight / 100)) }}%</p>
+                                                    <p class="font-bold text-gray-900 mt-0.5">Result: The Overall Score is {{ (80 * ($quizWeight / 100)) + (90 * ($examWeight / 100)) }}%.</p>
+                                                </div>
                                             </div>
+                                            <p class="text-amber-600 italic font-bold mt-2 pt-2 border-t border-gray-100 text-[10px]">Note: Students currently "In Progress" are excluded until they finish.</p>
                                         </div>
+                                        <div class="absolute bottom-full left-1/2 -translate-x-1/2 w-0 h-0 border-x-[6px] border-x-transparent border-b-[8px] border-b-white"></div>
                                     </div>
                                 </div>
                             </div>
@@ -295,12 +386,21 @@
                                         <td
                                             class="px-4 py-4 text-center font-bold {{ $index < 3 ? 'text-[#a52a2a]' : 'text-gray-400' }}">
                                             {{ $index + 1 }}</td>
-                                        <td class="px-4 py-4 font-medium text-gray-900">{{ $student->name }}</td>
+                                        <td class="px-4 py-4 font-medium text-gray-900">
+                                            <div class="flex items-center gap-2">
+                                                {{ $student->name }}
+                                                @if(($student->status ?? '') === 'dropped')
+                                                    <span class="px-1.5 py-0.5 text-[9px] font-black uppercase tracking-wider rounded bg-orange-100 text-orange-600 border border-orange-200 whitespace-nowrap" title="This student was dropped. Their progress and quiz data has been retained.">Dropped</span>
+                                                @elseif(($student->status ?? '') === 'failed')
+                                                    <span class="px-1.5 py-0.5 text-[9px] font-black uppercase tracking-wider rounded bg-red-100 text-red-600 border border-red-200 whitespace-nowrap">Failed</span>
+                                                @endif
+                                            </div>
+                                        </td>
                                         <td class="px-4 py-4 text-center text-gray-500">{{ $student->progress }}%</td>
                                         <td class="px-4 py-4 text-center font-medium">
-                                            {{ (!$hasQuizzes) ? 'N/A' : $student->quiz_score_raw }}</td>
+                                            {{ (!$hasQuizzes) ? 'N/A' : $student->quiz_score . '% (' . $student->quiz_score_raw . ')' }}</td>
                                         <td class="px-4 py-4 text-center font-medium">
-                                            {{ (!$hasExams) ? 'N/A' : $student->exam_score_raw }}</td>
+                                            {{ (!$hasExams) ? 'N/A' : $student->exam_score . '% (' . $student->exam_score_raw . ')' }}</td>
                                         <td class="px-4 py-4 text-center font-bold text-gray-800 bg-gray-50/50">
                                             {{ (!$hasQuizzes && !$hasExams) ? 'N/A' : $student->score . '%' }}</td>
                                     </tr>
@@ -338,9 +438,43 @@
                 @if($hasQuizzes)
                     <div class="mb-8">
                         <div class="flex items-center justify-between mb-3">
-                            <h4 class="text-lg font-bold text-gray-800 flex items-center gap-2">
-                                <i class="fas fa-tasks text-purple-600"></i> Quiz Items
-                            </h4>
+                            <div class="flex items-center gap-2 relative group w-fit cursor-help">
+                                <h4 class="text-lg font-bold text-gray-800 flex items-center gap-2 mb-0">
+                                    <i class="fas fa-tasks text-purple-600"></i> Quiz Items
+                                </h4>
+                                <i class="fas fa-question-circle text-gray-400 transition-colors group-hover:text-[#a52a2a]"></i>
+                                <div class="absolute top-full left-0 mt-2 w-80 bg-white rounded-xl shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-[100] border border-gray-100">
+                                    <div class="p-3 max-h-50 overflow-y-auto custom-scrollbar text-gray-700 text-[11px] leading-relaxed font-normal tracking-normal text-left">
+                                        <strong class="text-gray-900 block mb-1">Difficulty Index (p)</strong>
+                                        The Difficulty Index measures how easy or difficult a specific question was based on the performance of all students who completed the module.
+                                        
+                                        <div class="mt-2 pt-2 border-t border-gray-100">
+                                            <strong class="text-gray-900 block mb-1">How it's calculated:</strong>
+                                            <ol class="list-decimal pl-4 space-y-1">
+                                                <li>Count the number of students who answered the question correctly.</li>
+                                                <li>Divide it by the total number of students who answered the question.</li>
+                                                <li>Multiply by 100 to get the percentage.<br>
+                                                    <span class="text-gray-500 italic text-[10px]">Difficulty Index = (Correct Answers &divide; Total Answers) &times; 100</span>
+                                                </li>
+                                            </ol>
+                                        </div>
+                                        
+                                        <div class="mt-2 bg-gray-50 p-2.5 rounded border border-gray-100">
+                                            <strong class="text-gray-900 block mb-1">Example:</strong>
+                                            <p class="mb-1 text-gray-600">A question was answered by 10 students.</p>
+                                            <ul class="list-disc pl-4 space-y-0.5 text-[10px] text-gray-600">
+                                                <li>Total Answers: 10</li>
+                                                <li>Correct Answers: 6</li>
+                                            </ul>
+                                            <div class="mt-2 pt-2 border-t border-gray-200">
+                                                <p class="text-[10px] text-gray-600">Difficulty Index: (6 &divide; 10) &times; 100 = 60%</p>
+                                                <p class="font-bold text-gray-900 mt-0.5">Result: The Difficulty Index is 60% (Easy).</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="absolute bottom-full left-10 w-0 h-0 border-x-[6px] border-x-transparent border-b-[8px] border-b-white"></div>
+                                </div>
+                            </div>
                             <div class="flex gap-4 text-sm font-bold">
                                 <span
                                     class="text-purple-700 bg-purple-50 px-3 py-1.5 rounded-lg border border-purple-100 flex items-center gap-2">
@@ -476,9 +610,43 @@
                 @if($hasExams)
                     <div class="mb-8">
                         <div class="flex items-center justify-between mb-3">
-                            <h4 class="text-lg font-bold text-gray-800 flex items-center gap-2">
-                                <i class="fas fa-file-signature text-red-600"></i> Exam Items
-                            </h4>
+                            <div class="flex items-center gap-2 relative group w-fit cursor-help">
+                                <h4 class="text-lg font-bold text-gray-800 flex items-center gap-2 mb-0">
+                                    <i class="fas fa-file-signature text-red-600"></i> Exam Items
+                                </h4>
+                                <i class="fas fa-question-circle text-gray-400 transition-colors group-hover:text-[#a52a2a]"></i>
+                                <div class="absolute top-full left-0 mt-2 w-80 bg-white rounded-xl shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-[100] border border-gray-100">
+                                    <div class="p-3 max-h-50 overflow-y-auto custom-scrollbar text-gray-700 text-[11px] leading-relaxed font-normal tracking-normal text-left">
+                                        <strong class="text-gray-900 block mb-1">Difficulty Index (p)</strong>
+                                        The Difficulty Index measures how easy or difficult a specific question was based on the performance of all students who completed the module.
+                                        
+                                        <div class="mt-2 pt-2 border-t border-gray-100">
+                                            <strong class="text-gray-900 block mb-1">How it's calculated:</strong>
+                                            <ol class="list-decimal pl-4 space-y-1">
+                                                <li>Count the number of students who answered the question correctly.</li>
+                                                <li>Divide it by the total number of students who answered the question.</li>
+                                                <li>Multiply by 100 to get the percentage.<br>
+                                                    <span class="text-gray-500 italic text-[10px]">Difficulty Index = (Correct Answers &divide; Total Answers) &times; 100</span>
+                                                </li>
+                                            </ol>
+                                        </div>
+                                        
+                                        <div class="mt-2 bg-gray-50 p-2.5 rounded border border-gray-100">
+                                            <strong class="text-gray-900 block mb-1">Example:</strong>
+                                            <p class="mb-1 text-gray-600">A question was answered by 10 students.</p>
+                                            <ul class="list-disc pl-4 space-y-0.5 text-[10px] text-gray-600">
+                                                <li>Total Answers: 10</li>
+                                                <li>Correct Answers: 6</li>
+                                            </ul>
+                                            <div class="mt-2 pt-2 border-t border-gray-200">
+                                                <p class="text-[10px] text-gray-600">Difficulty Index: (6 &divide; 10) &times; 100 = 60%</p>
+                                                <p class="font-bold text-gray-900 mt-0.5">Result: The Difficulty Index is 60% (Easy).</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="absolute bottom-full left-10 w-0 h-0 border-x-[6px] border-x-transparent border-b-[8px] border-b-white"></div>
+                                </div>
+                            </div>
                             <div class="flex gap-4 text-sm font-bold">
                                 <span
                                     class="text-red-700 bg-red-50 px-3 py-1.5 rounded-lg border border-red-100 flex items-center gap-2">
@@ -749,16 +917,33 @@
             });
         }
 
-        @if($completedCount > 0 || $inProgressCount > 0)
+        @if($completedCount > 0 || $inProgressCount > 0 || ($failedCount ?? 0) > 0 || ($droppedWithProgressCount ?? 0) > 0)
             const progCtx = document.getElementById('studentProgressChart');
             if (progCtx) {
+                const chartLabels = [];
+                const chartData = [];
+                const chartColors = [];
+
+                @if($completedCount > 0)
+                    chartLabels.push('Completed'); chartData.push({{ $completedCount }}); chartColors.push('#10b981');
+                @endif
+                @if($inProgressCount > 0)
+                    chartLabels.push('In Progress'); chartData.push({{ $inProgressCount }}); chartColors.push('#f59e0b');
+                @endif
+                @if(($failedCount ?? 0) > 0)
+                    chartLabels.push('Failed'); chartData.push({{ $failedCount ?? 0 }}); chartColors.push('#ef4444');
+                @endif
+                @if(($droppedWithProgressCount ?? 0) > 0)
+                    chartLabels.push('Dropped (Progress Retained)'); chartData.push({{ $droppedWithProgressCount ?? 0 }}); chartColors.push('#f97316');
+                @endif
+
                 window.matCharts.progress = new Chart(progCtx.getContext('2d'), {
                     type: 'doughnut',
                     data: {
-                        labels: ['Completed', 'In Progress'],
+                        labels: chartLabels,
                         datasets: [{
-                            data: [@json($completedCount), @json($inProgressCount)],
-                            backgroundColor: ['#10b981', '#f59e0b'], borderWidth: 0
+                            data: chartData,
+                            backgroundColor: chartColors, borderWidth: 0
                         }]
                     },
                     options: { responsive: true, maintainAspectRatio: false, cutout: '70%', plugins: { legend: { position: 'bottom' } } }

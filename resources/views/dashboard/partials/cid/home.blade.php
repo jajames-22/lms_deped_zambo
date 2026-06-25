@@ -16,7 +16,7 @@
 </div>
 
 {{-- TOP METRIC CARDS --}}
-<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8 relative">
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8 relative">
     
     <div class="bg-gradient-to-r from-amber-500 to-orange-500 rounded-2xl p-6 text-white shadow-lg shadow-amber-900/20 flex items-center justify-between hover:scale-[1.02] transition-transform cursor-default">
         <div>
@@ -48,15 +48,6 @@
         </div>
     </div>
 
-    <div class="bg-gradient-to-r from-blue-600 to-indigo-600 rounded-2xl p-6 text-white shadow-lg shadow-blue-900/20 flex items-center justify-between hover:scale-[1.02] transition-transform cursor-default">
-        <div>
-            <p class="text-blue-100 text-sm font-bold uppercase tracking-wider mb-1">Avg. Assessment Score</p>
-            <h3 class="text-3xl font-black">{{ number_format($averageScore ?? 0, 1) }}%</h3>
-        </div>
-        <div class="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center text-2xl backdrop-blur-sm">
-            <i class="fas fa-chart-line"></i>
-        </div>
-    </div>
 </div>
 
 <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8 relative ">
@@ -224,10 +215,10 @@
             window.dashboardCharts.type = new Chart(ctxType.getContext('2d'), {
                 type: 'doughnut',
                 data: {
-                    labels: {!! json_encode($materialTypeLabels ?? ['Modules', 'Videos', 'Assessments']) !!},
+                    labels: {!! json_encode($materialTypeLabels ?? ['Published', 'Pending Review']) !!},
                     datasets: [{
-                        data: {!! json_encode($materialTypeData ?? [40, 30, 30]) !!},
-                        backgroundColor: ['#a52a2a', '#3b82f6', '#10b981', '#f59e0b', '#8b5cf6'],
+                        data: {!! json_encode($materialTypeData ?? [10, 5]) !!},
+                        backgroundColor: ['#10b981', '#f59e0b'],
                         borderWidth: 0,
                         hoverOffset: 4
                     }]

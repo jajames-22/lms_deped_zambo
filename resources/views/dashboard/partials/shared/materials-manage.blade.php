@@ -449,17 +449,29 @@
                     </button>
 
                     <div class="flex flex-wrap items-center gap-2">
-                        <button id="toggleBulkDeleteBtn" onclick="toggleBulkDeleteMode()"
-                            class="h-10 px-4 bg-red-50 text-red-600 border border-red-200 rounded-xl hover:bg-red-100 transition text-sm font-bold shadow-sm flex items-center justify-center gap-1.5">
-                            <i class="fas fa-trash-alt"></i> Delete
+                        <button id="toggleBulkSelectBtn" onclick="toggleBulkSelectMode()"
+                            class="h-10 px-4 bg-gray-50 text-gray-600 border border-gray-200 rounded-xl hover:bg-gray-100 transition text-sm font-bold shadow-sm flex items-center justify-center gap-1.5">
+                            <i class="fas fa-check-square"></i> Select
                         </button>
                         
-                        <button id="bulkDeleteAccessBtn" onclick="confirmBulkDeleteAccess()"
-                            class="hidden opacity-50 cursor-not-allowed h-10 px-4 bg-red-50 text-red-600 border border-red-200 rounded-xl hover:bg-red-100 transition text-sm font-bold shadow-sm flex items-center justify-center gap-1.5" disabled>
-                            <i class="fas fa-trash-alt"></i> <span id="bulkDeleteAccessCount">Delete (0)</span>
-                        </button>
+                        <div id="bulkActionsContainer" class="hidden items-center gap-2">
+                            <button id="bulkDropBtn" onclick="confirmBulkDropAccess()" disabled
+                                class="bulk-action-btn opacity-50 cursor-not-allowed h-10 px-3 bg-orange-50 text-orange-600 border border-orange-200 rounded-xl hover:bg-orange-100 transition text-sm font-bold shadow-sm flex items-center justify-center gap-1.5">
+                                <i class="fas fa-ban"></i> Drop <span class="bulk-count">(0)</span>
+                            </button>
+                            
+                            <button id="bulkReenrollBtn" onclick="openBulkReenrollModal()" disabled
+                                class="bulk-action-btn opacity-50 cursor-not-allowed h-10 px-3 bg-green-50 text-green-600 border border-green-200 rounded-xl hover:bg-green-100 transition text-sm font-bold shadow-sm flex items-center justify-center gap-1.5">
+                                <i class="fas fa-sync"></i> Re-enroll <span class="bulk-count">(0)</span>
+                            </button>
 
-                        <button onclick="openModal('addStudentModal', 'addStudentBox')"
+                            <button id="bulkDeleteBtn" onclick="openBulkDeleteModal()" disabled
+                                class="bulk-action-btn opacity-50 cursor-not-allowed h-10 px-3 bg-red-50 text-red-600 border border-red-200 rounded-xl hover:bg-red-100 transition text-sm font-bold shadow-sm flex items-center justify-center gap-1.5">
+                                <i class="fas fa-trash-alt"></i> Delete <span class="bulk-count">(0)</span>
+                            </button>
+                        </div>
+
+                        <button id="addStudentBtn" onclick="openModal('addStudentModal', 'addStudentBox')"
                             class="h-10 px-4 bg-blue-50 text-blue-600 border border-blue-100 rounded-xl hover:bg-blue-100 transition text-sm font-bold shadow-sm flex items-center justify-center">
                             <i class="fas fa-user-plus mr-1.5"></i> Add Student
                         </button>
@@ -480,7 +492,13 @@
                                     </th>
                                     <th class="px-4 py-4">Status</th>
                                     <th class="px-4 py-4 hidden md:table-cell">Progress</th>
-                                    <th class="px-4 py-4 text-center hidden sm:table-cell">Retakes</th>
+                                    <th class="px-4 py-4 text-center hidden sm:table-cell relative group cursor-help">
+                                        <span class="whitespace-nowrap flex items-center justify-center gap-1">Retakes <i class="fas fa-info-circle text-gray-400 text-[10px]"></i></span>
+                                        <div class="hidden group-hover:block absolute z-50 w-max px-3 py-2 bg-gray-900 text-white text-[10px] max-w-[128px] rounded shadow-xl top-full mt-2 left-1/2 -translate-x-1/2 pointer-events-none text-center normal-case tracking-normal">
+                                            Each student only has 2 retakes. If they reached the maximum, they are marked as Failed.
+                                            <div class="absolute -top-1 left-1/2 -translate-x-1/2 w-2 h-2 bg-gray-900 rotate-45"></div>
+                                        </div>
+                                    </th>
                                     <th class="px-4 md:px-6 py-4 text-right">Actions</th>
                                 </tr>
                             </thead>
@@ -493,7 +511,7 @@
                                         <td class="px-4 md:px-6 py-4">
                                             <div class="flex items-start gap-3 min-w-0">
 
-                                                <input type="checkbox" value="{{ $access->id }}" class="access-checkbox hidden rounded border-gray-300 text-[#a52a2a] focus:ring-[#a52a2a] cursor-pointer w-4 h-4 mt-2.5 transition-all">
+                                                <input type="checkbox" value="{{ $access->id }}" data-status="{{ $access->status }}" class="access-checkbox hidden rounded border-gray-300 text-[#a52a2a] focus:ring-[#a52a2a] cursor-pointer w-4 h-4 mt-2.5 transition-all">
 
                                                 <div
                                                     class="w-9 h-9 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center font-bold text-xs shrink-0 border border-blue-100">
@@ -633,7 +651,7 @@
                                         <td class="px-4 py-4 text-center hidden sm:table-cell">
                                             <span
                                                 class="inline-flex items-center justify-center min-w-[32px] h-8 px-2 rounded-full bg-gray-100 text-gray-700 font-bold text-xs border border-gray-200">
-                                                {{ $access->retakes ?? 0 }}
+                                                {{ max(0, ($access->retakes ?? 1) - 1) }}
                                             </span>
                                         </td>
 
@@ -649,11 +667,27 @@
                                                     </button>
                                                 @endif
 
-                                                <button onclick="revokeAccess({{ $access->id }}, this)"
-                                                    class="w-8 h-8 rounded-lg flex items-center justify-center text-red-400 hover:text-red-600 hover:bg-red-50 transition"
-                                                    title="Revoke Access">
-                                                    <i class="fas fa-trash-alt text-xs"></i>
-                                                </button>
+                                                @if($access->status === 'dropped')
+                                                    <button onclick="openReenrollModal({{ $access->id }}, '{{ $access->current_enrollment->progress_percentage ?? 0 }}')"
+                                                        class="w-8 h-8 rounded-lg flex items-center justify-center text-green-500 hover:bg-green-50 transition"
+                                                        title="Re-enroll Student">
+                                                        <i class="fas fa-sync text-xs"></i>
+                                                    </button>
+                                                @endif
+                                                
+                                                @if(in_array($access->status, ['dropped', 'pending', 'invited']))
+                                                    <button onclick="openDeleteEnrollmentModal({{ $access->id }})"
+                                                        class="w-8 h-8 rounded-lg flex items-center justify-center text-red-500 hover:bg-red-50 transition"
+                                                        title="Permanently Delete Enrollment">
+                                                        <i class="fas fa-trash-alt text-xs"></i>
+                                                    </button>
+                                                @elseif($access->status === 'enrolled')
+                                                    <button onclick="dropAccess({{ $access->id }}, this)"
+                                                        class="w-8 h-8 rounded-lg flex items-center justify-center text-orange-400 hover:text-orange-600 hover:bg-orange-50 transition"
+                                                        title="Drop Student">
+                                                        <i class="fas fa-ban text-xs"></i>
+                                                    </button>
+                                                @endif
                                             </div>
                                         </td>
                                     </tr>
@@ -703,7 +737,43 @@
                         <h3 class="text-2xl font-black text-gray-900">{{ $material->items_count ?? 0 }}</h3>
                     </div>
                     <div class="bg-gray-50 p-4 rounded-2xl border border-gray-100">
-                        <p class="text-[10px] text-gray-400 font-bold uppercase tracking-wider mb-1">Pass Rate</p>
+                        <div class="flex justify-between items-start">
+                            <p class="text-[10px] text-gray-400 font-bold uppercase tracking-wider mb-1">Pass Rate</p>
+                            @if(($material->items_count ?? 0) > 0 || ($material->lessons_count ?? 0) > 0)
+                            <div class="relative group cursor-help">
+                                <i class="fas fa-info-circle text-gray-400 transition-colors group-hover:text-[#a52a2a] text-[11px]"></i>
+                                <div class="absolute right-0 bottom-full mb-2 w-80 bg-white rounded-xl shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-[100] border border-gray-100 text-left font-normal normal-case tracking-normal">
+                                    <div class="p-3 max-h-60 overflow-y-auto custom-scrollbar text-gray-700 text-[11px] leading-relaxed">
+                                        <strong class="text-gray-900 block mb-1">Passing Rate Formula</strong>
+                                        <p class="m-0 mb-2 font-mono text-[10px] bg-gray-50 p-1.5 rounded text-gray-600 border border-gray-100">Pass Rate = (Passed Students &divide; Evaluated Students) &times; 100</p>
+
+                                        <div class="space-y-1 mb-2 border-t border-gray-100 pt-2">
+                                            <div><strong class="text-gray-900">Passed Students:</strong> Students whose score is equal to or greater than the passing score ({{ $passingScore ?? 80 }}%).</div>
+                                            <div><strong class="text-gray-900">Evaluated Students:</strong> Students who have completed the assessment and received a score.</div>
+                                        </div>
+
+                                        <div class="bg-gray-50 p-2.5 rounded border border-gray-100 mt-2">
+                                            <strong class="text-gray-900 block mb-1 border-b border-gray-200 pb-1">Current Computation</strong>
+                                            @if(($evaluatedCount ?? 0) > 0)
+                                                <div class="grid grid-cols-2 gap-1 my-1.5 text-[10px]">
+                                                    <div>Passing Score: <strong class="text-gray-900">{{ $passingScore ?? 80 }}</strong></div>
+                                                    <div>Students Evaluated: <strong class="text-gray-900">{{ $evaluatedCount ?? 0 }}</strong></div>
+                                                    <div class="col-span-2">Students Who Passed: <strong class="text-gray-900">{{ $passCount ?? 0 }}</strong></div>
+                                                </div>
+                                                <div class="pt-1.5 border-t border-gray-200">
+                                                    <p class="text-[10px] text-gray-600 m-0">Formula: ({{ $passCount ?? 0 }} &divide; {{ $evaluatedCount ?? 0 }}) &times; 100</p>
+                                                    <p class="font-bold text-gray-900 mt-0.5 mb-0">Result: {{ $passRate }}%</p>
+                                                </div>
+                                            @else
+                                                <p class="text-gray-500 italic text-[10px] m-0 py-1">No evaluated students yet.<br>Pass Rate cannot be calculated.</p>
+                                            @endif
+                                        </div>
+                                    </div>
+                                    <div class="absolute top-full right-2 w-0 h-0 border-x-[6px] border-x-transparent border-t-[8px] border-t-white"></div>
+                                </div>
+                            </div>
+                            @endif
+                        </div>
                         <h3
                             class="text-2xl font-black {{ isset($passRate) && $passRate >= 50 ? 'text-green-600' : (isset($passRate) ? 'text-amber-500' : 'text-gray-400') }}">
                             {{ isset($passRate) ? $passRate . '%' : '--%' }}
@@ -1890,9 +1960,9 @@
         const iconContainer = document.getElementById('customAlertIconContainer');
         const icon = document.getElementById('customAlertIcon');
 
-        document.getElementById('customAlertTitle').innerText = title;
-        document.getElementById('customAlertMessage').innerText = message;
-        document.getElementById('customAlertBtn').innerText = 'Okay'; // Reset button text
+        const tEl = document.getElementById('customAlertTitle'); if (tEl) tEl.innerText = title;
+        const mEl = document.getElementById('customAlertMessage'); if (mEl) mEl.innerText = message;
+        const bEl = document.getElementById('customAlertBtn'); if (bEl) bEl.innerText = 'Okay'; // Reset button text
         document.getElementById('customAlertCancelBtn').classList.add('hidden');
         document.getElementById('customAlertBtn').className = 'flex-1 px-4 py-3 bg-gray-100 text-gray-700 font-bold rounded-xl hover:bg-gray-200 transition';
 
@@ -2111,8 +2181,8 @@
     window.revertToDraft = function () {
         const hasActivity = {{ $studentActivityCount > 0 ? 'true' : 'false' }};
         if (hasActivity) {
-            document.getElementById('studentActivityTitle').innerText = "Student Data Found";
-            document.getElementById('studentActivityDescription').innerText = "This module contains active student data. Choose how to handle existing records before reverting to Draft.";
+            const el1 = document.getElementById('studentActivityTitle'); if (el1) el1.innerText = "Student Data Found";
+            const el2 = document.getElementById('studentActivityDescription'); if (el2) el2.innerText = "This module contains active student data. Choose how to handle existing records before reverting to Draft.";
             document.getElementById('activityRevertReasonInput').placeholder = "Provide a reason for forcing this revert (Required)...";
             document.getElementById('executeActivityRevertBtn').innerHTML = "Proceed & Revert";
             document.getElementById('executeActivityRevertBtn').onclick = executeActivityRevertToDraft;
@@ -2125,8 +2195,8 @@
     window.requestUnpublish = function () {
         const hasActivity = {{ $studentActivityCount > 0 ? 'true' : 'false' }};
         if (hasActivity) {
-            document.getElementById('studentActivityTitle').innerText = "Student Data Found";
-            document.getElementById('studentActivityDescription').innerText = "This module contains active student data. Choose how to handle existing records before requesting to unpublish.";
+            const el1 = document.getElementById('studentActivityTitle'); if (el1) el1.innerText = "Student Data Found";
+            const el2 = document.getElementById('studentActivityDescription'); if (el2) el2.innerText = "This module contains active student data. Choose how to handle existing records before requesting to unpublish.";
             document.getElementById('activityRevertReasonInput').placeholder = "Provide a reason for unpublishing this module (Required)...";
             document.getElementById('executeActivityRevertBtn').innerHTML = "Send Request";
             document.getElementById('executeActivityRevertBtn').onclick = submitUnpublishRequestFromActivity;
@@ -2524,38 +2594,42 @@
     }
 
     // --- MULTI-SELECT CHECKBOX LOGIC FOR ACCESS ---
+    var bulkSelectModeActive = false;
     var selectAllAccessCheckbox = document.getElementById('selectAllAccessCheckbox');
-    var bulkDeleteAccessBtn = document.getElementById('bulkDeleteAccessBtn');
-    var bulkDeleteAccessCount = document.getElementById('bulkDeleteAccessCount');
 
-    var deleteModeActive = false;
-
-    window.toggleBulkDeleteMode = function() {
-        deleteModeActive = !deleteModeActive;
-        const toggleBtn = document.getElementById('toggleBulkDeleteBtn');
-        const executeBtn = document.getElementById('bulkDeleteAccessBtn');
+    window.toggleBulkSelectMode = function () {
+        bulkSelectModeActive = !bulkSelectModeActive;
+        const toggleBtn = document.getElementById('toggleBulkSelectBtn');
+        const container = document.getElementById('bulkActionsContainer');
         const checkboxes = document.querySelectorAll('.access-checkbox');
-        const selectAll = document.getElementById('selectAllAccessCheckbox');
+        const addStudentBtn = document.getElementById('addStudentBtn');
+        const bulkInviteBtn = document.getElementById('bulkInviteBtn');
 
-        if (deleteModeActive) {
+        if (bulkSelectModeActive) {
             toggleBtn.innerHTML = '<i class="fas fa-times"></i> Cancel';
             toggleBtn.className = 'h-10 px-4 bg-gray-100 text-gray-600 border border-gray-200 rounded-xl hover:bg-gray-200 transition text-sm font-bold shadow-sm flex items-center justify-center gap-1.5';
-            executeBtn.classList.remove('hidden');
+            container.classList.remove('hidden');
+            container.classList.add('flex');
             checkboxes.forEach(cb => cb.classList.remove('hidden'));
-            if(selectAll) selectAll.classList.remove('hidden');
+            if(selectAllAccessCheckbox) selectAllAccessCheckbox.classList.remove('hidden');
+            if(addStudentBtn) addStudentBtn.classList.add('hidden');
+            if(bulkInviteBtn) bulkInviteBtn.classList.add('hidden');
         } else {
-            toggleBtn.innerHTML = '<i class="fas fa-trash-alt"></i> Delete';
-            toggleBtn.className = 'h-10 px-4 bg-red-50 text-red-600 border border-red-200 rounded-xl hover:bg-red-100 transition text-sm font-bold shadow-sm flex items-center justify-center gap-1.5';
-            executeBtn.classList.add('hidden');
+            toggleBtn.innerHTML = '<i class="fas fa-check-square"></i> Select';
+            toggleBtn.className = 'h-10 px-4 bg-gray-50 text-gray-600 border border-gray-200 rounded-xl hover:bg-gray-100 transition text-sm font-bold shadow-sm flex items-center justify-center gap-1.5';
+            container.classList.add('hidden');
+            container.classList.remove('flex');
             checkboxes.forEach(cb => {
                 cb.classList.add('hidden');
                 cb.checked = false;
             });
-            if(selectAll) {
-                selectAll.classList.add('hidden');
-                selectAll.checked = false;
+            if(selectAllAccessCheckbox) {
+                selectAllAccessCheckbox.classList.add('hidden');
+                selectAllAccessCheckbox.checked = false;
             }
-            window.updateBulkAccessUI(); // reset counts
+            if(addStudentBtn) addStudentBtn.classList.remove('hidden');
+            if(bulkInviteBtn) bulkInviteBtn.classList.remove('hidden');
+            window.updateBulkAccessUI();
         }
     }
 
@@ -2563,15 +2637,48 @@
         var checkedBoxes = document.querySelectorAll('.access-checkbox:checked');
         var count = checkedBoxes.length;
 
-        if(bulkDeleteAccessCount) bulkDeleteAccessCount.innerText = `Delete (${count})`;
-        
-        if(bulkDeleteAccessBtn) {
-            bulkDeleteAccessBtn.disabled = count === 0;
-            if(count === 0) {
-                bulkDeleteAccessBtn.classList.add('opacity-50', 'cursor-not-allowed');
-            } else {
-                bulkDeleteAccessBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+        var dropCount = 0;
+        var reenrollCount = 0;
+        var deleteCount = 0;
+
+        checkedBoxes.forEach(cb => {
+            const status = cb.getAttribute('data-status');
+            if (status === 'enrolled') dropCount++;
+            if (status === 'dropped') {
+                reenrollCount++;
+                deleteCount++;
             }
+            if (status === 'pending' || status === 'invited') {
+                deleteCount++;
+            }
+        });
+
+        const dropBtn = document.getElementById('bulkDropBtn');
+        const reenrollBtn = document.getElementById('bulkReenrollBtn');
+        const deleteBtn = document.getElementById('bulkDeleteBtn');
+
+        if (dropBtn) {
+            const span = dropBtn.querySelector('.bulk-count');
+            if (span) span.innerText = `(${dropCount})`;
+            dropBtn.disabled = dropCount === 0;
+            if(dropCount === 0) dropBtn.classList.add('opacity-50', 'cursor-not-allowed');
+            else dropBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+        }
+        
+        if (reenrollBtn) {
+            const span = reenrollBtn.querySelector('.bulk-count');
+            if (span) span.innerText = `(${reenrollCount})`;
+            reenrollBtn.disabled = reenrollCount === 0;
+            if(reenrollCount === 0) reenrollBtn.classList.add('opacity-50', 'cursor-not-allowed');
+            else reenrollBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+        }
+
+        if (deleteBtn) {
+            const span = deleteBtn.querySelector('.bulk-count');
+            if (span) span.innerText = `(${deleteCount})`;
+            deleteBtn.disabled = deleteCount === 0;
+            if(deleteCount === 0) deleteBtn.classList.add('opacity-50', 'cursor-not-allowed');
+            else deleteBtn.classList.remove('opacity-50', 'cursor-not-allowed');
         }
 
         var totalBoxes = document.querySelectorAll('.access-checkbox').length;
@@ -2599,86 +2706,225 @@
         });
     }
 
-    window.confirmBulkDeleteAccess = function () {
-        var checkedBoxes = document.querySelectorAll('.access-checkbox:checked');
-        var ids = Array.from(checkedBoxes).map(cb => cb.value);
+    window.confirmBulkDropAccess = function () {
+        // Only include enrolled students — dropped/pending/invited are not eligible to drop
+        var eligibleIds = Array.from(document.querySelectorAll('.access-checkbox:checked'))
+            .filter(cb => cb.getAttribute('data-status') === 'enrolled')
+            .map(cb => cb.value);
 
-        if (ids.length === 0) return;
+        if (eligibleIds.length === 0) return;
 
         showCustomAlert(
-            'Remove Students',
-            `Are you sure you want to remove these ${ids.length} students? Their progress will be permanently lost.`,
-            'error',
+            'Drop Students',
+            `Selected students will lose access to the module but their learning records will be preserved.`,
+            'warning',
             () => {
-                const originalHtml = bulkDeleteAccessBtn.innerHTML;
-                bulkDeleteAccessBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-1.5"></i> Processing...';
-                bulkDeleteAccessBtn.disabled = true;
+                const btn = document.getElementById('bulkDropBtn');
+                const originalHtml = btn.innerHTML;
+                btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-1.5"></i> Processing...';
+                btn.disabled = true;
 
-                fetch(`{{ url('/dashboard/materials/access-bulk') }}`, {
+                fetch(`{{ url('/dashboard/materials/access-bulk/drop') }}`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
                         'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
                         'Accept': 'application/json'
                     },
-                    body: JSON.stringify({ ids: ids, _method: 'DELETE' })
+                    body: JSON.stringify({ ids: eligibleIds })
                 }).then(async r => {
                     const data = await r.json().catch(() => null);
                     if (!r.ok) throw data || { message: 'Server error occurred.' };
                     return data;
                 }).then(data => {
                     if (data.success) {
-                        showSnackbar(data.message || 'Students removed.', 'success');
+                        showSnackbar(data.message || 'Students dropped.', 'success');
                         setTimeout(refreshTableOnly, 300);
-                        
-                        // Turn off delete mode
-                        if (deleteModeActive) {
-                            window.toggleBulkDeleteMode();
-                        }
+                        if (bulkSelectModeActive) window.toggleBulkSelectMode();
                     } else {
-                        throw { message: data.message || 'Error removing students.' };
+                        throw { message: data.message || 'Error dropping students.' };
                     }
                 }).catch(error => {
-                    let errorMsg = 'An error occurred while deleting students.';
-                    if (error && error.errors) {
-                        errorMsg = Object.values(error.errors)[0][0];
-                    } else if (error && error.message) {
-                        errorMsg = error.message;
-                    }
-                    showCustomAlert('Error', errorMsg, 'error');
+                    showCustomAlert('Error', error.message || 'An error occurred.', 'error');
                 }).finally(() => {
-                    bulkDeleteAccessBtn.innerHTML = originalHtml;
-                    bulkDeleteAccessBtn.disabled = false;
+                    btn.innerHTML = originalHtml;
+                    btn.disabled = false;
                 });
             }
         );
-        document.getElementById('customAlertBtn').innerText = 'Yes, Remove All';
+        const cAlertBtn1 = document.getElementById('customAlertBtn');
+        if (cAlertBtn1) cAlertBtn1.innerText = 'Yes, Drop Students';
     };
 
-    window.revokeAccess = function (accessId, btnElement) {
-        showCustomAlert('Remove Student', 'Are you sure you want to remove this student? Their progress will be permanently lost.', 'error', () => {
+    window.dropAccess = function (accessId, btnElement) {
+        showCustomAlert('Drop Student', 'Are you sure you want to drop this student? Their access will be removed but records preserved.', 'warning', () => {
             const originalHtml = btnElement.innerHTML;
             btnElement.innerHTML = '<i class="fas fa-spinner fa-spin text-xs"></i>';
             btnElement.disabled = true;
 
-            fetch(`{{ url('/dashboard/materials/access') }}/${accessId}`, {
-                method: 'DELETE',
+            fetch(`{{ url('/dashboard/materials/access') }}/${accessId}/drop`, {
+                method: 'POST',
                 headers: {
                     'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
                 }
             }).then(r => r.json()).then(data => {
                 if (data.success) {
-                    btnElement.closest('tr').remove();
-                    showSnackbar('Student removed.', 'success');
+                    showSnackbar('Student dropped successfully.', 'success');
+                    setTimeout(refreshTableOnly, 300);
                 } else {
-                    showCustomAlert('Error', 'Error removing student.', 'error');
+                    showCustomAlert('Error', data.message || 'Error dropping student.', 'error');
                     btnElement.innerHTML = originalHtml;
                     btnElement.disabled = false;
                 }
             });
         });
-        document.getElementById('customAlertBtn').innerText = 'Yes, Remove';
+        const cAlertBtn2 = document.getElementById('customAlertBtn');
+        if (cAlertBtn2) cAlertBtn2.innerText = 'Yes, Drop';
     }
+
+    window.currentDeleteAccessId = null;
+    window.openDeleteEnrollmentModal = function(id) {
+        window.currentDeleteAccessId = id;
+        openModal('deleteEnrollmentModal', 'deleteEnrollmentBox');
+    };
+
+    window.executeDeleteEnrollment = function() {
+        const mode = document.querySelector('input[name="deleteMode"]:checked').value;
+        submitDeleteEnrollment(mode);
+    };
+
+    window.submitDeleteEnrollment = function(mode) {
+        if(!window.currentDeleteAccessId) return;
+
+        const btn = document.getElementById('deleteEnrollmentSubmitBtn');
+        const originalText = btn ? btn.innerHTML : '';
+        if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Deleting...'; }
+        
+        fetch(`/dashboard/materials/access/${window.currentDeleteAccessId}/delete`, {
+            method: 'DELETE',
+            headers: {
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+                'Content-Type': 'application/json',
+                'Accept': 'application/json'
+            },
+            body: JSON.stringify({ mode: mode })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                closeModal('deleteEnrollmentModal', 'deleteEnrollmentBox');
+                showSnackbar(data.message, 'success');
+                setTimeout(refreshTableOnly, 300);
+            } else {
+                showCustomAlert('Error', data.message, 'error');
+                if (btn) { btn.disabled = false; btn.innerHTML = originalText; }
+            }
+        })
+        .catch(error => {
+            showCustomAlert('Error', 'An error occurred.', 'error');
+            if (btn) { btn.disabled = false; btn.innerHTML = originalText; }
+        });
+    };
+
+    window.openBulkDeleteModal = function() {
+        openModal('bulkDeleteEnrollmentModal', 'bulkDeleteEnrollmentBox');
+    };
+
+    window.executeBulkDelete = function() {
+        const mode = document.querySelector('input[name="bulkDeleteMode"]:checked').value;
+        submitBulkDelete(mode);
+    };
+
+    window.submitBulkDelete = function(mode) {
+        // Only include dropped/pending/invited students — enrolled are not eligible to delete directly
+        var ids = Array.from(document.querySelectorAll('.access-checkbox:checked'))
+            .filter(cb => ['dropped', 'pending', 'invited'].includes(cb.getAttribute('data-status')))
+            .map(cb => cb.value);
+        if (ids.length === 0) {
+            showSnackbar('No eligible students selected for deletion.', 'error');
+            return;
+        }
+
+        const btn = document.getElementById('bulkDeleteEnrollmentSubmitBtn');
+        const originalText = btn ? btn.innerHTML : '';
+        if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Deleting...'; }
+        
+        fetch(`/dashboard/materials/access-bulk/delete`, {
+            method: 'DELETE',
+            headers: {
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+                'Content-Type': 'application/json',
+                'Accept': 'application/json'
+            },
+            body: JSON.stringify({ ids: ids, mode: mode })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                closeModal('bulkDeleteEnrollmentModal', 'bulkDeleteEnrollmentBox');
+                showSnackbar(data.message, 'success');
+                setTimeout(refreshTableOnly, 300);
+                if (bulkSelectModeActive) window.toggleBulkSelectMode();
+            } else {
+                showCustomAlert('Error', data.message, 'error');
+                if (btn) { btn.disabled = false; btn.innerHTML = originalText; }
+            }
+        })
+        .catch(error => {
+            showCustomAlert('Error', 'An error occurred.', 'error');
+            if (btn) { btn.disabled = false; btn.innerHTML = originalText; }
+        });
+    };
+
+    window.openBulkReenrollModal = function() {
+        openModal('bulkReenrollModal', 'bulkReenrollBox');
+    };
+
+    window.executeBulkReenroll = function() {
+        const mode = document.querySelector('input[name="bulkReenrollMode"]:checked').value;
+        submitBulkReenroll(mode);
+    };
+
+    window.submitBulkReenroll = function(mode) {
+        // Only include dropped students — enrolled/pending/invited are not eligible to re-enroll
+        var ids = Array.from(document.querySelectorAll('.access-checkbox:checked'))
+            .filter(cb => cb.getAttribute('data-status') === 'dropped')
+            .map(cb => cb.value);
+        if (ids.length === 0) {
+            showSnackbar('No eligible dropped students selected for re-enrollment.', 'error');
+            return;
+        }
+
+        const btn = document.getElementById('bulkReenrollSubmitBtn');
+        const originalText = btn ? btn.innerHTML : '';
+        if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Re-enrolling...'; }
+        
+        fetch(`/dashboard/materials/access-bulk/reenroll`, {
+            method: 'POST',
+            headers: {
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+                'Content-Type': 'application/json',
+                'Accept': 'application/json'
+            },
+            body: JSON.stringify({ ids: ids, mode: mode })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                closeModal('bulkReenrollModal', 'bulkReenrollBox');
+                showSnackbar(data.message, 'success');
+                setTimeout(refreshTableOnly, 300);
+                if (bulkSelectModeActive) window.toggleBulkSelectMode();
+            } else {
+                showCustomAlert('Error', data.message, 'error');
+                if (btn) { btn.disabled = false; btn.innerHTML = originalText; }
+            }
+        })
+        .catch(error => {
+            showCustomAlert('Error', 'An error occurred.', 'error');
+            if (btn) { btn.disabled = false; btn.innerHTML = originalText; }
+        });
+    };
 
     window.sendIndividualInvite = function (accessId, btnElement) {
         const originalHtml = btnElement.innerHTML;
@@ -2858,6 +3104,18 @@
         if (!code || code === 'N/A') return;
         navigator.clipboard.writeText(code).then(() => {
             showSnackbar('Access code copied to clipboard!', 'success');
+            const btn = document.getElementById('copy-code-btn');
+            if (btn) {
+                const icon = btn.querySelector('i');
+                if (icon) {
+                    icon.className = 'fas fa-check text-green-500';
+                    btn.classList.add('bg-green-50', 'border-green-200');
+                    setTimeout(() => {
+                        icon.className = 'fas fa-copy';
+                        btn.classList.remove('bg-green-50', 'border-green-200');
+                    }, 2000);
+                }
+            }
         }).catch(err => {
             showSnackbar('Failed to copy code.', 'error');
         });
@@ -3098,4 +3356,292 @@
     document.addEventListener('DOMContentLoaded', startCountdownTimers);
     // Safety check if loaded via AJAX partials
     startCountdownTimers();
+
+    // Re-enrollment Logic
+    window.currentReenrollAccessId = null;
+
+    window.openReenrollModal = function(accessId, progressPercentage) {
+        window.currentReenrollAccessId = accessId;
+        const pEl = document.getElementById('reenrollProgressText');
+        if (pEl) pEl.innerText = progressPercentage + '%';
+        openModal('reenrollModal', 'reenrollBox');
+    };
+
+    window.executeReenroll = function() {
+        const mode = document.querySelector('input[name="reenrollMode"]:checked').value;
+        submitReenroll(mode);
+    };
+
+    window.submitReenroll = function(mode) {
+        if (!window.currentReenrollAccessId) return;
+
+        const btn = document.getElementById('reenrollSubmitBtn');
+        const originalText = btn ? btn.innerHTML : '';
+        if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Processing...'; }
+        
+        const url = `/dashboard/materials/access/${window.currentReenrollAccessId}/reenroll`;
+        
+        fetch(url, {
+            method: 'POST',
+            headers: {
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+                'Content-Type': 'application/json',
+                'Accept': 'application/json'
+            },
+            body: JSON.stringify({ mode: mode })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                closeModal('reenrollModal', 'reenrollBox');
+                showSnackbar(data.message, 'success');
+                setTimeout(refreshTableOnly, 300);
+            } else {
+                showCustomAlert('Error', data.message, 'error');
+                if (btn) { btn.disabled = false; btn.innerHTML = originalText; }
+            }
+        })
+        .catch(error => {
+            showCustomAlert('Error', 'An unexpected error occurred.', 'error');
+            if (btn) { btn.disabled = false; btn.innerHTML = originalText; }
+        });
+    };
 </script>
+
+{{-- Re-enrollment Modal --}}
+<div id="reenrollModal" class="fixed inset-0 z-[9999] hidden opacity-0 transition-opacity duration-300 flex items-center justify-center p-4 sm:p-6"
+    style="background-color: rgba(0, 0, 0, 0.5); backdrop-filter: blur(4px);">
+    <div id="reenrollBox" class="bg-white rounded-2xl shadow-xl w-full max-w-md transform transition-all duration-300 scale-95 overflow-hidden">
+        <div class="px-6 py-5 border-b border-gray-100 flex items-center justify-between bg-gray-50/50">
+            <h3 class="text-lg font-black text-gray-900 flex items-center gap-2">
+                <div class="w-8 h-8 rounded-lg bg-green-100 text-green-600 flex items-center justify-center">
+                    <i class="fas fa-sync text-sm"></i>
+                </div>
+                Re-enroll Student
+            </h3>
+            <button onclick="closeModal('reenrollModal', 'reenrollBox')" class="text-gray-400 hover:text-gray-600 transition p-2 rounded-lg hover:bg-gray-100">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+
+        <div class="p-6">
+            <p class="text-gray-600 text-sm mb-4">
+                This student was previously enrolled and completed <span id="reenrollProgressText" class="font-bold text-gray-900"></span> of the module.
+            </p>
+            
+            <p class="text-gray-600 text-sm mb-6">
+                How would you like to re-enroll this student?
+            </p>
+
+            <div class="space-y-3">
+                <label class="w-full block relative cursor-pointer group">
+                    <input type="radio" name="reenrollMode" value="continue" class="peer hidden" checked>
+                    <div class="flex items-start gap-4 p-4 rounded-xl border border-gray-200 peer-checked:border-blue-500 peer-checked:bg-blue-50 hover:border-blue-500 hover:bg-blue-50 transition text-left">
+                        <div class="w-10 h-10 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center shrink-0 group-hover:scale-110 transition">
+                            <i class="fas fa-play"></i>
+                        </div>
+                        <div>
+                            <h4 class="font-bold text-gray-900 group-hover:text-blue-700">Continue Progress</h4>
+                            <p class="text-xs text-gray-500 mt-1">Student resumes exactly where they left off. Previous scores and history are kept.</p>
+                        </div>
+                    </div>
+                </label>
+                <label class="w-full block relative cursor-pointer group">
+                    <input type="radio" name="reenrollMode" value="reset" class="peer hidden">
+                    <div class="flex items-start gap-4 p-4 rounded-xl border border-gray-200 peer-checked:border-amber-500 peer-checked:bg-amber-50 hover:border-amber-500 hover:bg-amber-50 transition text-left">
+                        <div class="w-10 h-10 rounded-full bg-amber-100 text-amber-600 flex items-center justify-center shrink-0 group-hover:scale-110 transition">
+                            <i class="fas fa-undo"></i>
+                        </div>
+                        <div>
+                            <h4 class="font-bold text-gray-900 group-hover:text-amber-700">Restart from Zero</h4>
+                            <p class="text-xs text-gray-500 mt-1">Student starts again from 0%. All previous progress, quiz attempts, and scores are permanently deleted.</p>
+                        </div>
+                    </div>
+                </label>
+            </div>
+        </div>
+        
+        <div class="px-6 py-4 border-t border-gray-100 bg-gray-50 flex justify-end gap-3">
+            <button onclick="closeModal('reenrollModal', 'reenrollBox')" class="px-4 py-2 bg-white border border-gray-200 text-gray-700 font-bold rounded-xl hover:bg-gray-50 transition text-sm shadow-sm">
+                Cancel
+            </button>
+            <button onclick="executeReenroll()" id="reenrollSubmitBtn" class="px-4 py-2 bg-green-600 border border-transparent text-white font-bold rounded-xl hover:bg-green-700 transition text-sm shadow-sm flex items-center justify-center gap-2">
+                <i class="fas fa-sync"></i> Re-enroll
+            </button>
+        </div>
+    </div>
+</div>
+
+{{-- Delete Enrollment Modal --}}
+<div id="deleteEnrollmentModal" class="fixed inset-0 z-[9999] hidden opacity-0 transition-opacity duration-300 flex items-center justify-center p-4 sm:p-6" style="background-color: rgba(0, 0, 0, 0.5); backdrop-filter: blur(4px);">
+    <div id="deleteEnrollmentBox" class="bg-white rounded-2xl shadow-xl w-full max-w-md transform transition-all duration-300 scale-95 overflow-hidden">
+        <div class="px-6 py-5 border-b border-gray-100 flex items-center justify-between bg-red-50/50">
+            <h3 class="text-lg font-black text-gray-900 flex items-center gap-2">
+                <div class="w-8 h-8 rounded-lg bg-red-100 text-red-600 flex items-center justify-center">
+                    <i class="fas fa-trash-alt text-sm"></i>
+                </div>
+                Permanently Delete Enrollment
+            </h3>
+            <button onclick="closeModal('deleteEnrollmentModal', 'deleteEnrollmentBox')" class="text-gray-400 hover:text-gray-600 transition p-2 rounded-lg hover:bg-gray-100">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div class="p-6">
+            <div class="p-4 bg-amber-50 border border-amber-200 rounded-xl mb-6 flex gap-3">
+                <i class="fas fa-exclamation-triangle text-amber-600 mt-0.5"></i>
+                <div class="text-sm text-amber-800">
+                    <p class="font-bold mb-1">This action will permanently remove the student's enrollment from this module.</p>
+                </div>
+            </div>
+            <p class="text-gray-600 text-sm mb-6">How would you like to delete this enrollment?</p>
+            <div class="space-y-3">
+                <label class="w-full block relative cursor-pointer group">
+                    <input type="radio" name="deleteMode" value="only" class="peer hidden" checked>
+                    <div class="flex items-start gap-4 p-4 rounded-xl border border-gray-200 peer-checked:border-red-500 peer-checked:bg-red-50 hover:border-red-500 hover:bg-red-50 transition text-left">
+                        <div class="w-10 h-10 rounded-full bg-red-100 text-red-600 flex items-center justify-center shrink-0 group-hover:scale-110 transition">
+                            <i class="fas fa-user-minus"></i>
+                        </div>
+                        <div>
+                            <h4 class="font-bold text-gray-900 group-hover:text-red-700">Delete Enrollment Only (Recommended)</h4>
+                            <p class="text-xs text-gray-500 mt-1">Student no longer appears in module participants. Historical reporting data is preserved.</p>
+                        </div>
+                    </div>
+                </label>
+                <label class="w-full block relative cursor-pointer group">
+                    <input type="radio" name="deleteMode" value="records" class="peer hidden">
+                    <div class="flex items-start gap-4 p-4 rounded-xl border border-red-200 peer-checked:border-red-600 peer-checked:bg-red-100 hover:border-red-600 hover:bg-red-100 transition text-left">
+                        <div class="w-10 h-10 rounded-full bg-red-200 text-red-700 flex items-center justify-center shrink-0 group-hover:scale-110 transition">
+                            <i class="fas fa-radiation"></i>
+                        </div>
+                        <div>
+                            <h4 class="font-bold text-red-800 group-hover:text-red-900">Delete Enrollment and Learning Records</h4>
+                            <p class="text-xs text-red-600 mt-1 font-medium">Dangerous action. This action cannot be undone. Removes all module progress, quiz attempts, exam attempts, and scores.</p>
+                        </div>
+                    </div>
+                </label>
+            </div>
+        </div>
+        <div class="px-6 py-4 border-t border-gray-100 bg-gray-50 flex justify-end gap-3">
+            <button onclick="closeModal('deleteEnrollmentModal', 'deleteEnrollmentBox')" class="px-4 py-2 bg-white border border-gray-200 text-gray-700 font-bold rounded-xl hover:bg-gray-50 transition text-sm shadow-sm">
+                Cancel
+            </button>
+            <button onclick="executeDeleteEnrollment()" id="deleteEnrollmentSubmitBtn" class="px-4 py-2 bg-red-600 border border-transparent text-white font-bold rounded-xl hover:bg-red-700 transition text-sm shadow-sm flex items-center justify-center gap-2">
+                <i class="fas fa-trash-alt"></i> Delete
+            </button>
+        </div>
+    </div>
+</div>
+
+{{-- Bulk Delete Enrollment Modal --}}
+<div id="bulkDeleteEnrollmentModal" class="fixed inset-0 z-[9999] hidden opacity-0 transition-opacity duration-300 flex items-center justify-center p-4 sm:p-6" style="background-color: rgba(0, 0, 0, 0.5); backdrop-filter: blur(4px);">
+    <div id="bulkDeleteEnrollmentBox" class="bg-white rounded-2xl shadow-xl w-full max-w-md transform transition-all duration-300 scale-95 overflow-hidden">
+        <div class="px-6 py-5 border-b border-gray-100 flex items-center justify-between bg-red-50/50">
+            <h3 class="text-lg font-black text-gray-900 flex items-center gap-2">
+                <div class="w-8 h-8 rounded-lg bg-red-100 text-red-600 flex items-center justify-center">
+                    <i class="fas fa-trash-alt text-sm"></i>
+                </div>
+                Bulk Delete Enrollments
+            </h3>
+            <button onclick="closeModal('bulkDeleteEnrollmentModal', 'bulkDeleteEnrollmentBox')" class="text-gray-400 hover:text-gray-600 transition p-2 rounded-lg hover:bg-gray-100">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div class="p-6">
+            <div class="p-4 bg-amber-50 border border-amber-200 rounded-xl mb-6 flex gap-3">
+                <i class="fas fa-exclamation-triangle text-amber-600 mt-0.5"></i>
+                <div class="text-sm text-amber-800">
+                    <p class="font-bold mb-1">This action will permanently remove the selected students' enrollments from this module.</p>
+                </div>
+            </div>
+            <p class="text-gray-600 text-sm mb-6">How would you like to delete these enrollments?</p>
+            <div class="space-y-3">
+                <label class="w-full block relative cursor-pointer group">
+                    <input type="radio" name="bulkDeleteMode" value="only" class="peer hidden" checked>
+                    <div class="flex items-start gap-4 p-4 rounded-xl border border-gray-200 peer-checked:border-red-500 peer-checked:bg-red-50 hover:border-red-500 hover:bg-red-50 transition text-left">
+                        <div class="w-10 h-10 rounded-full bg-red-100 text-red-600 flex items-center justify-center shrink-0 group-hover:scale-110 transition">
+                            <i class="fas fa-user-minus"></i>
+                        </div>
+                        <div>
+                            <h4 class="font-bold text-gray-900 group-hover:text-red-700">Delete Enrollments Only (Recommended)</h4>
+                            <p class="text-xs text-gray-500 mt-1">Students no longer appear in module participants. Historical reporting data is preserved.</p>
+                        </div>
+                    </div>
+                </label>
+                <label class="w-full block relative cursor-pointer group">
+                    <input type="radio" name="bulkDeleteMode" value="records" class="peer hidden">
+                    <div class="flex items-start gap-4 p-4 rounded-xl border border-red-200 peer-checked:border-red-600 peer-checked:bg-red-100 hover:border-red-600 hover:bg-red-100 transition text-left">
+                        <div class="w-10 h-10 rounded-full bg-red-200 text-red-700 flex items-center justify-center shrink-0 group-hover:scale-110 transition">
+                            <i class="fas fa-radiation"></i>
+                        </div>
+                        <div>
+                            <h4 class="font-bold text-red-800 group-hover:text-red-900">Delete Enrollments and Learning Records</h4>
+                            <p class="text-xs text-red-600 mt-1 font-medium">Dangerous action. This action cannot be undone. Removes all module progress, quiz attempts, exam attempts, and scores.</p>
+                        </div>
+                    </div>
+                </label>
+            </div>
+        </div>
+        <div class="px-6 py-4 border-t border-gray-100 bg-gray-50 flex justify-end gap-3">
+            <button onclick="closeModal('bulkDeleteEnrollmentModal', 'bulkDeleteEnrollmentBox')" class="px-4 py-2 bg-white border border-gray-200 text-gray-700 font-bold rounded-xl hover:bg-gray-50 transition text-sm shadow-sm">
+                Cancel
+            </button>
+            <button onclick="executeBulkDelete()" id="bulkDeleteEnrollmentSubmitBtn" class="px-4 py-2 bg-red-600 border border-transparent text-white font-bold rounded-xl hover:bg-red-700 transition text-sm shadow-sm flex items-center justify-center gap-2">
+                <i class="fas fa-trash-alt"></i> Delete
+            </button>
+        </div>
+    </div>
+</div>
+
+{{-- Bulk Re-enroll Modal --}}
+<div id="bulkReenrollModal" class="fixed inset-0 z-[9999] hidden opacity-0 transition-opacity duration-300 flex items-center justify-center p-4 sm:p-6" style="background-color: rgba(0, 0, 0, 0.5); backdrop-filter: blur(4px);">
+    <div id="bulkReenrollBox" class="bg-white rounded-2xl shadow-xl w-full max-w-md transform transition-all duration-300 scale-95 overflow-hidden">
+        <div class="px-6 py-5 border-b border-gray-100 flex items-center justify-between bg-gray-50/50">
+            <h3 class="text-lg font-black text-gray-900 flex items-center gap-2">
+                <div class="w-8 h-8 rounded-lg bg-green-100 text-green-600 flex items-center justify-center">
+                    <i class="fas fa-sync text-sm"></i>
+                </div>
+                Bulk Re-enroll Students
+            </h3>
+            <button onclick="closeModal('bulkReenrollModal', 'bulkReenrollBox')" class="text-gray-400 hover:text-gray-600 transition p-2 rounded-lg hover:bg-gray-100">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div class="p-6">
+            <p class="text-gray-600 text-sm mb-6">How would you like to re-enroll the selected students?</p>
+            <div class="space-y-3">
+                <label class="w-full block relative cursor-pointer group">
+                    <input type="radio" name="bulkReenrollMode" value="continue" class="peer hidden" checked>
+                    <div class="flex items-start gap-4 p-4 rounded-xl border border-gray-200 peer-checked:border-blue-500 peer-checked:bg-blue-50 hover:border-blue-500 hover:bg-blue-50 transition text-left">
+                        <div class="w-10 h-10 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center shrink-0 group-hover:scale-110 transition">
+                            <i class="fas fa-play"></i>
+                        </div>
+                        <div>
+                            <h4 class="font-bold text-gray-900 group-hover:text-blue-700">Continue Progress</h4>
+                            <p class="text-xs text-gray-500 mt-1">Students resume exactly where they left off. Previous scores and history are kept.</p>
+                        </div>
+                    </div>
+                </label>
+                <label class="w-full block relative cursor-pointer group">
+                    <input type="radio" name="bulkReenrollMode" value="reset" class="peer hidden">
+                    <div class="flex items-start gap-4 p-4 rounded-xl border border-gray-200 peer-checked:border-amber-500 peer-checked:bg-amber-50 hover:border-amber-500 hover:bg-amber-50 transition text-left">
+                        <div class="w-10 h-10 rounded-full bg-amber-100 text-amber-600 flex items-center justify-center shrink-0 group-hover:scale-110 transition">
+                            <i class="fas fa-undo"></i>
+                        </div>
+                        <div>
+                            <h4 class="font-bold text-gray-900 group-hover:text-amber-700">Restart from Zero</h4>
+                            <p class="text-xs text-gray-500 mt-1">Students start again from 0%. All previous progress, quiz attempts, and scores are permanently deleted.</p>
+                        </div>
+                    </div>
+                </label>
+            </div>
+        </div>
+        <div class="px-6 py-4 border-t border-gray-100 bg-gray-50 flex justify-end gap-3">
+            <button onclick="closeModal('bulkReenrollModal', 'bulkReenrollBox')" class="px-4 py-2 bg-white border border-gray-200 text-gray-700 font-bold rounded-xl hover:bg-gray-50 transition text-sm shadow-sm">
+                Cancel
+            </button>
+            <button onclick="executeBulkReenroll()" id="bulkReenrollSubmitBtn" class="px-4 py-2 bg-green-600 border border-transparent text-white font-bold rounded-xl hover:bg-green-700 transition text-sm shadow-sm flex items-center justify-center gap-2">
+                <i class="fas fa-sync"></i> Re-enroll
+            </button>
+        </div>
+    </div>
+</div>

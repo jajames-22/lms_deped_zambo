@@ -454,7 +454,7 @@
                             <i class="fas fa-ban text-red-500 text-lg mt-0.5"></i>
                             <div>
                                 <p class="text-sm font-bold text-red-700">Maximum Retakes Reached</p>
-                                <p class="text-xs text-red-600 mt-1">You have exhausted the 3 allowed retake attempts for this module. You can no longer access or re-enroll in the course materials.</p>
+                                <p class="text-xs text-red-600 mt-1">You have exhausted the 2 allowed retake attempts for this module. You can no longer access or re-enroll in the course materials.</p>
                             </div>
                         </div>
                     @endif
@@ -617,8 +617,7 @@
                 <i class="fas fa-exclamation-triangle"></i>
             </div>
             <h3 class="text-xl font-black text-gray-900 mb-2">Drop Course?</h3>
-            <p class="text-sm text-gray-500 mb-6">Are you sure you want to drop this course? All your progress and
-                completed lessons will be permanently lost.</p>
+            <p class="text-sm text-gray-500 mb-6">Are you sure you want to drop this course? All your progress and completed lessons will be permanently lost.</p>
             <div class="flex gap-3">
                 <button type="button" onclick="closeDropModal()"
                     class="w-full py-3 bg-gray-100 text-gray-700 font-bold rounded-xl hover:bg-gray-200 transition">

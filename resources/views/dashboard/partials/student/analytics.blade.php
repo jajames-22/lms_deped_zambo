@@ -63,7 +63,7 @@
                 {{-- REPLACED: Average Score is now Time Invested --}}
                 <div class="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 border-l-4 border-l-blue-500">
                     <p class="text-gray-500 text-sm font-medium mb-1">Total Time Invested</p>
-                    <p class="text-3xl font-bold text-gray-900">{{ $totalHours }} <span class="text-lg text-blue-500">Hrs</span></p>
+                    <p class="text-2xl sm:text-3xl font-bold text-gray-900">{{ $totalTimeInvested ?? ($totalHours . ' Hrs') }}</p>
                 </div>
             </div>
         </section>

@@ -851,11 +851,25 @@ class AssessmentController extends Controller
                 ]);
             }
 
+            $allCats = \Illuminate\Support\Facades\DB::table('assessment_categories')->where('assessment_id', $assessment->id)->orderBy('sort_order')->get();
+            $sessAvg = \Illuminate\Support\Facades\DB::table('assessment_sessions')
+                ->where('assessment_id', $assessment->id)
+                ->whereIn('user_id', $completedUserIds)
+                ->select('category_id', \Illuminate\Support\Facades\DB::raw('AVG(TIMESTAMPDIFF(SECOND, created_at, updated_at)) as avg_secs'))
+                ->groupBy('category_id')
+                ->pluck('avg_secs', 'category_id');
+
+            $categoryTimeStats = $allCats->map(function($cat) use ($sessAvg) {
+                $secs = isset($sessAvg[$cat->id]) ? round($sessAvg[$cat->id]) : 0;
+                $format = $secs > 0 ? floor($secs / 60) . 'm ' . round($secs % 60) . 's' : '< 1s';
+                return (object) ['title' => $cat->title, 'seconds' => $secs, 'format' => $format, 'mins' => round($secs / 60, 1), 'time_limit' => $cat->time_limit ? (float) $cat->time_limit : 0];
+            });
+
             return view('dashboard.partials.admin.assessments-analytics', compact(
                 'assessment', 'totalQuestions', 'totalStudents', 'completedCount', 'completionRate',
                 'overallMPS', 'overallMasteryLevel', 'masteryColor', 'mostMastered', 'leastMastered',
                 'proficiencyRate', 'avgTimeFormat', 'schoolLeaderboard', 'proficiencyLevels',
-                'competencies', 'itemAnalysis', 'combinedDistribution', 'avgTimeMins'
+                'competencies', 'itemAnalysis', 'combinedDistribution', 'avgTimeMins', 'categoryTimeStats'
             ));
 
         } catch (\Exception $e) {
@@ -869,12 +883,13 @@ class AssessmentController extends Controller
             $itemAnalysis = [];
             $avgTimeFormat = 'N/A';
             $combinedDistribution = [];
+            $categoryTimeStats = collect([]);
 
             return view('dashboard.partials.admin.assessments-analytics', compact(
                 'assessment', 'totalQuestions', 'totalStudents', 'completedCount', 'completionRate',
                 'overallMPS', 'overallMasteryLevel', 'masteryColor', 'mostMastered', 'leastMastered',
                 'proficiencyRate', 'avgTimeFormat', 'schoolLeaderboard', 'proficiencyLevels',
-                'competencies', 'itemAnalysis', 'combinedDistribution', 'avgTimeMins'
+                'competencies', 'itemAnalysis', 'combinedDistribution', 'avgTimeMins', 'categoryTimeStats'
             ));
         }
     }
@@ -1099,6 +1114,20 @@ class AssessmentController extends Controller
                 ]);
             }
 
+            $allCats = \Illuminate\Support\Facades\DB::table('assessment_categories')->where('assessment_id', $assessment->id)->orderBy('sort_order')->get();
+            $sessAvg = \Illuminate\Support\Facades\DB::table('assessment_sessions')
+                ->where('assessment_id', $assessment->id)
+                ->whereIn('user_id', $completedUserIds)
+                ->select('category_id', \Illuminate\Support\Facades\DB::raw('AVG(TIMESTAMPDIFF(SECOND, created_at, updated_at)) as avg_secs'))
+                ->groupBy('category_id')
+                ->pluck('avg_secs', 'category_id');
+
+            $categoryTimeStats = $allCats->map(function($cat) use ($sessAvg) {
+                $secs = isset($sessAvg[$cat->id]) ? round($sessAvg[$cat->id]) : 0;
+                $format = $secs > 0 ? floor($secs / 60) . 'm ' . round($secs % 60) . 's' : '< 1s';
+                return (object) ['title' => $cat->title, 'seconds' => $secs, 'format' => $format, 'mins' => round($secs / 60, 1), 'time_limit' => $cat->time_limit ? (float) $cat->time_limit : 0];
+            });
+
         } catch (\Exception $e) {
             \Illuminate\Support\Facades\Log::error('Export Error: ' . $e->getMessage());
             $totalStudents = $completedCount = $completionRate = $totalQuestions = $overallMPS = $proficiencyRate = 0;
@@ -1106,7 +1135,7 @@ class AssessmentController extends Controller
             $masteryColor = '#666666';
             $mostMastered = $leastMastered = null;
             $proficiencyLevels = ['Highly Proficient (90-100%)' => 0, 'Proficient (75-89%)' => 0, 'Nearly Proficient (50-74%)' => 0, 'Low Proficient (25-49%)' => 0, 'Not Proficient (0-24%)' => 0];
-            $competencies = $itemAnalysis = $schoolLeaderboard = collect([]);
+            $competencies = $itemAnalysis = $schoolLeaderboard = $categoryTimeStats = collect([]);
             $combinedDistribution = [];
         }
 
@@ -1116,7 +1145,7 @@ class AssessmentController extends Controller
             'assessment', 'totalQuestions', 'totalStudents', 'completedCount', 'completionRate',
             'overallMPS', 'overallMasteryLevel', 'masteryColor', 'proficiencyRate',
             'proficiencyLevels', 'competencies', 'mostMastered', 'leastMastered',
-            'schoolLeaderboard', 'itemAnalysis', 'combinedDistribution', 'isPrint'
+            'schoolLeaderboard', 'itemAnalysis', 'combinedDistribution', 'categoryTimeStats', 'isPrint'
         );
         $data['showOverview'] = $request->has('check_overview');
         $data['showCategory'] = $request->has('check_category');
@@ -1205,5 +1234,359 @@ class AssessmentController extends Controller
                 'message' => 'An error occurred while duplicating the assessment.'
             ], 500);
         }
+    }
+
+    /**
+     * Builds grading metadata map for an assessment.
+     */
+    private function getAssessmentGradingMap(int $assessmentId): array
+    {
+        $categories = \App\Models\AssessmentCategory::where('assessment_id', $assessmentId)->orderBy('sort_order')->get();
+        $categoryIds = $categories->pluck('id');
+        
+        $questions = \App\Models\AssessmentQuestion::with('options')
+            ->whereIn('category_id', $categoryIds)
+            ->where('type', '!=', 'instruction')
+            ->orderBy('sort_order')
+            ->get();
+
+        $totalQuestions = $questions->count();
+        $qMap = [];
+
+        foreach ($questions as $q) {
+            $correctOptions = $q->options->where('is_correct', true);
+            $correctOptionIds = $correctOptions->pluck('id')->map(fn($id) => (string)$id)->toArray();
+            $correctTexts = $correctOptions->pluck('option_text')->map(function($t) use ($q) {
+                return $q->is_case_sensitive ? trim($t) : strtolower(trim($t));
+            })->toArray();
+
+            $qMap[$q->id] = [
+                'type' => $q->type,
+                'is_case_sensitive' => $q->is_case_sensitive,
+                'correct_option_ids' => $correctOptionIds,
+                'correct_texts' => $correctTexts
+            ];
+        }
+
+        return [$totalQuestions, $qMap, $categories];
+    }
+
+    /**
+     * Grades a collection of student answers against the question grading map.
+     */
+    private function computeStudentScore(\Illuminate\Support\Collection $studentAnswersByKey, array $qMap): int
+    {
+        $score = 0;
+        foreach ($qMap as $qId => $qInfo) {
+            $ans = $studentAnswersByKey->get($qId);
+            if (!$ans) continue;
+
+            $selected = json_decode($ans->selected_options, true) ?? [];
+            if (!is_array($selected)) $selected = [$selected];
+            $type = $qInfo['type'];
+            $isCaseSens = $qInfo['is_case_sensitive'];
+            $isCorrect = false;
+
+            if ($type === 'checkbox') {
+                $selectedStr = array_map('strval', $selected);
+                $correctStr = $qInfo['correct_option_ids'];
+                if (count($selectedStr) === count($correctStr) && empty(array_diff($selectedStr, $correctStr)) && empty(array_diff($correctStr, $selectedStr))) {
+                    $isCorrect = true;
+                }
+            } elseif ($type === 'text') {
+                $ansText = $ans->answer_text ?? ($selected[0] ?? '');
+                $ansTextClean = trim((string)$ansText);
+                if ($ansTextClean !== '') {
+                    $ansTextCmp = $isCaseSens ? $ansTextClean : strtolower($ansTextClean);
+                    if (in_array($ansTextCmp, $qInfo['correct_texts'])) {
+                        $isCorrect = true;
+                    }
+                }
+            } else {
+                $selectedStr = array_map('strval', $selected);
+                foreach ($selectedStr as $sId) {
+                    if (in_array($sId, $qInfo['correct_option_ids'])) {
+                        $isCorrect = true;
+                        break;
+                    }
+                }
+            }
+
+            if ($isCorrect) $score++;
+        }
+        return $score;
+    }
+
+    public function exportStudentResults(Request $request, Assessment $assessment)
+    {
+        $user = \Illuminate\Support\Facades\Auth::user();
+        if ($user->role !== 'admin' && $user->role !== 'cid' && $user->role !== 'teacher') {
+            abort(403, 'Unauthorized access.');
+        }
+
+        $query = AssessmentAccess::with(['student.school'])->where('assessment_id', $assessment->id);
+
+        if ($request->filled('search')) {
+            $search = trim($request->search);
+            $query->where(function ($q) use ($search) {
+                $q->where('lrn', 'like', "%{$search}%")
+                  ->orWhereHas('student', function ($sq) use ($search) {
+                      $sq->where('first_name', 'like', "%{$search}%")
+                         ->orWhere('last_name', 'like', "%{$search}%")
+                         ->orWhereRaw("CONCAT(first_name, ' ', last_name) LIKE ?", ["%{$search}%"]);
+                  });
+            });
+        }
+
+        $accesses = $query->latest()->get();
+        $studentIds = $accesses->pluck('student.id')->filter()->unique()->toArray();
+
+        $allSessions = \App\Models\AssessmentSession::where('assessment_id', $assessment->id)
+            ->whereIn('user_id', $studentIds)
+            ->get()
+            ->groupBy('user_id');
+
+        $allAnswers = \App\Models\StudentAnswer::where('assessment_id', $assessment->id)
+            ->whereIn('user_id', $studentIds)
+            ->get()
+            ->groupBy('user_id');
+
+        [$totalQuestions, $qMap, $categories] = $this->getAssessmentGradingMap($assessment->id);
+
+        $filename = Str::slug($assessment->title) . '_student_results_' . date('Ymd_His') . '.csv';
+
+        return response()->streamDownload(function () use ($accesses, $allSessions, $allAnswers, $totalQuestions, $qMap) {
+            $file = fopen('php://output', 'w');
+            fputs($file, chr(0xEF) . chr(0xBB) . chr(0xBF)); // UTF-8 BOM
+
+            fputcsv($file, [
+                'LRN', 'Student Name', 'School', 'Status', 'Assessment Score', 
+                'Correct Answers', 'Total Questions', 'Percentage', 'Date Started', 
+                'Date Submitted / Finished', 'Attempt Number', 'Assessment Result'
+            ]);
+
+            foreach ($accesses as $access) {
+                $student = $access->student;
+                $studentId = $student ? $student->id : null;
+                $schoolName = ($student && $student->school) ? $student->school->name : 'Independent / Unassigned';
+                $studentName = $student ? trim($student->first_name . ' ' . $student->last_name) : 'Unregistered Student';
+                $statusText = ucwords(str_replace('_', ' ', $access->status));
+
+                $studentSessions = $studentId ? ($allSessions->get($studentId) ?? collect()) : collect();
+                $studentAnswers = $studentId ? ($allAnswers->get($studentId) ?? collect())->keyBy('question_id') : collect();
+
+                if ($access->status === 'finished' && $studentId) {
+                    $score = $this->computeStudentScore($studentAnswers, $qMap);
+                    $percentage = $totalQuestions > 0 ? round(($score / $totalQuestions) * 100) : 0;
+                    $dateStarted = $studentSessions->isNotEmpty() && $studentSessions->min('created_at') 
+                        ? \Carbon\Carbon::parse($studentSessions->min('created_at'))->format('Y-m-d H:i:s') 
+                        : 'N/A';
+                    $dateSubmitted = $studentSessions->isNotEmpty() && $studentSessions->max('updated_at') 
+                        ? \Carbon\Carbon::parse($studentSessions->max('updated_at'))->format('Y-m-d H:i:s') 
+                        : 'N/A';
+                    $attemptNum = 1;
+                    $resultText = $percentage >= 75 ? 'Passed' : 'Failed';
+                    $scoreDisplay = $score;
+                    $correctDisplay = $score;
+                    $percentageDisplay = $percentage . '%';
+                } else {
+                    $dateStarted = $studentSessions->isNotEmpty() && $studentSessions->min('created_at') 
+                        ? \Carbon\Carbon::parse($studentSessions->min('created_at'))->format('Y-m-d H:i:s') 
+                        : 'Not Started';
+                    $dateSubmitted = 'N/A';
+                    $attemptNum = $studentSessions->isNotEmpty() ? 1 : 0;
+                    $resultText = 'N/A';
+                    $scoreDisplay = 'N/A';
+                    $correctDisplay = 'N/A';
+                    $percentageDisplay = 'N/A';
+                }
+
+                fputcsv($file, [
+                    $access->lrn,
+                    $studentName,
+                    $schoolName,
+                    $statusText,
+                    $scoreDisplay,
+                    $correctDisplay,
+                    $totalQuestions,
+                    $percentageDisplay,
+                    $dateStarted,
+                    $dateSubmitted,
+                    $attemptNum,
+                    $resultText
+                ]);
+            }
+
+            fclose($file);
+        }, $filename, [
+            'Content-Type' => 'text/csv; charset=UTF-8',
+            'Cache-Control' => 'no-cache, no-store, must-revalidate',
+            'Pragma' => 'no-cache',
+            'Expires' => '0',
+        ]);
+    }
+
+    public function studentResult($assessmentId, $studentId)
+    {
+        $assessment = Assessment::findOrFail($assessmentId);
+        $user = \Illuminate\Support\Facades\Auth::user();
+        if ($user->role !== 'admin' && $user->role !== 'cid' && $user->role !== 'teacher') {
+            abort(403, 'Unauthorized access.');
+        }
+
+        $student = \App\Models\User::with('school')->findOrFail($studentId);
+        $access = AssessmentAccess::where('assessment_id', $assessment->id)->where('lrn', $student->lrn)->first();
+
+        $categories = \App\Models\AssessmentCategory::with(['questions' => function($q) {
+            $q->orderBy('sort_order');
+        }, 'questions.options'])->where('assessment_id', $assessment->id)->orderBy('sort_order')->get();
+
+        $sessions = \App\Models\AssessmentSession::where('assessment_id', $assessment->id)->where('user_id', $student->id)->get();
+        $studentAnswers = \App\Models\StudentAnswer::where('assessment_id', $assessment->id)->where('user_id', $student->id)->get()->keyBy('question_id');
+
+        $attemptNum = $sessions->isNotEmpty() ? 1 : 1;
+        $startTime = $sessions->isNotEmpty() && $sessions->min('created_at') ? \Carbon\Carbon::parse($sessions->min('created_at'))->format('M d, Y h:i A') : 'N/A';
+        $submissionTime = ($access && $access->status === 'finished' && $sessions->max('updated_at')) ? \Carbon\Carbon::parse($sessions->max('updated_at'))->format('M d, Y h:i A') : 'N/A';
+
+        $timeSpentSecs = 0;
+        if ($sessions->isNotEmpty()) {
+            foreach ($sessions as $s) {
+                $timeSpentSecs += \Carbon\Carbon::parse($s->created_at)->diffInSeconds(\Carbon\Carbon::parse($s->updated_at));
+            }
+        }
+        $timeSpent = $timeSpentSecs > 0 ? floor($timeSpentSecs / 60) . 'm ' . round($timeSpentSecs % 60) . 's' : '0m 0s';
+
+        $totalScore = 0;
+        $totalQuestions = 0;
+        $categoryStats = [];
+        $detailedCategories = [];
+
+        foreach ($categories as $category) {
+            $catScore = 0;
+            $catTotal = 0;
+            $catItems = [];
+
+            foreach ($category->questions as $question) {
+                if ($question->type === 'instruction') {
+                    $catItems[] = (object) [
+                        'is_instruction' => true,
+                        'question' => $question
+                    ];
+                    continue;
+                }
+
+                $totalQuestions++;
+                $catTotal++;
+
+                $studentAnswer = $studentAnswers->get($question->id);
+                $isCorrect = false;
+                $isPending = false;
+                $correctAnswerText = '';
+                $studentAnswerText = '';
+
+                $correctOptions = $question->options->where('is_correct', true);
+                $correctOptionIds = $correctOptions->pluck('id')->map(fn($id) => (string)$id)->toArray();
+                $correctTexts = $correctOptions->pluck('option_text')->map(function($t) use ($question) {
+                    return $question->is_case_sensitive ? trim($t) : strtolower(trim($t));
+                })->toArray();
+
+                if ($studentAnswer) {
+                    $selected = json_decode($studentAnswer->selected_options, true) ?? [];
+                    if (!is_array($selected)) $selected = [$selected];
+
+                    if ($question->type === 'checkbox') {
+                        $selectedStr = array_map('strval', $selected);
+                        $selectedOptsText = $question->options->whereIn('id', $selectedStr)->pluck('option_text')->implode(', ');
+                        $studentAnswerText = $selectedOptsText ?: ($studentAnswer->answer_text ?: 'No selections');
+
+                        if (count($selectedStr) === count($correctOptionIds) && empty(array_diff($selectedStr, $correctOptionIds)) && empty(array_diff($correctOptionIds, $selectedStr))) {
+                            $isCorrect = true;
+                        }
+                    } elseif ($question->type === 'text') {
+                        $rawText = $studentAnswer->answer_text ?? ($selected[0] ?? '');
+                        $cleanText = trim((string)$rawText);
+                        $studentAnswerText = $cleanText !== '' ? $cleanText : 'No answer provided';
+
+                        if ($correctOptions->isNotEmpty()) {
+                            $cmpText = $question->is_case_sensitive ? $cleanText : strtolower($cleanText);
+                            if ($cleanText !== '' && in_array($cmpText, $correctTexts)) {
+                                $isCorrect = true;
+                            }
+                        } else {
+                            $isPending = true;
+                        }
+                    } else {
+                        $selectedStr = array_map('strval', $selected);
+                        $selectedOptsText = $question->options->whereIn('id', $selectedStr)->pluck('option_text')->implode(', ');
+                        $studentAnswerText = $selectedOptsText ?: ($studentAnswer->answer_text ?: 'No selections');
+
+                        foreach ($selectedStr as $sId) {
+                            if (in_array($sId, $correctOptionIds)) {
+                                $isCorrect = true;
+                                break;
+                            }
+                        }
+                    }
+                } else {
+                    $studentAnswerText = 'No answer provided';
+                }
+
+                if ($question->type === 'text' && $correctOptions->isEmpty()) {
+                    $correctAnswerText = 'Pending instructor grading';
+                } else {
+                    $correctAnswerText = $correctOptions->pluck('option_text')->implode(', ');
+                }
+
+                if ($isCorrect) {
+                    $totalScore++;
+                    $catScore++;
+                }
+
+                $catItems[] = (object) [
+                    'is_instruction' => false,
+                    'question' => $question,
+                    'is_correct' => $isCorrect,
+                    'is_pending' => $isPending,
+                    'student_answer_text' => $studentAnswerText,
+                    'correct_answer_text' => $correctAnswerText
+                ];
+            }
+
+            $catPct = $catTotal > 0 ? round(($catScore / $catTotal) * 100) : 0;
+
+            $categoryStats[] = (object) [
+                'name' => $category->title,
+                'correct' => $catScore,
+                'total' => $catTotal,
+                'percentage' => $catPct
+            ];
+
+            $detailedCategories[] = (object) [
+                'title' => $category->title,
+                'time_limit' => $category->time_limit,
+                'items' => $catItems
+            ];
+        }
+
+        $percentage = $totalQuestions > 0 ? round(($totalScore / $totalQuestions) * 100) : 0;
+        $status = ($access && $access->status === 'finished') ? 'Completed' : 'Incomplete';
+        $resultStatus = $percentage >= 75 ? 'Passed' : 'Failed';
+
+        return view('dashboard.partials.shared.assessment-student-result', compact(
+            'assessment',
+            'student',
+            'access',
+            'attemptNum',
+            'startTime',
+            'submissionTime',
+            'timeSpent',
+            'totalScore',
+            'totalQuestions',
+            'percentage',
+            'status',
+            'resultStatus',
+            'categoryStats',
+            'detailedCategories'
+        ));
     }
 }

@@ -15,6 +15,12 @@ class MaterialAccess extends Model
         'student_id',
         'status',
         'retakes',
+        'dropped_at',
+        'dropped_by_type',
+    ];
+
+    protected $casts = [
+        'dropped_at' => 'datetime',
     ];
 
     public function material()

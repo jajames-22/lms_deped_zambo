@@ -88,6 +88,25 @@
                 @endif
             </div>
 
+            @if(!$passed)
+                @php
+                    $retakesLeft = max(0, 2 - ($retakes -1));
+                    $statusText = "{$retakesLeft} out of 2 retakes left";
+                    if ($retakes >= 3) $statusText = 'Retake Limit Reached';
+                @endphp
+                <div class="mb-8 p-4 {{ $retakes < 3 ? 'bg-orange-50 border-orange-100 text-orange-800' : 'bg-red-50 border-red-100 text-red-800' }} border rounded-xl flex items-start gap-3">
+                    <i class="fas {{ $retakes < 3 ? 'fa-redo-alt text-orange-500' : 'fa-ban text-red-500' }} mt-1"></i>
+                    <div>
+                        <p class="font-bold">Status: {{ $statusText }}</p>
+                        @if($retakes < 3)
+                            <p class="text-sm opacity-90 mt-1">You are eligible to retake the module. Note: Choosing either "Retake Entire Module" or "Retake Exam Only" will consume 1 retake.</p>
+                        @else
+                            <p class="text-sm opacity-90 mt-1">You have exhausted all your retake attempts for this module.</p>
+                        @endif
+                    </div>
+                </div>
+            @endif
+
             {{-- ACTION BUTTONS (Dynamic based on Pass/Fail) --}}
             <div class="flex flex-col sm:flex-row gap-4">
                 
@@ -97,22 +116,29 @@
                         <i class="fas fa-certificate"></i> View Certificate
                     </a>
                 @else
-                    {{-- Retake Entire Module --}}
-                    <button onclick="openModal('retake-module-modal')" class="w-full py-4 bg-gray-100 text-gray-700 font-bold rounded-xl hover:bg-gray-200 transition shadow-sm flex items-center justify-center gap-2">
-                        <i class="fas fa-redo-alt"></i> Retake Entire Module
-                    </button>
+                    @if($retakes < 3)
+                        {{-- Retake Entire Module --}}
+                        <button onclick="openModal('retake-module-modal')" class="w-full py-4 bg-gray-100 text-gray-700 font-bold rounded-xl hover:bg-gray-200 transition shadow-sm flex items-center justify-center gap-2">
+                            <i class="fas fa-redo-alt"></i> Retake Entire Module
+                        </button>
 
-                    {{-- Retake Exam Only (With Logic Lock) --}}
-                    @if($grades['hasExams'])
-                        @if($canPassWithExamRetake)
-                            <button onclick="openModal('retake-exam-modal')" class="w-full py-4 bg-[#a52a2a] text-white font-bold rounded-xl hover:bg-red-800 transition shadow-lg shadow-[#a52a2a]/20 flex items-center justify-center gap-2">
-                                <i class="fas fa-pen-alt"></i> Retake Exam Only
-                            </button>
-                        @else
-                            <button onclick="openModal('impossible-exam-modal')" class="w-full py-4 bg-[#a52a2a] text-white font-bold rounded-xl hover:bg-red-800 transition shadow-lg shadow-[#a52a2a]/20 flex items-center justify-center gap-2">
-                                <i class="fas fa-pen-alt"></i> Retake Exam Only
-                            </button>
+                        {{-- Retake Exam Only (With Logic Lock) --}}
+                        @if($grades['hasExams'])
+                            @if($canPassWithExamRetake)
+                                <button onclick="openModal('retake-exam-modal')" class="w-full py-4 bg-[#a52a2a] text-white font-bold rounded-xl hover:bg-red-800 transition shadow-lg shadow-[#a52a2a]/20 flex items-center justify-center gap-2">
+                                    <i class="fas fa-pen-alt"></i> Retake Exam Only
+                                </button>
+                            @else
+                                <button onclick="openModal('impossible-exam-modal')" class="w-full py-4 bg-[#a52a2a] text-white font-bold rounded-xl hover:bg-red-800 transition shadow-lg shadow-[#a52a2a]/20 flex items-center justify-center gap-2">
+                                    <i class="fas fa-pen-alt"></i> Retake Exam Only
+                                </button>
+                            @endif
                         @endif
+                    @else
+                        {{-- Disabled State --}}
+                        <button disabled class="w-full py-4 bg-gray-100 text-gray-400 font-bold rounded-xl cursor-not-allowed flex items-center justify-center gap-2">
+                            <i class="fas fa-ban"></i> Retakes Exhausted
+                        </button>
                     @endif
                 @endif
 

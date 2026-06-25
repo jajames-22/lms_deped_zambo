@@ -149,12 +149,12 @@
                                     class="w-full px-4 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-[#a52a2a]/50 focus:border-[#a52a2a] outline-none transition-all @error('username') border-red-500 @enderror"
                                     placeholder="Ex. Juan_DelaCruz">
                                 
-                                <p class="text-[10px] text-gray-500 mt-1 leading-tight">
-                                    Max 30 chars. Must contain at least 3 letters. Only letters, numbers, periods (.), or underscores (_) allowed.
-                                </p>
-                                
                                 @error('username') 
                                     <p class="text-red-500 text-xs mt-1 font-medium">{{ $message }}</p>
+                                @else
+                                    <p class="text-[10px] text-gray-500 mt-1 leading-tight">
+                                        Max 30 chars. Must contain at least 3 letters. Only letters, numbers, periods (.), or underscores (_) allowed.
+                                    </p>
                                 @enderror
                             </div>
 
@@ -277,7 +277,13 @@
                                 <input type="password" name="password"
                                     class="w-full px-4 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-[#a52a2a]/50 focus:border-[#a52a2a] outline-none transition-all @error('password') border-red-500 @enderror"
                                     placeholder="Password">
-                                @error('password') <p class="text-red-500 text-xs mt-1 font-medium">{{ $message }}</p>
+                                
+                                @error('password') 
+                                    <p class="text-red-500 text-xs mt-1 font-medium">{{ $message }}</p>
+                                @else
+                                    <p class="text-[10px] text-gray-500 mt-1 leading-tight">
+                                        Must be at least 8 characters, contain uppercase & lowercase letters, and at least one number.
+                                    </p>
                                 @enderror
                             </div>
 

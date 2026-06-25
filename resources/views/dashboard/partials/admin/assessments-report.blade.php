@@ -2,7 +2,6 @@
 <html>
 <head>
     <meta charset="utf-8">
-    
     <link rel="icon" type="image/png" href="{{ asset('deped_lms_logo.png') }}">
     <title>{{ $assessment->title }} - Analytics Report</title>
     <style>
@@ -108,7 +107,7 @@
             </tr>
         </table>
 
-        <div style="font-weight: bold; margin-bottom: 5px; color:#555; margin-top:20px; font-size:12px; text-transform:uppercase;">Score Distribution & Proficiency Curve</div>
+        <div style="font-weight: bold; margin-bottom: 5px; color:#555; margin-top:20px; font-size:12px; text-transform:uppercase;">Score Distribution, Proficiency & Time Analytics</div>
         <table class="sub-table">
             <thead>
                 <tr>
@@ -127,6 +126,26 @@
                     <td class="text-center font-bold">{{ $dist['count'] }}</td>
                 </tr>
                 @endforeach
+            </tbody>
+        </table>
+
+        <div style="font-weight: bold; margin-bottom: 5px; color:#555; margin-top:20px; font-size:12px; text-transform:uppercase;">Average Time Allocated per Category</div>
+        <table class="sub-table">
+            <thead>
+                <tr>
+                    <th style="width: 70%; text-align: left;">Category / Section Name</th>
+                    <th style="width: 30%; text-align: center;">Average Duration</th>
+                </tr>
+            </thead>
+            <tbody>
+                @forelse($categoryTimeStats as $stat)
+                <tr>
+                    <td>{{ $stat->title }}</td>
+                    <td class="text-center font-bold" style="color: #a52a2a;">{{ $stat->format }}</td>
+                </tr>
+                @empty
+                <tr><td colspan="2" class="text-center">No category pacing data available.</td></tr>
+                @endforelse
             </tbody>
         </table>
         @endif

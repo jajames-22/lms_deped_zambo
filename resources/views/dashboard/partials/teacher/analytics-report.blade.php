@@ -113,16 +113,16 @@
         <div class="section-title">1. Teaching Overview</div>
         <table class="data-table">
             <tr>
-                <th>Total Modules</th>
-                <td class="text-right">{{ number_format($totalModules) }}</td>
-            </tr>
-            <tr>
-                <th>Published Modules</th>
-                <td class="text-right text-green">{{ number_format($publishedModules) }}</td>
+                <th>Active Modules</th>
+                <td class="text-right text-green">{{ number_format($activeModules) }}</td>
             </tr>
             <tr>
                 <th>Draft Modules</th>
                 <td class="text-right" style="color: #6b7280;">{{ number_format($draftModules) }}</td>
+            </tr>
+            <tr>
+                <th>Total Created Modules</th>
+                <td class="text-right">{{ number_format($totalModules) }}</td>
             </tr>
             <tr>
                 <th>Unique Learners</th>

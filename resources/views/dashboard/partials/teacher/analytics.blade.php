@@ -63,8 +63,8 @@
 
             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                 <div class="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 border-l-4 border-l-blue-500">
-                    <p class="text-gray-500 text-sm font-medium mb-1">Total Modules</p>
-                    <p class="text-3xl font-bold text-gray-900">{{ number_format($totalModules) }}</p>
+                    <p class="text-gray-500 text-sm font-medium mb-1">Active Modules</p>
+                    <p class="text-3xl font-bold text-gray-900">{{ number_format($activeModules) }}</p>
                 </div>
                 <div class="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 border-l-4 border-l-purple-500">
                     <p class="text-gray-500 text-sm font-medium mb-1">Unique Learners</p>
@@ -99,10 +99,36 @@
                             <p class="text-gray-500 text-sm font-medium mb-1">Quiz MPS</p>
                             <div class="relative group cursor-help">
                                 <i class="fas fa-info-circle text-gray-400 transition-colors group-hover:text-[#a52a2a]"></i>
-                                <div class="absolute top-full left-1/2 -translate-x-1/2 mt-2 w-60 p-3 bg-gray-900 text-white text-[11px] rounded-xl shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-[100] pointer-events-none text-left font-normal normal-case tracking-normal">
-                                    <strong class="text-white block mb-1 border-b border-gray-700 pb-1">Quiz MPS</strong>
-                                    <p class="text-gray-300 m-0">Formula: (Total Correct Quiz Answers ÷ Total Possible Quiz Answers) × 100</p>
-                                    <div class="absolute bottom-full left-1/2 -translate-x-1/2 border-4 border-transparent border-b-gray-900"></div>
+                                <div class="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-80 bg-white rounded-xl shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-[100] border border-gray-100 text-left font-normal normal-case tracking-normal">
+                                    <div class="p-3 max-h-48 overflow-y-auto custom-scrollbar text-gray-700 text-[11px] leading-relaxed">
+                                        <strong class="text-gray-900 block mb-1">Quiz Mean Percentage Score (MPS)</strong>
+                                        The Quiz MPS represents the average score percentage across all lesson quizzes taken by active students in your published modules.
+
+                                        <div class="mt-2 pt-2 border-t border-gray-100">
+                                            <strong class="text-gray-900 block mb-1">How it's calculated:</strong>
+                                            <ol class="list-decimal pl-4 space-y-1 m-0">
+                                                <li>Sum all correct quiz answers submitted by active students.</li>
+                                                <li>Sum all total quiz questions answered by active students.</li>
+                                                <li>Divide correct answers by total answered questions and multiply by 100.<br>
+                                                    <span class="text-gray-500 italic text-[10px]">Quiz MPS = (Total Correct Answers &divide; Total Questions Answered) &times; 100</span>
+                                                </li>
+                                            </ol>
+                                        </div>
+
+                                        <div class="mt-2 bg-gray-50 p-2.5 rounded border border-gray-100">
+                                            <strong class="text-gray-900 block mb-1">Example:</strong>
+                                            <p class="mb-1 text-gray-600">Active students answered 40 total quiz items across lessons.</p>
+                                            <ul class="list-disc pl-4 space-y-0.5 text-[10px] text-gray-600 m-0">
+                                                <li>Total Correct Answers: 32</li>
+                                                <li>Total Incorrect Answers: 8</li>
+                                            </ul>
+                                            <div class="mt-2 pt-2 border-t border-gray-200">
+                                                <p class="text-[10px] text-gray-600 m-0">Computation: (32 &divide; 40) &times; 100 = 80%</p>
+                                                <p class="font-bold text-gray-900 mt-0.5 mb-0">Result: The Quiz MPS is 80%.</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="absolute top-full left-1/2 -translate-x-1/2 w-0 h-0 border-x-[6px] border-x-transparent border-t-[8px] border-t-white"></div>
                                 </div>
                             </div>
                         </div>
@@ -119,10 +145,36 @@
                             <p class="text-gray-500 text-sm font-medium mb-1">Exam MPS</p>
                             <div class="relative group cursor-help">
                                 <i class="fas fa-info-circle text-gray-400 transition-colors group-hover:text-[#a52a2a]"></i>
-                                <div class="absolute top-full left-1/2 -translate-x-1/2 mt-2 w-60 p-3 bg-gray-900 text-white text-[11px] rounded-xl shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-[100] pointer-events-none text-left font-normal normal-case tracking-normal">
-                                    <strong class="text-white block mb-1 border-b border-gray-700 pb-1">Exam MPS</strong>
-                                    <p class="text-gray-300 m-0">Formula: (Total Correct Exam Answers ÷ Total Possible Exam Answers) × 100</p>
-                                    <div class="absolute bottom-full left-1/2 -translate-x-1/2 border-4 border-transparent border-b-gray-900"></div>
+                                <div class="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-80 bg-white rounded-xl shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-[100] border border-gray-100 text-left font-normal normal-case tracking-normal">
+                                    <div class="p-3 max-h-48 overflow-y-auto custom-scrollbar text-gray-700 text-[11px] leading-relaxed">
+                                        <strong class="text-gray-900 block mb-1">Exam Mean Percentage Score (MPS)</strong>
+                                        The Exam MPS represents the average test performance across all module assessment exams completed by active students.
+
+                                        <div class="mt-2 pt-2 border-t border-gray-100">
+                                            <strong class="text-gray-900 block mb-1">How it's calculated:</strong>
+                                            <ol class="list-decimal pl-4 space-y-1 m-0">
+                                                <li>Sum all correct exam items answered by active students.</li>
+                                                <li>Sum all total exam items answered by active students.</li>
+                                                <li>Divide correct answers by total answered items and multiply by 100.<br>
+                                                    <span class="text-gray-500 italic text-[10px]">Exam MPS = (Total Correct Answers &divide; Total Exam Items Answered) &times; 100</span>
+                                                </li>
+                                            </ol>
+                                        </div>
+
+                                        <div class="mt-2 bg-gray-50 p-2.5 rounded border border-gray-100">
+                                            <strong class="text-gray-900 block mb-1">Example:</strong>
+                                            <p class="mb-1 text-gray-600">Active students submitted 100 total exam answers.</p>
+                                            <ul class="list-disc pl-4 space-y-0.5 text-[10px] text-gray-600 m-0">
+                                                <li>Total Correct Answers: 85</li>
+                                                <li>Total Incorrect Answers: 15</li>
+                                            </ul>
+                                            <div class="mt-2 pt-2 border-t border-gray-200">
+                                                <p class="text-[10px] text-gray-600 m-0">Computation: (85 &divide; 100) &times; 100 = 85%</p>
+                                                <p class="font-bold text-gray-900 mt-0.5 mb-0">Result: The Exam MPS is 85%.</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="absolute top-full left-1/2 -translate-x-1/2 w-0 h-0 border-x-[6px] border-x-transparent border-t-[8px] border-t-white"></div>
                                 </div>
                             </div>
                         </div>
@@ -139,10 +191,36 @@
                             <p class="text-gray-500 text-sm font-medium mb-1">Overall Pass Rate</p>
                             <div class="relative group cursor-help">
                                 <i class="fas fa-info-circle text-gray-400 transition-colors group-hover:text-[#a52a2a]"></i>
-                                <div class="absolute right-0 mt-2 w-60 p-3 bg-gray-900 text-white text-[11px] rounded-xl shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-[100] pointer-events-none text-left font-normal normal-case tracking-normal">
-                                    <strong class="text-white block mb-1 border-b border-gray-700 pb-1">Overall Pass Rate</strong>
-                                    <p class="text-gray-300 m-0">Formula: (Passed Attempts ÷ Completed Attempts) × 100</p>
-                                    <div class="absolute bottom-full right-2 border-4 border-transparent border-b-gray-900"></div>
+                                <div class="absolute bottom-full right-0 mb-2 w-80 bg-white rounded-xl shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-[100] border border-gray-100 text-left font-normal normal-case tracking-normal">
+                                    <div class="p-3 max-h-48 overflow-y-auto custom-scrollbar text-gray-700 text-[11px] leading-relaxed">
+                                        <strong class="text-gray-900 block mb-1">Overall Pass Rate</strong>
+                                        The Overall Pass Rate represents the percentage of completed module assessment attempts that resulted in a passing score.
+
+                                        <div class="mt-2 pt-2 border-t border-gray-100">
+                                            <strong class="text-gray-900 block mb-1">How it's calculated:</strong>
+                                            <ol class="list-decimal pl-4 space-y-1 m-0">
+                                                <li>Count all module attempts with status 'completed' (passed).</li>
+                                                <li>Count all concluded attempts ('completed' or 'failed').</li>
+                                                <li>Divide passed attempts by total concluded attempts and multiply by 100.<br>
+                                                    <span class="text-gray-500 italic text-[10px]">Pass Rate = (Passed Attempts &divide; Total Concluded Attempts) &times; 100</span>
+                                                </li>
+                                            </ol>
+                                        </div>
+
+                                        <div class="mt-2 bg-gray-50 p-2.5 rounded border border-gray-100">
+                                            <strong class="text-gray-900 block mb-1">Example:</strong>
+                                            <p class="mb-1 text-gray-600">25 total students finished taking module exams.</p>
+                                            <ul class="list-disc pl-4 space-y-0.5 text-[10px] text-gray-600 m-0">
+                                                <li>Passed (Completed): 20</li>
+                                                <li>Failed: 5</li>
+                                            </ul>
+                                            <div class="mt-2 pt-2 border-t border-gray-200">
+                                                <p class="text-[10px] text-gray-600 m-0">Computation: (20 &divide; 25) &times; 100 = 80%</p>
+                                                <p class="font-bold text-gray-900 mt-0.5 mb-0">Result: The Overall Pass Rate is 80%.</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="absolute top-full right-2 w-0 h-0 border-x-[6px] border-x-transparent border-t-[8px] border-t-white"></div>
                                 </div>
                             </div>
                         </div>

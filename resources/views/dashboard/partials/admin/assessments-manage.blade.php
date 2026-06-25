@@ -168,10 +168,15 @@
         </div>
 
         <div class="flex items-center justify-between mb-4 bg-gray-50 p-3 rounded-xl border border-gray-100">
-            <div class="relative w-full md:w-72">
-                <i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"></i>
-                <input type="text" id="search-student" onkeyup="filterStudents()" placeholder="Search LRN or Name..." 
-                    class="w-full pl-10 pr-4 py-2 bg-white border border-gray-200 rounded-lg focus:ring-2 focus:ring-[#a52a2a]/20 focus:border-[#a52a2a] outline-none transition-all text-sm">
+            <div class="flex items-center gap-2 w-full md:w-auto">
+                <div class="relative w-full md:w-72">
+                    <i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"></i>
+                    <input type="text" id="search-student" onkeyup="filterStudents()" placeholder="Search LRN or Name..." 
+                        class="w-full pl-10 pr-4 py-2 bg-white border border-gray-200 rounded-lg focus:ring-2 focus:ring-[#a52a2a]/20 focus:border-[#a52a2a] outline-none transition-all text-sm">
+                </div>
+                <button type="button" onclick="exportStudentResultsList()" class="px-4 py-2 bg-white border border-gray-200 text-gray-700 text-sm font-bold rounded-lg hover:bg-gray-50 hover:text-[#a52a2a] transition-all shadow-sm flex items-center gap-2 whitespace-nowrap" title="Export List">
+                    <i class="fas fa-file-export text-[#a52a2a]"></i> Export List
+                </button>
             </div>
 
             <button type="button" id="bulk-delete-btn" onclick="window.openDeleteModal('bulk')" 
@@ -245,8 +250,15 @@
                                 </span>
                             @endif
                         </td>
-                        <td class="px-6 py-4 text-center">
-                            <button type="button" onclick="window.openDeleteModal('{{ $access->id }}')" class="text-gray-400 hover:text-red-500 transition" title="Remove Access">
+                        <td class="px-6 py-4 text-center whitespace-nowrap">
+                            @if(in_array($access->status, ['finished', 'completed']) && $access->student)
+                                <a href="{{ route('dashboard.assessments.students.results', [$assessment->id, $access->student->id]) }}" 
+                                   class="inline-flex items-center gap-1.5 px-3 py-1 bg-[#a52a2a]/10 text-[#a52a2a] hover:bg-[#a52a2a] hover:text-white rounded-lg text-xs font-bold transition mr-1" 
+                                   title="View Assessment Results">
+                                    <i class="fas fa-file-alt"></i> View Results
+                                </a>
+                            @endif
+                            <button type="button" onclick="window.openDeleteModal('{{ $access->id }}')" class="text-gray-400 hover:text-red-500 transition inline-block px-1" title="Remove Access">
                                 <i class="fas fa-times-circle"></i>
                             </button>
                         </td>
@@ -367,8 +379,8 @@
 </div>
 
     <div id="custom-snackbar" class="fixed bg-[#a52a2a] bottom-6 right-6 z-[200] transform translate-y-24 opacity-0 transition-all duration-300 flex items-center gap-3 px-5 py-4 rounded-xl shadow-2xl font-medium text-sm text-white">
-        <div id="snackbar-icon" class="text-xl"></div>
-        <span id="snackbar-message"></span>
+        <div id="assessment-snackbar-icon" class="text-xl"></div>
+        <span id="assessment-snackbar-message"></span>
         <button onclick="closeSnackbar()" class="ml-4 text-white/70 hover:text-white transition"><i class="fas fa-times"></i></button>
     </div>
 </div>
@@ -645,8 +657,8 @@
     
     window.showSnackbar = function(message, type = 'error') {
         const snackbar = document.getElementById('custom-snackbar');
-        const msgEl = document.getElementById('snackbar-message');
-        const iconEl = document.getElementById('snackbar-icon');
+        const msgEl = document.getElementById('assessment-snackbar-message');
+        const iconEl = document.getElementById('assessment-snackbar-icon');
 
         snackbar.className = "fixed bottom-6 right-6 z-[200] transform translate-y-24 opacity-0 transition-all duration-300 flex items-center gap-3 px-5 py-4 rounded-xl shadow-2xl font-medium text-sm text-white";
         
@@ -1393,4 +1405,10 @@ function renderLrnDuplicates(data) {
             assessmentBtn.classList.add('bg-[#a52a2a]/10', 'text-[#a52a2a]', 'font-medium', 'border-r-4', 'border-[#a52a2a]');
         }
     }, 50);
+
+    function exportStudentResultsList() {
+        const searchVal = document.getElementById('search-student') ? document.getElementById('search-student').value.trim() : '';
+        const query = encodeURIComponent(searchVal);
+        window.open(`{{ route('dashboard.assessments.students.export', $assessment->id) }}?search=${query}`, '_blank');
+    }
 </script>

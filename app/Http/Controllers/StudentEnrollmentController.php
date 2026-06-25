@@ -69,6 +69,20 @@ class StudentEnrollmentController extends Controller
         ->where('email', $email)
         ->firstOrFail();
 
+    $enrollment = \App\Models\Enrollment::where('material_id', $material->id)->where('user_id', Auth::id())->first();
+
+    if ($access->status === 'dropped' || ($enrollment && $enrollment->status === 'dropped')) {
+        $droppedByStudent = ($access->dropped_by_type === 'student') || ($enrollment && $enrollment->dropped_by_type === 'student');
+
+        if ($droppedByStudent) {
+            \App\Models\Enrollment::reactivateAndResetForStudent(Auth::user(), $material);
+            return redirect()->route('student.materials.show', $hashid)
+                ->with('success', 'Successfully rejoined the module!');
+        } else {
+            abort(403, 'You were removed from this module. Please contact your instructor to be re-enrolled.');
+        }
+    }
+
     // 4. Create Enrollment record (tracking progress)
     \App\Models\Enrollment::firstOrCreate([
         'material_id' => $material->id,
@@ -114,11 +128,32 @@ class StudentEnrollmentController extends Controller
         }
         
         // 3. Check if already enrolled (Rest of your existing code remains exactly the same below here)
-        $alreadyEnrolled = Enrollment::where('material_id', $material->id)
+        $enrollment = Enrollment::where('material_id', $material->id)
             ->where('user_id', Auth::id())
-            ->exists();
+            ->first();
 
-        if ($alreadyEnrolled) {
+        $access = MaterialAccess::where('material_id', $material->id)
+            ->where('email', Auth::user()->email)
+            ->first();
+
+        if ($enrollment || ($access && $access->status === 'dropped')) {
+            $isDropped = ($enrollment && $enrollment->status === 'dropped') || ($access && $access->status === 'dropped');
+            $droppedByStudent = ($enrollment && $enrollment->dropped_by_type === 'student') || ($access && $access->dropped_by_type === 'student');
+
+            if ($isDropped) {
+                if ($droppedByStudent) {
+                    \App\Models\Enrollment::reactivateAndResetForStudent(Auth::user(), $material);
+                    return response()->json([
+                        'success' => true,
+                        'redirect_url' => route('student.materials.show', $material->hashid)
+                    ]);
+                } else {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'You were removed from this module. Please contact your instructor to be re-enrolled.'
+                    ]);
+                }
+            }
             return response()->json([
                 'success' => true,
                 'redirect_url' => route('student.materials.show', $material->hashid)
