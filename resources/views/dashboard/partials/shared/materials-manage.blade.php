@@ -524,7 +524,8 @@
                                                         if (($access->retakes ?? 0) >= 3 && $status !== 'completed') {
                                                             $status = 'failed';
                                                         }
-                                                        $hasGrade = $access->student && $status && in_array($status, ['completed', 'failed']) && ($hasExams || $hasQuizzes);
+                                                        $showResults = in_array($status, ['completed', 'failed']) || ($status === 'dropped' && (!is_null($access->current_enrollment->completed_at) || ($access->current_enrollment->progress_percentage ?? 0) >= 100 || ($access->retakes ?? 0) > 0));
+                                                        $hasGrade = $access->student && $access->current_enrollment && $showResults && ($hasExams || $hasQuizzes);
                                                     @endphp
 
                                                     @if($hasGrade)
@@ -553,7 +554,7 @@
                                                                     {{ ucwords(str_replace('_', ' ', $access->current_enrollment->status)) }}
                                                                 </span>
 
-                                                                @if(($hasExams || $hasQuizzes) && in_array($access->current_enrollment->status, ['completed', 'failed']))
+                                                                @if(($hasExams || $hasQuizzes) && (in_array($access->current_enrollment->status, ['completed', 'failed']) || ($access->current_enrollment->status === 'dropped' && (!is_null($access->current_enrollment->completed_at) || ($access->current_enrollment->progress_percentage ?? 0) >= 100 || ($access->retakes ?? 0) > 0))))
                                                                     <span
                                                                         class="px-2 py-0.5 bg-blue-50 text-blue-700 rounded border border-blue-100 text-[10px] font-black tracking-wide">
                                                                         Score: {{ $access->current_enrollment->score ?? '0' }}%
@@ -633,7 +634,7 @@
                                                     </div>
 
 
-                                                    @if(($hasExams || $hasQuizzes) && in_array($status, ['completed', 'failed']))
+                                                    @if(($hasExams || $hasQuizzes) && (in_array($status, ['completed', 'failed']) || ($status === 'dropped' && (!is_null($access->current_enrollment->completed_at) || ($access->current_enrollment->progress_percentage ?? 0) >= 100 || ($access->retakes ?? 0) > 0))))
                                                         <span
                                                             class="p-0.5 bg-blue-50 text-blue-700 rounded border border-blue-100 w-min text-nowrap text-[10px] font-black shadow-sm">
                                                             Score: {{ $access->current_enrollment->score ?? '0' }}%

@@ -339,6 +339,28 @@
             </div>
         </div>
     </div>
+
+    {{-- Re-enroll Code Warning Modal --}}
+    <div id="reenrollCodeWarningModal" class="fixed inset-0 z-[100] hidden h-full flex items-center justify-center p-4">
+        <div class="absolute inset-0 bg-gray-900/60 backdrop-blur-sm" onclick="closeReenrollCodeWarningModal()"></div>
+        <div class="bg-white rounded-3xl w-full max-w-md shadow-2xl overflow-hidden transform transition-all text-center p-6 relative z-10">
+            <div class="w-16 h-16 bg-amber-50 text-amber-500 rounded-full flex items-center justify-center mx-auto mb-4 text-3xl">
+                <i class="fas fa-exclamation-triangle"></i>
+            </div>
+            <h3 class="text-xl font-black text-gray-900 mb-2">Re-enroll in Module?</h3>
+            <p id="reenroll-code-warning-text" class="text-sm text-gray-600 mb-6 leading-relaxed">
+                If you enroll in this module again on your own, your progress will be reset and you will start from the beginning. Your progress can only be preserved if your instructor re-enrolls you.
+            </p>
+            <div class="flex gap-3">
+                <button type="button" onclick="closeReenrollCodeWarningModal()" class="w-full py-3 bg-gray-100 text-gray-700 font-bold rounded-xl hover:bg-gray-200 transition">
+                    Cancel
+                </button>
+                <button type="button" id="confirm-code-reenroll-btn" onclick="executeCodeReenroll()" class="w-full py-3 bg-[#a52a2a] text-white font-bold rounded-xl hover:bg-red-800 transition">
+                    Yes, Re-enroll
+                </button>
+            </div>
+        </div>
+    </div>
 </div>
 
 <script>
@@ -460,6 +482,9 @@
                     window.location.href = data.redirect_url;
                 }, 1000);
                 
+            } else if (data.requires_warning) {
+                closeJoinModal();
+                openReenrollCodeWarningModal(code, data.message);
             } else {
                 errorMsg.innerText = data.message || 'Invalid code.';
                 errorMsg.classList.remove('hidden');
@@ -470,6 +495,54 @@
             console.error(error);
             errorMsg.innerText = 'A network error occurred. Please check your connection.';
             errorMsg.classList.remove('hidden');
+        } finally {
+            btn.innerHTML = originalHtml;
+            btn.disabled = false;
+        }
+    }
+
+    let codeToReenroll = null;
+
+    function openReenrollCodeWarningModal(code, message) {
+        codeToReenroll = code;
+        const textEl = document.getElementById('reenroll-code-warning-text');
+        if (textEl && message) textEl.innerText = message;
+        document.getElementById('reenrollCodeWarningModal').classList.remove('hidden');
+    }
+
+    function closeReenrollCodeWarningModal() {
+        codeToReenroll = null;
+        document.getElementById('reenrollCodeWarningModal').classList.add('hidden');
+    }
+
+    async function executeCodeReenroll() {
+        if(!codeToReenroll) return;
+        const btn = document.getElementById('confirm-code-reenroll-btn');
+        const originalHtml = btn.innerHTML;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Re-enrolling...';
+        btn.disabled = true;
+
+        try {
+            const response = await fetch('{{ route("student.enroll.code") }}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || '',
+                    'Accept': 'application/json'
+                },
+                body: JSON.stringify({ access_code: codeToReenroll, confirmed: true })
+            });
+            const data = await response.json();
+            if(response.ok && data.success) {
+                closeReenrollCodeWarningModal();
+                if (typeof showSnackbar === 'function') showSnackbar('Successfully re-enrolled! Loading...', 'success');
+                setTimeout(() => { window.location.href = data.redirect_url; }, 1000);
+            } else {
+                alert(data.message || 'Error occurred.');
+            }
+        } catch(e) {
+            console.error(e);
+            alert('Network error.');
         } finally {
             btn.innerHTML = originalHtml;
             btn.disabled = false;

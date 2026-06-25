@@ -513,9 +513,16 @@ class MaterialsController extends Controller
                         $access->update(['retakes' => 0]);
 
                     } else {
-                        // --- CONTINUE PROGRESS ---
-                        // Determine correct status from the actual DB status column
-                        $continueStatus = in_array($enrollment->status, ['completed', 'failed']) ? $enrollment->status : 'in_progress';
+                        // Restore status based on completion timestamp or retakes
+                        if (!is_null($enrollment->completed_at)) {
+                            $continueStatus = 'completed';
+                        } elseif (in_array($enrollment->status, ['completed', 'failed'])) {
+                            $continueStatus = $enrollment->status;
+                        } elseif (($access->retakes ?? 0) > 0) {
+                            $continueStatus = 'failed';
+                        } else {
+                            $continueStatus = 'in_progress';
+                        }
                         $enrollment->update([
                             'status' => $continueStatus,
                             'updated_at' => now(),
@@ -563,7 +570,7 @@ class MaterialsController extends Controller
 
             foreach ($accesses as $access) {
                 if (in_array($access->status, ['enrolled', 'dropped'])) {
-                    $access->update(['status' => 'dropped']);
+                    $access->update(['status' => 'dropped', 'dropped_at' => now(), 'dropped_by_type' => 'instructor']);
 
                     $student = User::where('email', $access->email)->first();
                     $material = \App\Models\Material::find($access->material_id);
@@ -571,7 +578,7 @@ class MaterialsController extends Controller
                     if ($student) {
                         Enrollment::where('material_id', $access->material_id)
                             ->where('user_id', $student->id)
-                            ->update(['status' => 'dropped', 'updated_at' => now()]);
+                            ->update(['status' => 'dropped', 'dropped_at' => now(), 'dropped_by_type' => 'instructor', 'updated_at' => now()]);
 
                         if ($material) {
                             $student->notify(new \App\Notifications\LmsAlertNotification(
@@ -614,7 +621,7 @@ class MaterialsController extends Controller
             if ($student) {
                 Enrollment::where('material_id', $access->material_id)
                     ->where('user_id', $student->id)
-                    ->update(['status' => 'dropped', 'updated_at' => now()]);
+                    ->update(['status' => 'dropped', 'dropped_at' => now(), 'dropped_by_type' => 'instructor', 'updated_at' => now()]);
 
                 if ($material) {
                     $student->notify(new \App\Notifications\LmsAlertNotification(
@@ -627,7 +634,7 @@ class MaterialsController extends Controller
                 }
             }
 
-            $access->update(['status' => 'dropped']);
+            $access->update(['status' => 'dropped', 'dropped_at' => now(), 'dropped_by_type' => 'instructor']);
 
             DB::commit();
             return response()->json(['success' => true, 'message' => 'Student dropped. Progress has been preserved.']);
@@ -781,9 +788,15 @@ class MaterialsController extends Controller
                             // Reset retakes counter on the access record
                             $access->update(['retakes' => 0]);
 
-                        } else {
-                            // --- CONTINUE PROGRESS ---
-                            $continueStatus = in_array($enrollment->status, ['completed', 'failed']) ? $enrollment->status : 'in_progress';
+                            if (!is_null($enrollment->completed_at)) {
+                                $continueStatus = 'completed';
+                            } elseif (in_array($enrollment->status, ['completed', 'failed'])) {
+                                $continueStatus = $enrollment->status;
+                            } elseif (($access->retakes ?? 0) > 0) {
+                                $continueStatus = 'failed';
+                            } else {
+                                $continueStatus = 'in_progress';
+                            }
                             $enrollment->update([
                                 'status' => $continueStatus,
                                 'updated_at' => now(),
@@ -2133,14 +2146,7 @@ class MaterialsController extends Controller
             $droppedByStudent = ($existingEnrollment && $existingEnrollment->dropped_by_type === 'student') || ($existingAccess && $existingAccess->dropped_by_type === 'student');
 
             if ($isDropped) {
-                if ($droppedByStudent) {
-                    \App\Models\Enrollment::reactivateAndResetForStudent($user, $material);
-                } else {
-                    return response()->json([
-                        'success' => false,
-                        'message' => 'You were removed from this module. Please contact your instructor to be re-enrolled.'
-                    ]);
-                }
+                \App\Models\Enrollment::reactivateAndResetForStudent($user, $material);
             } else {
                 return response()->json([
                     'success' => false,

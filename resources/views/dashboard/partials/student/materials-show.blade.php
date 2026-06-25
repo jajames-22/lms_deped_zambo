@@ -93,6 +93,9 @@
         $retakesCount = 0;
 
         // FETCH ACCESS AND RETAKE COUNT GLOBALLY (Outside of Enrollment block)
+        $isDropped = false;
+        $droppedByType = null;
+        $enrollment = null;
         if (auth()->check() && auth()->user()->role === 'student') {
             $access = \App\Models\MaterialAccess::where('material_id', $material->id)
                 ->where(function($q) {
@@ -103,6 +106,19 @@
                 
             if ($access) {
                 $retakesCount = $access->retakes;
+                if ($access->status === 'dropped') {
+                    $isDropped = true;
+                    $droppedByType = $access->dropped_by_type;
+                }
+            }
+
+            $enrollment = \App\Models\Enrollment::where('material_id', $material->id)
+                ->where('user_id', auth()->id())
+                ->first();
+
+            if ($enrollment && $enrollment->status === 'dropped') {
+                $isDropped = true;
+                $droppedByType = $enrollment->dropped_by_type ?? $droppedByType;
             }
         }
         
@@ -113,9 +129,6 @@
         });
 
         if ($isEnrolled) {
-            $enrollment = \App\Models\Enrollment::where('material_id', $material->id)
-                ->where('user_id', auth()->id())
-                ->first();
 
             if ($enrollment) {
                 $enrollmentStatus = $enrollment->status; // 'in_progress', 'completed', or 'failed'
@@ -391,13 +404,19 @@
                             @endif
                         @else
                             {{-- NORMAL DYNAMIC FLOW --}}
-                            <button id="enroll-btn" onclick="enrollInMaterial({{ $material->id }}, this)" class="{{ $isEnrolled ? 'hidden' : 'flex' }} w-full sm:w-auto px-8 py-3.5 bg-[#a52a2a] text-white font-bold rounded-xl hover:bg-red-800 transition shadow-lg shadow-[#a52a2a]/20 items-center justify-center gap-2">
-                                @if(!$dbHasExams && !$dbHasQuizzes)
-                                    <i class="fas fa-book-reader text-lg"></i> Read Material
-                                @else
-                                    <i class="fas fa-user-plus text-lg"></i> Enroll Now
-                                @endif
-                            </button>
+                            @if($isDropped)
+                                <button id="enroll-btn" onclick="openReenrollModal({{ $material->id }})" class="w-full sm:w-auto px-8 py-3.5 bg-[#a52a2a] text-white font-bold rounded-xl hover:bg-red-800 transition shadow-lg shadow-[#a52a2a]/20 flex items-center justify-center gap-2">
+                                    <i class="fas fa-rotate-left text-lg"></i> Re-enroll
+                                </button>
+                            @else
+                                <button id="enroll-btn" onclick="enrollInMaterial({{ $material->id }}, this)" class="{{ $isEnrolled ? 'hidden' : 'flex' }} w-full sm:w-auto px-8 py-3.5 bg-[#a52a2a] text-white font-bold rounded-xl hover:bg-red-800 transition shadow-lg shadow-[#a52a2a]/20 items-center justify-center gap-2">
+                                    @if(!$dbHasExams && !$dbHasQuizzes)
+                                        <i class="fas fa-book-reader text-lg"></i> Read Material
+                                    @else
+                                        <i class="fas fa-user-plus text-lg"></i> Enroll Now
+                                    @endif
+                                </button>
+                            @endif
 
                             <button id="unenroll-btn" onclick="{{ ($dbHasExams || $dbHasQuizzes) ? 'openDropModal('.$material->id.')' : 'openRemoveModal('.$material->id.')' }}" class="{{ $isEnrolled ? 'flex' : 'hidden' }} w-full sm:w-auto px-6 py-3.5 bg-gray-50 text-gray-700 border border-gray-200 font-bold rounded-xl hover:bg-gray-100 transition items-center justify-center gap-2 cursor-pointer shadow-sm">
                                 @if($enrollmentStatus === 'completed')
@@ -650,6 +669,32 @@
         </div>
     </div>
 
+    {{-- Re-enroll Warning Modal --}}
+    <div id="reenrollWarningModal" class="fixed inset-0 z-[9999] hidden opacity-0 transition-opacity duration-300 flex items-center justify-center p-4">
+        <div class="absolute inset-0 bg-gray-900/60" onclick="closeReenrollModal()"></div>
+        <div class="bg-white rounded-3xl w-full max-w-md shadow-2xl overflow-hidden transform scale-95 transition-all duration-300 text-center p-6 relative z-10" id="reenrollWarningBox">
+            <div class="w-16 h-16 bg-amber-50 text-amber-500 rounded-full flex items-center justify-center mx-auto mb-4 text-3xl">
+                <i class="fas fa-exclamation-triangle"></i>
+            </div>
+            <h3 class="text-xl font-black text-gray-900 mb-2">Re-enroll in Module?</h3>
+            <p class="text-sm text-gray-600 mb-6 leading-relaxed">
+                @if($droppedByType === 'student')
+                    You have already enrolled in this module once and dropped it voluntarily. Re-enrolling means that your progress will be reset and you will start from the beginning.
+                @else
+                    If you enroll in this module again on your own, your progress will be reset and you will start from the beginning. Your progress can only be preserved if your instructor re-enrolls you.
+                @endif
+            </p>
+            <div class="flex gap-3">
+                <button type="button" onclick="closeReenrollModal()" class="w-full py-3 bg-gray-100 text-gray-700 font-bold rounded-xl hover:bg-gray-200 transition">
+                    Cancel
+                </button>
+                <button type="button" id="confirm-reenroll-btn" onclick="executeReenroll()" class="w-full py-3 bg-[#a52a2a] text-white font-bold rounded-xl hover:bg-red-800 transition">
+                    Yes, Re-enroll
+                </button>
+            </div>
+        </div>
+    </div>
+
     {{-- Standalone Alert Modal --}}
     <div id="standaloneAlertModal"
         class="fixed inset-0 z-[9999] hidden opacity-0 transition-opacity duration-300 flex items-center justify-center p-4">
@@ -875,6 +920,40 @@
             modal.classList.remove('opacity-100');
             modal.classList.add('opacity-0');
             setTimeout(() => { modal.classList.add('hidden'); }, 300);
+        }
+
+        let materialToReenroll = null;
+
+        function openReenrollModal(materialId) {
+            materialToReenroll = materialId;
+            const modal = document.getElementById('reenrollWarningModal');
+            const box = document.getElementById('reenrollWarningBox');
+            
+            modal.classList.remove('hidden');
+            setTimeout(() => {
+                modal.classList.remove('opacity-0');
+                modal.classList.add('opacity-100');
+                box.classList.remove('scale-95');
+                box.classList.add('scale-100');
+            }, 10);
+        }
+
+        function closeReenrollModal() {
+            materialToReenroll = null;
+            const modal = document.getElementById('reenrollWarningModal');
+            const box = document.getElementById('reenrollWarningBox');
+            
+            box.classList.remove('scale-100');
+            box.classList.add('scale-95');
+            modal.classList.remove('opacity-100');
+            modal.classList.add('opacity-0');
+            setTimeout(() => { modal.classList.add('hidden'); }, 300);
+        }
+
+        function executeReenroll() {
+            if (!materialToReenroll) return;
+            const confirmBtn = document.getElementById('confirm-reenroll-btn');
+            enrollInMaterial(materialToReenroll, confirmBtn);
         }
 
         // --- UNIFIED EXECUTION LOGIC ---

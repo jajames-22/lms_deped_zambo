@@ -72,15 +72,7 @@ class StudentEnrollmentController extends Controller
     $enrollment = \App\Models\Enrollment::where('material_id', $material->id)->where('user_id', Auth::id())->first();
 
     if ($access->status === 'dropped' || ($enrollment && $enrollment->status === 'dropped')) {
-        $droppedByStudent = ($access->dropped_by_type === 'student') || ($enrollment && $enrollment->dropped_by_type === 'student');
-
-        if ($droppedByStudent) {
-            \App\Models\Enrollment::reactivateAndResetForStudent(Auth::user(), $material);
-            return redirect()->route('student.materials.show', $hashid)
-                ->with('success', 'Successfully rejoined the module!');
-        } else {
-            abort(403, 'You were removed from this module. Please contact your instructor to be re-enrolled.');
-        }
+        return redirect()->route('student.materials.show', $hashid);
     }
 
     // 4. Create Enrollment record (tracking progress)
@@ -138,21 +130,24 @@ class StudentEnrollmentController extends Controller
 
         if ($enrollment || ($access && $access->status === 'dropped')) {
             $isDropped = ($enrollment && $enrollment->status === 'dropped') || ($access && $access->status === 'dropped');
-            $droppedByStudent = ($enrollment && $enrollment->dropped_by_type === 'student') || ($access && $access->dropped_by_type === 'student');
+            $droppedByType = ($enrollment && $enrollment->status === 'dropped') ? $enrollment->dropped_by_type : ($access ? $access->dropped_by_type : null);
 
             if ($isDropped) {
-                if ($droppedByStudent) {
-                    \App\Models\Enrollment::reactivateAndResetForStudent(Auth::user(), $material);
-                    return response()->json([
-                        'success' => true,
-                        'redirect_url' => route('student.materials.show', $material->hashid)
-                    ]);
-                } else {
+                if (!$request->boolean('confirmed')) {
+                    $msg = $droppedByType === 'student'
+                        ? 'You have already enrolled in this module once and dropped it voluntarily. Re-enrolling means that your progress will be reset and you will start from the beginning.'
+                        : 'If you enroll in this module again on your own, your progress will be reset and you will start from the beginning. Your progress can only be preserved if your instructor re-enrolls you.';
                     return response()->json([
                         'success' => false,
-                        'message' => 'You were removed from this module. Please contact your instructor to be re-enrolled.'
+                        'requires_warning' => true,
+                        'message' => $msg
                     ]);
                 }
+                \App\Models\Enrollment::reactivateAndResetForStudent(Auth::user(), $material);
+                return response()->json([
+                    'success' => true,
+                    'redirect_url' => route('student.materials.show', $material->hashid)
+                ]);
             }
             return response()->json([
                 'success' => true,
