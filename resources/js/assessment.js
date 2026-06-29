@@ -170,7 +170,8 @@ AssessmentBuilder.renderExistingCategory = function (catData) {
     if (catData.questions && catData.questions.length > 0) {
         catData.questions.forEach((q) => {
             const type = q.type || "mcq";
-            AssessmentBuilder.addQuestion(qContainer.id.split("-").pop(), type, null, q.id);
+            const isCaseSensitive = q.is_case_sensitive == 1 || q.is_case_sensitive === true;
+            AssessmentBuilder.addQuestion(qContainer.id.split("-").pop(), type, null, q.id, isCaseSensitive);
 
             const latestQ = qContainer.querySelector(
                 ".question-block:last-child",
@@ -296,7 +297,7 @@ AssessmentBuilder.addCategory = function (afterElement = null, existingId = null
 };
 
 // UPDATED: Add Question Template to store ID and media_name
-AssessmentBuilder.addQuestion = function (cId, type = "mcq", afterElement = null, existingId = null) {
+AssessmentBuilder.addQuestion = function (cId, type = "mcq", afterElement = null, existingId = null, isCaseSensitive = false) {
     const container = document.getElementById(`q-container-${cId}`);
     if (!container) return;
 
@@ -328,6 +329,12 @@ AssessmentBuilder.addQuestion = function (cId, type = "mcq", afterElement = null
                 
                 <div class="flex items-center gap-1 shrink-0">
                     <div class="cursor-grab active:cursor-grabbing text-gray-300 hover:text-gray-600 px-2 drag-handle-q rounded hover:bg-gray-200 transition"><i class="fas fa-grip-vertical"></i></div>
+                    ${type === "text" ? `
+                    <label class="flex items-center gap-1.5 cursor-pointer text-gray-500 hover:text-green-600 transition px-2 py-1 rounded hover:bg-gray-100" onclick="event.stopPropagation()">
+                        <input type="checkbox" class="case-sensitive-input cursor-pointer h-4 w-4 text-green-600 rounded" ${isCaseSensitive ? "checked" : ""} onchange="AssessmentBuilder.handleAutosaveTrigger()">
+                        <span class="text-[10px] font-bold uppercase">Case Sensitive</span>
+                    </label>
+                    ` : ""}
                     <button type="button" onclick="AssessmentBuilder.removeElement('${qId}')" class="h-7 w-7 flex items-center justify-center text-gray-300 hover:text-red-500 transition rounded-md hover:bg-red-50 ml-1" title="Delete Question"><i class="fas fa-times"></i></button>
                 </div>
             </div>
@@ -455,11 +462,7 @@ AssessmentBuilder.addOptionToQuestion = function (
                 <span class="text-[10px] font-bold text-green-600 uppercase shrink-0"><i class="fas fa-check mr-1"></i> Acceptable Answer:</span>
                 <input type="text" class="option-input w-full bg-transparent outline-none text-sm font-medium" placeholder="Type exact answer..." value="${text}">
                 <input type="hidden" class="is-correct-input" value="true" checked>
-                <div class="flex items-center gap-3 border-l border-green-200 pl-3 shrink-0">
-                    <label class="flex items-center gap-1.5 cursor-pointer text-gray-500 hover:text-green-600 transition">
-                        <input type="checkbox" class="case-sensitive-input cursor-pointer h-4 w-4" ${isCaseSensitive ? "checked" : ""} onchange="AssessmentBuilder.syncCaseSensitive('${qId}', this.checked)">
-                        <span class="text-[10px] font-bold uppercase">Case Sensitive</span>
-                    </label>
+                <div class="flex items-center border-l border-green-200 pl-3 shrink-0">
                     <button type="button" onclick="AssessmentBuilder.removeOption(this, '${qId}')" class="text-gray-400 hover:text-red-500 transition h-6 w-6 flex items-center justify-center"><i class="fas fa-times-circle"></i></button>
                 </div>
             </div>`;
@@ -526,7 +529,9 @@ AssessmentBuilder.toggleCategory = function (id, event) {
 AssessmentBuilder.toggleQuestion = function (id, event) {
     if (
         (event && event.target.closest("button")) ||
-        event.target.closest(".drag-handle-q")
+        event.target.closest(".drag-handle-q") ||
+        (event && event.target.closest("label")) ||
+        (event && event.target.closest("input"))
     )
         return;
 

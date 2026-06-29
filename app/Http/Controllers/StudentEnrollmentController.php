@@ -191,7 +191,11 @@ class StudentEnrollmentController extends Controller
 
         // 🚨 NEW CHECK: Prevent accessing draft/pending modules for students
         if ($user->role === 'student' && $material->status !== 'published') {
-            abort(403, 'This module is temporarily unavailable or in draft mode.');
+            $prev = url()->previous(route('dashboard.main'));
+            if ($prev === url()->current()) {
+                $prev = route('dashboard.main');
+            }
+            return redirect($prev)->with('error', 'This module is currently in draft mode and unavailable.');
         }
 
         // 1. Check if the user has an ACTIVE enrollment (Used to toggle the Enroll/Resume buttons)
@@ -217,7 +221,11 @@ class StudentEnrollmentController extends Controller
 
         // If they aren't on the list at all and it's private, block them
         if (!$hasAccess) {
-            abort(403, 'You do not have permission to view this module.');
+            $prev = url()->previous(route('dashboard.main'));
+            if ($prev === url()->current()) {
+                $prev = route('dashboard.main');
+            }
+            return redirect($prev)->with('error', 'You do not have permission to view this module.');
         }
 
         $lessons = DB::table('lessons')->where('material_id', $id)->get();
@@ -261,7 +269,7 @@ class StudentEnrollmentController extends Controller
             ->findOrFail($enrollment_id);
 
         // 🚨 NEW CHECK: Prevent students from accessing draft/pending modules
-        if (Auth::user()->role === 'student' && $enrollment->material->status !== 'published') {
+        if (Auth::user()?->role === 'student' && $enrollment->material->status !== 'published') {
             abort(403, 'This module is temporarily unavailable or in draft mode.');
         }
 
@@ -326,7 +334,7 @@ class StudentEnrollmentController extends Controller
             ->findOrFail($enrollment_id);
 
         // 🚨 NEW CHECK: Prevent students from accessing draft/pending modules
-        if (Auth::user()->role === 'student' && $enrollment->material->status !== 'published') {
+        if (Auth::user()?->role === 'student' && $enrollment->material->status !== 'published') {
             abort(403, 'This module is temporarily unavailable or in draft mode.');
         }
 

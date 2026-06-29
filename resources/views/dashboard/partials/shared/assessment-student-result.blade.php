@@ -55,7 +55,7 @@
                     <div class="min-w-0">
                         <p class="text-[10px] text-gray-400 font-bold uppercase tracking-widest">Student Information</p>
                         <p class="font-bold text-gray-900 text-base truncate">{{ $student->first_name }} {{ $student->last_name }}</p>
-                        <p class="text-xs text-gray-500 font-mono truncate">LRN: {{ $student->lrn }} • {{ $student->school->name ?? 'Independent / Unassigned' }}</p>
+                        <p class="text-xs text-gray-500 font-mono truncate">LRN: {{ $student->lrn }} • {{ $student->school->name ?? 'Independent / Unassigned' }} • Grade: {{ $student->grade_level ?? $assessment->year_level ?? 'N/A' }} • Section: {{ $student->section ?? 'N/A' }}</p>
                     </div>
                 </div>
             </div>
@@ -72,10 +72,6 @@
                             <span class="font-mono font-extrabold text-gray-900 text-base pr-1">{{ $totalScore }} <span class="text-xs font-normal text-gray-400">/ {{ $totalQuestions }}</span></span>
                         </div>
                         <div class="flex justify-between items-center bg-white p-2.5 rounded-xl border border-gray-150/80">
-                            <span class="font-bold text-gray-600 pl-1">Attempt Number:</span>
-                            <span class="font-mono font-bold text-gray-900 pr-1">#{{ $attemptNum }}</span>
-                        </div>
-                        <div class="flex justify-between items-center bg-white p-2.5 rounded-xl border border-gray-150/80">
                             <span class="font-bold text-gray-600 pl-1">Time Spent:</span>
                             <span class="font-mono font-bold text-[#a52a2a] pr-1">{{ $timeSpent }}</span>
                         </div>
@@ -88,11 +84,13 @@
                 
                 <div class="bg-gray-50 border border-gray-200 rounded-2xl p-6 text-center shadow-sm flex flex-col justify-center relative overflow-hidden">
                     <div class="absolute -right-6 -bottom-6 w-24 h-24 bg-[#a52a2a]/5 rounded-full pointer-events-none"></div>
-                    <p class="text-xs text-gray-400 font-bold uppercase tracking-widest mb-2">Final Weighted Grade</p>
-                    <p class="text-5xl sm:text-6xl font-black {{ $percentage >= 75 ? 'text-green-600' : 'text-[#a52a2a]' }} tracking-tight">
+                    <p class="text-xs text-gray-400 font-bold uppercase tracking-widest mb-2">Mean Percentage Score (MPS)</p>
+                    <p class="text-5xl sm:text-6xl font-black {{ $percentage >= 90 ? 'text-[#10b981]' : ($percentage >= 75 ? 'text-[#3b82f6]' : ($percentage >= 50 ? 'text-[#f59e0b]' : 'text-[#ef4444]')) }} tracking-tight">
                         {{ $percentage }}<span class="text-3xl text-gray-400 font-bold">%</span>
                     </p>
-                    <p class="text-xs text-gray-500 font-medium mt-2">Passing Threshold: 75%</p>
+                    <p class="text-xs text-gray-700 font-extrabold mt-3 px-3 py-1 bg-white border border-gray-200 rounded-full inline-block mx-auto shadow-sm">
+                        Proficiency: <span class="text-[#a52a2a]">{{ $proficiencyLevel }}</span>
+                    </p>
                 </div>
             </div>
 
@@ -109,11 +107,11 @@
                             <h4 class="text-sm font-extrabold text-gray-900 mb-2 truncate" title="{{ $stat->name }}">{{ $stat->name }}</h4>
                             <div class="flex items-baseline justify-between text-xs text-gray-500 mb-2">
                                 <span>Score: <strong class="text-gray-900 font-mono">{{ $stat->correct }} / {{ $stat->total }}</strong></span>
-                                <span class="font-extrabold font-mono {{ $stat->percentage >= 75 ? 'text-green-600' : 'text-[#a52a2a]' }}">{{ $stat->percentage }}%</span>
+                                <span class="font-extrabold font-mono text-gray-700">{{ $stat->percentage }}%</span>
                             </div>
                         </div>
                         <div class="w-full bg-gray-100 rounded-full h-2 overflow-hidden">
-                            <div class="h-2 rounded-full {{ $stat->percentage >= 75 ? 'bg-green-500' : 'bg-[#a52a2a]' }} transition-all duration-500" style="width: {{ $stat->percentage }}%"></div>
+                            <div class="h-2 rounded-full bg-[#a52a2a] transition-all duration-500" style="width: {{ $stat->percentage }}%"></div>
                         </div>
                     </div>
                     @endforeach

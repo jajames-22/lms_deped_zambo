@@ -17,13 +17,10 @@ class Enrollment extends Model
         'completed_at',
         'calculated_time',
         'study_session_started_at',
-        'dropped_at',
-        'dropped_by_type',
     ];
 
     protected $casts = [
         'completed_at' => 'datetime',
-        'dropped_at' => 'datetime',
     ];
 
     // A student belongs to a user account
@@ -46,7 +43,7 @@ class Enrollment extends Model
             ->where('lessons.material_id', $material->id)
             ->pluck('lesson_contents.id');
 
-        // 2. Delete quiz and exam answers
+        // 2. Delete quiz and exam answers (reset progress)
         if ($quizIds->isNotEmpty()) {
             \App\Models\QuizAnswer::where('user_id', $user->id)->whereIn('lesson_content_id', $quizIds)->delete();
         }
@@ -54,7 +51,7 @@ class Enrollment extends Model
             \App\Models\ExamAnswer::where('user_id', $user->id)->whereIn('exam_id', $examIds)->delete();
         }
 
-        // 3. Reactivate enrollment record
+        // 3. Reactivate enrollment record (reset progress but keep the row)
         $enrollment = self::where('material_id', $material->id)->where('user_id', $user->id)->first();
         if ($enrollment) {
             $enrollment->update([
@@ -63,8 +60,6 @@ class Enrollment extends Model
                 'completed_at'             => null,
                 'calculated_time'          => 0,
                 'study_session_started_at' => null,
-                'dropped_at'               => null,
-                'dropped_by_type'          => null,
             ]);
         } else {
             $enrollment = self::create([
@@ -74,14 +69,12 @@ class Enrollment extends Model
             ]);
         }
 
-        // 4. Reactivate MaterialAccess record
+        // 4. Reactivate MaterialAccess record — increment retakes, preserve history
         $access = \App\Models\MaterialAccess::where('material_id', $material->id)->where('email', $user->email)->first();
         if ($access) {
             $access->update([
-                'status'          => 'enrolled',
-                'retakes'         => 0,
-                'dropped_at'      => null,
-                'dropped_by_type' => null,
+                'status'  => 'enrolled',
+                'retakes' => ($access->retakes ?? 0) + 1,
             ]);
         } else {
             $access = \App\Models\MaterialAccess::create([
@@ -89,13 +82,14 @@ class Enrollment extends Model
                 'email'       => $user->email,
                 'student_id'  => $user->id,
                 'status'      => 'enrolled',
+                'retakes'     => 1,
             ]);
         }
 
         // 5. Send notification
         $user->notify(new \App\Notifications\LmsAlertNotification(
-            'Rejoined Module',
-            'You have rejoined Module ' . $material->title . '. Your previous progress has been reset and a new attempt has started.',
+            'Module Re-enrolled',
+            'You have successfully enrolled in the module "' . $material->title . '". Your learning progress has been restarted.',
             route('dashboard.materials.show', $material->hashid),
             'fas fa-rotate-left',
             'text-blue-500'

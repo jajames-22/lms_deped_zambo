@@ -467,229 +467,52 @@ class MaterialsController extends Controller
 
         return response()->json(['success' => true, 'message' => 'Student added successfully!']);
     }
-    public function reenrollAccess(Request $request, $id)
-    {
-        $request->validate(['mode' => 'required|in:continue,reset']);
-        $mode = $request->mode;
 
-        DB::beginTransaction();
-        try {
-            $access = MaterialAccess::findOrFail($id);
-            $student = User::where('email', $access->email)->first();
-            $material = \App\Models\Material::find($access->material_id);
 
-            if ($student && $material) {
-                $enrollment = Enrollment::where('material_id', $access->material_id)
-                    ->where('user_id', $student->id)
-                    ->first();
-
-                if ($enrollment) {
-                    if ($mode === 'reset') {
-                        // --- FULL PROGRESS RESET ---
-                        // 1. Collect all quiz and exam IDs for this material
-                        $examIds = DB::table('exams')->where('material_id', $access->material_id)->pluck('id');
-                        $quizIds = DB::table('lesson_contents')
-                            ->join('lessons', 'lesson_contents.lesson_id', '=', 'lessons.id')
-                            ->where('lessons.material_id', $access->material_id)
-                            ->pluck('lesson_contents.id');
-
-                        // 2. Delete quiz and exam answers
-                        \App\Models\QuizAnswer::where('user_id', $student->id)
-                            ->whereIn('lesson_content_id', $quizIds)->delete();
-                        \App\Models\ExamAnswer::where('user_id', $student->id)
-                            ->whereIn('exam_id', $examIds)->delete();
-
-                        // 3. Reset enrollment record — only real DB columns
-                        $enrollment->update([
-                            'status' => 'in_progress',
-                            'progress_data' => null,   // clears saved lesson position
-                            'completed_at' => null,
-                            'calculated_time' => 0,
-                            'study_session_started_at' => null,
-                            'updated_at' => now(),
-                        ]);
-
-                        // 4. Reset retakes counter on the access record
-                        $access->update(['retakes' => 0]);
-
-                    } else {
-                        // Restore status based on completion timestamp or retakes
-                        if (!is_null($enrollment->completed_at)) {
-                            $continueStatus = 'completed';
-                        } elseif (in_array($enrollment->status, ['completed', 'failed'])) {
-                            $continueStatus = $enrollment->status;
-                        } elseif (($access->retakes ?? 0) > 0) {
-                            $continueStatus = 'failed';
-                        } else {
-                            $continueStatus = 'in_progress';
-                        }
-                        $enrollment->update([
-                            'status' => $continueStatus,
-                            'updated_at' => now(),
-                        ]);
-                    }
-                }
-
-                $msg = $mode === 'reset'
-                    ? 'and your progress has been reset. You will start from the beginning.'
-                    : 'and may continue from your previous progress.';
-                $student->notify(new \App\Notifications\LmsAlertNotification(
-                    'Module Re-enrolled',
-                    'You have been re-enrolled in Module "' . ($material->title ?? '') . '" ' . $msg,
-                    route('dashboard.materials.show', $material->hashid),
-                    'fas fa-sync',
-                    'text-green-600'
-                ));
-            }
-
-            $access->update(['status' => 'enrolled']);
-
-            DB::commit();
-            return response()->json(['success' => true, 'message' => 'Student re-enrolled successfully.']);
-        } catch (\Exception $e) {
-            DB::rollBack();
-            return response()->json(['success' => false, 'message' => 'Error re-enrolling student: ' . $e->getMessage()], 500);
-        }
-    }
-
-    public function bulkDropAccess(Request $request)
-    {
-        $ids = $request->input('ids');
-        if (!is_array($ids) || empty($ids)) {
-            return response()->json(['success' => false, 'message' => 'No access records selected.']);
-        }
-
-        DB::beginTransaction();
-        try {
-            $accesses = MaterialAccess::whereIn('id', $ids)->get();
-
-            if ($accesses->isEmpty()) {
-                DB::rollBack();
-                return response()->json(['success' => false, 'message' => 'Invalid access records.']);
-            }
-
-            foreach ($accesses as $access) {
-                if (in_array($access->status, ['enrolled', 'dropped'])) {
-                    $access->update(['status' => 'dropped', 'dropped_at' => now(), 'dropped_by_type' => 'instructor']);
-
-                    $student = User::where('email', $access->email)->first();
-                    $material = \App\Models\Material::find($access->material_id);
-
-                    if ($student) {
-                        Enrollment::where('material_id', $access->material_id)
-                            ->where('user_id', $student->id)
-                            ->update(['status' => 'dropped', 'dropped_at' => now(), 'dropped_by_type' => 'instructor', 'updated_at' => now()]);
-
-                        if ($material) {
-                            $student->notify(new \App\Notifications\LmsAlertNotification(
-                                'Module Access Dropped',
-                                'You have been removed from Module "' . $material->title . '" by your instructor. If you enroll in this module again on your own, your progress will be reset and you will start from the beginning. Your progress can only be preserved if your instructor re-enrolls you.',
-                                route('dashboard.materials.show', $material->hashid),
-                                'fas fa-ban',
-                                'text-red-600'
-                            ));
-                        }
-                    }
-                } else {
-                    $access->delete();
-                }
-            }
-
-            DB::commit();
-            return response()->json(['success' => true, 'message' => count($ids) . ' students dropped.']);
-        } catch (\Exception $e) {
-            DB::rollBack();
-            return response()->json(['success' => false, 'message' => 'Error processing students.']);
-        }
-    }
-
-    public function dropAccess($id)
-    {
-        DB::beginTransaction();
-        try {
-            $access = MaterialAccess::findOrFail($id);
-
-            if (!in_array($access->status, ['enrolled', 'dropped'])) {
-                $access->delete();
-                DB::commit();
-                return response()->json(['success' => true, 'message' => 'Invitation cancelled successfully.']);
-            }
-
-            $student = User::where('email', $access->email)->first();
-            $material = \App\Models\Material::find($access->material_id);
-
-            if ($student) {
-                Enrollment::where('material_id', $access->material_id)
-                    ->where('user_id', $student->id)
-                    ->update(['status' => 'dropped', 'dropped_at' => now(), 'dropped_by_type' => 'instructor', 'updated_at' => now()]);
-
-                if ($material) {
-                    $student->notify(new \App\Notifications\LmsAlertNotification(
-                        'Module Access Dropped',
-                        'You have been removed from Module "' . $material->title . '" by your instructor. If you enroll in this module again on your own, your progress will be reset and you will start from the beginning. Your progress can only be preserved if your instructor re-enrolls you.',
-                        route('dashboard.materials.show', $material->hashid),
-                        'fas fa-ban',
-                        'text-red-600'
-                    ));
-                }
-            }
-
-            $access->update(['status' => 'dropped', 'dropped_at' => now(), 'dropped_by_type' => 'instructor']);
-
-            DB::commit();
-            return response()->json(['success' => true, 'message' => 'Student dropped. Progress has been preserved.']);
-
-        } catch (\Exception $e) {
-            DB::rollBack();
-            return response()->json(['success' => false, 'message' => 'Error revoking access: ' . $e->getMessage()], 500);
-        }
-    }
-
+    /**
+     * Permanently remove a student from the module list.
+     * Deletes enrollment, access record, and all learning records.
+     */
     public function deleteAccess(Request $request, $id)
     {
-        $request->validate(['mode' => 'required|in:only,records']);
-        $mode = $request->mode;
-
         DB::beginTransaction();
         try {
             $access = MaterialAccess::findOrFail($id);
             $student = User::where('email', $access->email)->first();
 
             if ($student) {
-                if ($mode === 'records') {
-                    $examIds = DB::table('exams')->where('material_id', $access->material_id)->pluck('id');
-                    $quizIds = DB::table('lesson_contents')
-                        ->join('lessons', 'lesson_contents.lesson_id', '=', 'lessons.id')
-                        ->where('lessons.material_id', $access->material_id)
-                        ->pluck('lesson_contents.id');
+                $examIds = DB::table('exams')->where('material_id', $access->material_id)->pluck('id');
+                $quizIds = DB::table('lesson_contents')
+                    ->join('lessons', 'lesson_contents.lesson_id', '=', 'lessons.id')
+                    ->where('lessons.material_id', $access->material_id)
+                    ->pluck('lesson_contents.id');
 
-                    \App\Models\QuizAnswer::where('user_id', $student->id)->whereIn('lesson_content_id', $quizIds)->delete();
-                    \App\Models\ExamAnswer::where('user_id', $student->id)->whereIn('exam_id', $examIds)->delete();
+                \App\Models\QuizAnswer::where('user_id', $student->id)->whereIn('lesson_content_id', $quizIds)->delete();
+                \App\Models\ExamAnswer::where('user_id', $student->id)->whereIn('exam_id', $examIds)->delete();
 
-                    Enrollment::where('material_id', $access->material_id)
-                        ->where('user_id', $student->id)
-                        ->delete();
-                } else {
-                    // mode == 'only'
-                    // Keep the enrollment but leave it as 'dropped'
-                }
+                Enrollment::where('material_id', $access->material_id)
+                    ->where('user_id', $student->id)
+                    ->delete();
             }
 
             // Always delete the material access to remove from roster
             $access->delete();
 
             DB::commit();
-            return response()->json(['success' => true, 'message' => 'Student enrollment deleted successfully.']);
+            return response()->json(['success' => true, 'message' => 'Student permanently removed from the module.']);
         } catch (\Exception $e) {
             DB::rollBack();
-            return response()->json(['success' => false, 'message' => 'Error deleting enrollment: ' . $e->getMessage()], 500);
+            return response()->json(['success' => false, 'message' => 'Error removing student: ' . $e->getMessage()], 500);
         }
     }
 
+    /**
+     * Permanently remove multiple students from the module list.
+     * Deletes enrollments, access records, and all learning records.
+     */
     public function bulkDeleteAccess(Request $request)
     {
         $ids = $request->input('ids');
-        $mode = $request->input('mode', 'only');
 
         if (!is_array($ids) || empty($ids)) {
             return response()->json(['success' => false, 'message' => 'No access records selected.']);
@@ -710,125 +533,31 @@ class MaterialsController extends Controller
                 $studentIds = $students->pluck('id')->toArray();
 
                 if (!empty($studentIds)) {
-                    if ($mode === 'records') {
-                        $examIds = DB::table('exams')->where('material_id', $materialId)->pluck('id');
-                        $quizIds = DB::table('lesson_contents')
-                            ->join('lessons', 'lesson_contents.lesson_id', '=', 'lessons.id')
-                            ->where('lessons.material_id', $materialId)
-                            ->pluck('lesson_contents.id');
+                    $examIds = DB::table('exams')->where('material_id', $materialId)->pluck('id');
+                    $quizIds = DB::table('lesson_contents')
+                        ->join('lessons', 'lesson_contents.lesson_id', '=', 'lessons.id')
+                        ->where('lessons.material_id', $materialId)
+                        ->pluck('lesson_contents.id');
 
-                        \App\Models\QuizAnswer::whereIn('user_id', $studentIds)->whereIn('lesson_content_id', $quizIds)->delete();
-                        \App\Models\ExamAnswer::whereIn('user_id', $studentIds)->whereIn('exam_id', $examIds)->delete();
+                    \App\Models\QuizAnswer::whereIn('user_id', $studentIds)->whereIn('lesson_content_id', $quizIds)->delete();
+                    \App\Models\ExamAnswer::whereIn('user_id', $studentIds)->whereIn('exam_id', $examIds)->delete();
 
-                        Enrollment::where('material_id', $materialId)
-                            ->whereIn('user_id', $studentIds)
-                            ->delete();
-                    }
+                    Enrollment::where('material_id', $materialId)
+                        ->whereIn('user_id', $studentIds)
+                        ->delete();
                 }
             }
 
             MaterialAccess::whereIn('id', $ids)->delete();
 
             DB::commit();
-            return response()->json(['success' => true, 'message' => count($ids) . ' students deleted.']);
+            return response()->json(['success' => true, 'message' => count($ids) . ' students permanently removed.']);
         } catch (\Exception $e) {
             DB::rollBack();
-            return response()->json(['success' => false, 'message' => 'Error deleting students.']);
+            return response()->json(['success' => false, 'message' => 'Error removing students.']);
         }
     }
 
-    public function bulkReenrollAccess(Request $request)
-    {
-        $ids = $request->input('ids');
-        $mode = $request->input('mode', 'continue');
-
-        if (!is_array($ids) || empty($ids)) {
-            return response()->json(['success' => false, 'message' => 'No access records selected.']);
-        }
-
-        DB::beginTransaction();
-        try {
-            $accesses = MaterialAccess::whereIn('id', $ids)->get();
-
-            if ($accesses->isEmpty()) {
-                DB::rollBack();
-                return response()->json(['success' => false, 'message' => 'Invalid access records.']);
-            }
-
-            foreach ($accesses as $access) {
-                $student = User::where('email', $access->email)->first();
-                if ($student) {
-                    $enrollment = Enrollment::where('material_id', $access->material_id)
-                        ->where('user_id', $student->id)
-                        ->first();
-
-                    if ($enrollment) {
-                        if ($mode === 'reset') {
-                            // --- FULL PROGRESS RESET ---
-                            $examIds = DB::table('exams')->where('material_id', $access->material_id)->pluck('id');
-                            $quizIds = DB::table('lesson_contents')
-                                ->join('lessons', 'lesson_contents.lesson_id', '=', 'lessons.id')
-                                ->where('lessons.material_id', $access->material_id)
-                                ->pluck('lesson_contents.id');
-
-                            \App\Models\QuizAnswer::where('user_id', $student->id)
-                                ->whereIn('lesson_content_id', $quizIds)->delete();
-                            \App\Models\ExamAnswer::where('user_id', $student->id)
-                                ->whereIn('exam_id', $examIds)->delete();
-
-                            $enrollment->update([
-                                'status' => 'in_progress',
-                                'progress_data' => null,
-                                'completed_at' => null,
-                                'calculated_time' => 0,
-                                'study_session_started_at' => null,
-                                'updated_at' => now(),
-                            ]);
-
-                            // Reset retakes counter on the access record
-                            $access->update(['retakes' => 0]);
-
-                            if (!is_null($enrollment->completed_at)) {
-                                $continueStatus = 'completed';
-                            } elseif (in_array($enrollment->status, ['completed', 'failed'])) {
-                                $continueStatus = $enrollment->status;
-                            } elseif (($access->retakes ?? 0) > 0) {
-                                $continueStatus = 'failed';
-                            } else {
-                                $continueStatus = 'in_progress';
-                            }
-                            $enrollment->update([
-                                'status' => $continueStatus,
-                                'updated_at' => now(),
-                            ]);
-                        }
-                    }
-
-                    $material = \App\Models\Material::find($access->material_id);
-                    if ($material) {
-                        $msg = $mode === 'reset'
-                            ? 'and your progress has been reset. You will start from the beginning.'
-                            : 'and may continue from your previous progress.';
-                        $student->notify(new \App\Notifications\LmsAlertNotification(
-                            'Module Re-enrolled',
-                            'You have been re-enrolled in Module "' . $material->title . '" ' . $msg,
-                            route('dashboard.materials.show', $material->hashid),
-                            'fas fa-sync',
-                            'text-green-600'
-                        ));
-                    }
-                }
-
-                $access->update(['status' => 'enrolled']);
-            }
-
-            DB::commit();
-            return response()->json(['success' => true, 'message' => count($ids) . ' students re-enrolled.']);
-        } catch (\Exception $e) {
-            DB::rollBack();
-            return response()->json(['success' => false, 'message' => 'Error re-enrolling students.']);
-        }
-    }
 
     public function toggleStatus(Request $request, $id)
     {
@@ -2047,6 +1776,14 @@ class MaterialsController extends Controller
             abort(404, 'Invalid link.');
         $material = Material::findOrFail($decoded[0]);
 
+        if (auth()->user()->role === 'student' && $material->status !== 'published') {
+            $prev = url()->previous(route('dashboard.main'));
+            if ($prev === url()->current()) {
+                $prev = route('dashboard.main');
+            }
+            return redirect($prev)->with('error', 'This module is currently in draft mode and unavailable.');
+        }
+
         // 1. Security Check: If private, verify the student is on the access list
         if (!$material->is_public && auth()->user()->role === 'student') {
             $hasAccess = MaterialAccess::where('material_id', $material->id)
@@ -2054,8 +1791,11 @@ class MaterialsController extends Controller
                 ->exists();
 
             if (!$hasAccess) {
-                // If they aren't on the list, block them completely
-                abort(403, 'You do not have permission to view this private material.');
+                $prev = url()->previous(route('dashboard.main'));
+                if ($prev === url()->current()) {
+                    $prev = route('dashboard.main');
+                }
+                return redirect($prev)->with('error', 'You do not have permission to view this private material.');
             }
         }
 
@@ -2106,7 +1846,7 @@ class MaterialsController extends Controller
             })
             ->first();
 
-        // If they have 3 retakes, they can NEVER enroll again. Block the API call.
+        // If they have consumed 3 retakes (4 total attempts), they can NEVER enroll again. Block the API call.
         if ($access && $access->retakes >= 3) {
             return response()->json([
                 'success' => false,
@@ -2143,7 +1883,6 @@ class MaterialsController extends Controller
 
         if ($existingEnrollment || ($existingAccess && $existingAccess->status === 'dropped')) {
             $isDropped = ($existingEnrollment && $existingEnrollment->status === 'dropped') || ($existingAccess && $existingAccess->status === 'dropped');
-            $droppedByStudent = ($existingEnrollment && $existingEnrollment->dropped_by_type === 'student') || ($existingAccess && $existingAccess->dropped_by_type === 'student');
 
             if ($isDropped) {
                 \App\Models\Enrollment::reactivateAndResetForStudent($user, $material);
@@ -2189,7 +1928,11 @@ class MaterialsController extends Controller
 
         // 🚨 NEW CHECK: Prevent students from studying draft/pending modules
         if ($user->role === 'student' && $material->status !== 'published') {
-            abort(403, 'This module is temporarily unavailable or in draft mode.');
+            $prev = url()->previous(route('dashboard.main'));
+            if ($prev === url()->current()) {
+                $prev = route('dashboard.main');
+            }
+            return redirect($prev)->with('error', 'This module is currently in draft mode and unavailable.');
         }
 
         // 1. Fetch Enrollment to get Saved Progress
@@ -2197,11 +1940,7 @@ class MaterialsController extends Controller
             ->where('user_id', $user->id)
             ->first();
 
-        if (!$enrollment && $user->role === 'student') {
-            abort(403, 'You must enroll in this material before studying.');
-        }
-
-        // --- NEW: Hard Lockout Check ---
+        // --- NEW: Eligibility Check for Study ---
         if ($user->role === 'student') {
             $access = \App\Models\MaterialAccess::where('material_id', $material->id)
                 ->where(function ($q) use ($user) {
@@ -2210,9 +1949,13 @@ class MaterialsController extends Controller
                 })
                 ->first();
 
-            // Unconditionally lock them out of the study route if limit reached
-            if ($access && $access->retakes >= 3) {
-                abort(403, 'Maximum retake limit reached. You can no longer study this material.');
+            $notFitToStudy = !$enrollment 
+                || in_array($enrollment->status, ['dropped', 'failed', 'completed', 'read'])
+                || ($access && in_array($access->status, ['dropped', 'pending']))
+                || ($access && $access->retakes >= 3 && $enrollment && $enrollment->status !== 'in_progress');
+
+            if ($notFitToStudy) {
+                return redirect()->route('dashboard.materials.show', $material->hashid)->with('error', 'You cannot study this module in your current enrollment status.');
             }
         }
 
@@ -2243,28 +1986,24 @@ class MaterialsController extends Controller
 
         \Illuminate\Support\Facades\DB::beginTransaction();
         try {
-            // Update enrollment status to dropped, record dropped_at, record dropped_by_type = student
+            // Mark enrollment as dropped (preserve the row for analytics/reporting)
             \App\Models\Enrollment::where('material_id', $material->id)
                 ->where('user_id', $user->id)
                 ->update([
                     'status' => 'dropped',
-                    'dropped_at' => now(),
-                    'dropped_by_type' => 'student'
                 ]);
 
-            // Update material access status to dropped, record dropped_at, record dropped_by_type = student
+            // Mark material access as dropped (student loses access)
             \App\Models\MaterialAccess::where('material_id', $material->id)
                 ->where('email', $user->email)
                 ->update([
                     'status' => 'dropped',
-                    'dropped_at' => now(),
-                    'dropped_by_type' => 'student'
                 ]);
 
             // Send notification
             $user->notify(new \App\Notifications\LmsAlertNotification(
-                'Course Dropped',
-                'You have dropped Module ' . $material->title . '. Your progress has been preserved.',
+                'Module Dropped',
+                'You have successfully dropped the module "' . $material->title . '". You may enroll again at any time. Your progress will restart, but your retake count will continue from your previous attempts.',
                 route('dashboard.materials.show', $material->hashid),
                 'fas fa-ban',
                 'text-red-500'
@@ -2273,14 +2012,14 @@ class MaterialsController extends Controller
             \Illuminate\Support\Facades\DB::commit();
             return response()->json([
                 'success' => true,
-                'message' => 'Successfully dropped the course.'
+                'message' => 'Successfully dropped the module.'
             ]);
 
         } catch (\Exception $e) {
             \Illuminate\Support\Facades\DB::rollBack();
             return response()->json([
                 'success' => false,
-                'message' => 'Failed to unenroll: ' . $e->getMessage()
+                'message' => 'Failed to drop module: ' . $e->getMessage()
             ], 500);
         }
     }
@@ -2592,18 +2331,18 @@ class MaterialsController extends Controller
             ]);
 
         } else {
+            $access = \App\Models\MaterialAccess::where('material_id', $material->id)
+                ->where(function($q) use ($user) {
+                    $q->where('student_id', $user->id)->orWhere('email', $user->email);
+                })
+                ->first();
+            $retakes = $access ? $access->retakes : 0;
+            $status = ($retakes >= 3) ? 'failed' : $enrollment->status;
+
             $enrollment->update([
-                'status' => 'failed',
+                'status' => $status,
                 'progress_data' => json_encode(['lesson' => $totalTimelineCount - 1, 'content' => 0, 'highest_unlocked' => $totalTimelineCount])
             ]);
-
-            // --- NEW: Increment retakes after failed attempt ---
-            $access = \App\Models\MaterialAccess::where('material_id', $material->id)
-                ->where('student_id', $user->id)
-                ->first();
-            if ($access) {
-                $access->increment('retakes');
-            }
 
             return response()->json([
                 'success' => true,
@@ -2629,9 +2368,9 @@ class MaterialsController extends Controller
 
         $grades = $this->calculateGrades($material, $user);
 
-        // Calculate if a perfect exam score is mathematically enough to pass
+        // Calculate if a perfect exam score is mathematically enough to pass, and require quiz score to meet passing grade
         $maxPossibleScore = ($grades['quizScore'] * ($grades['quizWeight'] / 100)) + (100 * ($grades['examWeight'] / 100));
-        $canPassWithExamRetake = $maxPossibleScore >= $grades['passingScore'];
+        $canPassWithExamRetake = ($maxPossibleScore >= $grades['passingScore']) && (!$grades['hasQuizzes'] || $grades['quizScore'] >= $grades['passingScore']);
 
         $access = \App\Models\MaterialAccess::where('material_id', $material->id)
             ->where('student_id', $user->id)
@@ -2654,14 +2393,20 @@ class MaterialsController extends Controller
             abort(403, 'This module is temporarily unavailable or in draft mode.');
         }
 
-        // --- NEW: Block action if max retakes reached ---
+        // --- NEW: Verify remaining retakes and consume one retake ---
         $access = \App\Models\MaterialAccess::where('material_id', $material->id)
-            ->where('student_id', $user->id)
+            ->where(function($q) use ($user) {
+                $q->where('student_id', $user->id)->orWhere('email', $user->email);
+            })
             ->first();
 
-        if ($access && $access->retakes >= 3) {
-            abort(403, 'Maximum retake limit reached.');
+        if (!$access || $access->retakes >= 3) {
+            abort(403, 'You have used all available retakes. No retakes remaining.');
         }
+
+        // Consume one retake upon starting the new attempt
+        $access->increment('retakes');
+        $access->update(['status' => 'enrolled']);
 
         $type = $request->type; // 'exam' or 'module'
 
@@ -3990,23 +3735,20 @@ class MaterialsController extends Controller
             ]);
         }
 
-        // --- Summary (CSV) ---
-        $data = $service->exportSummaryAsCsv($material);
-        $filename = 'summary_report_' . date('Ymd_His') . '.csv';
+        // --- Summary (Excel) ---
+        $spreadsheet = $service->exportSummaryAsExcel($material);
+        $filename = 'summary_report_' . date('Ymd_His') . '.xlsx';
 
-        return response()->streamDownload(function () use ($data) {
-            $file = fopen('php://output', 'w');
-            fputs($file, chr(0xEF) . chr(0xBB) . chr(0xBF)); // BOM
-            fputcsv($file, $data['headers']);
-            foreach ($data['rows'] as $row) {
-                fputcsv($file, $row);
-            }
-            fclose($file);
+        $writer = new \PhpOffice\PhpSpreadsheet\Writer\Xlsx($spreadsheet);
+
+        return response()->streamDownload(function () use ($writer) {
+            $writer->save('php://output');
         }, $filename, [
-            'Content-Type' => 'text/csv; charset=UTF-8',
+            'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
             'Cache-Control' => 'no-cache, no-store, must-revalidate',
             'Pragma' => 'no-cache',
             'Expires' => '0',
+            'Content-Disposition' => 'attachment; filename="' . $filename . '"',
         ]);
     }
 }

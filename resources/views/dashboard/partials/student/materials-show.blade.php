@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    
+
     <link rel="icon" type="image/png" href="{{ asset('deped_lms_logo.png') }}">
     <title>{{ $material->title }} - LMS</title>
     <meta name="csrf-token" content="{{ csrf_token() }}">
@@ -94,21 +94,19 @@
 
         // FETCH ACCESS AND RETAKE COUNT GLOBALLY (Outside of Enrollment block)
         $isDropped = false;
-        $droppedByType = null;
         $enrollment = null;
         if (auth()->check() && auth()->user()->role === 'student') {
             $access = \App\Models\MaterialAccess::where('material_id', $material->id)
-                ->where(function($q) {
+                ->where(function ($q) {
                     $q->where('student_id', auth()->id())
-                      ->orWhere('email', auth()->user()->email);
+                        ->orWhere('email', auth()->user()->email);
                 })
                 ->first();
-                
+
             if ($access) {
                 $retakesCount = $access->retakes;
                 if ($access->status === 'dropped') {
                     $isDropped = true;
-                    $droppedByType = $access->dropped_by_type;
                 }
             }
 
@@ -118,11 +116,13 @@
 
             if ($enrollment && $enrollment->status === 'dropped') {
                 $isDropped = true;
-                $droppedByType = $enrollment->dropped_by_type ?? $droppedByType;
             }
         }
-        
-        $maxRetakesReached = $retakesCount >= 3;
+
+        $maxRetakes = 3;
+        $remainingRetakes = max(0, $maxRetakes - $retakesCount);
+        $remainingAfterReenroll = max(0, $maxRetakes - ($retakesCount + 1));
+        $maxRetakesReached = $retakesCount >= 4 || ($isDropped && $retakesCount >= 3);
 
         $totalContents = $timeline->sum(function ($section) {
             return $section->items->count();
@@ -132,6 +132,12 @@
 
             if ($enrollment) {
                 $enrollmentStatus = $enrollment->status; // 'in_progress', 'completed', or 'failed'
+
+                if ($retakesCount >= 3 && $enrollmentStatus !== 'completed' && $enrollmentStatus !== 'in_progress') {
+                    $enrollmentStatus = 'failed';
+                    $isDropped = false;
+                    $maxRetakesReached = true;
+                }
 
                 if (in_array($enrollmentStatus, ['completed', 'read']) || !is_null($enrollment->completed_at)) {
                     $sectionsCompleted = $timelineCount;
@@ -200,7 +206,8 @@
                                 $size = number_format(filesize($filePath) / 1048576, 2) . ' MB';
                             }
                         }
-                    } catch (\Exception $e) {}
+                    } catch (\Exception $e) {
+                    }
 
                     $resources->push((object) [
                         'url' => $mediaUrl,
@@ -344,14 +351,16 @@
                             <div class="p-4 bg-gray-50 border border-gray-100 rounded-2xl">
                                 <h4
                                     class="text-xs font-bold text-gray-900 uppercase tracking-wider mb-3 flex items-center gap-2">
-                                    <i class="fas fa-award text-blue-500"></i> Grading & Certification</h4>
+                                    <i class="fas fa-award text-blue-500"></i> Grading & Certification
+                                </h4>
                                 <div class="flex flex-wrap gap-8">
                                     <div>
                                         <p class="text-[10px] text-gray-400 font-bold uppercase tracking-wider mb-0.5">
                                             Passing Score</p>
                                         <p
                                             class="text-lg font-black {{ $passingScore == 0 ? 'text-amber-500' : 'text-green-600' }}">
-                                            {{ $passingScore }}%</p>
+                                            {{ $passingScore }}%
+                                        </p>
                                     </div>
                                     <div>
                                         <p class="text-[10px] text-gray-400 font-bold uppercase tracking-wider mb-0.5">
@@ -393,23 +402,27 @@
 
                         @if($maxRetakesReached)
                             {{-- GLOBAL LOCKOUT --}}
-                            <button disabled class="w-full sm:w-auto px-8 py-3.5 bg-gray-200 text-gray-500 border border-gray-300 font-bold rounded-xl cursor-not-allowed flex items-center justify-center gap-2">
+                            <button disabled
+                                class="w-full sm:w-auto px-8 py-3.5 bg-gray-200 text-gray-500 border border-gray-300 font-bold rounded-xl cursor-not-allowed flex items-center justify-center gap-2">
                                 <i class="fas fa-lock text-lg"></i> Locked (Max Retakes Reached)
                             </button>
-                            
+
                             @if($isEnrolled && in_array($enrollmentStatus, ['failed', 'completed']))
-                                <a href="{{ route('dashboard.materials.result', $material->hashid) }}" class="flex-1 sm:flex-none px-8 py-3.5 bg-red-600 text-white font-bold rounded-xl hover:bg-red-700 transition shadow-lg shadow-red-600/20 flex items-center justify-center gap-2">
+                                <a href="{{ route('dashboard.materials.result', $material->hashid) }}"
+                                    class="flex-1 sm:flex-none px-8 py-3.5 bg-red-600 text-white font-bold rounded-xl hover:bg-red-700 transition shadow-lg shadow-red-600/20 flex items-center justify-center gap-2">
                                     <i class="fas fa-chart-bar text-lg"></i> View Results
                                 </a>
                             @endif
                         @else
                             {{-- NORMAL DYNAMIC FLOW --}}
                             @if($isDropped)
-                                <button id="enroll-btn" onclick="openReenrollModal({{ $material->id }})" class="w-full sm:w-auto px-8 py-3.5 bg-[#a52a2a] text-white font-bold rounded-xl hover:bg-red-800 transition shadow-lg shadow-[#a52a2a]/20 flex items-center justify-center gap-2">
+                                <button id="enroll-btn" onclick="openReenrollModal({{ $material->id }})"
+                                    class="w-full sm:w-auto px-8 py-3.5 bg-[#a52a2a] text-white font-bold rounded-xl hover:bg-red-800 transition shadow-lg shadow-[#a52a2a]/20 flex items-center justify-center gap-2">
                                     <i class="fas fa-rotate-left text-lg"></i> Re-enroll
                                 </button>
                             @else
-                                <button id="enroll-btn" onclick="enrollInMaterial({{ $material->id }}, this)" class="{{ $isEnrolled ? 'hidden' : 'flex' }} w-full sm:w-auto px-8 py-3.5 bg-[#a52a2a] text-white font-bold rounded-xl hover:bg-red-800 transition shadow-lg shadow-[#a52a2a]/20 items-center justify-center gap-2">
+                                <button id="enroll-btn" onclick="enrollInMaterial({{ $material->id }}, this)"
+                                    class="{{ $isEnrolled ? 'hidden' : 'flex' }} w-full sm:w-auto px-8 py-3.5 bg-[#a52a2a] text-white font-bold rounded-xl hover:bg-red-800 transition shadow-lg shadow-[#a52a2a]/20 items-center justify-center gap-2">
                                     @if(!$dbHasExams && !$dbHasQuizzes)
                                         <i class="fas fa-book-reader text-lg"></i> Read Material
                                     @else
@@ -418,7 +431,9 @@
                                 </button>
                             @endif
 
-                            <button id="unenroll-btn" onclick="{{ ($dbHasExams || $dbHasQuizzes) ? 'openDropModal('.$material->id.')' : 'openRemoveModal('.$material->id.')' }}" class="{{ $isEnrolled ? 'flex' : 'hidden' }} w-full sm:w-auto px-6 py-3.5 bg-gray-50 text-gray-700 border border-gray-200 font-bold rounded-xl hover:bg-gray-100 transition items-center justify-center gap-2 cursor-pointer shadow-sm">
+                            <button id="unenroll-btn"
+                                onclick="{{ ($dbHasExams || $dbHasQuizzes) ? 'openDropModal(' . $material->id . ')' : 'openRemoveModal(' . $material->id . ')' }}"
+                                class="{{ $isEnrolled ? 'flex' : 'hidden' }} w-full sm:w-auto px-6 py-3.5 bg-gray-50 text-gray-700 border border-gray-200 font-bold rounded-xl hover:bg-gray-100 transition items-center justify-center gap-2 cursor-pointer shadow-sm">
                                 @if($enrollmentStatus === 'completed')
                                     <i class="fas fa-check-double text-green-600 text-lg"></i> <span>Completed</span>
                                 @elseif($enrollmentStatus === 'read')
@@ -432,14 +447,17 @@
 
                             @if(in_array($enrollmentStatus, ['completed', 'read']))
                                 @if($dbHasExams || $dbHasQuizzes)
-                                    <a href="{{ route('dashboard.materials.result', $material->hashid) }}" class="flex-1 sm:flex-none px-8 py-3.5 bg-blue-600 text-white font-bold rounded-xl hover:bg-blue-700 transition shadow-lg shadow-blue-600/20 flex items-center justify-center gap-2">
+                                    <a href="{{ route('dashboard.materials.result', $material->hashid) }}"
+                                        class="flex-1 sm:flex-none px-8 py-3.5 bg-blue-600 text-white font-bold rounded-xl hover:bg-blue-700 transition shadow-lg shadow-blue-600/20 flex items-center justify-center gap-2">
                                         <i class="fas fa-chart-bar text-lg"></i> View Results
                                     </a>
-                                    <a href="{{ route('dashboard.materials.certificate', $material->hashid) }}" class="flex-1 sm:flex-none px-8 py-3.5 bg-yellow-500 text-white font-bold rounded-xl hover:bg-yellow-600 transition shadow-lg shadow-yellow-500/20 flex items-center justify-center gap-2">
+                                    <a href="{{ route('dashboard.materials.certificate', $material->hashid) }}"
+                                        class="flex-1 sm:flex-none px-8 py-3.5 bg-yellow-500 text-white font-bold rounded-xl hover:bg-yellow-600 transition shadow-lg shadow-yellow-500/20 flex items-center justify-center gap-2">
                                         <i class="fas fa-certificate text-lg"></i> View Certificate
                                     </a>
                                 @else
-                                    <button onclick="startStudying()" class="flex-1 sm:flex-none px-8 py-3.5 bg-green-600 text-white font-bold rounded-xl hover:bg-green-700 transition shadow-lg shadow-green-600/20 flex items-center justify-center gap-2">
+                                    <button onclick="startStudying()"
+                                        class="flex-1 sm:flex-none px-8 py-3.5 bg-green-600 text-white font-bold rounded-xl hover:bg-green-700 transition shadow-lg shadow-green-600/20 flex items-center justify-center gap-2">
                                         <i class="fas fa-book-reader text-lg"></i> Read Again
                                     </button>
                                 @endif
@@ -450,7 +468,8 @@
                                 </a>
                             @endif
 
-                            <button id="study-now-btn" onclick="startStudying()" class="{{ $isEnrolled && !in_array($enrollmentStatus, ['completed', 'read', 'failed']) ? 'flex' : 'hidden' }} flex-1 sm:flex-none px-8 py-3.5 bg-green-600 text-white font-bold rounded-xl hover:bg-green-700 transition shadow-lg shadow-green-600/20 items-center justify-center gap-2">
+                            <button id="study-now-btn" onclick="startStudying()"
+                                class="{{ $isEnrolled && !in_array($enrollmentStatus, ['completed', 'read', 'failed']) ? 'flex' : 'hidden' }} flex-1 sm:flex-none px-8 py-3.5 bg-green-600 text-white font-bold rounded-xl hover:bg-green-700 transition shadow-lg shadow-green-600/20 items-center justify-center gap-2">
                                 @if(!$dbHasExams && !$dbHasQuizzes)
                                     <i class="fas fa-book-open text-lg"></i> Continue Reading
                                 @else
@@ -458,7 +477,7 @@
                                 @endif
                             </button>
                         @endif
-                        
+
                         {{-- THE SHARE BUTTON --}}
                         <button onclick="shareMaterial('{{ url()->current() }}', '{{ addslashes($material->title) }}')"
                             class="px-6 py-3.5 bg-gray-50 hover:bg-gray-100 text-gray-700 font-bold rounded-xl transition-all border border-gray-200 shadow-sm flex items-center gap-2 w-full sm:w-auto justify-center">
@@ -466,14 +485,14 @@
                         </button>
 
                     </div>
-                    
+
                     {{-- Warning Banner for Max Retakes (Always visible if limit reached) --}}
                     @if($maxRetakesReached)
                         <div class="mt-4 p-4 bg-red-50 border border-red-200 rounded-xl flex items-start gap-3 w-full">
                             <i class="fas fa-ban text-red-500 text-lg mt-0.5"></i>
                             <div>
                                 <p class="text-sm font-bold text-red-700">Maximum Retakes Reached</p>
-                                <p class="text-xs text-red-600 mt-1">You have exhausted the 2 allowed retake attempts for this module. You can no longer access or re-enroll in the course materials.</p>
+                                <p class="text-xs text-red-600 mt-1">You have used all {{ $maxRetakes }} retakes (4 total enrollment attempts) for this module. Your final status is Failed.</p>
                             </div>
                         </div>
                     @endif
@@ -498,7 +517,8 @@
                 </div>
                 <p id="progress-count-text"
                     class="text-xs text-gray-400 mt-3 font-bold uppercase tracking-wider text-right">
-                    {{ $sectionsCompleted }} of {{ $timelineCount }} sections completed</p>
+                    {{ $sectionsCompleted }} of {{ $timelineCount }} sections completed
+                </p>
             </div>
 
             {{-- Course Content / Lessons List --}}
@@ -534,7 +554,8 @@
                                     @if($maxRetakesReached)
                                         <i class="lesson-status-icon fas fa-lock text-red-500 tooltip" title="Locked (Max Retakes)"></i>
                                     @else
-                                        <i class="lesson-status-icon fas fa-play-circle text-[#a52a2a] text-xl tooltip" title="Current Section"></i>
+                                        <i class="lesson-status-icon fas fa-play-circle text-[#a52a2a] text-xl tooltip"
+                                            title="Current Section"></i>
                                     @endif
                                 @else
                                     <i class="lesson-status-icon fas fa-lock text-gray-300 tooltip" title="Locked"></i>
@@ -555,7 +576,7 @@
                 @endforelse
 
             </div>
-            
+
             {{-- DOWNLOADABLE RESOURCES --}}
             @if($resources->count() > 0)
                 <h3 class="text-xl font-black text-gray-900 mb-4 px-2 mt-12">Media & Resources</h3>
@@ -600,23 +621,25 @@
                             <div class="flex-1 min-w-0 cursor-pointer"
                                 onclick="openResourceViewer('{{ $res->url }}', '{{ $res->ext }}', '{{ $res->name }}')">
                                 <h4 class="font-bold text-gray-900 text-sm truncate group-hover:text-[#a52a2a] transition">
-                                    {{ $res->name }}</h4>
+                                    {{ $res->name }}
+                                </h4>
                                 <p class="text-[10px] font-bold text-gray-400 uppercase tracking-wider mt-0.5">
-                                    {{ strtoupper($res->ext) }} • {{ $res->size }}</p>
+                                    {{ strtoupper($res->ext) }} • {{ $res->size }}
+                                </p>
                             </div>
 
                             @if($material->is_downloadable ?? true)
-                            <button onclick="trackAndDownloadResource('{{ $res->url }}', {{ $material->id }})"
-                                class="h-10 w-10 shrink-0 rounded-full flex items-center justify-center text-gray-400 hover:text-[#a52a2a] hover:bg-red-50 transition"
-                                title="Download File">
-                                <i class="fas fa-download"></i>
-                            </button>
+                                <button onclick="trackAndDownloadResource('{{ $res->url }}', {{ $material->id }})"
+                                    class="h-10 w-10 shrink-0 rounded-full flex items-center justify-center text-gray-400 hover:text-[#a52a2a] hover:bg-red-50 transition"
+                                    title="Download File">
+                                    <i class="fas fa-download"></i>
+                                </button>
                             @else
-                            <button disabled
-                                class="h-10 w-10 shrink-0 rounded-full flex items-center justify-center text-gray-300 cursor-not-allowed"
-                                title="Downloads Disabled">
-                                <i class="fas fa-download"></i>
-                            </button>
+                                <button disabled
+                                    class="h-10 w-10 shrink-0 rounded-full flex items-center justify-center text-gray-300 cursor-not-allowed"
+                                    title="Downloads Disabled">
+                                    <i class="fas fa-download"></i>
+                                </button>
                             @endif
                         </div>
                     @endforeach
@@ -626,43 +649,92 @@
 
     </div>
 
-    {{-- Drop Course Modal (For Graded Courses with 5s Timer) --}}
-    <div id="dropCourseModal" class="fixed inset-0 z-[9999] hidden opacity-0 transition-opacity duration-300 flex items-center justify-center p-4">
+    {{-- Drop Module Modal (For Graded Modules with 5s Timer) --}}
+    <div id="dropCourseModal"
+        class="fixed inset-0 z-[9999] hidden opacity-0 transition-opacity duration-300 flex items-center justify-center p-4 sm:p-6">
         <div class="absolute inset-0 bg-gray-900/60" onclick="closeDropModal()"></div>
-        <div class="bg-white rounded-3xl w-full max-w-sm shadow-2xl overflow-hidden transform scale-95 transition-all duration-300 text-center p-6 relative z-10"
+        <div class="bg-white rounded-3xl w-full max-w-md shadow-2xl overflow-hidden transform scale-95 transition-all duration-300 relative z-10 flex flex-col max-h-[75vh]"
             id="dropCourseBox">
-            <div
-                class="w-16 h-16 bg-red-50 text-red-500 rounded-full flex items-center justify-center mx-auto mb-4 text-3xl">
-                <i class="fas fa-exclamation-triangle"></i>
+
+            {{-- Sticky Header --}}
+            <div class="px-6 pt-5 pb-4 text-center border-b border-gray-100 bg-white shrink-0 sticky top-0 z-10">
+                <div
+                    class="w-12 h-12 bg-red-50 text-red-500 rounded-2xl flex items-center justify-center mx-auto mb-2 text-xl">
+                    <i class="fas fa-sign-out-alt"></i>
+                </div>
+                <h3 class="text-lg font-black text-gray-900">Drop Module?</h3>
+                <p class="text-xs text-gray-500 mt-0.5">Please review what happens before confirming.</p>
             </div>
-            <h3 class="text-xl font-black text-gray-900 mb-2">Drop Course?</h3>
-            <p class="text-sm text-gray-500 mb-6">Are you sure you want to drop this course? All your progress and completed lessons will be permanently lost.</p>
-            <div class="flex gap-3">
+
+            {{-- Scrollable Body --}}
+            <div class="px-6 py-4 space-y-3 overflow-y-auto grow custom-scrollbar">
+
+                {{-- Important reminder card --}}
+                <div class="bg-gray-50 border border-gray-200 rounded-2xl p-4 text-left space-y-2">
+                    <p class="text-[10px] font-black uppercase tracking-wider text-gray-400 mb-2">Important Reminder</p>
+                    <div class="flex items-start gap-2.5 text-xs text-gray-700 leading-relaxed">
+                        <i class="fas fa-eye-slash text-red-400 mt-0.5 shrink-0"></i>
+                        <span>Dropping this module will remove your access.</span>
+                    </div>
+                    <div class="flex items-start gap-2.5 text-xs text-gray-700 leading-relaxed">
+                        <i class="fas fa-rotate-left text-amber-500 mt-0.5 shrink-0"></i>
+                        <span>If you enroll again later, your learning progress will restart from the beginning.</span>
+                    </div>
+                    <div class="flex items-start gap-2.5 text-xs text-gray-700 leading-relaxed">
+                        <i class="fas fa-minus-circle text-blue-400 mt-0.5 shrink-0"></i>
+                        <span>Your remaining retakes will be reduced when you re-enroll.</span>
+                    </div>
+                </div>
+
+                {{-- Remaining Retakes Summary Card --}}
+                <div class="bg-white border border-gray-200 rounded-xl p-3 text-center">
+                    <p class="text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-1">Remaining Retakes</p>
+                    <p class="text-lg font-black {{ $remainingRetakes > 0 ? 'text-green-600' : 'text-red-600' }}">
+                        {{ $remainingRetakes }} <span class="text-xs font-bold text-gray-400">of
+                            {{ $maxRetakes }}</span></p>
+                </div>
+
+            </div>
+
+            {{-- Sticky Footer --}}
+            <div class="px-6 py-4 bg-white border-t border-gray-100 shrink-0 sticky bottom-0 z-10 flex gap-3">
                 <button type="button" onclick="closeDropModal()"
-                    class="w-full py-3 bg-gray-100 text-gray-700 font-bold rounded-xl hover:bg-gray-200 transition">
+                    class="flex-1 py-2.5 bg-gray-100 text-gray-700 font-bold rounded-xl hover:bg-gray-200 transition text-sm">
                     Cancel
                 </button>
-                <button type="button" id="confirm-drop-btn" onclick="executeUnenroll(true)" disabled class="w-full py-3 bg-red-600 text-white font-bold rounded-xl hover:bg-red-700 transition disabled:opacity-50 disabled:cursor-not-allowed">
-                    Drop (<span id="drop-timer">5</span>s)
+                <button type="button" id="confirm-drop-btn" onclick="executeUnenroll(true)" disabled
+                    class="flex-1 py-2.5 bg-red-600 text-white font-bold rounded-xl hover:bg-red-700 transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 text-sm">
+                    <i class="fas fa-sign-out-alt"></i> Drop (<span id="drop-timer">5</span>s)
                 </button>
             </div>
         </div>
     </div>
 
     {{-- Remove Material Modal (For Read-Only Materials without Timer) --}}
-    <div id="removeMaterialModal" class="fixed inset-0 z-[9999] hidden opacity-0 transition-opacity duration-300 flex items-center justify-center p-4">
+    <div id="removeMaterialModal"
+        class="fixed inset-0 z-[9999] hidden opacity-0 transition-opacity duration-300 flex items-center justify-center p-4 sm:p-6">
         <div class="absolute inset-0 bg-gray-900/60" onclick="closeRemoveModal()"></div>
-        <div class="bg-white rounded-3xl w-full max-w-sm shadow-2xl overflow-hidden transform scale-95 transition-all duration-300 text-center p-6 relative z-10" id="removeMaterialBox">
-            <div class="w-16 h-16 bg-red-50 text-red-500 rounded-full flex items-center justify-center mx-auto mb-4 text-3xl">
-                <i class="fas fa-trash-alt"></i>
+        <div class="bg-white rounded-3xl w-full max-w-sm shadow-2xl overflow-hidden transform scale-95 transition-all duration-300 relative z-10 flex flex-col max-h-[75vh]"
+            id="removeMaterialBox">
+            <div class="px-6 pt-5 pb-4 text-center border-b border-gray-100 bg-white shrink-0 sticky top-0 z-10">
+                <div
+                    class="w-12 h-12 bg-gray-100 text-gray-400 rounded-2xl flex items-center justify-center mx-auto mb-2 text-xl">
+                    <i class="fas fa-minus-circle"></i>
+                </div>
+                <h3 class="text-lg font-black text-gray-900">Remove Material?</h3>
+                <p class="text-xs text-gray-500 mt-0.5">This will remove the material from your enrolled list.</p>
             </div>
-            <h3 class="text-xl font-black text-gray-900 mb-2">Remove Material?</h3>
-            <p class="text-sm text-gray-500 mb-6">Are you sure you want to remove this material from your account?</p>
-            <div class="flex gap-3">
-                <button type="button" onclick="closeRemoveModal()" class="w-full py-3 bg-gray-100 text-gray-700 font-bold rounded-xl hover:bg-gray-200 transition">
+            <div class="px-6 py-5 overflow-y-auto grow custom-scrollbar">
+                <p class="text-xs text-gray-600 text-center leading-relaxed">Are you sure you want to remove this
+                    material from your account? You can enroll again at any time.</p>
+            </div>
+            <div class="px-6 py-4 bg-white border-t border-gray-100 shrink-0 sticky bottom-0 z-10 flex gap-3">
+                <button type="button" onclick="closeRemoveModal()"
+                    class="flex-1 py-2.5 bg-gray-100 text-gray-700 font-bold rounded-xl hover:bg-gray-200 transition text-sm">
                     Cancel
                 </button>
-                <button type="button" id="confirm-remove-btn" onclick="executeUnenroll(false)" class="w-full py-3 bg-red-600 text-white font-bold rounded-xl hover:bg-red-700 transition">
+                <button type="button" id="confirm-remove-btn" onclick="executeUnenroll(false)"
+                    class="flex-1 py-2.5 bg-red-600 text-white font-bold rounded-xl hover:bg-red-700 transition text-sm">
                     Yes, Remove
                 </button>
             </div>
@@ -670,26 +742,75 @@
     </div>
 
     {{-- Re-enroll Warning Modal --}}
-    <div id="reenrollWarningModal" class="fixed inset-0 z-[9999] hidden opacity-0 transition-opacity duration-300 flex items-center justify-center p-4">
+    <div id="reenrollWarningModal"
+        class="fixed inset-0 z-[9999] hidden opacity-0 transition-opacity duration-300 flex items-center justify-center p-4 sm:p-6">
         <div class="absolute inset-0 bg-gray-900/60" onclick="closeReenrollModal()"></div>
-        <div class="bg-white rounded-3xl w-full max-w-md shadow-2xl overflow-hidden transform scale-95 transition-all duration-300 text-center p-6 relative z-10" id="reenrollWarningBox">
-            <div class="w-16 h-16 bg-amber-50 text-amber-500 rounded-full flex items-center justify-center mx-auto mb-4 text-3xl">
-                <i class="fas fa-exclamation-triangle"></i>
+        <div class="bg-white rounded-3xl w-full max-w-md shadow-2xl overflow-hidden transform scale-95 transition-all duration-300 relative z-10 flex flex-col max-h-[75vh]"
+            id="reenrollWarningBox">
+
+            {{-- Sticky Header --}}
+            <div class="px-6 pt-5 pb-4 text-center border-b border-gray-100 bg-white shrink-0 sticky top-0 z-10">
+                <div
+                    class="w-12 h-12 bg-[#a52a2a]/10 text-[#a52a2a] rounded-2xl flex items-center justify-center mx-auto mb-2 text-xl">
+                    <i class="fas fa-rotate-left"></i>
+                </div>
+                <h3 class="text-lg font-black text-gray-900">Re-enroll in Module?</h3>
+                <p class="text-xs text-gray-500 mt-0.5">Please review what happens before continuing.</p>
             </div>
-            <h3 class="text-xl font-black text-gray-900 mb-2">Re-enroll in Module?</h3>
-            <p class="text-sm text-gray-600 mb-6 leading-relaxed">
-                @if($droppedByType === 'student')
-                    You have already enrolled in this module once and dropped it voluntarily. Re-enrolling means that your progress will be reset and you will start from the beginning.
-                @else
-                    If you enroll in this module again on your own, your progress will be reset and you will start from the beginning. Your progress can only be preserved if your instructor re-enrolls you.
-                @endif
-            </p>
-            <div class="flex gap-3">
-                <button type="button" onclick="closeReenrollModal()" class="w-full py-3 bg-gray-100 text-gray-700 font-bold rounded-xl hover:bg-gray-200 transition">
+
+            {{-- Scrollable Body --}}
+            <div class="px-6 py-4 space-y-3 overflow-y-auto grow custom-scrollbar">
+
+                {{-- Effects card --}}
+                <div class="bg-gray-50 border border-gray-200 rounded-2xl p-4 text-left space-y-2">
+                    <p class="text-[10px] font-black uppercase tracking-wider text-gray-400 mb-2">Effects of
+                        re-enrolling</p>
+                    <div class="flex items-start gap-2.5 text-xs text-gray-700 leading-relaxed">
+                        <i class="fas fa-rotate-left text-[#a52a2a] mt-0.5 shrink-0"></i>
+                        <span>Re-enrolling will restart your learning progress from the beginning.</span>
+                    </div>
+                    <div class="flex items-start gap-2.5 text-xs text-gray-700 leading-relaxed">
+                        <i class="fas fa-minus-circle text-blue-400 mt-0.5 shrink-0"></i>
+                        <span>Your remaining retakes will decrease by one.</span>
+                    </div>
+                    <div class="flex items-start gap-2.5 text-xs text-gray-700 leading-relaxed">
+                        <i class="fas fa-triangle-exclamation text-amber-500 mt-0.5 shrink-0"></i>
+                        <span>This action cannot be undone.</span>
+                    </div>
+                </div>
+
+                {{-- Current vs After Re-enrolling Summary Comparison --}}
+                <div class="border border-gray-200 rounded-2xl overflow-hidden text-center bg-white">
+                    <div class="p-3.5 bg-white">
+                        <p class="text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-1">Remaining Retakes
+                        </p>
+                        <p class="text-base font-black {{ $remainingRetakes > 0 ? 'text-green-600' : 'text-red-600' }}">
+                            {{ $remainingRetakes }} <span class="text-xs font-bold text-gray-400">of
+                                {{ $maxRetakes }}</span></p>
+                    </div>
+                    <div
+                        class="bg-gray-100 px-3 py-1.5 text-[10px] font-black uppercase tracking-widest text-gray-500 border-y border-gray-200 flex items-center justify-center gap-1.5">
+                        <i class="fas fa-arrow-down text-[9px]"></i> After Re-enrolling
+                    </div>
+                    <div class="p-3.5 bg-red-50/40">
+                        <p class="text-[10px] font-bold uppercase tracking-wider text-gray-500 mb-1">Remaining Retakes
+                        </p>
+                        <p class="text-base font-black text-[#a52a2a]">{{ $remainingAfterReenroll }} <span
+                                class="text-xs font-bold text-gray-400">of {{ $maxRetakes }}</span></p>
+                    </div>
+                </div>
+
+            </div>
+
+            {{-- Sticky Footer --}}
+            <div class="px-6 py-4 bg-white border-t border-gray-100 shrink-0 sticky bottom-0 z-10 flex gap-3">
+                <button type="button" onclick="closeReenrollModal()"
+                    class="flex-1 py-2.5 bg-gray-100 text-gray-700 font-bold rounded-xl hover:bg-gray-200 transition text-sm">
                     Cancel
                 </button>
-                <button type="button" id="confirm-reenroll-btn" onclick="executeReenroll()" class="w-full py-3 bg-[#a52a2a] text-white font-bold rounded-xl hover:bg-red-800 transition">
-                    Yes, Re-enroll
+                <button type="button" id="confirm-reenroll-btn" onclick="executeReenroll()"
+                    class="flex-1 py-2.5 bg-[#a52a2a] text-white font-bold rounded-xl hover:bg-red-800 transition flex items-center justify-center gap-2 text-sm">
+                    <i class="fas fa-rotate-left"></i> Yes, Re-enroll
                 </button>
             </div>
         </div>
@@ -727,13 +848,13 @@
             </div>
             <div class="flex items-center gap-2 shrink-0">
                 @if($material->is_downloadable ?? true)
-                <button id="rv-download-btn"
-                    class="hover:bg-white/20 h-10 w-10 rounded-full flex items-center justify-center transition"
-                    title="Download"><i class="fas fa-download"></i></button>
+                    <button id="rv-download-btn"
+                        class="hover:bg-white/20 h-10 w-10 rounded-full flex items-center justify-center transition"
+                        title="Download"><i class="fas fa-download"></i></button>
                 @else
-                <button disabled id="rv-download-btn"
-                    class="text-white/30 h-10 w-10 rounded-full flex items-center justify-center cursor-not-allowed"
-                    title="Downloads Disabled"><i class="fas fa-download"></i></button>
+                    <button disabled id="rv-download-btn"
+                        class="text-white/30 h-10 w-10 rounded-full flex items-center justify-center cursor-not-allowed"
+                        title="Downloads Disabled"><i class="fas fa-download"></i></button>
                 @endif
                 <div class="w-px h-6 bg-white/20 mx-1"></div>
                 <button onclick="closeResourceViewer()"
@@ -767,11 +888,11 @@
                     text: 'Check out this learning module: ' + title,
                     url: url,
                 })
-                .catch((error) => console.log('Error sharing', error));
+                    .catch((error) => console.log('Error sharing', error));
             } else {
                 // Fallback to clipboard
                 navigator.clipboard.writeText(url).then(() => {
-                    if(typeof showSnackbar === 'function') {
+                    if (typeof showSnackbar === 'function') {
                         showSnackbar('Link copied to clipboard!', 'success');
                     } else {
                         alert('Link copied to clipboard!');
@@ -839,7 +960,7 @@
 
                 if (alertCallback) {
                     alertCallback();
-                    alertCallback = null; 
+                    alertCallback = null;
                 }
             }, 300);
         }
@@ -914,7 +1035,7 @@
             materialToRemove = null;
             const modal = document.getElementById('removeMaterialModal');
             const box = document.getElementById('removeMaterialBox');
-            
+
             box.classList.remove('scale-100');
             box.classList.add('scale-95');
             modal.classList.remove('opacity-100');
@@ -928,7 +1049,7 @@
             materialToReenroll = materialId;
             const modal = document.getElementById('reenrollWarningModal');
             const box = document.getElementById('reenrollWarningBox');
-            
+
             modal.classList.remove('hidden');
             setTimeout(() => {
                 modal.classList.remove('opacity-0');
@@ -942,7 +1063,7 @@
             materialToReenroll = null;
             const modal = document.getElementById('reenrollWarningModal');
             const box = document.getElementById('reenrollWarningBox');
-            
+
             box.classList.remove('scale-100');
             box.classList.add('scale-95');
             modal.classList.remove('opacity-100');
@@ -960,7 +1081,7 @@
         async function executeUnenroll(isDrop) {
             const materialId = isDrop ? materialToDrop : materialToRemove;
             if (!materialId) return;
-            
+
             const confirmBtn = document.getElementById(isDrop ? 'confirm-drop-btn' : 'confirm-remove-btn');
             const originalHtml = confirmBtn.innerHTML;
             confirmBtn.disabled = true;
@@ -981,7 +1102,7 @@
                     if (isDrop) closeDropModal(); else closeRemoveModal();
 
                     showStandaloneAlert(data.message, 'success', () => {
-                        navigateBack(); 
+                        navigateBack();
                     });
                 } else {
                     showStandaloneAlert(data.message || 'Failed to complete action.', 'error');
@@ -1036,7 +1157,7 @@
 
             titleEl.innerText = name;
             @if($material->is_downloadable ?? true)
-            dlBtn.onclick = () => trackAndDownloadResource(url, {{ $material->id }});
+                dlBtn.onclick = () => trackAndDownloadResource(url, {{ $material->id }});
             @endif
 
             contentArea.innerHTML = '<i class="fas fa-circle-notch fa-spin text-4xl text-white/50"></i>';
@@ -1134,9 +1255,9 @@
                             <h3 class="text-xl font-bold mb-2">Preview Not Available</h3>
                             <p class="text-white/60 mb-6 text-sm">This file type cannot be previewed in the browser.</p>
                             @if($material->is_downloadable ?? true)
-                            <button onclick="trackAndDownloadResource('${url}', {{ $material->id }})" class="px-6 py-3 bg-[#a52a2a] rounded-xl font-bold hover:bg-red-700 transition">Download File Instead</button>
+                                <button onclick="trackAndDownloadResource('${url}', {{ $material->id }})" class="px-6 py-3 bg-[#a52a2a] rounded-xl font-bold hover:bg-red-700 transition">Download File Instead</button>
                             @else
-                            <p class="text-red-400 mt-2 text-sm font-bold">Downloads are disabled for this module.</p>
+                                <p class="text-red-400 mt-2 text-sm font-bold">Downloads are disabled for this module.</p>
                             @endif
                         </div>`;
                 }

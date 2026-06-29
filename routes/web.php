@@ -204,12 +204,9 @@ Route::middleware(['auth', 'verified', CheckAccountStatus::class])->group(functi
         // Access Management Routes
         Route::post('/materials/{id}/access', [MaterialsController::class, 'addAccess'])->name('dashboard.materials.access.add');
         Route::post('/materials/{id}/import-access', [MaterialsController::class, 'importAccess'])->name('dashboard.materials.access.import');
-        Route::post('/materials/access/{id}/drop', [MaterialsController::class, 'dropAccess'])->name('dashboard.materials.access.drop');
-        Route::post('/materials/access-bulk/drop', [MaterialsController::class, 'bulkDropAccess'])->name('dashboard.materials.access.bulkDrop');
-        Route::post('/materials/access/{id}/reenroll', [MaterialsController::class, 'reenrollAccess'])->name('dashboard.materials.access.reenroll');
-        Route::post('/materials/access-bulk/reenroll', [MaterialsController::class, 'bulkReenrollAccess'])->name('dashboard.materials.access.bulkReenroll');
         Route::delete('/materials/access/{id}/delete', [MaterialsController::class, 'deleteAccess'])->name('dashboard.materials.access.delete');
         Route::delete('/materials/access-bulk/delete', [MaterialsController::class, 'bulkDeleteAccess'])->name('dashboard.materials.access.bulkDelete');
+
         Route::post('/materials/access/{id}/invite', [MaterialsController::class, 'sendIndividualInvite'])->name('dashboard.materials.access.invite');
         Route::post('/materials/{id}/generate-code', [MaterialsController::class, 'generateAccessCode']);
 

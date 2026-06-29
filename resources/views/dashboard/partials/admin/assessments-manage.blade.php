@@ -167,22 +167,22 @@
             </form>
         </div>
 
-        <div class="flex items-center justify-between mb-4 bg-gray-50 p-3 rounded-xl border border-gray-100">
-            <div class="flex items-center gap-2 w-full md:w-auto">
-                <div class="relative w-full md:w-72">
-                    <i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"></i>
-                    <input type="text" id="search-student" onkeyup="filterStudents()" placeholder="Search LRN or Name..." 
-                        class="w-full pl-10 pr-4 py-2 bg-white border border-gray-200 rounded-lg focus:ring-2 focus:ring-[#a52a2a]/20 focus:border-[#a52a2a] outline-none transition-all text-sm">
-                </div>
-                <button type="button" onclick="exportStudentResultsList()" class="px-4 py-2 bg-white border border-gray-200 text-gray-700 text-sm font-bold rounded-lg hover:bg-gray-50 hover:text-[#a52a2a] transition-all shadow-sm flex items-center gap-2 whitespace-nowrap" title="Export List">
-                    <i class="fas fa-file-export text-[#a52a2a]"></i> Export List
-                </button>
+        <div class="flex items-center justify-between gap-4 mb-4 bg-gray-50 p-3 rounded-xl border border-gray-100">
+            <div class="relative w-full md:w-72">
+                <i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"></i>
+                <input type="text" id="search-student" onkeyup="filterStudents()" placeholder="Search LRN or Name..." 
+                    class="w-full pl-10 pr-4 py-2 bg-white border border-gray-200 rounded-lg focus:ring-2 focus:ring-[#a52a2a]/20 focus:border-[#a52a2a] outline-none transition-all text-sm">
             </div>
 
-            <button type="button" id="bulk-delete-btn" onclick="window.openDeleteModal('bulk')" 
-                class="hidden px-4 py-2 bg-red-50 text-red-600 border border-red-200 text-sm font-bold rounded-lg hover:bg-red-600 hover:text-white transition-all shadow-sm items-center gap-2 whitespace-nowrap">
-                <i class="fas fa-trash-alt"></i> Delete Selected (<span id="selected-count">0</span>)
-            </button>
+            <div class="flex items-center gap-2">
+                <button type="button" id="bulk-delete-btn" onclick="window.openDeleteModal('bulk')" 
+                    class="hidden px-4 py-2 bg-red-50 text-red-600 border border-red-200 text-sm font-bold rounded-lg hover:bg-red-600 hover:text-white transition-all shadow-sm items-center gap-2 whitespace-nowrap">
+                    <i class="fas fa-trash-alt"></i> Delete Selected (<span id="selected-count">0</span>)
+                </button>
+                <button type="button" onclick="openModal('exportListModal', 'exportListBox')" class="h-10 px-4 bg-white border border-gray-200 text-gray-600 rounded-xl hover:bg-gray-50 transition text-sm font-bold shadow-sm flex items-center justify-center whitespace-nowrap" title="Export List">
+                    <i class="fas fa-download mr-1.5"></i> Export List
+                </button>
+            </div>
         </div>
 
         <div class="overflow-x-auto rounded-xl border border-gray-100">
@@ -503,12 +503,64 @@
     </div>
 </div>
 
+{{-- Export List Modal --}}
+<div id="exportListModal" class="fixed inset-0 z-[9999] flex items-center justify-center hidden bg-black/50 backdrop-blur-sm opacity-0 transition-opacity duration-300">
+    <div id="exportListBox" class="bg-white rounded-2xl p-6 md:p-8 max-w-md w-full mx-4 shadow-2xl transform scale-95 transition-transform duration-300 border border-gray-100">
+        <div class="flex items-center justify-between pb-4 mb-4 border-b border-gray-100">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-xl bg-[#a52a2a]/10 flex items-center justify-center text-[#a52a2a]">
+                    <i class="fas fa-file-export text-lg"></i>
+                </div>
+                <div>
+                    <h3 class="text-base font-black text-gray-900">Export Assessment Results</h3>
+                    <p class="text-xs text-gray-500">Select report type to download</p>
+                </div>
+            </div>
+            <button type="button" onclick="closeModal('exportListModal', 'exportListBox')" class="text-gray-400 hover:text-gray-600 transition">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+
+        <form method="GET" action="{{ route('dashboard.assessments.students.export', $assessment->id) }}" id="exportForm" onsubmit="prepareExportSearch()">
+            <input type="hidden" name="search" id="export_search_input" value="">
+            <div class="space-y-3 mb-6">
+                {{-- Option 1: Summary Report --}}
+                <label class="flex items-start gap-3 p-4 border border-[#a52a2a] bg-[#a52a2a]/5 rounded-xl cursor-pointer transition export-option-card">
+                    <input type="radio" name="export_type" value="summary" checked class="mt-1 text-[#a52a2a] focus:ring-[#a52a2a]" onchange="updateExportCard(this)">
+                    <div>
+                        <span class="block text-sm font-black text-gray-900">Summary Report</span>
+                        <span class="block text-xs text-gray-500 mt-0.5">Overview of each student's assessment performance, including their score, MPS, Proficiency Level, and completion details.</span>
+                    </div>
+                </label>
+
+                {{-- Option 2: Detailed Report --}}
+                <label class="flex items-start gap-3 p-4 border border-gray-200 hover:border-gray-300 rounded-xl cursor-pointer transition export-option-card">
+                    <input type="radio" name="export_type" value="detailed" class="mt-1 text-[#a52a2a] focus:ring-[#a52a2a]" onchange="updateExportCard(this)">
+                    <div>
+                        <span class="block text-sm font-black text-gray-900">Detailed Report</span>
+                        <span class="block text-xs text-gray-500 mt-0.5">Comprehensive multi-sheet report including itemized question breakdowns and answer sheet analysis.</span>
+                    </div>
+                </label>
+            </div>
+
+            <div class="flex items-center justify-end gap-3 pt-2 border-t border-gray-100">
+                <button type="button" onclick="closeModal('exportListModal', 'exportListBox')" class="px-5 py-2.5 bg-gray-100 text-gray-700 font-bold rounded-xl hover:bg-gray-200 transition text-xs">
+                    Cancel
+                </button>
+                <button type="submit" class="px-6 py-2.5 bg-[#a52a2a] text-white font-bold rounded-xl hover:bg-red-800 transition text-xs shadow-lg shadow-[#a52a2a]/20 flex items-center gap-2">
+                    <i class="fas fa-download"></i> Export Now
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
 <script>
     // ==========================================
     // DOM PREPARATION (Fixes Modal & Snackbar Trapping)
     // ==========================================
     setTimeout(() => {
-        ['assessment-delete-modal', 'student-delete-modal', 'custom-snackbar', 'customAlertModal', 'lrnConflictModal', 'importLrnModal'].forEach(id => {
+        ['assessment-delete-modal', 'student-delete-modal', 'custom-snackbar', 'customAlertModal', 'lrnConflictModal', 'importLrnModal', 'exportListModal'].forEach(id => {
             const newEl = document.getElementById(id);
             if (newEl && newEl.parentElement !== document.body) {
                 // Clean up any orphan elements from previous visits to prevent duplicates
@@ -1406,9 +1458,49 @@ function renderLrnDuplicates(data) {
         }
     }, 50);
 
-    function exportStudentResultsList() {
-        const searchVal = document.getElementById('search-student') ? document.getElementById('search-student').value.trim() : '';
-        const query = encodeURIComponent(searchVal);
-        window.open(`{{ route('dashboard.assessments.students.export', $assessment->id) }}?search=${query}`, '_blank');
-    }
+    window.openModal = function(modalId, boxId) {
+        const modal = document.getElementById(modalId);
+        const box = document.getElementById(boxId);
+        if (!modal || !box) return;
+        modal.classList.remove('hidden');
+        setTimeout(() => {
+            modal.classList.remove('opacity-0');
+            modal.classList.add('opacity-100');
+            box.classList.remove('scale-95');
+            box.classList.add('scale-100');
+        }, 10);
+    };
+
+    window.closeModal = function(modalId, boxId) {
+        const modal = document.getElementById(modalId);
+        const box = document.getElementById(boxId);
+        if (!modal || !box) return;
+        modal.classList.remove('opacity-100');
+        modal.classList.add('opacity-0');
+        box.classList.remove('scale-100');
+        box.classList.add('scale-95');
+        setTimeout(() => {
+            modal.classList.add('hidden');
+        }, 300);
+    };
+
+    window.updateExportCard = function(radio) {
+        document.querySelectorAll('.export-option-card').forEach(card => {
+            card.classList.remove('border-[#a52a2a]', 'bg-[#a52a2a]/5');
+            card.classList.add('border-gray-200');
+        });
+        const parentCard = radio.closest('.export-option-card');
+        if (parentCard) {
+            parentCard.classList.remove('border-gray-200');
+            parentCard.classList.add('border-[#a52a2a]', 'bg-[#a52a2a]/5');
+        }
+    };
+
+    window.prepareExportSearch = function() {
+        const searchInput = document.getElementById('search-student');
+        const exportSearchInput = document.getElementById('export_search_input');
+        if (searchInput && exportSearchInput) {
+            exportSearchInput.value = searchInput.value || '';
+        }
+    };
 </script>

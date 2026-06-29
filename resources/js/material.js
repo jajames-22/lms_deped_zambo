@@ -180,12 +180,15 @@ MaterialBuilder.renderExistingCategory = function (catData) {
                       ? "content"
                       : "quiz";
 
+            const isCaseSensitive =
+                q.is_case_sensitive == 1 || q.is_case_sensitive === true;
             MaterialBuilder.addItem(
                 qContainer.id.split("-").pop(),
                 mainType,
                 subType,
                 null,
                 q.id, // Pass Question ID
+                isCaseSensitive,
             );
 
             const latestQ = qContainer.querySelector(
@@ -358,7 +361,8 @@ MaterialBuilder.addItem = function (
     mainType,
     subType = "content",
     afterElement = null,
-    existingId = null, 
+    existingId = null,
+    isCaseSensitive = false,
 ) {
     const container = document.getElementById(`q-container-${cId}`);
     if (!container) return;
@@ -387,6 +391,12 @@ MaterialBuilder.addItem = function (
                 </div>
                 <div class="flex items-center gap-1 shrink-0">
                     <div class="cursor-grab active:cursor-grabbing text-gray-300 hover:text-gray-600 px-2 drag-handle-q rounded hover:bg-gray-200 transition"><i class="fas fa-grip-vertical"></i></div>
+                    ${subType === "text" ? `
+                    <label class="flex items-center gap-1.5 cursor-pointer text-gray-500 hover:text-green-600 transition px-2 py-1 rounded hover:bg-gray-100" onclick="event.stopPropagation()">
+                        <input type="checkbox" class="case-sensitive-input cursor-pointer h-4 w-4 text-green-600 rounded" ${isCaseSensitive ? "checked" : ""} onchange="MaterialBuilder.handleAutosaveTrigger()">
+                        <span class="text-[10px] font-bold uppercase">Case Sensitive</span>
+                    </label>
+                    ` : ""}
                     <button type="button" onclick="MaterialBuilder.removeElement('${qId}')" class="h-7 w-7 flex items-center justify-center text-gray-300 hover:text-red-500 transition rounded-md hover:bg-red-50 ml-1"><i class="fas fa-times"></i></button>
                 </div>
             </div>
@@ -483,11 +493,7 @@ MaterialBuilder.addOptionToQuestion = function (
                 <span class="text-[10px] font-bold text-green-600 uppercase shrink-0"><i class="fas fa-check mr-1"></i> Acceptable Answer:</span>
                 <input type="text" class="option-input w-full bg-transparent outline-none text-sm font-medium" placeholder="Type exact answer..." value="${text}">
                 <input type="hidden" class="is-correct-input" value="true">
-                <div class="flex items-center gap-3 border-l border-green-200 pl-3 shrink-0">
-                    <label class="flex items-center gap-1.5 cursor-pointer text-gray-500 hover:text-green-600 transition">
-                        <input type="checkbox" class="case-sensitive-input cursor-pointer h-4 w-4" ${isCaseSensitive ? "checked" : ""} onchange="MaterialBuilder.syncCaseSensitive('${qId}', this.checked)">
-                        <span class="text-[10px] font-bold uppercase">Case Sensitive</span>
-                    </label>
+                <div class="flex items-center border-l border-green-200 pl-3 shrink-0">
                     <button type="button" onclick="MaterialBuilder.removeOption(this, '${qId}')" class="text-gray-400 hover:text-red-500 transition h-6 w-6 flex items-center justify-center"><i class="fas fa-times-circle"></i></button>
                 </div>
             </div>`;
@@ -534,8 +540,10 @@ MaterialBuilder.toggleCategory = function (id, event) {
 };
 MaterialBuilder.toggleQuestion = function (id, event) {
     if (
-        event.target.closest("button") ||
-        event.target.closest(".drag-handle-q")
+        (event && event.target.closest("button")) ||
+        event.target.closest(".drag-handle-q") ||
+        (event && event.target.closest("label")) ||
+        (event && event.target.closest("input"))
     )
         return;
     const block = document.getElementById(id);

@@ -90,15 +90,13 @@
 
             @if(!$passed)
                 @php
-                    $retakesLeft = max(0, 2 - ($retakes -1));
-                    $statusText = "{$retakesLeft} out of 2 retakes left";
-                    if ($retakes >= 3) $statusText = 'Retake Limit Reached';
+                    $remainingRetakes = max(0, min(3, 3 - ($retakes ?? 0)));
                 @endphp
-                <div class="mb-8 p-4 {{ $retakes < 3 ? 'bg-orange-50 border-orange-100 text-orange-800' : 'bg-red-50 border-red-100 text-red-800' }} border rounded-xl flex items-start gap-3">
-                    <i class="fas {{ $retakes < 3 ? 'fa-redo-alt text-orange-500' : 'fa-ban text-red-500' }} mt-1"></i>
+                <div class="mb-8 p-4 {{ $remainingRetakes > 0 ? 'bg-orange-50 border-orange-100 text-orange-800' : 'bg-red-50 border-red-100 text-red-800' }} border rounded-xl flex items-start gap-3">
+                    <i class="fas {{ $remainingRetakes > 0 ? 'fa-redo-alt text-orange-500' : 'fa-ban text-red-500' }} mt-1"></i>
                     <div>
-                        <p class="font-bold">Status: {{ $statusText }}</p>
-                        @if($retakes < 3)
+                        <p class="font-bold">Remaining Retakes: {{ $remainingRetakes }}/3</p>
+                        @if($remainingRetakes > 0)
                             <p class="text-sm opacity-90 mt-1">You are eligible to retake the module. Note: Choosing either "Retake Entire Module" or "Retake Exam Only" will consume 1 retake.</p>
                         @else
                             <p class="text-sm opacity-90 mt-1">You have exhausted all your retake attempts for this module.</p>
@@ -116,7 +114,10 @@
                         <i class="fas fa-certificate"></i> View Certificate
                     </a>
                 @else
-                    @if($retakes < 3)
+                    @php
+                        $remainingRetakes = max(0, min(3, 3 - ($retakes ?? 0)));
+                    @endphp
+                    @if($remainingRetakes > 0)
                         {{-- Retake Entire Module --}}
                         <button onclick="openModal('retake-module-modal')" class="w-full py-4 bg-gray-100 text-gray-700 font-bold rounded-xl hover:bg-gray-200 transition shadow-sm flex items-center justify-center gap-2">
                             <i class="fas fa-redo-alt"></i> Retake Entire Module
@@ -137,7 +138,7 @@
                     @else
                         {{-- Disabled State --}}
                         <button disabled class="w-full py-4 bg-gray-100 text-gray-400 font-bold rounded-xl cursor-not-allowed flex items-center justify-center gap-2">
-                            <i class="fas fa-ban"></i> Retakes Exhausted
+                            <i class="fas fa-ban"></i> No Retakes Remaining (0/3)
                         </button>
                     @endif
                 @endif
@@ -195,12 +196,19 @@
         <div class="absolute inset-0 bg-gray-900/60" onclick="closeModal('impossible-exam-modal')"></div>
         <div class="bg-white rounded-3xl w-full max-w-sm shadow-2xl overflow-hidden transform scale-95 transition-all duration-300 text-center p-6 relative z-10 popup-box">
             <div class="w-16 h-16 rounded-full mx-auto mb-4 flex items-center justify-center text-3xl bg-amber-50 text-amber-500">
-                <i class="fas fa-lock"></i>
+                <i class="fas fa-exclamation-circle"></i>
             </div>
-            <h3 class="text-xl font-black text-gray-900 mb-2">Insufficient Score</h3>
-            <p class="text-sm text-gray-500 mb-4">Because your Quiz scores are too low, even getting a perfect 100% on the Exam retake will only bring your total score to <strong class="text-gray-800">{{ round($maxPossibleScore ?? 0, 1) }}%</strong>, which is below the {{ $grades['passingScore'] }}% requirement.</p>
-            <p class="text-sm text-[#a52a2a] font-bold mb-6">You must retake the entire module.</p>
-            <button type="button" onclick="closeModal('impossible-exam-modal')" class="w-full px-4 py-3 bg-gray-900 text-white font-bold rounded-xl hover:bg-gray-800 transition shadow-md">Understood</button>
+            <h3 class="text-xl font-black text-gray-900 mb-2">Quiz Score Too Low</h3>
+            <p class="text-sm text-gray-500 mb-4">Your quiz score is below the required passing grade. Even with a perfect score on the exam retake, you cannot pass the module.</p>
+            <p class="text-sm text-[#a52a2a] font-bold mb-6">You should retake the entire module instead.</p>
+            <div class="flex flex-col gap-2">
+                <button disabled class="w-full py-3 bg-gray-100 text-gray-400 font-bold rounded-xl cursor-not-allowed flex items-center justify-center gap-2">
+                    <i class="fas fa-ban"></i> Retake Exam Only
+                </button>
+                <button type="button" onclick="closeModal('impossible-exam-modal'); openModal('retake-module-modal');" class="w-full py-3 bg-[#a52a2a] text-white font-bold rounded-xl hover:bg-red-800 transition shadow-md flex items-center justify-center gap-2">
+                    <i class="fas fa-redo-alt"></i> Retake Entire Module
+                </button>
+            </div>
         </div>
     </div>
 

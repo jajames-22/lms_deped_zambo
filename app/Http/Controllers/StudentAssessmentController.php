@@ -242,6 +242,10 @@ class StudentAssessmentController extends Controller
             return redirect()->route('dashboard.explore')->with('error', 'Your access to this assessment has been revoked.');
         }
 
+        if ($access->status === 'finished') {
+            return redirect()->route('student.assessment.results', $access_key);
+        }
+
         // 1. Mark THIS section as permanently completed
         \App\Models\AssessmentSession::updateOrCreate(
             [
@@ -268,18 +272,57 @@ class StudentAssessmentController extends Controller
             }
         }
 
-        // 3. Check what sections are finished and find the next one
-        $completedCategoryIds = \App\Models\AssessmentSession::where('user_id', $user->id)
-            ->where('assessment_id', $assessment->id)
-            ->where('is_completed', true)
-            ->pluck('category_id')
-            ->toArray();
+        // Handle full assessment submission (e.g. when pause limit is exhausted)
+        if ($request->input('force_submit_all') == '1') {
+            $allCategories = $assessment->categories()->with('questions')->get();
 
-        // Change 'id' to 'sort_order' to fetch the true next category in line
-        $nextCategory = $assessment->categories()
-            ->whereNotIn('id', $completedCategoryIds)
-            ->orderBy('sort_order', 'asc')
-            ->first();
+            foreach ($allCategories as $cat) {
+                \App\Models\AssessmentSession::updateOrCreate(
+                    [
+                        'user_id' => $user->id,
+                        'assessment_id' => $assessment->id,
+                        'category_id' => $cat->id,
+                    ],
+                    [
+                        'is_completed' => true,
+                        'time_remaining' => 0
+                    ]
+                );
+
+                foreach ($cat->questions as $question) {
+                    if ($question->type === 'instruction') continue;
+
+                    \App\Models\StudentAnswer::firstOrCreate(
+                        [
+                            'user_id' => $user->id,
+                            'assessment_id' => $assessment->id,
+                            'question_id' => $question->id,
+                        ],
+                        [
+                            'selected_options' => null,
+                            'answer_text' => null,
+                        ]
+                    );
+                }
+            }
+        }
+
+        // 3. Check what sections are finished and find the next one
+        if ($request->input('force_submit_all') == '1') {
+            $nextCategory = null;
+        } else {
+            $completedCategoryIds = \App\Models\AssessmentSession::where('user_id', $user->id)
+                ->where('assessment_id', $assessment->id)
+                ->where('is_completed', true)
+                ->pluck('category_id')
+                ->toArray();
+
+            // Change 'id' to 'sort_order' to fetch the true next category in line
+            $nextCategory = $assessment->categories()
+                ->whereNotIn('id', $completedCategoryIds)
+                ->orderBy('sort_order', 'asc')
+                ->first();
+        }
 
         if ($nextCategory) {
             return redirect()->route('student.assessment.exam', ['access_key' => $access_key, 'category_id' => $nextCategory->id]);

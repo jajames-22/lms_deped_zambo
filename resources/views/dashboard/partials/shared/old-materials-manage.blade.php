@@ -34,37 +34,51 @@
     " style="display:none;">
 
     @php 
-        // --- STATUS & ROLE SETUP ---
+                // --- STATUS & ROLE SETUP ---
         $statusStr = strtolower($material->status ?? 'draft');
         $userRole = auth()->user()->role ?? 'student';
-        
+
         $isLive = ($statusStr === 'published');
         $isLocked = in_array($statusStr, ['published', 'pending']);
-        
+
         // Dynamic Badge Styling
         if ($statusStr === 'published') {
-            $badgeBg = 'bg-green-100 text-green-700'; $dotColor = 'bg-green-500'; $pingColor = 'bg-green-400'; $statusLabel = 'Published';
+            $badgeBg = 'bg-green-100 text-green-700';
+            $dotColor = 'bg-green-500';
+            $pingColor = 'bg-green-400';
+            $statusLabel = 'Published';
         } elseif ($statusStr === 'pending') {
-            $badgeBg = 'bg-amber-100 text-amber-700'; $dotColor = 'bg-amber-500'; $pingColor = 'bg-amber-400 hidden'; $statusLabel = 'Pending Approval';
+            $badgeBg = 'bg-amber-100 text-amber-700';
+            $dotColor = 'bg-amber-500';
+            $pingColor = 'bg-amber-400 hidden';
+            $statusLabel = 'Pending Approval';
         } else {
-            $badgeBg = 'bg-gray-100 text-gray-600'; $dotColor = 'bg-gray-400'; $pingColor = 'bg-gray-400 hidden'; $statusLabel = 'Draft Mode';
+            $badgeBg = 'bg-gray-100 text-gray-600';
+            $dotColor = 'bg-gray-400';
+            $pingColor = 'bg-gray-400 hidden';
+            $statusLabel = 'Draft Mode';
         }
-        
+
         // --- GRADING CONFIGURATION LOGIC ---
         $hasExams = \Illuminate\Support\Facades\DB::table('exams')->where('material_id', $material->id)->exists();
         $hasQuizzes = \Illuminate\Support\Facades\DB::table('lesson_contents')
             ->join('lessons', 'lesson_contents.lesson_id', '=', 'lessons.id')
             ->where('lessons.material_id', $material->id)
-            ->whereIn('lesson_contents.type', ['mcq', 'checkbox', 'true_false']) 
+            ->whereIn('lesson_contents.type', ['mcq', 'checkbox', 'true_false'])
             ->exists();
 
         $rawExamWeight = $material->exam_weight;
         $savedPassingPercentage = $material->passing_percentage ?? 80;
-        
-        if ($hasExams && $hasQuizzes) { $savedExamWeight = $rawExamWeight ?? 60; } 
-        elseif ($hasExams && !$hasQuizzes) { $savedExamWeight = 100; } 
-        elseif (!$hasExams && $hasQuizzes) { $savedExamWeight = 0; } 
-        else { $savedExamWeight = 0; }
+
+        if ($hasExams && $hasQuizzes) {
+            $savedExamWeight = $rawExamWeight ?? 60;
+        } elseif ($hasExams && !$hasQuizzes) {
+            $savedExamWeight = 100;
+        } elseif (!$hasExams && $hasQuizzes) {
+            $savedExamWeight = 0;
+        } else {
+            $savedExamWeight = 0;
+        }
 
         $needsWeightSync = ($rawExamWeight !== null && $rawExamWeight !== $savedExamWeight);
         $quizWeight = 100 - $savedExamWeight;
@@ -74,17 +88,17 @@
         $totalContents = 0;
 
         $lessons = \Illuminate\Support\Facades\DB::table('lessons')->where('material_id', $material->id)->orderBy('created_at')->get();
-        foreach($lessons as $lesson) {
+        foreach ($lessons as $lesson) {
             $itemCount = \Illuminate\Support\Facades\DB::table('lesson_contents')->where('lesson_id', $lesson->id)->count();
-            $timeline->push((object)['items_count' => $itemCount]);
+            $timeline->push((object) ['items_count' => $itemCount]);
             $totalContents += $itemCount;
         }
 
         $exams = \Illuminate\Support\Facades\DB::table('exams')->where('material_id', $material->id)->orderBy('created_at')->get();
         if ($exams->count() > 0) {
             $groupedExams = $exams->groupBy('created_at');
-            foreach($groupedExams as $questions) {
-                $timeline->push((object)['items_count' => $questions->count()]);
+            foreach ($groupedExams as $questions) {
+                $timeline->push((object) ['items_count' => $questions->count()]);
                 $totalContents += $questions->count();
             }
         }
@@ -311,18 +325,18 @@
                                         $enrollment = $access->current_enrollment;
                                         $rawStatus = $enrollment ? strtolower($enrollment->status) : strtolower($access->status);
                                         $displayStatus = $rawStatus === 'in_progress' ? 'enrolled' : $rawStatus;
-                                        
+
                                         $progressPct = 0;
                                         $showProgress = in_array($displayStatus, ['enrolled', 'completed']);
-                                        
+
                                         if ($showProgress && $enrollment) {
                                             if ($rawStatus === 'completed' || !is_null($enrollment->completed_at)) {
                                                 $progressPct = 100;
                                             } elseif ($enrollment->progress_data) {
                                                 $pData = is_string($enrollment->progress_data) ? json_decode($enrollment->progress_data) : $enrollment->progress_data;
-                                                $highestUnlocked = isset($pData->highest_unlocked) ? (int)$pData->highest_unlocked : 0;
-                                                $currentContent = isset($pData->content) ? (int)$pData->content : 0;
-                                                $currentLesson = isset($pData->lesson) ? (int)$pData->lesson : 0;
+                                                $highestUnlocked = isset($pData->highest_unlocked) ? (int) $pData->highest_unlocked : 0;
+                                                $currentContent = isset($pData->content) ? (int) $pData->content : 0;
+                                                $currentLesson = isset($pData->lesson) ? (int) $pData->lesson : 0;
 
                                                 $contentsPassed = 0;
                                                 for ($i = 0; $i < $highestUnlocked; $i++) {
@@ -330,11 +344,11 @@
                                                         $contentsPassed += $timeline[$i]->items_count;
                                                     }
                                                 }
-                                                
+
                                                 if ($currentLesson === $highestUnlocked) {
                                                     $contentsPassed += $currentContent;
                                                 }
-                                                
+
                                                 $progressPct = $totalContents > 0 ? min(100, round(($contentsPassed / $totalContents) * 100)) : 0;
                                             }
                                         }
@@ -443,7 +457,7 @@
                 </div>
             @else
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-12 ml-14">
-                    
+
                     {{-- SLIDER 1: Weight Distribution --}}
                     <div class="relative">
                         <div class="flex justify-between items-end mb-4">
@@ -462,7 +476,7 @@
                                 {{ $isWeightDisabled ? 'disabled' : '' }}
                                 oninput="window.updateWeightUI()"
                                 style="color: #6b7280;">
-                                
+
                             <div class="flex justify-between mt-4 text-sm font-bold">
                                 <span id="quiz-weight-text" class="{{ $hasQuizzes ? 'text-yellow-600' : 'text-gray-300' }}">Quizzes: {{ $quizWeight }}%</span>
                                 <span id="exam-weight-text" class="{{ $hasExams ? 'text-red-600' : 'text-gray-300' }}">Exam: {{ $savedExamWeight }}%</span>
@@ -1072,7 +1086,8 @@
         }
 
         const originalHtml = btn.innerHTML;
-        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Adding...';
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Adding...';
+
         btn.disabled = true;
 
         try {

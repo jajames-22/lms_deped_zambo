@@ -562,111 +562,112 @@
                                                         {!! nl2br(e($block->question_text)) !!}
                                                     </div>
 
-                                                @elseif(in_array($block->type, ['mcq', 'true_false']))
-                                                    <div
-                                                        class="bg-white rounded-3xl p-4 sm:p-6 shadow-sm border border-[#a52a2a]/20 relative overflow-hidden shrink-0">
-                                                        <div class="absolute top-0 left-0 w-1.5 h-full bg-[#a52a2a]"></div>
-                                                        <h3 class="text-xl font-bold text-gray-900 mb-6">{!! nl2br(e($block->question_text)) !!}</h3>
-                                                        <div class="space-y-3">
-                                                            @foreach($block->options as $option)
-                                                                @php
-                                                                    $checked = false;
-                                                                    if ($existingAnswer) {
-                                                                        $checked = $section->is_exam ? ($existingAnswer->exam_option_id == $option->id) : ($existingAnswer->quiz_option_id == $option->id);
-                                                                    }
-                                                                @endphp
-                                                                <label
-                                                                    class="flex items-center gap-4 p-4 rounded-xl border border-gray-200 cursor-pointer hover:bg-gray-50 transition-all has-[:checked]:border-[#a52a2a] has-[:checked]:bg-[#a52a2a]/5">
-                                                                    <input type="radio" name="{{ $inputName }}" value="{{ $option->id }}" {{ $checked ? 'checked' : '' }} {{ $isLocked ? 'disabled' : '' }}
-                                                                        class="w-5 h-5 accent-[#a52a2a] text-[#a52a2a] bg-gray-100 border-gray-300 focus:ring-[#a52a2a]">
-                                                                    <span
-                                                                        class="text-gray-800 font-medium text-base sm:text-lg">{{ $option->option_text }}</span>
-                                                                </label>
-                                                            @endforeach
-                                                        </div>
-                                                    </div>
-
-                                                @elseif($block->type === 'checkbox')
-                                                    <div
-                                                        class="bg-white rounded-3xl p-4 sm:p-6 shadow-sm border border-[#a52a2a]/20 relative overflow-hidden shrink-0">
-                                                        <div class="absolute top-0 left-0 w-1.5 h-full bg-[#a52a2a]"></div>
-                                                        <div class="flex items-start justify-between gap-4 mb-6">
-                                                            <h3 class="text-xl font-bold text-gray-900">{{ $block->question_text }}</h3>
-                                                            <span
-                                                                class="shrink-0 text-[10px] uppercase font-black tracking-wider text-gray-400 bg-gray-100 px-2 py-1 rounded hidden sm:inline-block">Select
-                                                                Multiple</span>
-                                                        </div>
-                                                        <div class="space-y-3">
-                                                            @foreach($block->options as $option)
-                                                                @php
-                                                                    $checked = false;
-                                                                    if ($existingAnswer && $existingAnswer->text_answer) {
-                                                                        $selectedIds = explode(',', $existingAnswer->text_answer);
-                                                                        $checked = in_array($option->id, $selectedIds);
-                                                                    }
-                                                                @endphp
-                                                                <label
-                                                                    class="flex items-center gap-4 p-4 rounded-xl border border-gray-200 cursor-pointer hover:bg-gray-50 transition-all has-[:checked]:border-[#a52a2a] has-[:checked]:bg-[#a52a2a]/5">
-                                                                    <input type="checkbox" name="{{ $inputName }}[]"
-                                                                        value="{{ $option->id }}" {{ $checked ? 'checked' : '' }} {{ $isLocked ? 'disabled' : '' }}
-                                                                        class="w-5 h-5 accent-[#a52a2a] text-[#a52a2a] bg-gray-100 border-gray-300 rounded focus:ring-[#a52a2a]">
-                                                                    <span
-                                                                        class="text-gray-800 font-medium text-base sm:text-lg">{{ $option->option_text }}</span>
-                                                                </label>
-                                                            @endforeach
-                                                        </div>
-                                                    </div>
-
-                                                @elseif($block->type === 'text')
-                                                    <div
-                                                        class="bg-white rounded-3xl p-4 sm:p-6 shadow-sm border border-[#a52a2a]/20 relative overflow-hidden shrink-0">
-                                                        <div class="absolute top-0 left-0 w-1.5 h-full bg-[#a52a2a]"></div>
-                                                        <div class="flex items-start justify-between gap-4 mb-4">
-                                                            <h3 class="text-xl font-bold text-gray-900">{{ $block->question_text }}</h3>
-                                                            @if($isQuiz)
-                                                                <span
-                                                                    class="shrink-0 text-[10px] uppercase font-black tracking-wider {{ ($block->is_case_sensitive ?? false) ? 'text-amber-600 bg-amber-50' : 'text-blue-600 bg-blue-50' }} px-2 py-1 rounded hidden sm:inline-block">
-                                                                    {{ ($block->is_case_sensitive ?? false) ? 'Case Sensitive' : 'Case Insensitive' }}
-                                                                </span>
-                                                            @endif
-                                                        </div>
-                                                        <textarea name="{{ $inputName }}" rows="5"
-                                                            placeholder="Type your answer here..." {{ $isLocked ? 'disabled' : '' }}
-                                                            class="w-full px-5 py-4 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#a52a2a] outline-none transition-all resize-none text-base sm:text-lg">{{ $existingAnswer->text_answer ?? '' }}</textarea>
-                                                    </div>
-                                                @endif
-
-                                                {{-- FEEDBACK BADGE (Only for Quizzes) --}}
-                                                @if($isQuiz)
+                                                @elseif(in_array($block->type, ['mcq', 'true_false', 'checkbox', 'text']))
                                                     @php
                                                         $correctAnswersText = '';
                                                         if (!empty($block->options)) {
                                                             $correctOpts = collect($block->options)->where('is_correct', 1)->pluck('option_text')->toArray();
                                                             $correctAnswersText = implode(', ', $correctOpts);
                                                         }
+
+                                                        $indicatorBg = 'bg-[#a52a2a]';
+                                                        $topFeedbackHtml = '';
+                                                        if ($isQuiz && $isLocked) {
+                                                            if ($feedbackType === 'recorded_as_is') {
+                                                                $indicatorBg = 'bg-blue-500';
+                                                                $topFeedbackHtml = '<div class="p-3.5 sm:p-4 bg-blue-50 border border-blue-200 rounded-xl flex items-center gap-3 text-blue-700 font-bold text-sm sm:text-base mb-6"><i class="fas fa-info-circle text-lg sm:text-xl shrink-0"></i> <span>Answer recorded as is.</span></div>';
+                                                            } elseif ($feedbackType === 'correct') {
+                                                                $indicatorBg = 'bg-green-500';
+                                                                $topFeedbackHtml = '<div class="p-3.5 sm:p-4 bg-green-50 border border-green-200 rounded-xl flex items-center gap-3 text-green-700 font-bold text-sm sm:text-base mb-6"><i class="fas fa-check-circle text-lg sm:text-xl shrink-0"></i> <span>Your answer is correct.</span></div>';
+                                                            } else {
+                                                                $indicatorBg = 'bg-red-500';
+                                                                $topFeedbackHtml = '<div class="p-3.5 sm:p-4 bg-red-50 border border-red-200 rounded-xl flex items-center gap-3 text-red-700 font-bold text-sm sm:text-base mb-6"><i class="fas fa-times-circle text-lg sm:text-xl shrink-0"></i> <span>Your answer is incorrect.</span></div>';
+                                                            }
+                                                        }
                                                     @endphp
-                                                    <div id="quiz-feedback-{{ $block->id }}" class="mt-6 shrink-0"
-                                                        style="display: {{ $isLocked ? 'block' : 'none' }};">
-                                                        @if($isLocked)
-                                                            @if($feedbackType === 'recorded_as_is')
-                                                                <div
-                                                                    class="p-4 bg-blue-50 border border-blue-200 rounded-xl flex items-center gap-3 text-blue-700 font-bold">
-                                                                    <i class="fas fa-info-circle text-xl"></i> Answer recorded as is.</div>
-                                                            @elseif($feedbackType === 'correct')
-                                                                <div
-                                                                    class="p-4 bg-green-50 border border-green-200 rounded-xl flex items-center gap-3 text-green-700 font-bold">
-                                                                    <i class="fas fa-check-circle text-xl"></i> Your answer is correct!</div>
-                                                            @else
-                                                                <div
-                                                                    class="p-4 bg-red-50 border border-red-200 rounded-xl flex flex-col gap-2 text-red-700 font-bold">
-                                                                    <div class="flex items-center gap-3">
-                                                                        <i class="fas fa-times-circle text-xl"></i> Your answer is incorrect.
-                                                                    </div>
-                                                                    @if($correctAnswersText)
-                                                                        <div
-                                                                            class="text-sm font-medium mt-1 text-red-800 bg-white/50 p-2 rounded-lg border border-red-100">
-                                                                            <span class="font-bold">Correct Answer(s):</span>
-                                                                            {{ $correctAnswersText }}
+
+                                                    <div
+                                                        class="bg-white rounded-3xl p-4 sm:p-6 shadow-sm border border-[#a52a2a]/20 relative overflow-hidden shrink-0">
+                                                        <div id="question-indicator-{{ $block->id }}" class="absolute top-0 left-0 w-1.5 h-full {{ $indicatorBg }} transition-colors duration-300"></div>
+
+                                                        @if(in_array($block->type, ['mcq', 'true_false']))
+                                                            <h3 class="text-xl font-bold text-gray-900 {{ ($isQuiz && $isLocked) ? 'mb-4' : 'mb-6' }}">{!! nl2br(e($block->question_text)) !!}</h3>
+                                                        @elseif($block->type === 'checkbox')
+                                                            <div class="flex items-start justify-between gap-4 {{ ($isQuiz && $isLocked) ? 'mb-4' : 'mb-6' }}">
+                                                                <h3 class="text-xl font-bold text-gray-900">{{ $block->question_text }}</h3>
+                                                                <span
+                                                                    class="shrink-0 text-[10px] uppercase font-black tracking-wider text-gray-400 bg-gray-100 px-2 py-1 rounded hidden sm:inline-block">Select
+                                                                    Multiple</span>
+                                                            </div>
+                                                        @elseif($block->type === 'text')
+                                                            <div class="flex items-start justify-between gap-4 {{ ($isQuiz && $isLocked) ? 'mb-4' : 'mb-6' }}">
+                                                                <h3 class="text-xl font-bold text-gray-900">{{ $block->question_text }}</h3>
+                                                                @if($isQuiz)
+                                                                    <span
+                                                                        class="shrink-0 text-[10px] uppercase font-black tracking-wider {{ ($block->is_case_sensitive ?? false) ? 'text-amber-600 bg-amber-50' : 'text-blue-600 bg-blue-50' }} px-2 py-1 rounded hidden sm:inline-block">
+                                                                        {{ ($block->is_case_sensitive ?? false) ? 'Case Sensitive' : 'Case Insensitive' }}
+                                                                    </span>
+                                                                @endif
+                                                            </div>
+                                                        @endif
+
+                                                        <div id="top-feedback-{{ $block->id }}" style="display: {{ ($isQuiz && $isLocked) ? 'block' : 'none' }};">{!! $topFeedbackHtml !!}</div>
+
+                                                        @if(in_array($block->type, ['mcq', 'true_false', 'checkbox']))
+                                                            <div id="options-container-{{ $block->id }}" class="space-y-3">
+                                                                @foreach($block->options as $option)
+                                                                    @php
+                                                                        $checked = false;
+                                                                        if ($existingAnswer) {
+                                                                            if ($block->type === 'checkbox') {
+                                                                                $selectedIds = explode(',', $existingAnswer->text_answer ?? '');
+                                                                                $checked = in_array($option->id, $selectedIds);
+                                                                            } else {
+                                                                                $checked = $section->is_exam ? ($existingAnswer->exam_option_id == $option->id) : ($existingAnswer->quiz_option_id == $option->id);
+                                                                            }
+                                                                        }
+                                                                        $isOptCorrect = ($option->is_correct == 1);
+
+                                                                        $labelClass = "flex items-center gap-4 p-4 rounded-xl border transition-all option-label ";
+                                                                        $iconHtml = '';
+                                                                        if ($isQuiz && $isLocked) {
+                                                                            $labelClass .= "cursor-default ";
+                                                                            if ($isOptCorrect) {
+                                                                                $labelClass .= "bg-green-50 border-green-500 text-green-800 font-bold shadow-sm";
+                                                                                $iconHtml = '<i class="fas fa-check-circle text-green-600 text-xl shrink-0"></i>';
+                                                                            } elseif ($checked && !$isOptCorrect) {
+                                                                                $labelClass .= "bg-red-50 border-red-500 text-red-800 font-bold shadow-sm";
+                                                                                $iconHtml = '<i class="fas fa-times-circle text-red-600 text-xl shrink-0"></i>';
+                                                                            } else {
+                                                                                $labelClass .= "border-gray-200 bg-white opacity-60 text-gray-800 font-medium";
+                                                                            }
+                                                                        } else {
+                                                                            $labelClass .= "border-gray-200 cursor-pointer hover:bg-gray-50 has-[:checked]:border-[#a52a2a] has-[:checked]:bg-[#a52a2a]/5 text-gray-800 font-medium";
+                                                                        }
+                                                                    @endphp
+                                                                    <label class="{{ $labelClass }}">
+                                                                        @if($block->type === 'checkbox')
+                                                                            <input type="checkbox" name="{{ $inputName }}[]"
+                                                                                value="{{ $option->id }}" data-is-correct="{{ $isOptCorrect ? '1' : '0' }}" {{ $checked ? 'checked' : '' }} {{ $isLocked ? 'disabled' : '' }}
+                                                                                class="w-5 h-5 accent-[#a52a2a] text-[#a52a2a] bg-gray-100 border-gray-300 rounded focus:ring-[#a52a2a]">
+                                                                        @else
+                                                                            <input type="radio" name="{{ $inputName }}" value="{{ $option->id }}" data-is-correct="{{ $isOptCorrect ? '1' : '0' }}" {{ $checked ? 'checked' : '' }} {{ $isLocked ? 'disabled' : '' }}
+                                                                                class="w-5 h-5 accent-[#a52a2a] text-[#a52a2a] bg-gray-100 border-gray-300 focus:ring-[#a52a2a]">
+                                                                        @endif
+                                                                        <span class="flex-1 text-base sm:text-lg">{{ $option->option_text }}</span>
+                                                                        <span class="option-icon shrink-0">{!! $iconHtml !!}</span>
+                                                                    </label>
+                                                                @endforeach
+                                                            </div>
+                                                        @elseif($block->type === 'text')
+                                                            <textarea name="{{ $inputName }}" rows="5"
+                                                                placeholder="Type your answer here..." {{ $isLocked ? 'disabled' : '' }}
+                                                                class="w-full px-5 py-4 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#a52a2a] outline-none transition-all resize-none text-base sm:text-lg">{{ $existingAnswer->text_answer ?? '' }}</textarea>
+                                                            @if($isQuiz)
+                                                                <div id="text-feedback-{{ $block->id }}" style="display: {{ ($isLocked && $feedbackType === 'incorrect' && $correctAnswersText) ? 'block' : 'none' }};">
+                                                                    @if($isLocked && $feedbackType === 'incorrect' && $correctAnswersText)
+                                                                        <div class="text-sm font-medium mt-3 text-red-800 bg-red-50/50 p-3 rounded-xl border border-red-100">
+                                                                            <span class="font-bold">Correct Answer(s):</span> {{ $correctAnswersText }}
                                                                         </div>
                                                                     @endif
                                                                 </div>
@@ -674,9 +675,10 @@
                                                         @endif
                                                     </div>
 
-                                                    {{-- Hidden input to store correct answer for JS to use if answered live --}}
-                                                    <input type="hidden" id="correct-answer-{{ $block->id }}"
-                                                        value="{{ htmlspecialchars($correctAnswersText) }}">
+                                                    @if($isQuiz)
+                                                        <input type="hidden" id="correct-answer-{{ $block->id }}"
+                                                            value="{{ htmlspecialchars($correctAnswersText) }}">
+                                                    @endif
                                                 @endif
                                             </div>
                                         @endif
@@ -1149,31 +1151,72 @@
             const inputs = document.querySelectorAll(`[name="answer_${id}"], [name="answer_${id}[]"]`);
             inputs.forEach(input => input.disabled = true);
 
-            const container = document.getElementById(`quiz-feedback-${id}`);
-            const correctAnswerInput = document.getElementById(`correct-answer-${id}`);
-            const correctAnswerText = correctAnswerInput ? correctAnswerInput.value : '';
-
-            if (container) {
+            const topContainer = document.getElementById(`top-feedback-${id}`);
+            if (topContainer) {
                 let html = '';
                 if (feedbackType === 'recorded_as_is') {
-                    html = '<div class="p-4 bg-blue-50 border border-blue-200 rounded-xl flex items-center gap-3 text-blue-700 font-bold"><i class="fas fa-info-circle text-xl"></i> Answer recorded as is.</div>';
+                    html = '<div class="p-3.5 sm:p-4 bg-blue-50 border border-blue-200 rounded-xl flex items-center gap-3 text-blue-700 font-bold text-sm sm:text-base mb-6"><i class="fas fa-info-circle text-lg sm:text-xl shrink-0"></i> <span>Answer recorded as is.</span></div>';
                 } else if (feedbackType === 'correct') {
-                    html = '<div class="p-4 bg-green-50 border border-green-200 rounded-xl flex items-center gap-3 text-green-700 font-bold"><i class="fas fa-check-circle text-xl"></i> Your answer is correct!</div>';
+                    html = '<div class="p-3.5 sm:p-4 bg-green-50 border border-green-200 rounded-xl flex items-center gap-3 text-green-700 font-bold text-sm sm:text-base mb-6"><i class="fas fa-check-circle text-lg sm:text-xl shrink-0"></i> <span>Your answer is correct.</span></div>';
                 } else {
-                    html = `<div class="p-4 bg-red-50 border border-red-200 rounded-xl flex flex-col gap-2 text-red-700 font-bold">
-                                <div class="flex items-center gap-3">
-                                    <i class="fas fa-times-circle text-xl"></i> Your answer is incorrect.
-                                </div>`;
-                    if (correctAnswerText) {
-                        html += `<div class="text-sm font-medium mt-1 text-red-800 bg-white/50 p-2 rounded-lg border border-red-100">
-                                    <span class="font-bold">Correct Answer(s):</span> ${correctAnswerText}
-                                </div>`;
-                    }
-                    html += `</div>`;
+                    html = '<div class="p-3.5 sm:p-4 bg-red-50 border border-red-200 rounded-xl flex items-center gap-3 text-red-700 font-bold text-sm sm:text-base mb-6"><i class="fas fa-times-circle text-lg sm:text-xl shrink-0"></i> <span>Your answer is incorrect.</span></div>';
                 }
-                container.innerHTML = html;
-                container.style.display = 'block';
+                topContainer.innerHTML = html;
+                topContainer.style.display = 'block';
             }
+
+            const indicator = document.getElementById(`question-indicator-${id}`);
+            if (indicator) {
+                indicator.classList.remove('bg-[#a52a2a]');
+                if (feedbackType === 'correct') {
+                    indicator.classList.add('bg-green-500');
+                } else if (feedbackType === 'incorrect') {
+                    indicator.classList.add('bg-red-500');
+                } else if (feedbackType === 'recorded_as_is') {
+                    indicator.classList.add('bg-blue-500');
+                }
+            }
+
+            if (type === 'mcq' || type === 'true_false' || type === 'checkbox') {
+                inputs.forEach(input => {
+                    const label = input.closest('label');
+                    if (!label) return;
+
+                    label.classList.remove('hover:bg-gray-50', 'cursor-pointer', 'has-[:checked]:border-[#a52a2a]', 'has-[:checked]:bg-[#a52a2a]/5');
+                    label.classList.add('cursor-default');
+
+                    const isOptCorrect = input.dataset.isCorrect === "1";
+                    const isChecked = input.checked;
+                    const iconContainer = label.querySelector('.option-icon');
+
+                    if (isOptCorrect) {
+                        label.classList.remove('border-gray-200', 'bg-white', 'text-gray-800');
+                        label.classList.add('bg-green-50', 'border-green-500', 'text-green-800', 'font-bold', 'shadow-sm');
+                        if (iconContainer) {
+                            iconContainer.innerHTML = '<i class="fas fa-check-circle text-green-600 text-xl shrink-0"></i>';
+                        }
+                    } else if (isChecked && !isOptCorrect) {
+                        label.classList.remove('border-gray-200', 'bg-white', 'text-gray-800');
+                        label.classList.add('bg-red-50', 'border-red-500', 'text-red-800', 'font-bold', 'shadow-sm');
+                        if (iconContainer) {
+                            iconContainer.innerHTML = '<i class="fas fa-times-circle text-red-600 text-xl shrink-0"></i>';
+                        }
+                    } else {
+                        label.classList.add('opacity-60');
+                    }
+                });
+            } else if (type === 'text') {
+                const correctAnswerInput = document.getElementById(`correct-answer-${id}`);
+                const correctAnswerText = correctAnswerInput ? correctAnswerInput.value : '';
+                const textFeedback = document.getElementById(`text-feedback-${id}`);
+                if (textFeedback && feedbackType === 'incorrect' && correctAnswerText) {
+                    textFeedback.innerHTML = `<div class="text-sm font-medium mt-3 text-red-800 bg-red-50/50 p-3 rounded-xl border border-red-100">
+                        <span class="font-bold">Correct Answer(s):</span> ${correctAnswerText}
+                    </div>`;
+                    textFeedback.style.display = 'block';
+                }
+            }
+
             renderState();
         }
 

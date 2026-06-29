@@ -1048,12 +1048,12 @@ class AssessmentController extends Controller
             $scoresCount = count($scoresArray);
             $overallMPS = $scoresCount > 0 ? round($totalPercentageSum / $scoresCount, 2) : 0;
 
-            $overallMasteryLevel = 'Not Proficient';
-            $masteryColor = '#dc2626'; // Hex for Red
-            if ($overallMPS >= 90) { $overallMasteryLevel = 'Highly Proficient'; $masteryColor = '#16a34a'; } // Green
-            elseif ($overallMPS >= 75) { $overallMasteryLevel = 'Proficient'; $masteryColor = '#2563eb'; } // Blue
-            elseif ($overallMPS >= 50) { $overallMasteryLevel = 'Nearly Proficient'; $masteryColor = '#d97706'; } // Amber
-            elseif ($overallMPS >= 25) { $overallMasteryLevel = 'Low Proficient'; $masteryColor = '#ea580c'; } // Orange
+            $overallMasteryLevel = \App\Services\AssessmentService::getProficiencyLevel($overallMPS);
+            $masteryColor = '#dc2626'; // Red
+            if ($overallMPS >= 90) { $masteryColor = '#10b981'; }
+            elseif ($overallMPS >= 75) { $masteryColor = '#3b82f6'; }
+            elseif ($overallMPS >= 50) { $masteryColor = '#f59e0b'; }
+            elseif ($overallMPS >= 25) { $masteryColor = '#f97316'; }
 
             $proficientCount = $proficiencyLevels['Highly Proficient (90-100%)'] + $proficiencyLevels['Proficient (75-89%)'];
             $proficiencyRate = $scoresCount > 0 ? round(($proficientCount / $scoresCount) * 100, 1) : 0;
@@ -1324,105 +1324,27 @@ class AssessmentController extends Controller
             abort(403, 'Unauthorized access.');
         }
 
-        $query = AssessmentAccess::with(['student.school'])->where('assessment_id', $assessment->id);
+        $exportType = $request->input('export_type', 'summary'); // summary | detailed
+        $service = new \App\Services\AssessmentExportService();
 
-        if ($request->filled('search')) {
-            $search = trim($request->search);
-            $query->where(function ($q) use ($search) {
-                $q->where('lrn', 'like', "%{$search}%")
-                  ->orWhereHas('student', function ($sq) use ($search) {
-                      $sq->where('first_name', 'like', "%{$search}%")
-                         ->orWhere('last_name', 'like', "%{$search}%")
-                         ->orWhereRaw("CONCAT(first_name, ' ', last_name) LIKE ?", ["%{$search}%"]);
-                  });
-            });
+        if ($exportType === 'detailed') {
+            $spreadsheet = $service->exportDetailedAsExcel($assessment, $request->input('search'));
+            $filename = Str::slug($assessment->title) . '_detailed_report_' . date('Ymd_His') . '.xlsx';
+        } else {
+            $spreadsheet = $service->exportSummaryAsExcel($assessment, $request->input('search'));
+            $filename = Str::slug($assessment->title) . '_summary_report_' . date('Ymd_His') . '.xlsx';
         }
 
-        $accesses = $query->latest()->get();
-        $studentIds = $accesses->pluck('student.id')->filter()->unique()->toArray();
+        $writer = new \PhpOffice\PhpSpreadsheet\Writer\Xlsx($spreadsheet);
 
-        $allSessions = \App\Models\AssessmentSession::where('assessment_id', $assessment->id)
-            ->whereIn('user_id', $studentIds)
-            ->get()
-            ->groupBy('user_id');
-
-        $allAnswers = \App\Models\StudentAnswer::where('assessment_id', $assessment->id)
-            ->whereIn('user_id', $studentIds)
-            ->get()
-            ->groupBy('user_id');
-
-        [$totalQuestions, $qMap, $categories] = $this->getAssessmentGradingMap($assessment->id);
-
-        $filename = Str::slug($assessment->title) . '_student_results_' . date('Ymd_His') . '.csv';
-
-        return response()->streamDownload(function () use ($accesses, $allSessions, $allAnswers, $totalQuestions, $qMap) {
-            $file = fopen('php://output', 'w');
-            fputs($file, chr(0xEF) . chr(0xBB) . chr(0xBF)); // UTF-8 BOM
-
-            fputcsv($file, [
-                'LRN', 'Student Name', 'School', 'Status', 'Assessment Score', 
-                'Correct Answers', 'Total Questions', 'Percentage', 'Date Started', 
-                'Date Submitted / Finished', 'Attempt Number', 'Assessment Result'
-            ]);
-
-            foreach ($accesses as $access) {
-                $student = $access->student;
-                $studentId = $student ? $student->id : null;
-                $schoolName = ($student && $student->school) ? $student->school->name : 'Independent / Unassigned';
-                $studentName = $student ? trim($student->first_name . ' ' . $student->last_name) : 'Unregistered Student';
-                $statusText = ucwords(str_replace('_', ' ', $access->status));
-
-                $studentSessions = $studentId ? ($allSessions->get($studentId) ?? collect()) : collect();
-                $studentAnswers = $studentId ? ($allAnswers->get($studentId) ?? collect())->keyBy('question_id') : collect();
-
-                if ($access->status === 'finished' && $studentId) {
-                    $score = $this->computeStudentScore($studentAnswers, $qMap);
-                    $percentage = $totalQuestions > 0 ? round(($score / $totalQuestions) * 100) : 0;
-                    $dateStarted = $studentSessions->isNotEmpty() && $studentSessions->min('created_at') 
-                        ? \Carbon\Carbon::parse($studentSessions->min('created_at'))->format('Y-m-d H:i:s') 
-                        : 'N/A';
-                    $dateSubmitted = $studentSessions->isNotEmpty() && $studentSessions->max('updated_at') 
-                        ? \Carbon\Carbon::parse($studentSessions->max('updated_at'))->format('Y-m-d H:i:s') 
-                        : 'N/A';
-                    $attemptNum = 1;
-                    $resultText = $percentage >= 75 ? 'Passed' : 'Failed';
-                    $scoreDisplay = $score;
-                    $correctDisplay = $score;
-                    $percentageDisplay = $percentage . '%';
-                } else {
-                    $dateStarted = $studentSessions->isNotEmpty() && $studentSessions->min('created_at') 
-                        ? \Carbon\Carbon::parse($studentSessions->min('created_at'))->format('Y-m-d H:i:s') 
-                        : 'Not Started';
-                    $dateSubmitted = 'N/A';
-                    $attemptNum = $studentSessions->isNotEmpty() ? 1 : 0;
-                    $resultText = 'N/A';
-                    $scoreDisplay = 'N/A';
-                    $correctDisplay = 'N/A';
-                    $percentageDisplay = 'N/A';
-                }
-
-                fputcsv($file, [
-                    $access->lrn,
-                    $studentName,
-                    $schoolName,
-                    $statusText,
-                    $scoreDisplay,
-                    $correctDisplay,
-                    $totalQuestions,
-                    $percentageDisplay,
-                    $dateStarted,
-                    $dateSubmitted,
-                    $attemptNum,
-                    $resultText
-                ]);
-            }
-
-            fclose($file);
+        return response()->streamDownload(function () use ($writer) {
+            $writer->save('php://output');
         }, $filename, [
-            'Content-Type' => 'text/csv; charset=UTF-8',
+            'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
             'Cache-Control' => 'no-cache, no-store, must-revalidate',
             'Pragma' => 'no-cache',
             'Expires' => '0',
+            'Content-Disposition' => 'attachment; filename="' . $filename . '"',
         ]);
     }
 
@@ -1568,9 +1490,10 @@ class AssessmentController extends Controller
             ];
         }
 
-        $percentage = $totalQuestions > 0 ? round(($totalScore / $totalQuestions) * 100) : 0;
+        $mps = \App\Services\AssessmentService::computeMPS($totalScore, $totalQuestions);
+        $proficiencyLevel = \App\Services\AssessmentService::getProficiencyLevel($mps);
+        $percentage = $mps;
         $status = ($access && $access->status === 'finished') ? 'Completed' : 'Incomplete';
-        $resultStatus = $percentage >= 75 ? 'Passed' : 'Failed';
 
         return view('dashboard.partials.shared.assessment-student-result', compact(
             'assessment',
@@ -1583,8 +1506,9 @@ class AssessmentController extends Controller
             'totalScore',
             'totalQuestions',
             'percentage',
+            'mps',
+            'proficiencyLevel',
             'status',
-            'resultStatus',
             'categoryStats',
             'detailedCategories'
         ));

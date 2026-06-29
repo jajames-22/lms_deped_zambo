@@ -334,9 +334,10 @@
         // BACKGROUND AUTO-SAVE LOGIC
         // ==========================================
         let isSaving = false;
+        let isSubmittingExam = false;
 
         function triggerAutoSave() {
-            if (isSaving || (isTimed && totalSeconds <= 0)) return; 
+            if (isSaving || (isTimed && totalSeconds <= 0) || isSubmittingExam) return; 
             
             isSaving = true;
             const originalText = submitBtn.innerHTML;
@@ -448,7 +449,11 @@
                 warningHtml = `<div class="mt-6 p-4 bg-red-50 border border-red-200 text-red-700 rounded-xl text-sm font-bold flex items-center gap-3 text-left shadow-sm"><i class="fas fa-exclamation-circle text-2xl text-red-500"></i> Assessment is paused, but the timer is still running.</div>`;
             }
 
-            desc.innerHTML = `You have <b>${pausesLeft}</b> pauses remaining for the entire exam. <br><br> If you run out of pauses and switch tabs or click outside the browser, your exam will automatically submit. ${warningHtml}`;
+            if (pausesLeft === 0) {
+                desc.innerHTML = `You have used all your allowed pauses (<b>0 remaining</b>). <br><br><span class="text-red-600 font-bold"><i class="fas fa-exclamation-triangle"></i> FINAL WARNING: If you navigate away, switch tabs, or lose focus again, your <b>ENTIRE assessment across all sections</b> will end immediately and be automatically submitted!</span> ${warningHtml}`;
+            } else {
+                desc.innerHTML = `You have <b>${pausesLeft}</b> ${pausesLeft === 1 ? 'pause' : 'pauses'} remaining for the entire exam. <br><br> If you run out of pauses and switch tabs or click outside the browser, your <b>entire assessment across all sections</b> will automatically submit. ${warningHtml}`;
+            }
             btnText.innerText = "RESUME EXAM";
         }
 
@@ -560,19 +565,27 @@
         // ==========================================
 
         function handleZeroPausesSubmit(isAuto) {
+            if (isSubmittingExam) return;
+            isSubmittingExam = true;
             clearInterval(timerInterval);
-            triggerAutoSave();
             
             const timeUpModal = document.getElementById('time-up-modal');
-            if (isAuto) {
-                document.getElementById('time-up-title').innerText = "Exam Terminated";
-                document.getElementById('time-up-title').classList.add('text-red-600');
-                document.getElementById('time-up-desc').innerText = "You lost focus on the browser with 0 pauses remaining. Your exam is submitting automatically...";
-            }
+            const titleEl = document.getElementById('time-up-title');
+            const descEl = document.getElementById('time-up-desc');
+
+            titleEl.innerText = "Assessment Terminated";
+            titleEl.classList.add('text-red-600');
+            descEl.innerHTML = "<span class='font-bold text-red-600'>You have exceeded the maximum allowed pauses (0 remaining).</span><br><br>Your <b>entire assessment across all sections</b> is ending immediately and being automatically submitted. All answered responses have been preserved.";
             
             timeUpModal.classList.remove('hidden');
             submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Submitting...';
             submitBtn.disabled = true;
+
+            let forceInput = document.createElement('input');
+            forceInput.type = 'hidden';
+            forceInput.name = 'force_submit_all';
+            forceInput.value = '1';
+            form.appendChild(forceInput);
             
             setTimeout(() => {
                 form.submit();
@@ -580,9 +593,10 @@
         }
 
         function handleTimeUp() {
+            if (isSubmittingExam) return;
+            isSubmittingExam = true;
             clearInterval(timerInterval);
             document.getElementById('time-remaining').innerText = "00:00";
-            triggerAutoSave();
             
             // Hide the start/pause modal if it's currently open
             const startModal = document.getElementById('exam-start-modal');
@@ -602,6 +616,7 @@
         }
 
         function submitAssessment(event) {
+    if (isSubmittingExam) return;
     if (event && event.preventDefault) {
         event.preventDefault(); // Prevent native form submission
     }
@@ -648,6 +663,8 @@
 }
 
 function executeSubmit() {
+    if (isSubmittingExam) return;
+    isSubmittingExam = true;
     clearInterval(timerInterval);
     closeConfirmModal();
     
@@ -656,7 +673,6 @@ function executeSubmit() {
     submitBtn.innerHTML = `<i class="fas fa-spinner fa-spin"></i> ${loadingText}`;
     submitBtn.disabled = true;
     
-    triggerAutoSave();
     form.submit(); 
 }
 

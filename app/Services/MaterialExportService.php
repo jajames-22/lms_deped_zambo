@@ -28,7 +28,7 @@ class MaterialExportService
     //  PUBLIC ENTRY POINTS
     // ─────────────────────────────────────────────────────────────
 
-    public function exportSummaryAsCsv(Material $material): array
+    public function exportSummaryAsExcel(Material $material): Spreadsheet
     {
         [$accesses, $enrollments, $hasQuizzes, $hasExams] = $this->loadBaseData($material);
 
@@ -37,27 +37,36 @@ class MaterialExportService
         if ($hasExams)   $headers[] = 'Exam Score';
         if ($hasQuizzes || $hasExams) $headers[] = 'Final Grade (%)';
 
-        $rows = [];
+        $spreadsheet = new Spreadsheet();
+        $spreadsheet->getProperties()->setTitle($material->title . ' - Summary Report');
+
+        $sheet1 = $spreadsheet->getActiveSheet();
+        $sheet1->setTitle('Summary Report');
+        $this->styleSheetHeader($sheet1, $headers);
+
+        $row = 2;
         foreach ($accesses as $access) {
             $student    = $access->student;
             $enrollment = $student ? $enrollments->get($student->id) : null;
             $progressText = $this->getProgressText($enrollment, $material->id, $access);
 
-            $row = [
+            $rowData = [
                 $student ? trim($student->first_name . ' ' . $student->last_name) : 'N/A',
                 $access->email,
                 $access->status,
                 $progressText,
             ];
 
-            if ($hasQuizzes) $row[] = $student ? $this->getQuizScore($student->id, $material->id) : 'N/A';
-            if ($hasExams)   $row[] = $student ? $this->getExamScore($student->id, $material->id) : 'N/A';
-            if ($hasQuizzes || $hasExams) $row[] = $student ? $this->getFinalGrade($student->id, $material, $hasQuizzes, $hasExams) : 'N/A';
+            if ($hasQuizzes) $rowData[] = $student ? $this->getQuizScore($student->id, $material->id) : 'N/A';
+            if ($hasExams)   $rowData[] = $student ? $this->getExamScore($student->id, $material->id) : 'N/A';
+            if ($hasQuizzes || $hasExams) $rowData[] = $student ? $this->getFinalGrade($student->id, $material, $hasQuizzes, $hasExams) : 'N/A';
 
-            $rows[] = $row;
+            $sheet1->fromArray($rowData, null, 'A' . $row);
+            $row++;
         }
+        $this->autoWidth($sheet1, count($headers));
 
-        return ['headers' => $headers, 'rows' => $rows];
+        return $spreadsheet;
     }
 
     public function exportDetailedAsExcel(Material $material): Spreadsheet
@@ -388,7 +397,7 @@ class MaterialExportService
         }
 
         $status = $enrollment->status;
-        if ($access && ($access->retakes ?? 0) >= 3 && $status !== 'completed') {
+        if ($access && ($access->retakes ?? 0) >= 3 && $status !== 'completed' && $status !== 'in_progress') {
             $status = 'failed';
         }
 
