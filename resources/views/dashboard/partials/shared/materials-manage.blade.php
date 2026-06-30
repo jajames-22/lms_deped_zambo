@@ -263,10 +263,10 @@
                             <p class="text-sm text-amber-700 mb-4 leading-relaxed">An administrator has forced this module
                                 back to draft mode. Please review their feedback below, make the necessary changes, and
                                 submit it for review again.</p>
-                            <div class="bg-white/80 p-4 rounded-xl border border-amber-200/60 shadow-sm max-h-40 overflow-y-auto custom-scrollbar">
+                            <div class="bg-white/80 p-4 rounded-xl border border-amber-200/60 shadow-sm max-h-40 overflow-y-auto overflow-x-hidden custom-scrollbar">
                                 <p class="text-[10px] font-black text-amber-800 uppercase tracking-wider mb-1">
                                     Administrator's Reason:</p>
-                                <p class="text-sm text-amber-900 font-medium italic break-words">"{{ $displayReason }}"</p>
+                                <p class="text-sm text-amber-900 font-medium italic whitespace-pre-wrap [word-break:break-word]">"{{ $displayReason }}"</p>
                             </div>
                         </div>
                     </div>
