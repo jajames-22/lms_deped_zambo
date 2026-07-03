@@ -578,7 +578,8 @@
             </div>
 
             {{-- DOWNLOADABLE RESOURCES --}}
-            @if($resources->count() > 0)
+            {{-- Section only visible when downloads are enabled AND there are resources to show --}}
+            @if(($material->is_downloadable ?? true) && $resources->count() > 0)
                 <h3 class="text-xl font-black text-gray-900 mb-4 px-2 mt-12">Media & Resources</h3>
                 <div
                     class="bg-white rounded-3xl shadow-sm border border-gray-100 p-2 md:p-4 grid grid-cols-1 sm:grid-cols-2 gap-2">
@@ -628,19 +629,12 @@
                                 </p>
                             </div>
 
-                            @if($material->is_downloadable ?? true)
-                                <button onclick="trackAndDownloadResource('{{ $res->url }}', {{ $material->id }})"
-                                    class="h-10 w-10 shrink-0 rounded-full flex items-center justify-center text-gray-400 hover:text-[#a52a2a] hover:bg-red-50 transition"
-                                    title="Download File">
-                                    <i class="fas fa-download"></i>
-                                </button>
-                            @else
-                                <button disabled
-                                    class="h-10 w-10 shrink-0 rounded-full flex items-center justify-center text-gray-300 cursor-not-allowed"
-                                    title="Downloads Disabled">
-                                    <i class="fas fa-download"></i>
-                                </button>
-                            @endif
+                            {{-- Download button always active here since is_downloadable is true --}}
+                            <button onclick="trackAndDownloadResource('{{ $res->url }}', {{ $material->id }})"
+                                class="h-10 w-10 shrink-0 rounded-full flex items-center justify-center text-gray-400 hover:text-[#a52a2a] hover:bg-red-50 transition"
+                                title="Download File">
+                                <i class="fas fa-download"></i>
+                            </button>
                         </div>
                     @endforeach
                 </div>

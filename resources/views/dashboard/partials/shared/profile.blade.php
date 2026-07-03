@@ -9,6 +9,11 @@
     ];
     $roleColor = $roleColors[$user->role] ?? 'bg-gray-100 text-gray-700 border-gray-200';
     
+    // Auto-close resolved tickets older than 3 days dynamically (fallback for cron)
+    \App\Models\Feedback::where('status', 'resolved')
+        ->where('updated_at', '<=', now()->subDays(3))
+        ->update(['status' => 'closed']);
+
     // Fetch user feedbacks WITH threaded messages
     $userFeedbacks = \App\Models\Feedback::with('messages.sender')
         ->where('user_id', $user->id)
@@ -21,11 +26,31 @@
             'category' => ucwords(str_replace('_', ' ', $f->category)),
             'message' => $f->message,
             'status' => $f->status,
-            'messages' => $f->messages, // Pass the array of replies!
-            'media_url' => $f->media_url ? asset('storage/' . $f->media_url) : null,
+            'messages' => $f->messages->map(function($m) {
+                return [
+                    'id' => $m->id,
+                    'message' => $m->message,
+                    'sender' => $m->sender,
+                    'date' => $m->created_at->format('M d, Y h:i A')
+                ];
+            })->values(),
+            'media_url' => $f->media_url ? (is_array($f->media_url) ? $f->media_url : [$f->media_url]) : [],
             'date' => $f->created_at->format('M d, Y h:i A')
         ];
     })->values(); // Forces a clean Javascript array
+    
+    // Fetch unread ticket responses
+    $unreadTicketNotifsRaw = $user->unreadNotifications()
+        ->where('type', \App\Notifications\LmsAlertNotification::class)
+        ->where('data->actionUrl', 'LIKE', '%?ticket=%')
+        ->get();
+        
+    $unreadTicketNotifs = $unreadTicketNotifsRaw->mapWithKeys(function($notif) {
+        preg_match('/ticket=(\d+)/', $notif->data['actionUrl'] ?? '', $matches);
+        return isset($matches[1]) ? [(int)$matches[1] => $notif->id] : [];
+    })->toArray();
+    
+    $unreadTicketCount = count($unreadTicketNotifs);
     
     $schools = \App\Models\School::orderBy('name', 'asc')->get();
 
@@ -303,13 +328,18 @@
 
         <div class="flex border-b border-gray-200 px-6 pt-2 bg-white shrink-0">
             <button id="btn-support-send" onclick="switchSupportTab('send')" class="px-5 py-3 font-bold text-[#a52a2a] border-b-2 border-[#a52a2a] transition-all focus:outline-none">Send Report</button>
-            <button id="btn-support-history" onclick="switchSupportTab('history')" class="px-5 py-3 font-bold text-gray-500 hover:text-gray-700 border-b-2 border-transparent transition-all focus:outline-none">My Reports</button>
+            <button id="btn-support-history" onclick="switchSupportTab('history')" class="px-5 py-3 font-bold text-gray-500 hover:text-gray-700 border-b-2 border-transparent transition-all focus:outline-none flex items-center gap-2">
+                My Reports 
+                @if($unreadTicketCount > 0)
+                    <span id="support-badge" class="flex items-center justify-center min-w-[18px] h-[18px] px-1 bg-red-500 text-white text-[10px] font-black rounded-full shadow-sm">{{ $unreadTicketCount }}</span>
+                @endif
+            </button>
         </div>
 
-        <div class="flex-1 overflow-x-hidden overflow-y-auto relative rounded-b-3xl sidebar-scroll bg-gray-50">
+        <div class="flex-1 overflow-hidden relative rounded-b-3xl bg-gray-50">
             
             {{-- Panel: SEND REPORT --}}
-            <div id="support-panel-send" class="support-panel absolute inset-0 p-6 md:p-8 transition-all duration-300 transform opacity-100 translate-y-0 z-10">
+            <div id="support-panel-send" class="support-panel absolute inset-0 p-6 md:p-8 transition-all duration-300 transform opacity-100 translate-y-0 z-10 overflow-y-auto custom-scrollbar">
                 <div class="bg-white p-6 md:p-8 rounded-2xl border border-gray-100 shadow-sm">
                     <h3 class="text-lg font-bold text-gray-900 border-b border-gray-100 pb-4 mb-6 flex items-center gap-2">
                         <i class="fas fa-paper-plane text-[#a52a2a]"></i> Submit a New Ticket
@@ -341,9 +371,12 @@
                                     class="w-full px-4 py-3 rounded-xl bg-gray-50 border border-gray-200 focus:ring-2 focus:ring-[#a52a2a]/20 focus:border-[#a52a2a] transition-all text-sm outline-none resize-none"></textarea>
                             </div>
                             <div>
-                                <label class="block text-sm font-bold text-gray-700 mb-1.5">Attachment / Screenshot <span class="text-gray-400 font-normal">(Optional, max 2MB)</span></label>
-                                <input type="file" name="media" accept="image/*"
-                                    class="w-full px-4 py-3 rounded-xl bg-gray-50 border border-gray-200 focus:ring-2 focus:ring-[#a52a2a]/20 focus:border-[#a52a2a] transition-all text-sm outline-none file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-[#a52a2a]/10 file:text-[#a52a2a] hover:file:bg-[#a52a2a]/20 cursor-pointer">
+                                <label class="block text-sm font-bold text-gray-700 mb-1.5">Attachments / Screenshots <span class="text-gray-400 font-normal">(Optional, max 2MB total)</span></label>
+                                <input type="file" id="feedback-media-input" name="media[]" accept="image/*" multiple
+                                    class="w-full px-4 py-3 rounded-xl bg-gray-50 border border-gray-200 focus:ring-2 focus:ring-[#a52a2a]/20 focus:border-[#a52a2a] transition-all text-sm outline-none file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-[#a52a2a]/10 file:text-[#a52a2a] hover:file:bg-[#a52a2a]/20 cursor-pointer"
+                                    onchange="handleFeedbackFiles(this)">
+                                <p class="text-xs text-gray-500 mt-2 mb-3">Accepted file types: JPG, JPEG, PNG, WEBP. Total combined size must not exceed 2MB.</p>
+                                <div id="feedback-media-preview" class="flex flex-wrap gap-3"></div>
                             </div>
                         </div>
                         <div class="mt-6 flex justify-end">
@@ -356,7 +389,7 @@
             </div>
 
             {{-- Panel: MY REPORTS --}}
-            <div id="support-panel-history" class="support-panel absolute inset-0 p-6 md:p-8 transition-all duration-300 transform opacity-0 translate-y-4 z-0 pointer-events-none hidden">
+            <div id="support-panel-history" class="support-panel absolute inset-0 p-6 md:p-8 transition-all duration-300 transform opacity-0 translate-y-4 z-0 pointer-events-none hidden overflow-y-auto custom-scrollbar">
                 <div class="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
                     @if($userFeedbacks->count() > 0)
                         <div class="space-y-3">
@@ -376,7 +409,7 @@
                                             {{ in_array($feedback->status, ['in_progress', 'waiting_on_user']) ? 'bg-blue-100 text-blue-700 border-blue-200' : '' }}
                                             {{ $feedback->status === 'resolved' ? 'bg-green-100 text-green-700 border-green-200' : '' }}
                                             {{ $feedback->status === 'closed' ? 'bg-gray-100 text-gray-600 border-gray-200' : '' }}">
-                                            {{ str_replace('_', ' ', $feedback->status) }}
+                                            {{ $feedback->status === 'waiting_on_user' ? 'Needs Your Response' : str_replace('_', ' ', $feedback->status) }}
                                         </span>
                                         <i class="fas fa-chevron-right text-gray-300 group-hover:text-[#a52a2a] transition-colors"></i>
                                     </div>
@@ -396,7 +429,7 @@
             </div>
 
             {{-- Panel: TICKET VIEW --}}
-            <div id="support-panel-view" class="support-panel absolute inset-0 p-6 md:p-8 transition-all duration-300 transform opacity-0 translate-y-4 z-0 pointer-events-none hidden">
+            <div id="support-panel-view" class="support-panel absolute inset-0 p-6 md:p-8 transition-all duration-300 transform opacity-0 translate-y-4 z-0 pointer-events-none hidden overflow-y-auto custom-scrollbar">
                 <button onclick="switchSupportTab('history')" class="mb-4 text-sm font-bold text-gray-500 hover:text-[#a52a2a] flex items-center gap-2 transition-colors">
                     <div class="w-8 h-8 rounded-full bg-white border border-gray-200 flex items-center justify-center shadow-sm">
                         <i class="fas fa-arrow-left"></i>
@@ -481,8 +514,9 @@
 
     window.daysLeftToUpdate = {{ max(0, $daysLeftToUpdate) }};
     window.userTicketsData = @json($ticketsJson);
+    window.unreadTicketNotifs = @json($unreadTicketNotifs);
     window.reloadPageOnModalClose = false;
-    let pendingConfirmAction = null; // Stores the form submission logic momentarily
+    var pendingConfirmAction = null; // Stores the form submission logic momentarily
 
     function openSupportModal() {
         const modal = document.getElementById('supportModal');
@@ -560,23 +594,75 @@
 
         let html = `
             <div class="flex flex-col sm:flex-row sm:justify-between sm:items-start mb-4 gap-4">
-                <h4 class="font-black text-gray-900 text-2xl leading-tight">${t.subject}</h4>
-                <span class="shrink-0 text-[10px] uppercase tracking-widest font-black px-3 py-1.5 rounded-lg border ${statusStyle}">${t.status.replace(/_/g, ' ')}</span>
+                <div>
+                    <h4 class="font-black text-gray-900 text-2xl leading-tight mb-1">${t.subject}</h4>
+                    <p class="text-xs text-gray-500 font-medium tracking-wide">
+                        <span class="mr-3"><i class="fas fa-tag mr-1 text-gray-400"></i> ${t.category}</span>
+                        <span><i class="fas fa-calendar-alt mr-1 text-gray-400"></i> ${t.date}</span>
+                    </p>
+                </div>
+                <span class="shrink-0 text-[10px] uppercase tracking-widest font-black px-3 py-1.5 rounded-lg border ${statusStyle}">${t.status === 'waiting_on_user' ? 'Needs Your Response' : t.status.replace(/_/g, ' ')}</span>
             </div>
-            <div class="text-sm text-gray-700 mb-8 whitespace-pre-wrap leading-relaxed">${t.message}</div>
         `;
+        html += `<h4 class="text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-6 mb-4 border-b border-gray-100 pb-2">Conversation History</h4>`;
         
+        html += `<div id="ticket-chat-container" class="space-y-4 max-h-[400px] overflow-y-auto custom-scrollbar pr-4">`;
+
+        // Original message (User - RIGHT)
+        html += `<div class="p-5 bg-gray-50 rounded-2xl border border-gray-200 ml-12 relative shadow-sm">
+                    <div class="flex items-center justify-between mb-2 text-gray-600">
+                        <div class="flex items-center gap-2"><i class="fas fa-user"></i><span class="text-xs font-black uppercase tracking-widest">You (Original Report)</span></div>
+                        <span class="text-[10px] font-bold opacity-70">${t.date}</span>
+                    </div>
+                    <p class="text-sm text-gray-800 leading-relaxed whitespace-pre-wrap">${t.message}</p>`;
+
+        if (t.media_url && t.media_url.length > 0) {
+            html += `<div class="mt-4 pt-4 border-t border-gray-200 flex flex-wrap gap-2">`;
+            t.media_url.forEach(url => {
+                html += `
+                    <div onclick="openImageModal('${url}')" class="cursor-pointer relative group rounded-xl overflow-hidden border border-gray-300 w-20 h-20 shrink-0">
+                        <img src="${url}" alt="Attachment" class="w-full h-full object-cover bg-white">
+                        <div class="absolute inset-0 bg-gray-900/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition">
+                            <i class="fas fa-search-plus text-white text-sm"></i>
+                        </div>
+                    </div>
+                `;
+            });
+            html += `</div>`;
+        }
+        
+        html += `</div>`; // Close original message bubble
+
+        // Message Thread
         if (t.messages && t.messages.length > 0) {
-            html += `<h4 class="text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-8 mb-4 border-b border-gray-100 pb-2">Ticket History</h4>`;
             t.messages.forEach(msg => {
                 const isAdmin = msg.sender && msg.sender.role === 'admin';
+                const dateStr = msg.date || '';
+                
                 if (isAdmin) {
-                    html += `<div class="mt-3 p-5 bg-[#a52a2a]/5 rounded-2xl border border-[#a52a2a]/20 relative overflow-hidden"><div class="absolute top-0 left-0 w-1 h-full bg-[#a52a2a]"></div><div class="flex items-center gap-2 mb-2 text-[#a52a2a]"><i class="fas fa-headset"></i><span class="text-xs font-black uppercase tracking-widest">Support Response</span></div><p class="text-sm text-gray-800 leading-relaxed whitespace-pre-wrap">${msg.message}</p></div>`;
+                    // Admin - LEFT
+                    html += `<div class="p-5 bg-[#a52a2a]/5 rounded-2xl border border-[#a52a2a]/20 mr-12 relative overflow-hidden shadow-sm">
+                        <div class="absolute top-0 left-0 w-1 h-full bg-[#a52a2a]"></div>
+                        <div class="flex items-center justify-between mb-2 text-[#a52a2a]">
+                            <div class="flex items-center gap-2"><i class="fas fa-headset"></i><span class="text-xs font-black uppercase tracking-widest">Support Response</span></div>
+                            <span class="text-[10px] font-bold opacity-70">${dateStr}</span>
+                        </div>
+                        <p class="text-sm text-gray-800 leading-relaxed whitespace-pre-wrap">${msg.message}</p>
+                    </div>`;
                 } else {
-                    html += `<div class="mt-3 p-5 bg-gray-50 rounded-2xl border border-gray-200"><div class="flex items-center gap-2 mb-2 text-gray-600"><i class="fas fa-user"></i><span class="text-xs font-black uppercase tracking-widest">You</span></div><p class="text-sm text-gray-800 leading-relaxed whitespace-pre-wrap">${msg.message}</p></div>`;
+                    // User - RIGHT
+                    html += `<div class="p-5 bg-gray-50 rounded-2xl border border-gray-200 ml-12 relative shadow-sm">
+                        <div class="flex items-center justify-between mb-2 text-gray-600">
+                            <div class="flex items-center gap-2"><i class="fas fa-user"></i><span class="text-xs font-black uppercase tracking-widest">You</span></div>
+                            <span class="text-[10px] font-bold opacity-70">${dateStr}</span>
+                        </div>
+                        <p class="text-sm text-gray-800 leading-relaxed whitespace-pre-wrap">${msg.message}</p>
+                    </div>`;
                 }
             });
         }
+        
+        html += `</div>`; // Close scrolling container
         
         if (t.status === 'resolved') {
             html += `
@@ -603,6 +689,26 @@
 
         document.getElementById('ticket-view-content').innerHTML = html;
         switchSupportTab('view');
+        
+        // Handle marking as read dynamically
+        if (window.unreadTicketNotifs && window.unreadTicketNotifs[id]) {
+            const notifId = window.unreadTicketNotifs[id];
+            fetch('/dashboard/notifications/' + notifId + '/read', {
+                method: 'POST',
+                headers: { 
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+                    'Accept': 'application/json'
+                }
+            }).then(() => {
+                delete window.unreadTicketNotifs[id];
+                const badge = document.getElementById('support-badge');
+                if (badge) {
+                    let count = Object.keys(window.unreadTicketNotifs).length;
+                    if (count > 0) badge.innerText = count;
+                    else badge.remove();
+                }
+            }).catch(() => {});
+        }
     }
 
     (function() {
@@ -674,8 +780,8 @@
         const icon = document.getElementById('profileModalIcon');
         const btn = document.getElementById('profileModalBtn');
 
-        if (type === 'success') {
-            window.reloadPageOnModalClose = true; 
+        if (type === 'success' || type === 'success_no_reload') {
+            window.reloadPageOnModalClose = (type === 'success'); 
             iconBox.className = 'w-20 h-20 bg-green-50 text-green-500 rounded-full flex items-center justify-center mx-auto mb-5 shadow-inner';
             icon.className = 'fas fa-check text-4xl';
             btn.className = 'w-full px-4 py-3 bg-[#a52a2a] text-white font-bold rounded-xl shadow-md hover:bg-red-800 transition';
@@ -818,8 +924,6 @@
         btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Sending...';
         btn.disabled = true;
 
-        closeSupportModal(); 
-
         fetch(form.action, {
             method: 'POST',
             body: new FormData(form),
@@ -827,8 +931,25 @@
         })
         .then(async response => {
             if(response.ok) {
-                sessionStorage.setItem('lastActiveTab', '/dashboard/profile?ticket=' + ticketId);
-                showProfileModal('Reply Sent!', 'Your message has been added to the ticket.', 'success');
+                // Dynamically append the user's message
+                const msgText = form.querySelector('textarea[name="message"]').value;
+                
+                // Add the new message to the ticket's state so it persists if they click back and forth
+                const t = window.userTicketsData.find(ticket => ticket.id == ticketId);
+                if (t) {
+                    t.status = 'waiting_on_support';
+                    if(!t.messages) t.messages = [];
+                    t.messages.push({
+                        sender: { role: 'student' },
+                        message: msgText,
+                        date: 'Just now'
+                    });
+                }
+                
+                const newMsgHtml = `<div class="mt-3 p-5 bg-gray-50 rounded-2xl border border-gray-200"><div class="flex items-center justify-between mb-2 text-gray-600"><div class="flex items-center gap-2"><i class="fas fa-user"></i><span class="text-xs font-black uppercase tracking-widest">You</span></div><span class="text-[10px] font-bold opacity-70">Just now</span></div><p class="text-sm text-gray-800 leading-relaxed whitespace-pre-wrap max-h-64 overflow-y-auto custom-scrollbar pr-2">${msgText.replace(/</g, "&lt;").replace(/>/g, "&gt;")}</p></div>`;
+                form.insertAdjacentHTML('beforebegin', newMsgHtml);
+
+                showProfileModal('Reply Sent!', 'Your message has been added to the ticket.', 'success_no_reload');
                 form.reset();
             } else {
                 const data = await response.json();
@@ -852,8 +973,6 @@
         btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Submitting...';
         btn.disabled = true;
 
-        closeSupportModal(); 
-
         fetch(form.action, {
             method: 'POST',
             body: new FormData(form),
@@ -861,9 +980,41 @@
         })
         .then(async response => {
             if(response.ok) {
-                sessionStorage.setItem('lastActiveTab', '/dashboard/profile?tab=history'); 
-                showProfileModal('Ticket Submitted!', 'Your feedback has been sent to the admins.', 'success');
+                const data = await response.json();
+                if (data.ticket) {
+                    window.userTicketsData.unshift(data.ticket);
+                    
+                    const ticketHtml = `
+                    <div onclick="openTicketView(${data.ticket.id})" class="cursor-pointer p-4 rounded-xl border border-gray-100 hover:border-[#a52a2a]/40 hover:shadow-md transition-all flex flex-col sm:flex-row sm:items-center justify-between bg-gray-50 hover:bg-white group gap-4">
+                        <div class="flex-1 min-w-0">
+                            <h4 class="font-bold text-gray-900 text-base truncate group-hover:text-[#a52a2a] transition-colors">${data.ticket.subject}</h4>
+                            <p class="text-xs text-gray-500 mt-1 flex items-center gap-2">
+                                <span><i class="fas fa-clock text-gray-400"></i> ${data.ticket.date.split(' ')[0] + ' ' + data.ticket.date.split(' ')[1] + ' ' + data.ticket.date.split(' ')[2]}</span>
+                                <span class="text-gray-300"> </span>
+                                <span class="truncate">${data.ticket.category}</span>
+                            </p>
+                        </div>
+                        <div class="shrink-0 flex items-center gap-4">
+                            <span class="text-[10px] uppercase tracking-widest font-black px-3 py-1.5 rounded-lg border bg-amber-100 text-amber-700 border-amber-200">
+                                Open
+                            </span>
+                            <i class="fas fa-chevron-right text-gray-300 group-hover:text-[#a52a2a] transition-colors"></i>
+                        </div>
+                    </div>`;
+
+                    const historyContainer = document.querySelector('#support-panel-history .bg-white.p-6');
+                    const listContainer = historyContainer.querySelector('.space-y-3');
+                    
+                    if (listContainer) {
+                        listContainer.insertAdjacentHTML('afterbegin', ticketHtml);
+                    } else {
+                        historyContainer.innerHTML = `<div class="space-y-3">${ticketHtml}</div>`;
+                    }
+                }
+                showProfileModal('Ticket Submitted!', 'Your feedback has been sent to the admins.', 'success_no_reload');
                 form.reset();
+                if(typeof clearFeedbackFiles === 'function') clearFeedbackFiles();
+                switchSupportTab('history');
             } else {
                 const data = await response.json();
                 showProfileModal('Submission Failed', data.message || 'There was an error submitting your ticket.', 'error');
@@ -898,5 +1049,118 @@
         if (activePanel) {
             activePanel.classList.remove('hidden');
         }
+    }
+</script>
+
+{{-- Image Preview Modal --}}
+<div id="imagePreviewModal" class="fixed inset-0 z-[100] hidden">
+    <div class="absolute inset-0 bg-gray-900/90 backdrop-blur-sm" onclick="closeImageModal()"></div>
+    <div class="absolute inset-0 flex items-center justify-center p-4 md:p-8 pointer-events-none">
+        <div id="imagePreviewModalBox" class="relative max-w-5xl w-full max-h-full flex flex-col pointer-events-auto transform transition-all duration-300 scale-95 opacity-0">
+            <button onclick="closeImageModal()" class="absolute -top-12 right-0 text-white hover:text-gray-300 transition w-10 h-10 flex items-center justify-center rounded-full bg-white/10 hover:bg-white/20">
+                <i class="fas fa-times text-xl"></i>
+            </button>
+            <img id="imagePreviewImg" src="" class="w-full h-auto max-h-[85vh] object-contain rounded-lg shadow-2xl bg-black/50">
+        </div>
+    </div>
+</div>
+
+<script>
+    function openImageModal(url) {
+        const modal = document.getElementById('imagePreviewModal');
+        const box = document.getElementById('imagePreviewModalBox');
+        const img = document.getElementById('imagePreviewImg');
+        
+        img.src = url;
+        modal.classList.remove('hidden');
+        
+        setTimeout(() => {
+            box.classList.remove('scale-95', 'opacity-0');
+            box.classList.add('scale-100', 'opacity-100');
+        }, 10);
+    }
+    
+    function closeImageModal() {
+        const modal = document.getElementById('imagePreviewModal');
+        const box = document.getElementById('imagePreviewModalBox');
+        
+        box.classList.remove('scale-100', 'opacity-100');
+        box.classList.add('scale-95', 'opacity-0');
+        
+        setTimeout(() => {
+            modal.classList.add('hidden');
+            document.getElementById('imagePreviewImg').src = '';
+        }, 300);
+    }
+    
+    // --- APpended Image Upload Logic ---
+    var feedbackFiles = [];
+
+    function handleFeedbackFiles(input) {
+        if (!input.files || input.files.length === 0) return;
+        
+        // Append new files
+        for (let i = 0; i < input.files.length; i++) {
+            const file = input.files[i];
+            // Prevent exact duplicates
+            if (!feedbackFiles.some(f => f.name === file.name && f.size === file.size)) {
+                feedbackFiles.push(file);
+            }
+        }
+        
+        updateFeedbackFileInput(input);
+        renderFeedbackPreviews();
+    }
+
+    function renderFeedbackPreviews() {
+        const previewContainer = document.getElementById('feedback-media-preview');
+        previewContainer.innerHTML = '';
+        
+        feedbackFiles.forEach((file, index) => {
+            const url = URL.createObjectURL(file);
+            
+            const previewDiv = document.createElement('div');
+            previewDiv.className = 'relative w-16 h-16 rounded-lg overflow-hidden border border-gray-200 shadow-sm group bg-white shrink-0';
+            
+            const img = document.createElement('img');
+            img.src = url;
+            img.className = 'w-full h-full object-cover';
+            
+            const removeBtn = document.createElement('button');
+            removeBtn.type = 'button';
+            removeBtn.className = 'absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white rounded-full flex items-center justify-center text-[10px] font-bold opacity-0 group-hover:opacity-100 transition shadow-md z-10 hover:bg-red-600 focus:outline-none';
+            removeBtn.innerHTML = '<i class="fas fa-times"></i>';
+            removeBtn.onclick = function(e) {
+                e.preventDefault();
+                removeFeedbackFile(index);
+            };
+            
+            previewDiv.appendChild(img);
+            previewDiv.appendChild(removeBtn);
+            previewContainer.appendChild(previewDiv);
+        });
+    }
+
+    function removeFeedbackFile(index) {
+        feedbackFiles.splice(index, 1);
+        const input = document.getElementById('feedback-media-input');
+        updateFeedbackFileInput(input);
+        renderFeedbackPreviews();
+    }
+
+    function updateFeedbackFileInput(input) {
+        const dataTransfer = new DataTransfer();
+        feedbackFiles.forEach(file => dataTransfer.items.add(file));
+        input.files = dataTransfer.files;
+    }
+    
+    function clearFeedbackFiles() {
+        feedbackFiles = [];
+        const input = document.getElementById('feedback-media-input');
+        if (input) {
+            input.value = '';
+            updateFeedbackFileInput(input);
+        }
+        renderFeedbackPreviews();
     }
 </script>

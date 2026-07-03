@@ -54,6 +54,13 @@ class Feedback extends Model
     public function getMediaUrlAttribute($value)
     {
         if ($value) {
+            $decoded = json_decode($value, true);
+            if (is_array($decoded)) {
+                return array_map(function ($path) {
+                    return str_starts_with($path, 'http') ? $path : asset('storage/' . $path);
+                }, $decoded);
+            }
+            
             return str_starts_with($value, 'http') ? $value : asset('storage/' . $value);
         }
         return null;

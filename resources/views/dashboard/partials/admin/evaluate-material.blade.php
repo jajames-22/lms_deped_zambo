@@ -335,97 +335,158 @@
         <aside
             class="w-72 bg-white border-r border-gray-200 flex flex-col z-20 shrink-0 hidden lg:flex h-full shadow-sm relative">
 
-            <div class="p-5 border-b border-gray-100 bg-gray-50 shrink-0">
-                <div class="w-full h-32 bg-gray-200 rounded-xl overflow-hidden mb-3 border border-gray-200">
-                    @if($material->thumbnail)
-                        <img src="{{ asset('storage/' . $material->thumbnail) }}" class="w-full h-full object-cover">
-                    @else
-                        <div class="w-full h-full flex items-center justify-center"><i
-                                class="fas fa-book-open text-3xl text-gray-300"></i></div>
-                    @endif
-                </div>
+            @php
+                $hasExams = isset($material->exams) && $material->exams->count() > 0;
+                $hasQuizzes = false;
+                if (isset($material->lessons)) {
+                    foreach ($material->lessons as $lesson) {
+                        if ($lesson->contents && $lesson->contents->whereIn('type', ['mcq', 'true_false', 'checkbox', 'text'])->count() > 0) {
+                            $hasQuizzes = true;
+                            break;
+                        }
+                    }
+                }
+                $calcExamWeight = $material->exam_weight ?? 60;
+                if ($hasExams && !$hasQuizzes) { $calcExamWeight = 100; }
+                elseif (!$hasExams && $hasQuizzes) { $calcExamWeight = 0; }
+                elseif (!$hasExams && !$hasQuizzes) { $calcExamWeight = 0; }
+                $calcQuizWeight = 100 - $calcExamWeight;
+                $calcPassingGrade = $material->passing_percentage ?? 75;
+            @endphp
 
-                <div class="flex flex-wrap gap-1.5 mb-3">
-                    @forelse($material->tags as $tag)
-                        <span
-                            class="px-2 py-1 bg-gray-200 text-gray-600 text-[9px] font-bold uppercase tracking-widest rounded-md">{{ $tag->name }}</span>
-                    @empty
-                        <span class="text-xs text-gray-400 italic">No tags</span>
-                    @endforelse
-                </div>
-
-                <div class="flex items-center gap-2 text-xs text-gray-600 font-medium">
-                    <div
-                        class="w-6 h-6 rounded-full bg-red-900/10 text-red-900 flex items-center justify-center shrink-0">
-                        <i class="fas fa-chalkboard-teacher text-[10px]"></i></div>
-                    <span class="truncate">{{ $material->instructor->first_name ?? '' }}
-                        {{ $material->instructor->last_name ?? '' }}</span>
-                </div>
-
-                <div class="mt-3 flex flex-wrap gap-2 items-center">                
-                    {{-- PUBLIC / PRIVATE --}}
-                    @if($material->is_public)
-                        <span class="text-[13px] bg-green-100 text-green-700 px-2 py-0.5 rounded font-bold uppercase tracking-widest">
-                            Public Module
-                        </span>
-                    @else
-                        <span class="text-[13px] bg-amber-200 text-amber-600 px-2 py-0.5 rounded font-bold uppercase tracking-widest">
-                            Private Module
-                        </span>
-                    @endif
-
-                    {{-- MODULE TYPE --}}
-                    @if($hasAssessment)
-                        <span class="text-[13px] bg-red-100 text-red-700 px-2 py-0.5 rounded font-bold uppercase tracking-widest"
-                            title="Contains required quizzes or exams">
-                            Graded Material
-                        </span>
-                    @else
-                        <span class="text-[13px] bg-blue-100 text-blue-700 px-2 py-0.5 rounded font-bold uppercase tracking-widest"
-                            title="Read-only reference material">
-                            Learning Resource
-                        </span>
-                    @endif
-
-                    {{-- EXAM SHUFFLE STATUS --}}
-                    @if(isset($material->exams) && $material->exams->count() > 0)
-                        @if(isset($material->is_shuffled) && $material->is_shuffled)
-                            <span class="text-[13px] bg-purple-100 text-purple-700 px-2 py-0.5 rounded font-bold uppercase tracking-widest"
-                                title="Exam questions are presented in random order">
-                                <i class="fas fa-random mr-1 text-[10px]"></i> Shuffled Exam
-                            </span>
+            <div class="flex-1 overflow-y-auto sidebar-scroll divide-y divide-gray-100 bg-white">
+                {{-- Section 1 — Material Overview --}}
+                <div class="p-4 bg-gray-50/40">
+                    <div class="w-full h-28 bg-gray-200 rounded-xl overflow-hidden mb-3 border border-gray-200 shadow-sm">
+                        @if($material->thumbnail)
+                            <img src="{{ asset('storage/' . $material->thumbnail) }}" class="w-full h-full object-cover">
                         @else
-                            <span class="text-[13px] bg-slate-100 text-slate-600 px-2 py-0.5 rounded font-bold uppercase tracking-widest"
-                                title="Exam questions are presented in sequential order">
-                                <i class="fas fa-sort-numeric-down mr-1 text-[10px]"></i> Sequential Exam
-                            </span>
+                            <div class="w-full h-full flex items-center justify-center"><i
+                                    class="fas fa-book-open text-2xl text-gray-300"></i></div>
                         @endif
-                    @endif
+                    </div>
 
+                    <h3 class="font-bold text-gray-900 text-sm leading-snug mb-1">{{ $material->title }}</h3>
+
+                    <div class="flex items-center gap-1.5 text-xs text-gray-500 font-medium mb-3">
+                        <span>by {{ $material->instructor->first_name ?? 'Unknown' }} {{ $material->instructor->last_name ?? '' }}</span>
+                    </div>
+
+                    <div class="flex flex-wrap gap-1.5">
+                        @forelse($material->tags as $tag)
+                            <span
+                                class="px-2 py-0.5 bg-white border border-gray-200 text-gray-600 text-[10px] font-bold uppercase tracking-wider rounded shadow-2xs">{{ $tag->name }}</span>
+                        @empty
+                            <span class="px-2 py-0.5 bg-white border border-gray-200 text-gray-400 text-[10px] font-bold uppercase tracking-wider rounded shadow-2xs">General</span>
+                        @endforelse
+                    </div>
+                </div>
+
+                {{-- Section 2 — Module Status (Collapsible Accordion) --}}
+                <div class="accordion-section">
+                    <button type="button" onclick="toggleAccordion('acc-status')" class="w-full px-4 py-3.5 bg-white flex items-center justify-between hover:bg-gray-50 transition cursor-pointer text-left">
+                        <span class="text-[11px] font-black text-gray-700 uppercase tracking-widest">Module Status</span>
+                        <i id="acc-status-icon" class="fas fa-chevron-down text-xs text-gray-400 transform transition-transform duration-300"></i>
+                    </button>
+                    <div id="acc-status-content" class="overflow-hidden transition-all duration-300 max-h-96 opacity-100">
+                        <div class="px-4 pb-4 pt-1">
+                            <div class="bg-gray-50 rounded-xl p-3 border border-gray-100 space-y-2">
+                                <div class="flex items-center gap-2 text-xs font-semibold text-gray-700">
+                                    @if($material->is_public)
+                                        <span class="w-2 h-2 rounded-full bg-green-500 shrink-0"></span>
+                                        <span>Public Module</span>
+                                    @else
+                                        <span class="w-2 h-2 rounded-full bg-amber-500 shrink-0"></span>
+                                        <span>Private Module</span>
+                                    @endif
+                                </div>
+                                <div class="flex items-center gap-2 text-xs font-semibold text-gray-700">
+                                    @if($hasAssessment)
+                                        <span class="w-2 h-2 rounded-full bg-red-500 shrink-0"></span>
+                                        <span>Graded Material</span>
+                                    @else
+                                        <span class="w-2 h-2 rounded-full bg-blue-500 shrink-0"></span>
+                                        <span>Learning Resource</span>
+                                    @endif
+                                </div>
+                                @if(isset($material->exams) && $material->exams->count() > 0)
+                                    <div class="flex items-center gap-2 text-xs font-semibold text-gray-700">
+                                        @if(isset($material->is_shuffled) && $material->is_shuffled)
+                                            <span class="w-2 h-2 rounded-full bg-purple-500 shrink-0"></span>
+                                            <span>Shuffled Exam</span>
+                                        @else
+                                            <span class="w-2 h-2 rounded-full bg-slate-400 shrink-0"></span>
+                                            <span>Sequential Exam</span>
+                                        @endif
+                                    </div>
+                                @endif
+                                <div class="flex items-center gap-2 text-xs font-semibold text-gray-700">
+                                    @if($material->is_downloadable ?? true)
+                                        <span class="w-2 h-2 rounded-full bg-teal-500 shrink-0"></span>
+                                        <span>Resource Downloads Enabled</span>
+                                    @else
+                                        <span class="w-2 h-2 rounded-full bg-gray-400 shrink-0"></span>
+                                        <span>Resource Downloads Disabled</span>
+                                    @endif
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                {{-- Section 3 — Assessment Configuration (Collapsible Accordion) --}}
+                <div class="accordion-section">
+                    <button type="button" onclick="toggleAccordion('acc-assessment')" class="w-full px-4 py-3.5 bg-white flex items-center justify-between hover:bg-gray-50 transition cursor-pointer text-left">
+                        <span class="text-[11px] font-black text-gray-700 uppercase tracking-widest">Assessment Settings</span>
+                        <i id="acc-assessment-icon" class="fas fa-chevron-down text-xs text-gray-400 transform transition-transform duration-300"></i>
+                    </button>
+                    <div id="acc-assessment-content" class="overflow-hidden transition-all duration-300 max-h-96 opacity-100">
+                        <div class="px-4 pb-4 pt-1">
+                            <div class="bg-gray-50 rounded-xl p-3 border border-gray-100 text-xs space-y-2">
+                                <div class="flex justify-between items-center text-gray-600 font-medium">
+                                    <span>Quiz Weight</span>
+                                    <span class="font-bold text-gray-900">{{ $calcQuizWeight }}%</span>
+                                </div>
+                                <div class="flex justify-between items-center text-gray-600 font-medium">
+                                    <span>Exam Weight</span>
+                                    <span class="font-bold text-gray-900">{{ $calcExamWeight }}%</span>
+                                </div>
+                                <div class="border-t border-gray-200 pt-2 mt-2 flex justify-between items-center text-gray-700 font-semibold">
+                                    <span>Passing Grade</span>
+                                    <span class="font-black text-red-900">{{ $calcPassingGrade }}%</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                {{-- Section 4 — Course Content (Collapsible Accordion) --}}
+                <div class="accordion-section">
+                    <button type="button" onclick="toggleAccordion('acc-content')" class="w-full px-4 py-3.5 bg-white flex items-center justify-between hover:bg-gray-50 transition cursor-pointer text-left">
+                        <span class="text-[11px] font-black text-gray-700 uppercase tracking-widest">Course Content</span>
+                        <i id="acc-content-icon" class="fas fa-chevron-down text-xs text-gray-400 transform transition-transform duration-300"></i>
+                    </button>
+                    <div id="acc-content-content" class="overflow-hidden transition-all duration-500 max-h-[5000px] opacity-100">
+                        <nav class="p-3 space-y-1">
+                            @foreach($timeline as $index => $section)
+                                <button onclick="goToLesson({{ $index }})" id="toc-btn-{{ $index }}"
+                                    class="w-full text-left p-3 rounded-xl flex items-start gap-3 transition-all duration-200 border border-transparent text-gray-600 hover:bg-gray-100 {{ $section->is_exam ? 'bg-red-50/40 mt-4' : '' }}">
+                                    <div
+                                        class="toc-icon mt-0.5 shrink-0 h-6 w-6 rounded-full flex items-center justify-center text-xs font-black bg-gray-200 text-gray-500">
+                                        @if($section->is_exam) <i class="fas fa-star"></i> @else {{ $index + 1 }} @endif
+                                    </div>
+                                    <div class="flex-1 min-w-0">
+                                        <p class="font-bold text-sm leading-tight truncate toc-title text-gray-700">
+                                            {{ $section->title }}</p>
+                                        <p class="text-[10px] uppercase tracking-wider font-bold mt-1 toc-meta text-gray-400">
+                                            {{ $section->items->count() }} {{ $section->is_exam ? 'Questions' : 'Items' }}</p>
+                                    </div>
+                                </button>
+                            @endforeach
+                        </nav>
+                    </div>
                 </div>
             </div>
-
-            <div class="px-4 py-3 bg-white border-b border-gray-100 shrink-0 flex justify-between items-center">
-                <h2 class="font-black text-gray-900 text-sm">Course Content</h2>
-            </div>
-
-            <nav class="flex-1 overflow-y-auto sidebar-scroll p-3 space-y-1">
-                @foreach($timeline as $index => $section)
-                    <button onclick="goToLesson({{ $index }})" id="toc-btn-{{ $index }}"
-                        class="w-full text-left p-3 rounded-xl flex items-start gap-3 transition-all duration-200 border border-transparent text-gray-600 hover:bg-gray-100 {{ $section->is_exam ? 'bg-red-50/40 mt-4' : '' }}">
-                        <div
-                            class="toc-icon mt-0.5 shrink-0 h-6 w-6 rounded-full flex items-center justify-center text-xs font-black bg-gray-200 text-gray-500">
-                            @if($section->is_exam) <i class="fas fa-star"></i> @else {{ $index + 1 }} @endif
-                        </div>
-                        <div class="flex-1 min-w-0">
-                            <p class="font-bold text-sm leading-tight truncate toc-title text-gray-700">
-                                {{ $section->title }}</p>
-                            <p class="text-[10px] uppercase tracking-wider font-bold mt-1 toc-meta text-gray-400">
-                                {{ $section->items->count() }} {{ $section->is_exam ? 'Questions' : 'Items' }}</p>
-                        </div>
-                    </button>
-                @endforeach
-            </nav>
         </aside>
 
         {{-- MIDDLE: MAIN CONTENT AREA --}}
@@ -756,6 +817,31 @@
         let activeFullscreenId = null;
         let activeFullscreenType = null;
         let globalMediaIdleTimer = null;
+
+        // --- ACCORDION TOGGLE LOGIC ---
+        function toggleAccordion(id) {
+            const content = document.getElementById(id + '-content');
+            const icon = document.getElementById(id + '-icon');
+            if (!content || !icon) return;
+
+            if (content.classList.contains('collapsed')) {
+                content.classList.remove('collapsed', 'max-h-0', 'opacity-0');
+                if (id === 'acc-content') {
+                    content.classList.add('max-h-[5000px]', 'opacity-100');
+                } else {
+                    content.classList.add('max-h-96', 'opacity-100');
+                }
+                icon.style.transform = 'rotate(0deg)';
+            } else {
+                content.classList.add('collapsed', 'max-h-0', 'opacity-0');
+                if (id === 'acc-content') {
+                    content.classList.remove('max-h-[5000px]', 'opacity-100');
+                } else {
+                    content.classList.remove('max-h-96', 'opacity-100');
+                }
+                icon.style.transform = 'rotate(-90deg)';
+            }
+        }
 
         // --- RUBRIC SCORING LOGIC ---
         function calculateScore() {

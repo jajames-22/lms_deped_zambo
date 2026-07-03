@@ -166,7 +166,17 @@ class ProfileController extends Controller
             'category' => 'required|string',
             'subject' => 'required|string|max:255',
             'message' => 'required|string',
-            'media' => 'nullable|image|max:2048', // 2MB max for screenshots
+            'media' => [
+                'nullable',
+                'array',
+                function ($attribute, $value, $fail) {
+                    $totalSize = collect($value)->sum(fn($file) => $file->getSize());
+                    if ($totalSize > 2097152) { // 2MB in bytes
+                        $fail('The total size of all uploaded images must not exceed 2MB.');
+                    }
+                },
+            ],
+            'media.*' => 'image|mimes:jpg,jpeg,png,webp',
         ]);
 
         $feedback = new \App\Models\Feedback();
@@ -177,8 +187,11 @@ class ProfileController extends Controller
         $feedback->status = 'open';
 
         if ($request->hasFile('media')) {
-            $path = $request->file('media')->store('feedbacks', 'public');
-            $feedback->media_url = $path;
+            $paths = [];
+            foreach ($request->file('media') as $file) {
+                $paths[] = $file->store('feedbacks', 'public');
+            }
+            $feedback->media_url = json_encode($paths);
         }
 
         $feedback->save();
@@ -198,11 +211,35 @@ class ProfileController extends Controller
             ));
         }
 
-        return response()->json(['success' => true, 'message' => 'Report submitted successfully!']);
+        $feedback->load('messages');
+        $newTicket = [
+            'id' => $feedback->id,
+            'subject' => $feedback->subject,
+            'category' => ucwords(str_replace('_', ' ', $feedback->category)),
+            'message' => $feedback->message,
+            'status' => $feedback->status,
+            'messages' => $feedback->messages->map(function($m) {
+                return [
+                    'id' => $m->id,
+                    'message' => $m->message,
+                    'sender' => $m->sender,
+                    'date' => $m->created_at->format('M d, Y h:i A')
+                ];
+            })->values(),
+            'media_url' => is_array($feedback->media_url) ? $feedback->media_url : ($feedback->media_url ? [$feedback->media_url] : []),
+            'date' => $feedback->created_at->format('M d, Y h:i A')
+        ];
+
+        return response()->json(['success' => true, 'message' => 'Report submitted successfully!', 'ticket' => $newTicket]);
     }
 
     public function loadFeedbackPartial()
     {
+        // Auto-close resolved tickets older than 3 days dynamically (fallback for cron)
+        \App\Models\Feedback::where('status', 'resolved')
+            ->where('updated_at', '<=', now()->subDays(3))
+            ->update(['status' => 'closed']);
+
         $feedbacks = \App\Models\Feedback::with(['sender', 'messages.sender'])->latest()->get();
         
         $pendingCount = $feedbacks->whereIn('status', ['open', 'waiting_on_support'])->count();
@@ -210,6 +247,53 @@ class ProfileController extends Controller
         $bugCount = $feedbacks->where('category', 'bug_report')->count();
 
         return view('dashboard.partials.admin.feedback', compact('feedbacks', 'pendingCount', 'resolvedCount', 'bugCount'));
+    }
+
+    public function destroyFeedback($id)
+    {
+        if (auth()->user()->role !== 'admin') {
+            return response()->json(['message' => 'Unauthorized.'], 403);
+        }
+
+        $feedback = \App\Models\Feedback::findOrFail($id);
+        
+        if ($feedback->media_url) {
+            $urls = is_array($feedback->media_url) ? $feedback->media_url : [$feedback->media_url];
+            foreach ($urls as $url) {
+                $path = str_replace(url('/storage') . '/', '', $url);
+                \Illuminate\Support\Facades\Storage::disk('public')->delete($path);
+            }
+        }
+        
+        $feedback->delete();
+        return response()->json(['success' => true, 'message' => 'Ticket deleted successfully.']);
+    }
+
+    public function bulkDeleteFeedback(\Illuminate\Http\Request $request)
+    {
+        if (auth()->user()->role !== 'admin') {
+            return response()->json(['message' => 'Unauthorized.'], 403);
+        }
+
+        $request->validate([
+            'ids' => 'required|array',
+            'ids.*' => 'integer|exists:feedbacks,id'
+        ]);
+
+        $feedbacks = \App\Models\Feedback::whereIn('id', $request->ids)->get();
+
+        foreach ($feedbacks as $feedback) {
+            if ($feedback->media_url) {
+                $urls = is_array($feedback->media_url) ? $feedback->media_url : [$feedback->media_url];
+                foreach ($urls as $url) {
+                    $path = str_replace(url('/storage') . '/', '', $url);
+                    \Illuminate\Support\Facades\Storage::disk('public')->delete($path);
+                }
+            }
+            $feedback->delete();
+        }
+
+        return response()->json(['success' => true, 'message' => count($request->ids) . ' ticket(s) deleted successfully.']);
     }
 
     /**
@@ -230,10 +314,11 @@ class ProfileController extends Controller
         }
 
         // 1. Create the message thread entry
-        $feedback->messages()->create([
+        $msg = $feedback->messages()->create([
             'user_id' => auth()->id(),
             'message' => $request->admin_reply,
         ]);
+        $msg->load('sender');
 
         // 2. Update the main ticket status
         $feedback->status = $request->status;
@@ -275,7 +360,12 @@ class ProfileController extends Controller
             ));
         }
 
-        return response()->json(['success' => true, 'message' => 'Response sent successfully.']);
+        return response()->json([
+            'success' => true, 
+            'message' => 'Response sent successfully.',
+            'msg' => $msg,
+            'status' => $request->status
+        ]);
     }
 
     /**

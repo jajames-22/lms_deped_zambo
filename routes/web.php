@@ -175,6 +175,7 @@ Route::middleware(['auth', 'verified', CheckAccountStatus::class])->group(functi
         Route::post('/materials/{material}/study-start', [MaterialsController::class, 'studySessionStart'])->name('dashboard.materials.study.start');
         Route::post('/materials/{material}/study-flush', [MaterialsController::class, 'studySessionFlush'])->name('dashboard.materials.study.flush');
         Route::post('/materials/{material}/complete', [MaterialsController::class, 'complete'])->name('dashboard.materials.complete');
+        Route::get('/materials/{material}/status', [MaterialsController::class, 'moduleStatusHeartbeat'])->name('dashboard.materials.status');
         Route::post('/materials/{hashid}/retake', [MaterialsController::class, 'retake'])->name('dashboard.materials.retake');
         Route::post('/materials/{material}/download-count', [StudentController::class, 'incrementDownload']);
 
@@ -215,6 +216,8 @@ Route::middleware(['auth', 'verified', CheckAccountStatus::class])->group(functi
         Route::post('/feedback/store', [ProfileController::class, 'storeFeedback'])->name('feedback.store');
         Route::post('/feedback/{id}/user-reply', [ProfileController::class, 'userReplyToFeedback'])->name('dashboard.feedback.user-reply');
         Route::post('/feedback/{id}/reply', [ProfileController::class, 'replyToFeedback'])->name('dashboard.feedback.reply');
+        Route::delete('/feedback/bulk-delete', [ProfileController::class, 'bulkDeleteFeedback'])->name('dashboard.feedback.bulk-delete');
+        Route::delete('/feedback/{id}', [ProfileController::class, 'destroyFeedback'])->name('dashboard.feedback.destroy');
     });
 
     Route::get('/get-districts/{quadrantId}', [DashboardController::class, 'getDistricts'])->name('districts.get');

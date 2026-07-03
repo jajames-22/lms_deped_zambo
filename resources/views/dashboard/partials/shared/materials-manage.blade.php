@@ -263,10 +263,10 @@
                             <p class="text-sm text-amber-700 mb-4 leading-relaxed">An administrator has forced this module
                                 back to draft mode. Please review their feedback below, make the necessary changes, and
                                 submit it for review again.</p>
-                            <div class="bg-white/80 p-4 rounded-xl border border-amber-200/60 shadow-sm">
+                            <div class="bg-white/80 p-4 rounded-xl border border-amber-200/60 shadow-sm max-h-40 overflow-y-auto custom-scrollbar">
                                 <p class="text-[10px] font-black text-amber-800 uppercase tracking-wider mb-1">
                                     Administrator's Reason:</p>
-                                <p class="text-sm text-amber-900 font-medium italic">"{{ $displayReason }}"</p>
+                                <p class="text-sm text-amber-900 font-medium italic break-words">"{{ $displayReason }}"</p>
                             </div>
                         </div>
                     </div>
@@ -442,12 +442,7 @@
                 </div>
 
                 <div
-                    class="px-6 md:px-8 py-4 border-b border-gray-100 flex flex-wrap items-center justify-between gap-4">
-                    <button id="bulkInviteBtn" onclick="bulkSendInvites()"
-                        class="h-10 px-4 bg-amber-50 text-amber-600 border border-amber-100 rounded-xl hover:bg-amber-100 transition text-sm font-bold shadow-sm flex items-center justify-center">
-                        <i class="fas fa-paper-plane mr-1.5"></i> Invite Pending
-                    </button>
-
+                    class="px-6 md:px-8 py-4 border-b border-gray-100 flex flex-wrap items-center justify-end gap-4">
                     <div class="flex flex-wrap items-center gap-2">
                         <button id="toggleBulkSelectBtn" onclick="toggleBulkSelectMode()"
                             class="h-10 px-4 bg-gray-50 text-gray-600 border border-gray-200 rounded-xl hover:bg-gray-100 transition text-sm font-bold shadow-sm flex items-center justify-center gap-1.5">
@@ -455,6 +450,12 @@
                         </button>
 
                         <div id="bulkActionsContainer" class="hidden items-center gap-2">
+                            @if($material->status === 'published')
+                            <button id="bulkInviteBtn" onclick="openBulkInviteModal()" disabled
+                                class="bulk-action-btn opacity-50 cursor-not-allowed h-10 px-3 bg-amber-50 text-amber-600 border border-amber-200 rounded-xl hover:bg-amber-100 transition text-sm font-bold shadow-sm flex items-center justify-center gap-1.5">
+                                <i class="fas fa-paper-plane"></i> Invite Pending <span class="bulk-invite-count">(0)</span>
+                            </button>
+                            @endif
                             <button id="bulkDeleteBtn" onclick="openBulkDeleteModal()" disabled
                                 class="bulk-action-btn opacity-50 cursor-not-allowed h-10 px-3 bg-red-50 text-red-600 border border-red-200 rounded-xl hover:bg-red-100 transition text-sm font-bold shadow-sm flex items-center justify-center gap-1.5">
                                 <i class="fas fa-user-minus"></i> Remove from List <span class="bulk-count">(0)</span>
@@ -487,11 +488,11 @@
                                         <span class="whitespace-nowrap flex items-center justify-center gap-1">Retakes
                                             <i class="fas fa-info-circle text-gray-400 text-[10px]"></i></span>
                                         <div
-                                            class="hidden group-hover:block absolute z-50 w-max px-3 py-2 bg-gray-900 text-white text-[10px] max-w-[160px] rounded shadow-xl top-full mt-2 left-1/2 -translate-x-1/2 pointer-events-none text-center normal-case tracking-normal">
+                                            class="hidden group-hover:block absolute z-50 w-max px-3 py-2 bg-gray-900 text-white text-[10px] max-w-[160px] rounded shadow-xl bottom-full mb-2 left-1/2 -translate-x-1/2 pointer-events-none text-center normal-case tracking-normal">
                                             Shows total re-enrollments. Students have a max of 3 retakes. Reaching the
                                             limit marks them as Failed and blocks further enrollment.
                                             <div
-                                                class="absolute -top-1 left-1/2 -translate-x-1/2 w-2 h-2 bg-gray-900 rotate-45">
+                                                class="absolute -bottom-1 left-1/2 -translate-x-1/2 w-2 h-2 bg-gray-900 rotate-45">
                                             </div>
                                         </div>
                                     </th>
@@ -651,11 +652,19 @@
                                             <div class="flex items-center justify-end gap-1">
 
                                                 @if($access->status === 'pending' || $access->status === 'invited')
-                                                    <button onclick="sendIndividualInvite({{ $access->id }}, this)"
-                                                        class="w-8 h-8 rounded-lg flex items-center justify-center text-blue-500 hover:bg-blue-50 transition"
-                                                        title="Send Invitation Email">
-                                                        <i class="fas fa-paper-plane text-xs"></i>
-                                                    </button>
+                                                    @if($material->status === 'published')
+                                                        <button onclick="sendIndividualInvite({{ $access->id }}, this)"
+                                                            class="w-8 h-8 rounded-lg flex items-center justify-center text-blue-500 hover:bg-blue-50 transition"
+                                                            title="Send Invitation Email">
+                                                            <i class="fas fa-paper-plane text-xs"></i>
+                                                        </button>
+                                                    @else
+                                                        <button disabled
+                                                            class="w-8 h-8 rounded-lg flex items-center justify-center text-gray-300 cursor-not-allowed"
+                                                            title="Invitations unavailable — module is not published">
+                                                            <i class="fas fa-paper-plane text-xs"></i>
+                                                        </button>
+                                                    @endif
                                                 @endif
 
                                                 {{-- Remove from List: available for all statuses --}}
@@ -1075,7 +1084,7 @@
                 @if($material->status === 'published')
                     <button disabled
                         class="w-full py-3 bg-red-100 text-red-400 font-bold rounded-xl cursor-not-allowed transition relative z-10">
-                        Cannot Delete Live Module
+                        Deletion Disabled
                     </button>
                     @if(empty($material->revert_reason))
                         <p class="text-[10px] text-red-500 mt-2 text-center relative z-10">You must request to unpublish this
@@ -1085,6 +1094,12 @@
                                 class="fas fa-spinner fa-spin mr-1"></i> Waiting for admin to approve your unpublish request.
                         </p>
                     @endif
+                @elseif($material->status === 'pending')
+                    <button disabled
+                        class="w-full py-3 bg-red-100 text-red-400 font-bold rounded-xl cursor-not-allowed transition relative z-10">
+                        Deletion Disabled
+                    </button>
+                    <p class="text-[10px] text-red-500 mt-2 text-center relative z-10">Module is currently under review and cannot be deleted.</p>
                 @else
                     <button onclick="openModal('deleteConfirmModal', 'deleteConfirmBox')"
                         class="w-full py-3 bg-white text-red-600 border border-red-200 font-bold rounded-xl shadow-sm hover:bg-red-600 hover:text-white transition relative z-10">
@@ -1260,51 +1275,57 @@
     <div class="absolute inset-0 bg-gray-900/60" onclick="closeModal('reviewUnpublishModal', 'reviewUnpublishBox')">
     </div>
     <div id="reviewUnpublishBox"
-        class="bg-white rounded-3xl max-w-md w-full p-8 shadow-2xl relative z-10 transform scale-95 transition-all duration-300">
-        <div class="flex justify-between items-center mb-6">
+        class="bg-white rounded-3xl max-w-md w-full shadow-2xl relative z-10 transform scale-95 transition-all duration-300 flex flex-col max-h-[90vh]">
+
+        {{-- Sticky Header --}}
+        <div class="flex justify-between items-center px-8 pt-8 pb-5 border-b border-gray-100 shrink-0">
             <h3 class="text-xl font-black text-gray-900">Review Unpublish Request</h3>
             <button onclick="closeModal('reviewUnpublishModal', 'reviewUnpublishBox')"
                 class="text-gray-400 hover:text-gray-600 transition"><i class="fas fa-times"></i></button>
         </div>
 
-        <div class="p-4 bg-gray-50 border border-gray-200 rounded-xl mb-4">
-            <p class="text-[10px] text-gray-400 font-bold uppercase tracking-wider mb-2">Teacher's Reason:</p>
-            <p class="text-sm text-gray-700 font-medium italic mb-3">
-                "{{ $displayReason ?? 'No reason provided.' }}"</p>
+        {{-- Scrollable Body --}}
+        <div class="flex-1 overflow-y-auto px-8 py-5 space-y-4">
+            <div class="p-4 bg-gray-50 border border-gray-200 rounded-xl">
+                <p class="text-[10px] text-gray-400 font-bold uppercase tracking-wider mb-2">Teacher's Reason:</p>
+                <p class="text-sm text-gray-700 font-medium italic mb-3 break-words">
+                    "{{ $displayReason ?? 'No reason provided.' }}"</p>
 
-            <p class="text-[10px] text-gray-400 font-bold uppercase tracking-wider mb-2 pt-3 border-t border-gray-200">
-                Teacher's Data Decision:</p>
-            @if($displayOption === 'clear')
-                <div class="flex items-start gap-2 bg-red-50 text-red-700 p-2 rounded-lg border border-red-100">
-                    <i class="fas fa-trash-alt mt-0.5 text-xs"></i>
-                    <div>
-                        <p class="text-xs font-bold">Clear Progress</p>
-                        <p class="text-[10px] opacity-80">Teacher requested to wipe all student data.</p>
+                <p class="text-[10px] text-gray-400 font-bold uppercase tracking-wider mb-2 pt-3 border-t border-gray-200">
+                    Teacher's Data Decision:</p>
+                @if($displayOption === 'clear')
+                    <div class="flex items-start gap-2 bg-red-50 text-red-700 p-2 rounded-lg border border-red-100">
+                        <i class="fas fa-trash-alt mt-0.5 text-xs"></i>
+                        <div>
+                            <p class="text-xs font-bold">Clear Progress</p>
+                            <p class="text-[10px] opacity-80">Teacher requested to wipe all student data.</p>
+                        </div>
                     </div>
-                </div>
-            @else
-                <div class="flex items-start gap-2 bg-amber-50 text-amber-700 p-2 rounded-lg border border-amber-100">
-                    <i class="fas fa-save mt-0.5 text-xs"></i>
-                    <div>
-                        <p class="text-xs font-bold">Keep Progress</p>
-                        <p class="text-[10px] opacity-80">Teacher requested to preserve student data.</p>
+                @else
+                    <div class="flex items-start gap-2 bg-amber-50 text-amber-700 p-2 rounded-lg border border-amber-100">
+                        <i class="fas fa-save mt-0.5 text-xs"></i>
+                        <div>
+                            <p class="text-xs font-bold">Keep Progress</p>
+                            <p class="text-[10px] opacity-80">Teacher requested to preserve student data.</p>
+                        </div>
                     </div>
-                </div>
-            @endif
-        </div>
+                @endif
+            </div>
 
-        {{-- NEW WARNING BANNER --}}
-        <div class="mb-6 p-3 bg-red-50 border border-red-200 rounded-xl flex items-start gap-3 text-left">
-            <i class="fas fa-exclamation-triangle text-red-500 mt-0.5"></i>
-            <div>
-                <p class="text-xs font-black text-red-800 uppercase tracking-wider">Warning: Impact of Approval</p>
-                <p class="text-xs text-red-600 mt-1">Approving this request will revert the module to draft and notify
-                    enrolled students. @if($displayOption === 'clear') <b>Since the teacher chose 'Clear Progress', all
-                    student data will be permanently deleted.</b>@endif</p>
+            {{-- WARNING BANNER --}}
+            <div class="p-3 bg-red-50 border border-red-200 rounded-xl flex items-start gap-3 text-left">
+                <i class="fas fa-exclamation-triangle text-red-500 mt-0.5 shrink-0"></i>
+                <div>
+                    <p class="text-xs font-black text-red-800 uppercase tracking-wider">Warning: Impact of Approval</p>
+                    <p class="text-xs text-red-600 mt-1">Approving this request will revert the module to draft and notify
+                        enrolled students. @if($displayOption === 'clear') <b>Since the teacher chose 'Clear Progress', all
+                        student data will be permanently deleted.</b>@endif</p>
+                </div>
             </div>
         </div>
 
-        <div class="flex gap-3">
+        {{-- Sticky Footer --}}
+        <div class="flex gap-3 px-8 pb-8 pt-5 border-t border-gray-100 shrink-0">
             <button type="button" onclick="resolveUnpublishRequest('published', this)"
                 class="flex-1 py-3 bg-white text-gray-600 border border-gray-200 font-bold rounded-xl hover:bg-gray-50 hover:text-red-600 transition">Decline</button>
             <button type="button" onclick="resolveUnpublishRequest('draft', this)"
@@ -2618,7 +2639,6 @@
         const container = document.getElementById('bulkActionsContainer');
         const checkboxes = document.querySelectorAll('.access-checkbox');
         const addStudentBtn = document.getElementById('addStudentBtn');
-        const bulkInviteBtn = document.getElementById('bulkInviteBtn');
 
         if (bulkSelectModeActive) {
             toggleBtn.innerHTML = '<i class="fas fa-times"></i> Cancel';
@@ -2628,7 +2648,6 @@
             checkboxes.forEach(cb => cb.classList.remove('hidden'));
             if (selectAllAccessCheckbox) selectAllAccessCheckbox.classList.remove('hidden');
             if (addStudentBtn) addStudentBtn.classList.add('hidden');
-            if (bulkInviteBtn) bulkInviteBtn.classList.add('hidden');
         } else {
             toggleBtn.innerHTML = '<i class="fas fa-check-square"></i> Select';
             toggleBtn.className = 'h-10 px-4 bg-gray-50 text-gray-600 border border-gray-200 rounded-xl hover:bg-gray-100 transition text-sm font-bold shadow-sm flex items-center justify-center gap-1.5';
@@ -2643,7 +2662,6 @@
                 selectAllAccessCheckbox.checked = false;
             }
             if (addStudentBtn) addStudentBtn.classList.remove('hidden');
-            if (bulkInviteBtn) bulkInviteBtn.classList.remove('hidden');
             window.updateBulkAccessUI();
         }
     }
@@ -2651,6 +2669,18 @@
     window.updateBulkAccessUI = function () {
         var checkedBoxes = document.querySelectorAll('.access-checkbox:checked');
         var count = checkedBoxes.length;
+
+        var pendingCheckedBoxes = Array.from(checkedBoxes).filter(cb => cb.getAttribute('data-status') === 'pending');
+        var pendingCount = pendingCheckedBoxes.length;
+
+        const inviteBtn = document.getElementById('bulkInviteBtn');
+        if (inviteBtn) {
+            const span = inviteBtn.querySelector('.bulk-invite-count');
+            if (span) span.innerText = `(${pendingCount})`;
+            inviteBtn.disabled = pendingCount === 0;
+            if (pendingCount === 0) inviteBtn.classList.add('opacity-50', 'cursor-not-allowed');
+            else inviteBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+        }
 
         const deleteBtn = document.getElementById('bulkDeleteBtn');
 
@@ -2708,7 +2738,7 @@
         if (!window.currentDeleteAccessId) return;
 
         const btn = document.getElementById('deleteEnrollmentSubmitBtn');
-        const originalText = btn ? btn.innerHTML : '';
+        const originalText = '<i class="fas fa-user-minus"></i> Remove from List';
         if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Removing...'; }
 
         fetch(`/dashboard/materials/access/${window.currentDeleteAccessId}/delete`, {
@@ -2723,20 +2753,29 @@
             .then(data => {
                 if (data.success) {
                     closeModal('deleteEnrollmentModal', 'deleteEnrollmentBox');
+                    window.currentDeleteAccessId = null;
                     showSnackbar(data.message, 'success');
                     setTimeout(refreshTableOnly, 300);
                 } else {
                     showCustomAlert('Error', data.message, 'error');
-                    if (btn) { btn.disabled = false; btn.innerHTML = originalText; }
                 }
             })
             .catch(error => {
                 showCustomAlert('Error', 'An error occurred.', 'error');
+            })
+            .finally(() => {
                 if (btn) { btn.disabled = false; btn.innerHTML = originalText; }
             });
     };
 
     window.openBulkDeleteModal = function () {
+        var count = document.querySelectorAll('.access-checkbox:checked').length;
+        if (count === 0) {
+            showSnackbar('No students selected.', 'error');
+            return;
+        }
+        const span = document.getElementById('bulkDeleteModalCount');
+        if (span) span.innerText = count;
         openModal('bulkDeleteEnrollmentModal', 'bulkDeleteEnrollmentBox');
     };
 
@@ -2753,7 +2792,7 @@
         }
 
         const btn = document.getElementById('bulkDeleteEnrollmentSubmitBtn');
-        const originalText = btn ? btn.innerHTML : '';
+        const originalText = '<i class="fas fa-user-minus"></i> Remove Selected';
         if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Removing...'; }
 
         fetch(`/dashboard/materials/access-bulk/delete`, {
@@ -2771,14 +2810,17 @@
                     closeModal('bulkDeleteEnrollmentModal', 'bulkDeleteEnrollmentBox');
                     showSnackbar(data.message, 'success');
                     setTimeout(refreshTableOnly, 300);
-                    if (bulkSelectModeActive) window.toggleBulkSelectMode();
+                    if (typeof bulkSelectModeActive !== 'undefined' && bulkSelectModeActive) {
+                        window.toggleBulkSelectMode();
+                    }
                 } else {
                     showCustomAlert('Error', data.message, 'error');
-                    if (btn) { btn.disabled = false; btn.innerHTML = originalText; }
                 }
             })
             .catch(error => {
                 showCustomAlert('Error', 'An error occurred.', 'error');
+            })
+            .finally(() => {
                 if (btn) { btn.disabled = false; btn.innerHTML = originalText; }
             });
     };
@@ -2816,13 +2858,52 @@
                 btnElement.disabled = false;
             });
     }
+    window.openBulkInviteModal = function () {
+        var ids = Array.from(document.querySelectorAll('.access-checkbox:checked'))
+            .filter(cb => cb.getAttribute('data-status') === 'pending')
+            .map(cb => cb.value);
+
+        if (ids.length === 0) {
+            showSnackbar('No pending students selected to invite.', 'error');
+            return;
+        }
+
+        const modalCountSpan = document.getElementById('bulkInviteModalCount');
+        if (modalCountSpan) {
+            modalCountSpan.innerText = ids.length;
+        }
+
+        openModal('bulkInviteEnrollmentModal', 'bulkInviteEnrollmentBox');
+    };
+
+    window.executeBulkInvite = function () {
+        bulkSendInvites();
+    };
+
     window.bulkSendInvites = function () {
+        var ids = Array.from(document.querySelectorAll('.access-checkbox:checked'))
+            .filter(cb => cb.getAttribute('data-status') === 'pending')
+            .map(cb => cb.value);
+
+        if (ids.length === 0) {
+            showSnackbar('No pending students selected to invite.', 'error');
+            return;
+        }
+
         const btn = document.getElementById('bulkInviteBtn');
-        const originalHtml = btn.innerHTML;
+        const modalBtn = document.getElementById('bulkInviteSubmitBtn');
+        const originalHtml = '<i class="fas fa-paper-plane"></i> Invite Pending <span class="bulk-invite-count">(' + ids.length + ')</span>';
+        const originalModalHtml = '<i class="fas fa-paper-plane"></i> Send Invitations';
 
         // UI Feedback
-        btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-1.5"></i> Sending...';
-        btn.disabled = true;
+        if (btn) {
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-1.5"></i> Sending...';
+            btn.disabled = true;
+        }
+        if (modalBtn) {
+            modalBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-1.5"></i> Sending...';
+            modalBtn.disabled = true;
+        }
 
         fetch(`{{ url('/dashboard/materials/' . $material->id . '/notify-students') }}`, {
             method: 'POST',
@@ -2830,15 +2911,19 @@
                 'Content-Type': 'application/json',
                 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
                 'Accept': 'application/json'
-            }
+            },
+            body: JSON.stringify({ ids: ids })
         })
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
+                    closeModal('bulkInviteEnrollmentModal', 'bulkInviteEnrollmentBox');
                     showCustomAlert('Success', data.message, 'success');
                     setTimeout(refreshTableOnly, 500); // Quietly refresh the table!
+                    if (typeof bulkSelectModeActive !== 'undefined' && bulkSelectModeActive) {
+                        window.toggleBulkSelectMode();
+                    }
                 } else {
-                    // Use 'info' for 0 pending students instead of a red error
                     showCustomAlert('Notice', data.message, 'info');
                 }
             })
@@ -2846,8 +2931,14 @@
                 showCustomAlert('Error', 'Failed to send bulk invitations.', 'error');
             })
             .finally(() => {
-                btn.innerHTML = originalHtml;
-                btn.disabled = false;
+                if (btn) {
+                    btn.innerHTML = originalHtml;
+                    btn.disabled = false;
+                }
+                if (modalBtn) {
+                    modalBtn.innerHTML = originalModalHtml;
+                    modalBtn.disabled = false;
+                }
             });
     }
 
@@ -3294,11 +3385,11 @@
         </div>
         <div class="p-6">
             <h3 class="text-lg font-semibold text-gray-900 mb-2">
-                Remove this student from the module?
+                Remove selected student(s) from the module?
             </h3>
 
             <p class="text-sm text-gray-600 mb-4">
-                Selected students will no longer have access to this module.
+                <span id="bulkDeleteModalCount" class="font-bold text-red-600">0</span> selected student(s) will no longer have access to this module.
             </p>
 
             <div class="flex gap-3 rounded-xl border border-red-200 bg-red-50 p-4">
@@ -3324,6 +3415,60 @@
             <button onclick="executeBulkDelete()" id="bulkDeleteEnrollmentSubmitBtn"
                 class="px-4 py-2 bg-red-600 border border-transparent text-white font-bold rounded-xl hover:bg-red-700 transition text-sm shadow-sm flex items-center justify-center gap-2">
                 <i class="fas fa-user-minus"></i> Remove Selected
+            </button>
+        </div>
+    </div>
+</div>
+
+{{-- Bulk Invite Confirmation Modal --}}
+<div id="bulkInviteEnrollmentModal"
+    class="fixed inset-0 z-[9999] hidden opacity-0 transition-opacity duration-300 flex items-center justify-center p-4 sm:p-6"
+    style="background-color: rgba(0, 0, 0, 0.5); backdrop-filter: blur(4px);">
+    <div id="bulkInviteEnrollmentBox"
+        class="bg-white rounded-2xl shadow-xl w-full max-w-md transform transition-all duration-300 scale-95 overflow-hidden">
+        <div class="px-6 py-5 border-b border-gray-100 flex items-center justify-between bg-amber-50/50">
+            <h3 class="text-lg font-black text-gray-900 flex items-center gap-2">
+                <div class="w-8 h-8 rounded-lg bg-amber-100 text-amber-600 flex items-center justify-center">
+                    <i class="fas fa-paper-plane text-sm"></i>
+                </div>
+                Send Invitations
+            </h3>
+            <button onclick="closeModal('bulkInviteEnrollmentModal', 'bulkInviteEnrollmentBox')"
+                class="text-gray-400 hover:text-gray-600 transition p-2 rounded-lg hover:bg-gray-100">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div class="p-6">
+            <h3 class="text-lg font-semibold text-gray-900 mb-2">
+                Send invitations to selected pending students?
+            </h3>
+
+            <p class="text-sm text-gray-600 mb-4">
+                An email invitation will be sent to <span id="bulkInviteModalCount" class="font-bold text-amber-600">0</span> selected student(s).
+            </p>
+
+            <div class="flex gap-3 rounded-xl border border-amber-200 bg-amber-50 p-4">
+                <i class="fas fa-info-circle text-amber-600 mt-0.5"></i>
+
+                <div class="text-sm">
+                    <p class="font-semibold text-amber-800 mb-1">
+                        Invitation Process
+                    </p>
+
+                    <p class="text-amber-700">
+                        Students will receive an email containing a secure link to enroll and access this learning material.
+                    </p>
+                </div>
+            </div>
+        </div>
+        <div class="px-6 py-4 border-t border-gray-100 bg-gray-50 flex justify-end gap-3">
+            <button onclick="closeModal('bulkInviteEnrollmentModal', 'bulkInviteEnrollmentBox')"
+                class="px-4 py-2 bg-white border border-gray-200 text-gray-700 font-bold rounded-xl hover:bg-gray-50 transition text-sm shadow-sm">
+                Cancel
+            </button>
+            <button onclick="executeBulkInvite()" id="bulkInviteSubmitBtn"
+                class="px-4 py-2 bg-amber-600 border border-transparent text-white font-bold rounded-xl hover:bg-amber-700 transition text-sm shadow-sm flex items-center justify-center gap-2">
+                <i class="fas fa-paper-plane"></i> Send Invitations
             </button>
         </div>
     </div>

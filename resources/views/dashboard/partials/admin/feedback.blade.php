@@ -12,7 +12,7 @@
         </button>
     </div>
 
-    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+    <div id="admin-feedback-kpi-cards" class="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex items-center gap-4">
             <div class="w-12 h-12 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center text-xl shrink-0">
                 <i class="fas fa-inbox"></i>
@@ -42,6 +42,12 @@
                 <h4 class="text-2xl font-black text-gray-900 leading-none mt-1">{{ $resolvedCount }}</h4>
             </div>
         </div>
+    </div>
+
+    <div class="mb-4 relative max-w-[450px] mt-4">
+        <i class="fas fa-search absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400"></i>
+        <input type="text" id="feedbackSearchInput" placeholder="Search tickets..."
+               class="w-full pl-11 pr-4 py-3 bg-white border border-gray-200 focus:border-[#a52a2a] focus:ring-1 focus:ring-[#a52a2a] rounded-2xl outline-none transition-all text-sm text-gray-700 shadow-sm">
     </div>
 
     <div class="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden flex flex-col min-h-[600px] relative">
@@ -85,11 +91,19 @@
                     <button onclick="FeedbackManager.filter('resolved', this)" 
                         class="feedback-tab px-6 py-2 text-sm font-bold rounded-lg transition-all text-gray-500 hover:text-gray-700 whitespace-nowrap">Resolved & Closed</button>
                 </div>
+                    
+                <div class="ml-auto flex items-center gap-2">
+                    <button id="toggleDeleteModeBtn" onclick="toggleDeleteMode()" class="px-6 py-2.5 bg-gray-100 text-gray-700 text-sm font-bold rounded-xl hover:bg-gray-200 transition-all shadow-sm shrink-0 flex items-center">
+                        <i class="fas fa-trash-alt mr-2 text-red-500"></i>Delete
+                    </button>
+                    
+                    <button id="cancelDeleteModeBtn" onclick="toggleDeleteMode()" class="hidden px-6 py-2.5 bg-gray-800 text-white text-sm font-bold rounded-xl hover:bg-gray-900 transition-all shadow-sm shrink-0 flex items-center">
+                        <i class="fas fa-times mr-2"></i>Cancel
+                    </button>
 
-                <div class="relative w-full sm:w-64">
-                    <i class="fas fa-search absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 text-sm"></i>
-                    <input type="text" id="feedbackSearchInput" placeholder="Search tickets..."
-                        class="w-full pl-9 pr-4 py-2 bg-white border border-gray-200 focus:border-[#a52a2a] focus:ring-1 focus:ring-[#a52a2a] rounded-xl outline-none transition-all text-sm text-gray-700 shadow-sm">
+                    <button id="bulkDeleteBtn" onclick="openBulkDeleteModal()" class="hidden px-6 py-2.5 bg-red-600 text-white text-sm font-bold rounded-xl hover:bg-red-700 transition-all shadow-sm shrink-0 flex items-center disabled:opacity-50 disabled:cursor-not-allowed" disabled>
+                        Delete
+                    </button>
                 </div>
             </div>
 
@@ -97,6 +111,9 @@
                 <table class="w-full text-left border-collapse" id="feedbacksTable">
                     <thead class="bg-white text-gray-400 text-[10px] uppercase tracking-widest border-b border-gray-100">
                         <tr>
+                            <th class="px-6 py-4 font-black w-10 checkbox-col hidden">
+                                <input type="checkbox" id="selectAllTickets" class="w-4 h-4 text-[#a52a2a] border-gray-300 rounded focus:ring-[#a52a2a]">
+                            </th>
                             <th class="px-6 py-4 font-black cursor-pointer hover:bg-gray-50 transition sortable-col select-none" title="Sort by User">
                                 User <i class="fas fa-sort ml-1 text-gray-300"></i>
                             </th>
@@ -125,6 +142,9 @@
 
                             <tr class="hover:bg-gray-50/50 transition group cursor-pointer feedback-row"
                                 data-status="{{ $filterGroup }}" onclick="openAdminFeedbackDetail({{ $fb->id }})">
+                                <td class="px-6 py-4 checkbox-col hidden" onclick="event.stopPropagation()">
+                                    <input type="checkbox" class="ticket-checkbox w-4 h-4 text-[#a52a2a] border-gray-300 rounded focus:ring-[#a52a2a]" value="{{ $fb->id }}">
+                                </td>
                                 
                                 <td class="px-6 py-4">
                                     <div class="flex items-center gap-3">
@@ -173,9 +193,14 @@
                                 </td>
 
                                 <td class="px-6 py-4 text-right">
-                                    <button class="w-8 h-8 rounded-full bg-white border border-gray-200 text-gray-400 group-hover:text-blue-600 group-hover:border-blue-200 group-hover:bg-blue-50 transition flex items-center justify-center ml-auto shadow-sm">
-                                        <i class="fas fa-chevron-right text-xs"></i>
-                                    </button>
+                                    <div class="flex items-center justify-end gap-2">
+                                        <button onclick="event.stopPropagation(); openDeleteTicketModal({{ $fb->id }})" class="w-8 h-8 rounded-full bg-white border border-gray-200 text-gray-400 hover:text-red-600 hover:border-red-200 hover:bg-red-50 transition flex items-center justify-center shadow-sm">
+                                            <i class="fas fa-trash text-xs"></i>
+                                        </button>
+                                        <button class="w-8 h-8 rounded-full bg-white border border-gray-200 text-gray-400 group-hover:text-blue-600 group-hover:border-blue-200 group-hover:bg-blue-50 transition flex items-center justify-center shadow-sm">
+                                            <i class="fas fa-chevron-right text-xs"></i>
+                                        </button>
+                                    </div>
                                 </td>
                             </tr>
                         @empty
@@ -216,23 +241,25 @@
                 <div id="ad-detail-statusBadge"></div>
             </div>
 
-            <div class="flex-1 overflow-y-auto sidebar-scroll p-6">
+            <div class="flex-1 overflow-hidden p-6 flex flex-col h-full min-h-0">
                 <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 h-full">
 
-                    <div class="lg:col-span-2 space-y-6">
+                    <div class="lg:col-span-2 space-y-6 overflow-y-auto custom-scrollbar pr-4 pb-12 h-full">
                         <div>
                             <h4 class="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Original Message</h4>
-                            <div class="bg-gray-50 border border-gray-200 rounded-2xl p-6">
-                                <p id="ad-detail-message" class="text-sm text-gray-800 whitespace-pre-wrap leading-relaxed"></p>
+                            <div class="bg-gray-50 border border-gray-200 rounded-2xl">
+                                <div class="p-6">
+                                    <p id="ad-detail-message" class="text-sm text-gray-800 whitespace-pre-wrap leading-relaxed pr-2"></p>
 
-                                <div id="ad-detail-media" class="mt-4 hidden pt-4 border-t border-gray-200">
-                                    <h4 class="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Attached Screenshot</h4>
-                                    <a id="ad-detail-media-link" href="#" target="_blank" class="block overflow-hidden rounded-xl border border-gray-200 hover:border-blue-400 transition relative group">
-                                        <img id="ad-detail-img" src="" class="w-full max-h-64 object-cover">
-                                        <div class="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition flex items-center justify-center text-white font-bold text-sm">
-                                            <i class="fas fa-external-link-alt mr-2"></i> View Full Image
-                                        </div>
-                                    </a>
+                                    <div id="ad-detail-media" class="mt-4 hidden pt-4 border-t border-gray-200">
+                                        <h4 class="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Attached Screenshot</h4>
+                                        <a id="ad-detail-media-link" href="#" target="_blank" class="block overflow-hidden rounded-xl border border-gray-200 hover:border-blue-400 transition relative group">
+                                            <img id="ad-detail-img" src="" class="w-full max-h-64 object-cover">
+                                            <div class="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition flex items-center justify-center text-white font-bold text-sm">
+                                                <i class="fas fa-external-link-alt mr-2"></i> View Full Image
+                                            </div>
+                                        </a>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -250,9 +277,9 @@
 
                             <div class="flex flex-col sm:flex-row justify-end items-center gap-3 pt-2">
                                 <select id="reply-status" required class="px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm font-bold text-gray-700 outline-none focus:border-blue-500 transition-all">
-                                    <option value="in_progress">Mark as In Progress</option>
-                                    <option value="waiting_on_user">Ask Question / Wait for User</option>
-                                    <option value="resolved">Mark as Resolved</option>
+                                    <option value="in_progress">🔵 In Progress</option>
+                                    <option value="waiting_on_user">🟠 Awaiting User Response</option>
+                                    <option value="resolved">🟢 Resolved</option>
                                 </select>
                                 <button type="submit" class="px-6 py-3 bg-blue-600 text-white font-bold rounded-xl shadow-md hover:bg-blue-700 transition flex items-center gap-2 text-sm w-full sm:w-auto">
                                     <i class="fas fa-paper-plane"></i> Send Update
@@ -484,6 +511,24 @@
             if (totalInfo) totalInfo.innerText = filteredRows.length;
 
             this.renderPaginationControls(totalPages);
+            
+            // Synchronize select all checkboxes based on current visible rows
+            const selectAllCb = document.getElementById('selectAllTickets');
+            const isSelectAllChecked = selectAllCb ? selectAllCb.checked : false;
+            
+            allRows.forEach(row => {
+                const cb = row.querySelector('.ticket-checkbox');
+                if (cb) {
+                    if (row.style.display === 'none') {
+                        cb.checked = false;
+                    } else if (isSelectAllChecked) {
+                        cb.checked = true;
+                    }
+                }
+            });
+            if (typeof updateBulkDeleteButton === 'function') {
+                updateBulkDeleteButton();
+            }
         },
 
         renderPaginationControls: function(totalPages) {
@@ -595,6 +640,7 @@
         if (!feedback) return;
 
         getActiveEl('#admin-feedback-list').classList.add('hidden');
+        getActiveEl('#admin-feedback-kpi-cards').classList.add('hidden');
         getActiveEl('#admin-feedback-detail').classList.remove('hidden');
 
         getActiveEl('#ad-detail-subject').innerText = feedback.subject;
@@ -612,10 +658,34 @@
         const mediaBox = getActiveEl('#ad-detail-media');
         if (feedback.media_url) {
             mediaBox.classList.remove('hidden');
-            getActiveEl('#ad-detail-img').src = '/storage/' + feedback.media_url;
-            getActiveEl('#ad-detail-media-link').href = '/storage/' + feedback.media_url;
+            let urls = Array.isArray(feedback.media_url) ? feedback.media_url : [feedback.media_url];
+            
+            if (urls.length > 0) {
+                let html = `
+                    <h4 class="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Attached Screenshots</h4>
+                    <div class="flex flex-wrap gap-4">
+                `;
+                
+                urls.forEach(fileUrl => {
+                    html += `
+                        <div onclick="openImageModal('${fileUrl}')" class="cursor-pointer relative group rounded-xl overflow-hidden border border-gray-200 w-32 h-32 shrink-0">
+                            <img src="${fileUrl}" class="w-full h-full object-cover bg-gray-50">
+                            <div class="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition flex items-center justify-center text-white font-bold text-sm">
+                                <i class="fas fa-search-plus text-xl"></i>
+                            </div>
+                        </div>
+                    `;
+                });
+                
+                html += `</div>`;
+                mediaBox.innerHTML = html;
+            } else {
+                mediaBox.classList.add('hidden');
+                mediaBox.innerHTML = '';
+            }
         } else {
             mediaBox.classList.add('hidden');
+            mediaBox.innerHTML = '';
         }
 
         const badgeContainer = getActiveEl('#ad-detail-statusBadge');
@@ -641,14 +711,18 @@
                 const date = new Date(msg.created_at).toLocaleString();
 
                 if (isAdmin) {
-                    threadHtml += `<div class="mb-4 bg-blue-50/50 border border-blue-100 rounded-2xl p-4 ml-8 relative">
-                        <div class="flex justify-between items-center mb-2"><span class="text-xs font-black text-blue-700 uppercase"><i class="fas fa-headset"></i> Support (${name})</span><span class="text-[10px] text-gray-400">${date}</span></div>
-                        <p class="text-sm text-gray-800 whitespace-pre-wrap">${msg.message}</p>
+                    threadHtml += `<div class="mb-4 bg-blue-50/50 border border-blue-100 rounded-2xl ml-8 relative overflow-y-auto custom-scrollbar max-h-64">
+                        <div class="p-4">
+                            <div class="flex justify-between items-center mb-2"><span class="text-xs font-black text-blue-700 uppercase"><i class="fas fa-headset"></i> Support (${name})</span><span class="text-[10px] text-gray-400">${date}</span></div>
+                            <p class="text-sm text-gray-800 whitespace-pre-wrap pr-2">${msg.message}</p>
+                        </div>
                     </div>`;
                 } else {
-                    threadHtml += `<div class="mb-4 bg-gray-50 border border-gray-200 rounded-2xl p-4 mr-8 relative">
-                        <div class="flex justify-between items-center mb-2"><span class="text-xs font-black text-gray-600 uppercase"><i class="fas fa-user"></i> ${name}</span><span class="text-[10px] text-gray-400">${date}</span></div>
-                        <p class="text-sm text-gray-800 whitespace-pre-wrap">${msg.message}</p>
+                    threadHtml += `<div class="mb-4 bg-gray-50 border border-gray-200 rounded-2xl mr-8 relative overflow-y-auto custom-scrollbar max-h-64">
+                        <div class="p-4">
+                            <div class="flex justify-between items-center mb-2"><span class="text-xs font-black text-gray-600 uppercase"><i class="fas fa-user"></i> ${name}</span><span class="text-[10px] text-gray-400">${date}</span></div>
+                            <p class="text-sm text-gray-800 whitespace-pre-wrap pr-2">${msg.message}</p>
+                        </div>
                     </div>`;
                 }
             });
@@ -659,7 +733,7 @@
         }
 
         const replyForm = getActiveEl('#admin-reply-form');
-        if (feedback.status === 'closed') {
+        if (feedback.status === 'closed' || feedback.status === 'resolved') {
             replyForm.classList.add('hidden');
         } else {
             replyForm.classList.remove('hidden');
@@ -671,6 +745,7 @@
 
     function closeAdminFeedbackDetail() {
         getActiveEl('#admin-feedback-detail').classList.add('hidden');
+        getActiveEl('#admin-feedback-kpi-cards').classList.remove('hidden');
         getActiveEl('#admin-feedback-list').classList.remove('hidden');
     }
 
@@ -702,10 +777,50 @@
         })
             .then(async response => {
                 if (response.ok) {
+                    const data = await response.json();
                     if(typeof showSnackbar === 'function') showSnackbar('Update sent successfully!', 'success');
                     else alert(`Update sent successfully!`);
                     
-                    window.location.reload(); 
+                    // Append message dynamically
+                    const msg = data.msg;
+                    if (msg) {
+                        const date = new Date(msg.created_at).toLocaleString();
+                        const name = msg.sender.first_name + ' ' + msg.sender.last_name;
+                        const resolvedBlock = getActiveEl('#ad-resolved-block');
+                        
+                        let newMsgHtml = `<div class="mb-4 bg-blue-50/50 border border-blue-100 rounded-2xl ml-8 relative overflow-y-auto custom-scrollbar max-h-64">
+                            <div class="p-4">
+                                <div class="flex justify-between items-center mb-2"><span class="text-xs font-black text-blue-700 uppercase"><i class="fas fa-headset"></i> Support (${name})</span><span class="text-[10px] text-gray-400">${date}</span></div>
+                                <p class="text-sm text-gray-800 whitespace-pre-wrap pr-2">${msg.message}</p>
+                            </div>
+                        </div>`;
+                        
+                        if (resolvedBlock.classList.contains('hidden')) {
+                            resolvedBlock.classList.remove('hidden');
+                            resolvedBlock.innerHTML = newMsgHtml;
+                        } else {
+                            resolvedBlock.insertAdjacentHTML('beforeend', newMsgHtml);
+                        }
+                    }
+                    
+                    // Update status badge dynamically
+                    if (data.status) {
+                        const statusBadge = getActiveEl('#ad-detail-statusBadge');
+                        if (data.status === 'resolved') {
+                            sessionStorage.setItem('lastActiveTab', '/dashboard/feedback');
+                            setTimeout(() => {
+                                window.location.reload();
+                            }, 1000);
+                        } else if (data.status === 'in_progress') {
+                            statusBadge.innerHTML = `<span class="px-3 py-1 rounded-full bg-blue-100 text-blue-700 font-bold text-xs"><i class="fas fa-spinner fa-spin mr-1"></i> In Progress</span>`;
+                        } else if (data.status === 'waiting_on_user') {
+                            statusBadge.innerHTML = `<span class="px-3 py-1 rounded-full bg-amber-100 text-amber-700 font-bold text-xs"><i class="fas fa-question-circle mr-1"></i> Waiting on User</span>`;
+                        }
+                    }
+
+                    form.reset();
+                    btn.innerHTML = originalHtml;
+                    btn.disabled = false;
                 } else {
                     const data = await response.json();
                     if(typeof showSnackbar === 'function') showSnackbar(data.message || 'Error updating ticket.', 'error');
@@ -789,5 +904,216 @@
             btn.innerHTML = originalHtml;
             btn.disabled = false;
         });
+    }
+</script>
+
+{{-- Image Preview Modal --}}
+<div id="imagePreviewModal" class="fixed inset-0 z-[100] hidden">
+    <div class="absolute inset-0 bg-gray-900/90 backdrop-blur-sm" onclick="closeImageModal()"></div>
+    <div class="absolute inset-0 flex items-center justify-center p-4 md:p-8 pointer-events-none">
+        <div id="imagePreviewModalBox" class="relative max-w-5xl w-full max-h-full flex flex-col pointer-events-auto transform transition-all duration-300 scale-95 opacity-0">
+            <button onclick="closeImageModal()" class="absolute -top-12 right-0 text-white hover:text-gray-300 transition w-10 h-10 flex items-center justify-center rounded-full bg-white/10 hover:bg-white/20">
+                <i class="fas fa-times text-xl"></i>
+            </button>
+            <img id="imagePreviewImg" src="" class="w-full h-auto max-h-[85vh] object-contain rounded-lg shadow-2xl bg-black/50">
+        </div>
+    </div>
+</div>
+
+<script>
+    function openImageModal(url) {
+        const modal = document.getElementById('imagePreviewModal');
+        const box = document.getElementById('imagePreviewModalBox');
+        const img = document.getElementById('imagePreviewImg');
+        
+        img.src = url;
+        modal.classList.remove('hidden');
+        
+        setTimeout(() => {
+            box.classList.remove('scale-95', 'opacity-0');
+            box.classList.add('scale-100', 'opacity-100');
+        }, 10);
+    }
+    
+    function closeImageModal() {
+        const modal = document.getElementById('imagePreviewModal');
+        const box = document.getElementById('imagePreviewModalBox');
+        
+        box.classList.remove('scale-100', 'opacity-100');
+        box.classList.add('scale-95', 'opacity-0');
+        
+        setTimeout(() => {
+            modal.classList.add('hidden');
+            document.getElementById('imagePreviewImg').src = '';
+        }, 300);
+    }
+</script><!-- Delete Ticket Modal -->
+<div id="deleteTicketModal" class="fixed inset-0 z-[100] flex items-center justify-center hidden opacity-0 transition-opacity duration-300 bg-gray-900/40 backdrop-blur-sm">
+    <div class="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden transform scale-95 transition-transform duration-300 mx-4" id="deleteTicketModalBox">
+        <div class="p-6 text-center">
+            <div class="w-16 h-16 rounded-full bg-red-100 flex items-center justify-center mx-auto mb-4">
+                <i class="fas fa-trash text-red-600 text-2xl"></i>
+            </div>
+            <h3 class="text-xl font-black text-gray-900 mb-2" id="deleteTicketModalTitle">Delete Ticket</h3>
+            <p class="text-sm text-gray-500 mb-6" id="deleteTicketModalMessage">You are about to permanently delete this ticket and its conversation history. This action cannot be undone.</p>
+            <div class="flex gap-3">
+                <button onclick="closeDeleteTicketModal()" class="flex-1 py-2.5 rounded-xl border border-gray-200 text-gray-700 font-bold hover:bg-gray-50 transition">Cancel</button>
+                <button id="confirmDeleteTicketBtn" class="flex-1 py-2.5 rounded-xl bg-red-600 text-white font-bold hover:bg-red-700 transition">Yes, Delete</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Delete Ticket Logic
+    var ticketIdsToDelete = [];
+
+    function openDeleteTicketModal(id) {
+        ticketIdsToDelete = [id];
+        document.getElementById('deleteTicketModalTitle').innerText = 'Delete Ticket';
+        document.getElementById('deleteTicketModalMessage').innerText = 'You are about to permanently delete this ticket and its conversation history. This action cannot be undone.';
+        showDeleteModal();
+    }
+
+    function openBulkDeleteModal() {
+        const checkboxes = document.querySelectorAll('.ticket-checkbox:checked');
+        ticketIdsToDelete = Array.from(checkboxes).map(cb => parseInt(cb.value));
+        if (ticketIdsToDelete.length === 0) return;
+        
+        document.getElementById('deleteTicketModalTitle').innerText = 'Delete Tickets';
+        document.getElementById('deleteTicketModalMessage').innerText = `You are about to permanently delete ${ticketIdsToDelete.length} tickets and their conversation histories. This action cannot be undone.`;
+        showDeleteModal();
+    }
+
+    function showDeleteModal() {
+        const modal = document.getElementById('deleteTicketModal');
+        const box = document.getElementById('deleteTicketModalBox');
+        modal.classList.remove('hidden');
+        setTimeout(() => {
+            modal.classList.remove('opacity-0');
+            box.classList.remove('scale-95');
+        }, 10);
+    }
+
+    function closeDeleteTicketModal() {
+        const modal = document.getElementById('deleteTicketModal');
+        const box = document.getElementById('deleteTicketModalBox');
+        modal.classList.add('opacity-0');
+        box.classList.add('scale-95');
+        setTimeout(() => {
+            modal.classList.add('hidden');
+            ticketIdsToDelete = [];
+        }, 300);
+    }
+
+    document.getElementById('confirmDeleteTicketBtn').addEventListener('click', async function() {
+        const btn = this;
+        const originalText = btn.innerHTML;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Deleting...';
+        btn.disabled = true;
+
+        try {
+            const isBulk = ticketIdsToDelete.length > 1;
+            const url = isBulk ? '/dashboard/feedback/bulk-delete' : `/dashboard/feedback/${ticketIdsToDelete[0]}`;
+            const method = 'DELETE';
+            
+            const bodyData = isBulk ? JSON.stringify({ ids: ticketIdsToDelete }) : null;
+
+            const response = await fetch(url, {
+                method: method,
+                headers: {
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+                    'Accept': 'application/json',
+                    'Content-Type': 'application/json'
+                },
+                body: bodyData
+            });
+
+            if (response.ok) {
+                if (typeof showSnackbar === 'function') {
+                    showSnackbar('Ticket(s) deleted successfully.', 'success');
+                } else {
+                    alert('Ticket(s) deleted successfully.');
+                }
+                setTimeout(() => {
+                    window.location.reload();
+                }, 1000);
+            } else {
+                alert('Failed to delete tickets. Please try again.');
+                btn.innerHTML = originalText;
+                btn.disabled = false;
+            }
+        } catch (error) {
+            alert('An error occurred.');
+            btn.innerHTML = originalText;
+            btn.disabled = false;
+        }
+    });
+
+    // Checkbox selection logic
+    const selectAllCb = document.getElementById('selectAllTickets');
+    if (selectAllCb) {
+        selectAllCb.addEventListener('change', function() {
+            const checkboxes = document.querySelectorAll('.ticket-checkbox');
+            checkboxes.forEach(cb => {
+                const row = cb.closest('.feedback-row');
+                if (row && row.style.display !== 'none') {
+                    cb.checked = this.checked;
+                } else {
+                    cb.checked = false;
+                }
+            });
+            updateBulkDeleteButton();
+        });
+    }
+
+    document.addEventListener('change', function(e) {
+        if (e.target && e.target.classList.contains('ticket-checkbox')) {
+            updateBulkDeleteButton();
+        }
+    });
+
+    var deleteModeActive = false;
+
+    function toggleDeleteMode() {
+        deleteModeActive = !deleteModeActive;
+        const toggleBtn = document.getElementById('toggleDeleteModeBtn');
+        const cancelBtn = document.getElementById('cancelDeleteModeBtn');
+        const bulkBtn = document.getElementById('bulkDeleteBtn');
+        const checkboxCols = document.querySelectorAll('.checkbox-col');
+
+        if (deleteModeActive) {
+            toggleBtn.classList.add('hidden');
+            cancelBtn.classList.remove('hidden');
+            bulkBtn.classList.remove('hidden');
+            checkboxCols.forEach(col => col.classList.remove('hidden'));
+        } else {
+            toggleBtn.classList.remove('hidden');
+            cancelBtn.classList.add('hidden');
+            bulkBtn.classList.add('hidden');
+            checkboxCols.forEach(col => col.classList.add('hidden'));
+            
+            // Reset selection
+            const selectAllCb = document.getElementById('selectAllTickets');
+            if (selectAllCb) selectAllCb.checked = false;
+            document.querySelectorAll('.ticket-checkbox').forEach(cb => cb.checked = false);
+            updateBulkDeleteButton();
+        }
+    }
+
+    function updateBulkDeleteButton() {
+        const checkboxes = document.querySelectorAll('.ticket-checkbox:checked');
+        const count = checkboxes.length;
+        const bulkBtn = document.getElementById('bulkDeleteBtn');
+        
+        if (bulkBtn) {
+            if (count > 0) {
+                bulkBtn.disabled = false;
+            } else {
+                bulkBtn.disabled = true;
+                const selectAllCb = document.getElementById('selectAllTickets');
+                if (selectAllCb) selectAllCb.checked = false;
+            }
+        }
     }
 </script>

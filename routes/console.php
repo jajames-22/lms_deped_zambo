@@ -8,8 +8,8 @@ use App\Models\Feedback;
 use Carbon\Carbon;
 
 Schedule::call(function () {
-    // Find tickets that have been resolved for more than 7 days
-    $staleDate = Carbon::now()->subDays(7);
+    // Find tickets that have been resolved for more than 3 days
+    $staleDate = Carbon::now()->subDays(3);
     
     Feedback::where('status', 'resolved')
         ->where('updated_at', '<', $staleDate)
@@ -27,18 +27,4 @@ Schedule::call(function () {
     DB::table('notifications')
         ->where('created_at', '<', now()->subDays(30))
         ->delete();
-})->daily();
-
-// Run this check once a day
-Schedule::call(function () {
-    $oldFeedbacks = \App\Models\Feedback::where('created_at', '<', now()->subDays(30))->get();
-
-    foreach ($oldFeedbacks as $feedback) {
-        // If there's an image, delete it from the public disk
-        if ($feedback->media_url) {
-            \Illuminate\Support\Facades\Storage::disk('public')->delete($feedback->media_url);
-        }
-        // Delete the database row
-        $feedback->delete();
-    }
 })->daily();

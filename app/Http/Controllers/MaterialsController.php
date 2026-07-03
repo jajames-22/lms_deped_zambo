@@ -9,6 +9,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Cache;
 use Maatwebsite\Excel\Facades\Excel;
 use Illuminate\Support\Facades\Storage;
 use App\Imports\LessonImport;
@@ -635,6 +636,10 @@ class MaterialsController extends Controller
                         'revert_reason' => null,
                         'updated_at' => now()
                     ]);
+                    
+                    // Bust the cached publication status
+                    \Illuminate\Support\Facades\Cache::forget('material_published_' . $id);
+
                     // ... (rest of the code remains the same)
                     if ($material->instructor) {
                         $material->instructor->notify(new \App\Notifications\LmsAlertNotification(
@@ -699,9 +704,12 @@ class MaterialsController extends Controller
                 ]);
             }
 
-            \Illuminate\Support\Facades\DB::table('materials')
+            DB::table('materials')
                 ->where('id', $id)
                 ->update($updateData);
+
+            // Bust the cached publication status so heartbeat immediately reflects the change
+            Cache::forget('material_published_' . $id);
 
             // 4. --- NOTIFICATION LOGIC ---
             // SCENARIO A: Teacher submits a material for approval
@@ -1313,6 +1321,9 @@ class MaterialsController extends Controller
                 'updated_at' => now()
             ]);
 
+            // Bust the cached publication status
+            \Illuminate\Support\Facades\Cache::forget('material_published_' . $id);
+
             // 2. Process and save manual UI changes using Upsert (Prevent Duplication)
             $keptLessonIds = [];
             $keptQuizIds = [];
@@ -1699,9 +1710,14 @@ class MaterialsController extends Controller
             $material = Material::findOrFail($id);
 
             // STRICT TARGETING: Only fetch students with 'pending' status
-            $targets = MaterialAccess::where('material_id', $material->id)
-                ->where('status', 'pending')
-                ->get();
+            $query = MaterialAccess::where('material_id', $material->id)
+                ->where('status', 'pending');
+
+            if ($request->has('ids') && is_array($request->input('ids')) && !empty($request->input('ids'))) {
+                $query->whereIn('id', $request->input('ids'));
+            }
+
+            $targets = $query->get();
 
             if ($targets->isEmpty()) {
                 return response()->json([
@@ -2030,6 +2046,11 @@ class MaterialsController extends Controller
      */
     public function studySessionStart(Request $request, \App\Models\Material $material)
     {
+        // Guard: stop processing if module is offline or access is revoked
+        if ($guard = $this->assertModuleAvailability($material)) {
+            return $guard;
+        }
+
         $enrollment = \App\Models\Enrollment::where('material_id', $material->id)
             ->where('user_id', auth()->id())
             ->first();
@@ -2050,6 +2071,11 @@ class MaterialsController extends Controller
      */
     public function studySessionFlush(Request $request, \App\Models\Material $material)
     {
+        // Guard: stop processing if module is offline or access is revoked
+        if ($guard = $this->assertModuleAvailability($material)) {
+            return $guard;
+        }
+
         $enrollment = \App\Models\Enrollment::where('material_id', $material->id)
             ->where('user_id', auth()->id())
             ->first();
@@ -2071,8 +2097,76 @@ class MaterialsController extends Controller
         return response()->json(['success' => true, 'seconds_added' => $seconds]);
     }
 
+    /**
+     * Lightweight heartbeat endpoint.
+     * Returns only {"published": true/false} — no relationships loaded.
+     * Result is cached for 60 seconds and busted whenever toggleStatus fires.
+     */
+    public function moduleStatusHeartbeat(Material $material)
+    {
+        $isPublished = Cache::remember(
+            'material_published_' . $material->id,
+            60,
+            fn () => DB::table('materials')->where('id', $material->id)->value('status') === 'published'
+        );
+
+        $hasAccess = DB::table('enrollments')
+            ->where('material_id', $material->id)
+            ->where('user_id', auth()->id())
+            ->exists();
+
+        return response()->json([
+            'published' => $isPublished,
+            'has_access' => $hasAccess
+        ]);
+    }
+
+    /**
+     * Central guard: aborts any student request if the material is no longer published,
+     * or if the student's access/enrollment has been revoked.
+     * Returns a JSON error response (or null if valid).
+     */
+    private function assertModuleAvailability(Material $material): ?\Illuminate\Http\JsonResponse
+    {
+        // 1. Check if the module is still published
+        $isPublished = Cache::remember(
+            'material_published_' . $material->id,
+            60,
+            fn () => DB::table('materials')->where('id', $material->id)->value('status') === 'published'
+        );
+
+        if (!$isPublished) {
+            return response()->json([
+                'success'  => false,
+                'revoked'  => true,
+                'message'  => 'This module is no longer available. You will be redirected.',
+            ], 403);
+        }
+
+        // 2. Check if the student still has access (enrollment exists)
+        $hasAccess = DB::table('enrollments')
+            ->where('material_id', $material->id)
+            ->where('user_id', auth()->id())
+            ->exists();
+
+        if (!$hasAccess) {
+            return response()->json([
+                'success'  => false,
+                'revoked'  => true,
+                'message'  => 'Your access to this module has been revoked. You will be redirected.',
+            ], 403);
+        }
+
+        return null;
+    }
+
     public function saveProgress(Request $request, \App\Models\Material $material)
     {
+        // Guard: stop processing if module is offline or access is revoked
+        if ($guard = $this->assertModuleAvailability($material)) {
+            return $guard;
+        }
+
         $user = auth()->user();
 
         // 1. Save Position Progress
@@ -2253,6 +2347,11 @@ class MaterialsController extends Controller
 
     public function complete(Request $request, \App\Models\Material $material)
     {
+        // Guard: stop processing if module is offline or access is revoked
+        if ($guard = $this->assertModuleAvailability($material)) {
+            return $guard;
+        }
+
         $user = auth()->user();
 
         // --- SERVER-SIDE VALIDATION FOR INCOMPLETE ASSESSMENTS ---

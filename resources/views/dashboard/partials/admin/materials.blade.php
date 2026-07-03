@@ -122,8 +122,8 @@
                         onclick="loadPartial('{{ route('dashboard.materials.manage', $material->id) }}', document.getElementById('nav-materials-btn'))">
 
                             <td class="bulk-delete-col hidden px-4 py-3 text-center" onclick="event.stopPropagation()">
-                                @if(in_array($statusStr, ['published', 'revert_requested']))
-                                    <input type="checkbox" disabled class="w-4 h-4 rounded border-gray-200 bg-gray-100 cursor-not-allowed" title="Cannot delete published/requested materials">
+                                @if(in_array($statusStr, ['published', 'revert_requested', 'pending']))
+                                    <input type="checkbox" disabled class="w-4 h-4 rounded border-gray-200 bg-gray-100 cursor-not-allowed" title="Cannot delete published/pending materials">
                                 @else
                                     <input type="checkbox" class="bulk-delete-checkbox w-4 h-4 rounded border-gray-300 text-red-600 focus:ring-red-500 cursor-pointer" value="{{ $material->id }}">
                                 @endif
@@ -201,7 +201,13 @@
                                     @if(in_array($statusStr, ['published', 'revert_requested']))
                                         <button disabled
                                             class="w-8 h-8 flex items-center justify-center text-gray-300 cursor-not-allowed rounded-lg transition shadow-none"
-                                            title="Cannot delete published module. Request unpublish first.">
+                                            title="Deletion Disabled — request unpublish first.">
+                                            <i class="fas fa-trash-alt text-sm"></i>
+                                        </button>
+                                    @elseif($statusStr === 'pending')
+                                        <button disabled
+                                            class="w-8 h-8 flex items-center justify-center text-gray-300 cursor-not-allowed rounded-lg transition shadow-none"
+                                            title="Deletion Disabled — module is pending admin review.">
                                             <i class="fas fa-trash-alt text-sm"></i>
                                         </button>
                                     @else

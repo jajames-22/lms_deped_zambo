@@ -270,7 +270,6 @@
             'timestamp' => $questions->first()->created_at ? \Carbon\Carbon::parse($questions->first()->created_at)->timestamp : 0
         ]);
     }
-    $timeline = $timeline->sortBy('timestamp')->values();
 @endphp
 
 <body
@@ -774,7 +773,22 @@
         </div>
     </div>
 
-    {{-- CUSTOM ALERT MODAL --}}
+    {{-- MODULE REVOKED MODAL --}}
+    <div id="module-revoked-modal"
+        class="fixed inset-0 z-[99999] hidden opacity-0 transition-opacity duration-300 flex items-center justify-center p-4">
+        <div class="absolute inset-0 bg-gray-900/70 backdrop-blur-sm"></div>
+        <div class="bg-white rounded-3xl w-full max-w-sm shadow-2xl overflow-hidden transform scale-95 transition-all duration-300 text-center p-6 relative z-10"
+            id="module-revoked-modal-box">
+            <div class="w-16 h-16 rounded-full mx-auto mb-4 flex items-center justify-center text-3xl bg-amber-50 text-amber-500">
+                <i class="fas fa-ban"></i>
+            </div>
+            <h3 class="text-xl font-black text-gray-900 mb-2">Module Unavailable</h3>
+            <p id="module-revoked-modal-msg" class="text-sm text-gray-500 mb-6">This module has been taken offline by the instructor. Your progress has been saved. You will be redirected to your dashboard.</p>
+            <button type="button" id="module-revoked-btn"
+                class="w-full px-4 py-3 bg-amber-500 text-white font-bold rounded-xl hover:bg-amber-600 transition shadow-md">Okay</button>
+        </div>
+    </div>
+
     <div id="custom-modal"
         class="fixed inset-0 z-[9999] hidden opacity-0 transition-opacity duration-300 flex items-center justify-center p-4">
         <div class="absolute inset-0 bg-gray-900/60" onclick="closeCustomModal()"></div>
@@ -791,12 +805,85 @@
 
     <script>
         const materialData = @json($timeline);
+        const HEARTBEAT_URL = '{{ route("dashboard.materials.status", $material->id) }}';
+        const REDIRECT_URL = {{ $material->is_public ? 'true' : 'false' }} 
+            ? '{{ route("dashboard.materials.show", $material->hashid) }}' 
+            : '{{ route("student.dashboard") }}';
 
         let state = {
             lesson: {{ $savedProgress->lesson ?? 0 }},
             content: {{ $savedProgress->content ?? 0 }},
             highestUnlockedLesson: {{ $savedProgress->highest_unlocked ?? 0 }}
         };
+
+        // ============================================================
+        // MODULE REVOCATION HANDLER
+        // Called by heartbeat OR by any server response with revoked:true
+        // ============================================================
+        let _moduleRevoked = false;
+
+        function handleModuleRevoked(customMessage = null) {
+            if (_moduleRevoked) return; // only trigger once
+            _moduleRevoked = true;
+
+            // Disable all interactive elements EXCEPT the revoked-modal Okay button
+            document.querySelectorAll('button, input, textarea, select').forEach(el => {
+                if (el.id !== 'module-revoked-btn') el.disabled = true;
+            });
+
+            // Stop any playing videos
+            document.querySelectorAll('.custom-video').forEach(v => {
+                try { v.pause(); } catch(e) {}
+            });
+
+            if (customMessage) {
+                const msgEl = document.getElementById('module-revoked-modal-msg');
+                if (msgEl) msgEl.innerText = customMessage;
+            }
+
+            // Show revoked modal
+            const modal = document.getElementById('module-revoked-modal');
+            const box   = document.getElementById('module-revoked-modal-box');
+            modal.classList.remove('hidden');
+            setTimeout(() => {
+                modal.classList.remove('opacity-0');
+                box.classList.remove('scale-95');
+                box.classList.add('scale-100');
+            }, 10);
+
+            // Wire up the Okay button redirect (use onclick to avoid duplicate listeners)
+            const revokedBtn = document.getElementById('module-revoked-btn');
+            revokedBtn.disabled = false;
+            revokedBtn.onclick = () => { window.location.href = REDIRECT_URL; };
+        }
+
+        // ============================================================
+        // HEARTBEAT — polls every 60 seconds
+        // ============================================================
+        let _heartbeatTimer = null;
+
+        function startHeartbeat() {
+            _heartbeatTimer = setInterval(async () => {
+                if (_moduleRevoked) {
+                    clearInterval(_heartbeatTimer);
+                    return;
+                }
+                try {
+                    const res = await fetch(HEARTBEAT_URL, {
+                        headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' }
+                    });
+                    if (!res.ok) { handleModuleRevoked(); return; }
+                    const data = await res.json();
+                    if (!data.published) {
+                        handleModuleRevoked('This module is no longer available. You will be redirected.');
+                    } else if (data.has_access === false) {
+                        handleModuleRevoked('Your access to this module has been revoked. You will be redirected.');
+                    }
+                } catch (e) {
+                    // Network failure — silently ignore to avoid false positives
+                }
+            }, 60000);
+        }
 
         let isExamLocked = (materialData[state.lesson] && materialData[state.lesson].is_exam) ? true : false;
 
@@ -1020,6 +1107,7 @@
             initVideoPlayers();
             renderState();
             startClientTimer();
+            startHeartbeat(); // Begin hybrid availability check
         });
 
         // =============================================
@@ -1483,6 +1571,11 @@
 
                 const data = await response.json();
 
+                if (response.status === 403 && data.revoked) {
+                    handleModuleRevoked(data.message);
+                    return;
+                }
+
                 if (data.success) {
                     // Flush accumulated study time before leaving
                     flushStudySession(true, data.redirect_url);
@@ -1620,6 +1713,11 @@
                     },
                     body: JSON.stringify(payload)
                 });
+
+                if (response.status === 403) {
+                    const errData = await response.json().catch(() => ({}));
+                    if (errData.revoked) { handleModuleRevoked(errData.message); return { success: false }; }
+                }
 
                 if (waitForResult) {
                     return await response.json();

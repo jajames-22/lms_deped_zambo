@@ -107,7 +107,14 @@
                             <button disabled
                                 onclick="event.stopPropagation();"
                                 class="h-7 w-7 rounded-full bg-white/90 backdrop-blur-sm text-gray-300 flex items-center justify-center cursor-not-allowed shadow-sm transition-colors"
-                                title="Cannot delete published module. Request unpublish first.">
+                                title="Deletion Disabled — request unpublish first.">
+                                <i class="fas fa-trash-alt text-xs"></i>
+                            </button>
+                        @elseif($statusStr === 'pending')
+                            <button disabled
+                                onclick="event.stopPropagation();"
+                                class="h-7 w-7 rounded-full bg-white/90 backdrop-blur-sm text-gray-300 flex items-center justify-center cursor-not-allowed shadow-sm transition-colors"
+                                title="Deletion Disabled — module is pending admin review.">
                                 <i class="fas fa-trash-alt text-xs"></i>
                             </button>
                         @else
@@ -121,7 +128,7 @@
                     </div>
                     
                     <div class="absolute top-3 left-3 flex items-center gap-2 z-20">
-                        @if($statusStr !== 'published')
+                        @if(!in_array($statusStr, ['published', 'pending']))
                             <input type="checkbox" class="bulk-delete-checkbox hidden w-5 h-5 rounded border-gray-300 text-red-600 focus:ring-red-500 cursor-pointer shadow-sm" value="{{ $material->id }}" onclick="event.stopPropagation()">
                         @endif
                         <span class="px-2 py-1 {{ $statusBg }} {{ $statusText }} backdrop-blur-sm text-[9px] font-bold rounded uppercase tracking-wider shadow-sm border border-white/40">
